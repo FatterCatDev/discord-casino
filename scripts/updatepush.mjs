@@ -15,20 +15,43 @@ function parseUpdateFile(text) {
   const lines = text.split(/\r?\n/);
   let version = null;
   const changes = [];
+  const details = [];
+  let section = null;
+
   for (const raw of lines) {
     const line = raw.trim();
     if (!line) continue;
-    if (line.toLowerCase().startsWith('version:')) {
+
+    const lower = line.toLowerCase();
+    if (lower.startsWith('version:')) {
       const value = line.split(':').slice(1).join(':');
       if (value) version = value.trim();
       continue;
     }
-    if (line.startsWith('-') || line.startsWith('*')) {
-      const entry = line.replace(/^[-*]\s*/, '').trim();
-      if (entry) changes.push(entry);
+
+    if (lower === '## details') {
+      section = 'details';
+      continue;
+    }
+    if (lower === '## changes') {
+      section = 'changes';
+      continue;
+    }
+
+    if (section === 'details') {
+      details.push(raw);
+      continue;
+    }
+    if (section === 'changes') {
+      if (line.startsWith('-') || line.startsWith('*')) {
+        const entry = line.replace(/^[-*]\s*/, '').trim();
+        if (entry) changes.push(entry);
+      }
+      continue;
     }
   }
-  return { version, changes };
+
+  return { version, changes, details };
 }
 
 function bumpPatch(version) {
@@ -59,7 +82,7 @@ async function main() {
     throw err;
   });
 
-  const { version: fileVersion, changes } = parseUpdateFile(fileText);
+  const { version: fileVersion, changes, details } = parseUpdateFile(fileText);
   const currentVersion = fileVersion || pkg.version;
   if (!currentVersion) throw new Error('Unable to determine current version from UPDATE.md or package.json.');
   if (!changes.length) throw new Error('No changes listed in UPDATE.md. Add bullet points before running updatepush.');
@@ -77,7 +100,10 @@ async function main() {
       await pushUpdateAnnouncement(client, guildId, {
         changes,
         version: currentVersion,
-        notes: `Release published at ${releaseTimestamp}`
+        notes: [
+          ...(details && details.length ? details : []),
+          `Release published at ${releaseTimestamp}`
+        ]
       });
       console.log(`Update announcement sent for guild ${guildId}`);
       successCount += 1;
