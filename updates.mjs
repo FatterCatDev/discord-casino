@@ -4,27 +4,52 @@ import pkg from './package.json' with { type: 'json' };
 
 export const BOT_VERSION = process.env.BOT_VERSION || pkg.version || '0.0.0';
 
+function chunkLines(lines, limit = 1024) {
+  const chunks = [];
+  let current = '';
+  for (const line of lines) {
+    const piece = line.length > limit
+      ? line.slice(0, limit - 1) + '…'
+      : line;
+    if (!current) {
+      current = piece;
+      continue;
+    }
+    if ((current.length + 1 + piece.length) <= limit) {
+      current += `\n${piece}`;
+    } else {
+      chunks.push(current);
+      current = piece;
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks;
+}
+
 function formatSection(items) {
-  if (!items) return null;
+  if (!items) return [];
+
+  const normalize = (value) => {
+    const str = typeof value === 'string' ? value.trim() : String(value || '').trim();
+    if (!str) return null;
+    if (str.startsWith('•')) return str;
+    if (str.startsWith('-') || str.startsWith('*')) {
+      return `• ${str.replace(/^[-*]\s*/, '')}`;
+    }
+    return `• ${str}`;
+  };
+
+  let lines = [];
   if (Array.isArray(items)) {
-    const lines = items
-      .map(item => (typeof item === 'string' ? item.trim() : String(item || '').trim()))
-      .filter(Boolean);
-    if (!lines.length) return null;
-    return lines.map(line => `• ${line}`).join('\n');
+    lines = items.map(normalize).filter(Boolean);
+  } else {
+    const str = normalize(items);
+    if (!str) return [];
+    const splitted = str.includes('\n') ? str.split('\n') : [str];
+    lines = splitted.map(normalize).filter(Boolean);
   }
-  const str = typeof items === 'string' ? items.trim() : String(items || '').trim();
-  if (!str) return null;
-  const hasLineBreaks = str.includes('\n');
-  if (hasLineBreaks) {
-    return str
-      .split('\n')
-      .map(part => part.trim())
-      .filter(Boolean)
-      .map(line => (line.startsWith('•') ? line : `• ${line}`))
-      .join('\n');
-  }
-  return str.startsWith('•') ? str : `• ${str}`;
+
+  return chunkLines(lines);
 }
 
 export async function pushUpdateAnnouncement(client, guildId, { changes, fixes, version = BOT_VERSION, notes, mentionEveryone = true } = {}) {
@@ -53,22 +78,22 @@ export async function pushUpdateAnnouncement(client, guildId, { changes, fixes, 
     .setColor(0x00AE86)
     .setTimestamp(new Date());
 
-  const changeBlock = formatSection(changes);
-  if (changeBlock) {
-    embed.addFields({ name: 'What\'s New', value: changeBlock });
-  }
+  const changeBlocks = formatSection(changes);
+  changeBlocks.forEach((block, index) => {
+    embed.addFields({ name: index === 0 ? 'What\'s New' : 'What\'s New (cont.)', value: block });
+  });
 
-  const fixesBlock = formatSection(fixes);
-  if (fixesBlock) {
-    embed.addFields({ name: 'Fixes', value: fixesBlock });
-  }
+  const fixesBlocks = formatSection(fixes);
+  fixesBlocks.forEach((block, index) => {
+    embed.addFields({ name: index === 0 ? 'Fixes' : 'Fixes (cont.)', value: block });
+  });
 
-  const notesBlock = formatSection(notes);
-  if (notesBlock) {
-    embed.addFields({ name: 'Notes', value: notesBlock });
-  }
+  const notesBlocks = formatSection(notes);
+  notesBlocks.forEach((block, index) => {
+    embed.addFields({ name: index === 0 ? 'Notes' : 'Notes (cont.)', value: block });
+  });
 
-  if (!changeBlock && !fixesBlock && !notesBlock) {
+  if (!changeBlocks.length && !fixesBlocks.length && !notesBlocks.length) {
     embed.setDescription('No additional details were provided for this release.');
   }
 
