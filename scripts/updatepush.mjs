@@ -54,6 +54,14 @@ function parseUpdateFile(text) {
   return { version, changes, details };
 }
 
+const INSTALL_LINK = 'https://top.gg/bot/1415454565687492780';
+
+function appendInstallLink(content) {
+  if (!content || content.includes(INSTALL_LINK)) return content;
+  const separator = content.endsWith('\n') ? '' : '\n\n';
+  return `${content}${separator}🔗 Invite the bot: ${INSTALL_LINK}`;
+}
+
 function bumpPatch(version) {
   const match = version?.match(/^(\d+)\.(\d+)\.(\d+)$/);
   if (!match) throw new Error(`Unrecognized version format: ${version}`);
