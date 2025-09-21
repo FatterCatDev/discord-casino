@@ -140,7 +140,7 @@ export default async function handleHelp(interaction, ctx) {
             { emoji: '📜', cmd: '/setgamelogchannel channel:<#channel>', desc: 'Set game log channel. (Admin only)' },
             { emoji: '💼', cmd: '/setcashlog channel:<#channel>', desc: 'Set cash log channel. (Admin only)' },
             { emoji: '📬', cmd: '/setrequestchannel channel:<#channel>', desc: 'Set requests channel. (Admin only)' },
-            { emoji: '📣', cmd: '/setupdatech channel:<#channel>', desc: 'Choose where I purr out update notes. (Admin only)' }
+            { emoji: '📣', cmd: '/setupdatech channel:<#channel>', desc: 'Set the channel for bot update announcements. (Admin only)' }
           ]},
           { label: '🎭 Personality', items: [
             { emoji: '💋', cmd: '/kittenmode enabled:<bool>', desc: 'Toggle the Kitten persona for this server. (Admin only)' }
