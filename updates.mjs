@@ -84,6 +84,7 @@ export async function pushUpdateAnnouncement(client, guildId, { changes, fixes, 
     const missingEveryonePermission = err?.code === 50013 || err?.status === 403;
     if (mentionEveryone && missingEveryonePermission) {
       try {
+        console.warn(`Missing permission to @everyone in guild ${guildId}; sending embed without mention.`);
         return await channel.send({ embeds: [embed] });
       } catch (fallbackError) {
         fallbackError.cause = err;
