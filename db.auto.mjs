@@ -23,6 +23,7 @@ export const getGuildSettings = pick('getGuildSettings');
 export const setGameLogChannel = pick('setGameLogChannel');
 export const setCashLogChannel = pick('setCashLogChannel');
 export const setRequestChannel = pick('setRequestChannel');
+export const setUpdateChannel = pick('setUpdateChannel');
 export const setRequestTimer = pick('setRequestTimer');
 export const setMaxRidebusBet = pick('setMaxRidebusBet');
 export const setDefaultHoldemRake = pick('setDefaultHoldemRake');
