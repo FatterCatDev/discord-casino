@@ -129,6 +129,10 @@ try { db.prepare(`SELECT cash_log_channel_id FROM guild_settings LIMIT 1`).get()
 try { db.prepare(`SELECT request_channel_id FROM guild_settings LIMIT 1`).get(); } catch {
   db.exec(`ALTER TABLE guild_settings ADD COLUMN request_channel_id TEXT`);
 }
+// Migration: add update_channel_id to guild_settings if missing
+try { db.prepare(`SELECT update_channel_id FROM guild_settings LIMIT 1`).get(); } catch {
+  db.exec(`ALTER TABLE guild_settings ADD COLUMN update_channel_id TEXT`);
+}
 // Migration: add request_cooldown_sec to guild_settings if missing
 try { db.prepare(`SELECT request_cooldown_sec FROM guild_settings LIMIT 1`).get(); } catch {
   db.exec(`ALTER TABLE guild_settings ADD COLUMN request_cooldown_sec INTEGER NOT NULL DEFAULT 0`);
