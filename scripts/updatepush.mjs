@@ -82,7 +82,7 @@ async function main() {
     throw err;
   });
 
-  const originalContent = fileText.trimEnd();
+  const trimmed = fileText.trimEnd();
   const { version: fileVersion, changes } = parseUpdateFile(fileText);
   const currentVersion = fileVersion || pkg.version;
   if (!currentVersion) throw new Error('Unable to determine current version from UPDATE.md or package.json.');
@@ -99,7 +99,7 @@ async function main() {
   for (const guildId of guildIds) {
     try {
       await pushUpdateAnnouncement(client, guildId, {
-        content: originalContent
+        content: appendInstallLink(trimmed)
       });
       console.log(`Update announcement sent for guild ${guildId}`);
       successCount += 1;
