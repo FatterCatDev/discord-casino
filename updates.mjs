@@ -8,6 +8,7 @@ export async function pushUpdateAnnouncement(client, guildId, { content, mention
   if (!client) throw new Error('UPDATE_PUSH_MISSING_CLIENT');
   if (!guildId) throw new Error('UPDATE_PUSH_MISSING_GUILD');
   if (!content || !content.trim()) throw new Error('UPDATE_PUSH_MISSING_CONTENT');
+  if (content.length > 2000) throw new Error('UPDATE_PUSH_CONTENT_TOO_LONG');
 
   const settings = await getGuildSettings(guildId);
   const channelId = settings?.update_channel_id;
