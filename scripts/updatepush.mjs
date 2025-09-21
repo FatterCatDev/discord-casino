@@ -82,7 +82,8 @@ async function main() {
     throw err;
   });
 
-  const { version: fileVersion, changes, details } = parseUpdateFile(fileText);
+  const originalContent = fileText.trimEnd();
+  const { version: fileVersion, changes } = parseUpdateFile(fileText);
   const currentVersion = fileVersion || pkg.version;
   if (!currentVersion) throw new Error('Unable to determine current version from UPDATE.md or package.json.');
   if (!changes.length) throw new Error('No changes listed in UPDATE.md. Add bullet points before running updatepush.');
@@ -98,12 +99,7 @@ async function main() {
   for (const guildId of guildIds) {
     try {
       await pushUpdateAnnouncement(client, guildId, {
-        changes,
-        version: currentVersion,
-        notes: [
-          ...(details && details.length ? details : []),
-          `Release published at ${releaseTimestamp}`
-        ]
+        content: originalContent
       });
       console.log(`Update announcement sent for guild ${guildId}`);
       successCount += 1;
