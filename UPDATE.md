@@ -10,13 +10,13 @@ version: 1.0.0
 
 💸 **Dual-Currency Flow:** Players stake credits first (burned on losses), while chips handle payouts, buy-ins, and cash-outs with full house-backed accountability.
 
-🛠️ **Admin Toolkit:** Configure `/setcasinocategory`, `/setgamelogchannel`, `/setcashlog`, and `/setrequestchannel` to stand up a casino hub in minutes. Announcements land exactly where you want them via `/setupdatech` plus `npm run updatepush`, which blasts @everyone with the latest notes.
+🛠️ **Admin Toolkit:** Configure `/setcasinocategory`, `/setgamelogchannel`, `/setcashlog`, and `/setrequestchannel` to stand up a casino hub in minutes. Point updates with `/setupdatech` so @everyone hears about the latest upgrades right inside Discord.
 
 🎮 **Games Galore:** Enjoy Blackjack (split/double logic), Roulette with interactive bet builders, Slots, Dice War, Ride the Bus, and full Texas Hold’em tables that create and clean up their own channels.
 
 🧹 **Smart Sessions:** Auto-expiring sessions, tidy result embeds, and optional Kitten Mode keep channels fresh while delivering the vibe your community craves.
 
-⚙️ **Quick Setup:** Invite the bot, fill out `.env`, run `npm run deploy`, set your channels, and let the chips start flowing.
+⚙️ **Quick Setup:** Invite the bot, run the setup slash commands, confirm channel permissions, and let the chips start flowing.
 
 ## Changes
 
@@ -27,6 +27,6 @@ version: 1.0.0
 - 💸 **Dual-Currency System:** Credits stake first, chips top up and pay out; cash-outs burn chips while house balance audits remain transparent.
 - 📊 **Comprehensive Admin Toolkit:** Mod roles, rake controls, cash flow logs, and command cooldowns to keep the house organized.
 - 💬 **Kitten Mode Persona:** Optional sassy alter ego for playful servers—switchable per guild.
-- 🚀 **Update Workflow Ready:** Use `UPDATE.md` + `npm run updatepush` to publish future release notes directly in Discord with an @everyone ping.
+- 🚀 **Update Alerts:** Every release announcement pings @everyone in your chosen update channel so players never miss the latest changes.
 - 🧪 **Robust Session Handling:** Per-user state, auto-expiring sessions, and game result embeds to keep channels tidy.
 - 🔐 **Security-First Defaults:** Role-based access checks, optional owner overrides, and environment-driven secrets.
