@@ -139,6 +139,14 @@ try {
   console.error('Failed to ensure kitten_mode_enabled column on guild_settings:', err);
 }
 
+try {
+  if (await tableExists('guild_settings') && !(await tableHasColumn('guild_settings', 'update_channel_id'))) {
+    await q('ALTER TABLE guild_settings ADD COLUMN update_channel_id TEXT');
+  }
+} catch (err) {
+  console.error('Failed to ensure update_channel_id column on guild_settings:', err);
+}
+
 function resolveGuildId(guildId) {
   return guildId || DEFAULT_GUILD_ID;
 }
