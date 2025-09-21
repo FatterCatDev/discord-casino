@@ -15,7 +15,8 @@
     "sql:migrate:node": "node scripts/migrate.mjs",
     "sql:createdb": "node scripts/create-db.mjs",
     "sql:up": "node -e 'console.log(\"Run these in separate terminals: npm run sql:proxy ; npm run sql:createdb && npm run sql:migrate:node\")'",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "updatepush": "node scripts/updatepush.mjs"
   },
   "keywords": [],
   "author": "",
