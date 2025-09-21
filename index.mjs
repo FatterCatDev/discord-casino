@@ -110,6 +110,7 @@ const client = new Client({
   intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMembers]
 });
 client.botVersion = BOT_VERSION;
+client.pushUpdateAnnouncement = (guildId, details = {}) => pushUpdateAnnouncement(client, guildId, details);
 
 // Moderator gate: treat configured roles and mod-like Discord perms as moderators.
 function collectRoleIds(member) {
