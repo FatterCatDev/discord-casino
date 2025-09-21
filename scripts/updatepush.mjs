@@ -87,7 +87,11 @@ async function main() {
         continue;
       }
       failures.push({ guildId, error: err });
-      console.error(`Failed to push update for guild ${guildId}:`, err.message || err);
+      const details = err?.rawError || err?.cause || err;
+      console.error(`Failed to push update for guild ${guildId}:`, err?.message || err);
+      if (details && details !== err) {
+        console.error('Additional error info:', details);
+      }
     }
   }
 
