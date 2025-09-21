@@ -88,7 +88,14 @@ async function main() {
   await client.destroy();
 
   if (failures.length === guildIds.length) {
+    if (failures.some(f => f.error?.message === 'UPDATE_CHANNEL_NOT_CONFIGURED')) {
+      console.error('Tip: Set an update channel in each guild with /setupdatech before running updatepush.');
+    }
     throw new Error('Update push failed for all target guilds. Aborting version bump.');
+  }
+
+  if (failures.length) {
+    console.warn('Some guilds did not receive the announcement. Resolve the errors above and re-run updatepush if needed.');
   }
 
   const nextVersion = bumpPatch(currentVersion);
