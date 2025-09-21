@@ -381,7 +381,12 @@ function buildCommandContext(interaction, extras = {}) {
     kittenModeEnabled: kittenModeFlag,
     isKittenModeEnabled: ensureKittenMode,
     kittenizeText: kittenizeIfNeeded,
-    kittenizePayload: kittenizePayloadIfNeeded
+    kittenizePayload: kittenizePayloadIfNeeded,
+    pushUpdateAnnouncement: (details = {}) => {
+      if (!guildId) throw new Error('UPDATE_PUSH_REQUIRES_GUILD');
+      return pushUpdateAnnouncement(client, guildId, details);
+    },
+    botVersion: BOT_VERSION
   };
 }
 
