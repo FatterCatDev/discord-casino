@@ -45,6 +45,7 @@ CREATE TABLE IF NOT EXISTS guild_settings (
   log_channel_id TEXT,               -- used as GAME log channel
   cash_log_channel_id TEXT,          -- channel for non-game chip/credit transactions
   request_channel_id TEXT,           -- channel where buyin/cashout requests are posted
+  update_channel_id TEXT,            -- channel where update announcements are posted
   request_cooldown_sec INTEGER NOT NULL DEFAULT 0,
   logging_enabled INTEGER NOT NULL DEFAULT 0,
   max_ridebus_bet INTEGER NOT NULL DEFAULT 1000,
