@@ -371,6 +371,7 @@ export function setGameLogChannel(guildId, channelId) {
     log_channel_id: channelId,
     cash_log_channel_id: null,
     request_channel_id: null,
+    update_channel_id: null,
     request_cooldown_sec: null,
     logging_enabled: enabled,
     max_ridebus_bet: null,
@@ -385,7 +386,7 @@ export function setGameLogChannel(guildId, channelId) {
 export function setLoggingEnabled(guildId, enabled) {
   // Ensure a row exists to avoid NOT NULL insert issues
   ensureGuildSettingsStmt.run(guildId);
-  upsertGuildSettingsStmt.run({ guild_id: guildId, log_channel_id: null, cash_log_channel_id: null, request_channel_id: null, request_cooldown_sec: null, logging_enabled: enabled ? 1 : 0, max_ridebus_bet: null, casino_category_id: null, holdem_rake_bps: null, holdem_rake_cap: null, kitten_mode_enabled: null });
+  upsertGuildSettingsStmt.run({ guild_id: guildId, log_channel_id: null, cash_log_channel_id: null, request_channel_id: null, update_channel_id: null, request_cooldown_sec: null, logging_enabled: enabled ? 1 : 0, max_ridebus_bet: null, casino_category_id: null, holdem_rake_bps: null, holdem_rake_cap: null, kitten_mode_enabled: null });
   return getGuildSettings(guildId);
 }
 
@@ -393,7 +394,7 @@ export function setMaxRidebusBet(guildId, amount) {
   if (!Number.isInteger(amount) || amount <= 0) throw new Error('MAXBET_POSITIVE_INT');
   // Ensure a row exists; then update only the max bet
   ensureGuildSettingsStmt.run(guildId);
-  upsertGuildSettingsStmt.run({ guild_id: guildId, log_channel_id: null, cash_log_channel_id: null, request_channel_id: null, request_cooldown_sec: null, logging_enabled: null, max_ridebus_bet: amount, casino_category_id: null, holdem_rake_bps: null, holdem_rake_cap: null, kitten_mode_enabled: null });
+  upsertGuildSettingsStmt.run({ guild_id: guildId, log_channel_id: null, cash_log_channel_id: null, request_channel_id: null, update_channel_id: null, request_cooldown_sec: null, logging_enabled: null, max_ridebus_bet: amount, casino_category_id: null, holdem_rake_bps: null, holdem_rake_cap: null, kitten_mode_enabled: null });
   return getGuildSettings(guildId);
 }
 
