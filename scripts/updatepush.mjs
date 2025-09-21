@@ -107,7 +107,8 @@ async function main() {
   for (const guildId of guildIds) {
     try {
       await pushUpdateAnnouncement(client, guildId, {
-        content: appendInstallLink(trimmed)
+        content: appendInstallLink(trimmed),
+        mentionEveryone: true
       });
       console.log(`Update announcement sent for guild ${guildId}`);
       successCount += 1;
