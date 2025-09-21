@@ -54,6 +54,7 @@ import cmdTakeCredits from './commands/takecredits.mjs';
 import cmdSetGameLogChannel from './commands/setgamelogchannel.mjs';
 import cmdSetCashLog from './commands/setcashlog.mjs';
 import cmdSetRequestChannel from './commands/setrequestchannel.mjs';
+import cmdSetUpdateChannel from './commands/setupdatech.mjs';
 import cmdRequestTimer from './commands/requesttimer.mjs';
 import cmdRequest from './commands/request.mjs';
 import cmdHelp from './commands/help.mjs';
@@ -398,6 +399,7 @@ const commandHandlers = {
   setgamelogchannel: cmdSetGameLogChannel,
   setcashlog: cmdSetCashLog,
   setrequestchannel: cmdSetRequestChannel,
+  setupdatech: cmdSetUpdateChannel,
   requesttimer: cmdRequestTimer,
   request: cmdRequest,
   help: cmdHelp,
