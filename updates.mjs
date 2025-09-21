@@ -27,7 +27,7 @@ function formatSection(items) {
   return str.startsWith('•') ? str : `• ${str}`;
 }
 
-export async function pushUpdateAnnouncement(client, guildId, { changes, fixes, version = BOT_VERSION, notes } = {}) {
+export async function pushUpdateAnnouncement(client, guildId, { changes, fixes, version = BOT_VERSION, notes, mentionEveryone = true } = {}) {
   if (!client) throw new Error('UPDATE_PUSH_MISSING_CLIENT');
   if (!guildId) throw new Error('UPDATE_PUSH_MISSING_GUILD');
 
@@ -72,6 +72,12 @@ export async function pushUpdateAnnouncement(client, guildId, { changes, fixes, 
     embed.setDescription('No additional details were provided for this release.');
   }
 
-  return channel.send({ embeds: [embed] });
+  const payload = { embeds: [embed] };
+  if (mentionEveryone) {
+    payload.content = '@everyone';
+    payload.allowedMentions = { parse: ['everyone'] };
+  }
+
+  return channel.send(payload);
 }
 // Helper: push update embeds into the configured update channel
