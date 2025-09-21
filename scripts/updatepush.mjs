@@ -71,6 +71,7 @@ async function main() {
   await client.login(token);
 
   const failures = [];
+  let successCount = 0;
   for (const guildId of guildIds) {
     try {
       await pushUpdateAnnouncement(client, guildId, {
@@ -79,7 +80,12 @@ async function main() {
         notes: `Release published at ${releaseTimestamp}`
       });
       console.log(`Update announcement sent for guild ${guildId}`);
+      successCount += 1;
     } catch (err) {
+      if (err?.message === 'UPDATE_CHANNEL_NOT_CONFIGURED') {
+        console.warn(`Skipping guild ${guildId}: no update channel set (use /setupdatech).`);
+        continue;
+      }
       failures.push({ guildId, error: err });
       console.error(`Failed to push update for guild ${guildId}:`, err.message || err);
     }
@@ -87,11 +93,9 @@ async function main() {
 
   await client.destroy();
 
-  if (failures.length === guildIds.length) {
-    if (failures.some(f => f.error?.message === 'UPDATE_CHANNEL_NOT_CONFIGURED')) {
-      console.error('Tip: Set an update channel in each guild with /setupdatech before running updatepush.');
-    }
-    throw new Error('Update push failed for all target guilds. Aborting version bump.');
+  if (successCount === 0) {
+    console.error('No guilds received the update announcement. Configure an update channel with /setupdatech and try again.');
+    throw new Error('Update push aborted: no eligible guilds.');
   }
 
   if (failures.length) {
