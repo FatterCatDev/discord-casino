@@ -427,6 +427,7 @@ async function upsertGuildSettings(fields) {
 export async function setGameLogChannel(guildId, channelId) { await upsertGuildSettings({ guild_id: guildId, log_channel_id: channelId }); return getGuildSettings(guildId); }
 export async function setCashLogChannel(guildId, channelId) { await upsertGuildSettings({ guild_id: guildId, cash_log_channel_id: channelId }); return getGuildSettings(guildId); }
 export async function setRequestChannel(guildId, channelId) { await upsertGuildSettings({ guild_id: guildId, request_channel_id: channelId }); return getGuildSettings(guildId); }
+export async function setUpdateChannel(guildId, channelId) { await upsertGuildSettings({ guild_id: guildId, update_channel_id: channelId }); return getGuildSettings(guildId); }
 export async function setRequestTimer(guildId, seconds) { await upsertGuildSettings({ guild_id: guildId, request_cooldown_sec: Math.max(0, Number(seconds) || 0) }); return getGuildSettings(guildId); }
 export async function setLoggingEnabled(guildId, enabled) { await upsertGuildSettings({ guild_id: guildId, logging_enabled: !!enabled }); return getGuildSettings(guildId); }
 export async function setMaxRidebusBet(guildId, amount) { await upsertGuildSettings({ guild_id: guildId, max_ridebus_bet: Math.max(1, Number(amount) || 1) }); return getGuildSettings(guildId); }
