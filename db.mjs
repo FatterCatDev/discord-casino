@@ -288,15 +288,16 @@ function houseRow(guildId) {
   return getHouseStmt.get(guildId) || { chips: 0 };
 }
 
-const getGuildSettingsStmt = db.prepare('SELECT log_channel_id, cash_log_channel_id, request_channel_id, request_cooldown_sec, logging_enabled, max_ridebus_bet, casino_category_id, holdem_rake_bps, holdem_rake_cap, kitten_mode_enabled FROM guild_settings WHERE guild_id = ?');
+const getGuildSettingsStmt = db.prepare('SELECT log_channel_id, cash_log_channel_id, request_channel_id, update_channel_id, request_cooldown_sec, logging_enabled, max_ridebus_bet, casino_category_id, holdem_rake_bps, holdem_rake_cap, kitten_mode_enabled FROM guild_settings WHERE guild_id = ?');
 const ensureGuildSettingsStmt = db.prepare('INSERT OR IGNORE INTO guild_settings (guild_id) VALUES (?)');
 const upsertGuildSettingsStmt = db.prepare(`
-  INSERT INTO guild_settings (guild_id, log_channel_id, cash_log_channel_id, request_channel_id, request_cooldown_sec, logging_enabled, max_ridebus_bet, casino_category_id, holdem_rake_bps, holdem_rake_cap, kitten_mode_enabled, updated_at)
+  INSERT INTO guild_settings (guild_id, log_channel_id, cash_log_channel_id, request_channel_id, update_channel_id, request_cooldown_sec, logging_enabled, max_ridebus_bet, casino_category_id, holdem_rake_bps, holdem_rake_cap, kitten_mode_enabled, updated_at)
   VALUES (
     @guild_id,
     @log_channel_id,
     @cash_log_channel_id,
     @request_channel_id,
+    @update_channel_id,
     COALESCE(@request_cooldown_sec, 0),
     COALESCE(@logging_enabled, 0),
     COALESCE(@max_ridebus_bet, 1000),
@@ -310,6 +311,7 @@ const upsertGuildSettingsStmt = db.prepare(`
     log_channel_id = COALESCE(excluded.log_channel_id, guild_settings.log_channel_id),
     cash_log_channel_id = COALESCE(excluded.cash_log_channel_id, guild_settings.cash_log_channel_id),
     request_channel_id = COALESCE(excluded.request_channel_id, guild_settings.request_channel_id),
+    update_channel_id = COALESCE(excluded.update_channel_id, guild_settings.update_channel_id),
     request_cooldown_sec = COALESCE(excluded.request_cooldown_sec, guild_settings.request_cooldown_sec),
     logging_enabled = COALESCE(excluded.logging_enabled, guild_settings.logging_enabled),
     max_ridebus_bet = COALESCE(excluded.max_ridebus_bet, guild_settings.max_ridebus_bet),
