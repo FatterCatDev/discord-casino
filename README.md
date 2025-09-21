@@ -134,7 +134,7 @@ Tip: verify env parsing with `npm run env`.
 ### Release Workflow
 - Add release notes as `-` bullets in `UPDATE.md` under the “Changes” heading; keep the `version:` line in sync with the version you intend to announce.
 - Ensure each guild that should receive announcements has `/setupdatech` configured and the bot retains `View Channel`/`Send Messages` in that channel.
-- Run `npm run updatepush` to send the embed (includes bot version and timestamp), bump the patch version in `package.json`, and reset `UPDATE.md` for the next cycle.
+- Run `npm run updatepush` to send the full `UPDATE.md` text (with an `@everyone` mention and the install link appended automatically), bump the patch version in `package.json`, and reset `UPDATE.md` for the next cycle.
 
 ## Updating Commands
 - After changing slash commands in `deploy-commands.mjs`, run `npm run deploy` to push updates globally. To remove old guild-scoped copies, run `CLEAR_GUILD_IDS=<guildId,...> npm run deploy` once.
