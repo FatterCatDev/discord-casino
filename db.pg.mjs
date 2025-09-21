@@ -395,11 +395,12 @@ export async function gameWinWithCredits(guildId, discordId, amount, detail) {
 
 // --- Guild settings (unchanged structure) ---
 function normalizeSettings(row) {
-  if (!row) return { log_channel_id: null, cash_log_channel_id: null, request_channel_id: null, request_cooldown_sec: 0, logging_enabled: 0, max_ridebus_bet: 1000, casino_category_id: null, holdem_rake_bps: 0, holdem_rake_cap: 0, kitten_mode_enabled: 0 };
+  if (!row) return { log_channel_id: null, cash_log_channel_id: null, request_channel_id: null, update_channel_id: null, request_cooldown_sec: 0, logging_enabled: 0, max_ridebus_bet: 1000, casino_category_id: null, holdem_rake_bps: 0, holdem_rake_cap: 0, kitten_mode_enabled: 0 };
   return {
     log_channel_id: row.log_channel_id || null,
     cash_log_channel_id: row.cash_log_channel_id || null,
     request_channel_id: row.request_channel_id || null,
+    update_channel_id: row.update_channel_id || null,
     request_cooldown_sec: Number(row.request_cooldown_sec || 0),
     logging_enabled: row.logging_enabled ? 1 : 0,
     max_ridebus_bet: Number(row.max_ridebus_bet || 1000),
