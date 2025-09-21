@@ -1,7 +1,8 @@
 import { EmbedBuilder, PermissionFlagsBits } from 'discord.js';
 import { getGuildSettings } from './db.auto.mjs';
+import pkg from './package.json' assert { type: 'json' };
 
-export const BOT_VERSION = process.env.BOT_VERSION || '1.0.0';
+export const BOT_VERSION = process.env.BOT_VERSION || pkg.version || '0.0.0';
 
 function formatSection(items) {
   if (!items) return null;
