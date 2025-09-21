@@ -94,7 +94,8 @@ export default async function handleHelp(interaction, ctx) {
             { emoji: '🗂️', cmd: '/setcasinocategory category:<#Category>', desc: 'Choose where my casino lounges live. (Admin only)' },
             { emoji: '📜', cmd: '/setgamelogchannel channel:<#channel>', desc: 'Point game logs to the proper parlor. (Admin only)' },
             { emoji: '💼', cmd: '/setcashlog channel:<#channel>', desc: 'Decide where chip and credit ledgers are whispered. (Admin only)' },
-            { emoji: '📬', cmd: '/setrequestchannel channel:<#channel>', desc: 'Pick the room where requests arrive. (Admin only)' }
+            { emoji: '📬', cmd: '/setrequestchannel channel:<#channel>', desc: 'Pick the room where requests arrive. (Admin only)' },
+            { emoji: '📣', cmd: '/setupdatech channel:<#channel>', desc: 'Tell me where to preen and announce new delights. (Admin only)' }
           ]},
           { label: '🎭 Persona', items: [
             { emoji: '💋', cmd: '/kittenmode enabled:<bool>', desc: 'Invite or dismiss my sultry persona. (Admin only)' }
