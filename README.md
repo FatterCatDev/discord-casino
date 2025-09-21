@@ -128,7 +128,13 @@ Tip: verify env parsing with `npm run env`.
 - `npm run deploy` – Register global slash commands (set `CLEAR_GUILD_IDS` to a comma list to wipe guild overrides)
 - `npm run env` – Print a redacted snapshot of env values
 - `npm run api:keys` – Manage HTTP API keys (create/list/delete)
-- `npm run restart` – Re‑deploy commands and restart a managed process (systemd/PM2)
+- `npm run restart` – Re-deploy commands and restart a managed process (systemd/PM2)
+- `npm run updatepush` – Post the pending changes in `UPDATE.md` to every configured update channel, bump the bot version, and reset `UPDATE.md`
+
+### Release Workflow
+- Add release notes as `-` bullets in `UPDATE.md` under the “Changes” heading; keep the `version:` line in sync with the version you intend to announce.
+- Ensure each guild that should receive announcements has `/setupdatech` configured and the bot retains `View Channel`/`Send Messages` in that channel.
+- Run `npm run updatepush` to send the embed (includes bot version and timestamp), bump the patch version in `package.json`, and reset `UPDATE.md` for the next cycle.
 
 ## Updating Commands
 - After changing slash commands in `deploy-commands.mjs`, run `npm run deploy` to push updates globally. To remove old guild-scoped copies, run `CLEAR_GUILD_IDS=<guildId,...> npm run deploy` once.
