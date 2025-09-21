@@ -78,6 +78,19 @@ export async function pushUpdateAnnouncement(client, guildId, { changes, fixes, 
     payload.allowedMentions = { parse: ['everyone'] };
   }
 
-  return channel.send(payload);
+  try {
+    return await channel.send(payload);
+  } catch (err) {
+    const missingEveryonePermission = err?.code === 50013 || err?.status === 403;
+    if (mentionEveryone && missingEveryonePermission) {
+      try {
+        return await channel.send({ embeds: [embed] });
+      } catch (fallbackError) {
+        fallbackError.cause = err;
+        throw fallbackError;
+      }
+    }
+    throw err;
+  }
 }
 // Helper: push update embeds into the configured update channel
