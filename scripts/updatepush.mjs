@@ -23,7 +23,7 @@ function parseUpdateFile(text) {
       if (value) version = value.trim();
       continue;
     }
-    if (line.startsWith('-')) {
+    if (line.startsWith('-') || line.startsWith('*')) {
       const entry = line.replace(/^[-*]\s*/, '').trim();
       if (entry) changes.push(entry);
     }
