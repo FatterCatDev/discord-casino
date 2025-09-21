@@ -461,6 +461,27 @@ export function setRequestChannel(guildId, channelId) {
   return getGuildSettings(guildId);
 }
 
+export function setUpdateChannel(guildId, channelId) {
+  const current = getGuildSettings(guildId);
+  const enabled = (current && typeof current.logging_enabled === 'number') ? (current.logging_enabled ? 1 : 0) : 0;
+  ensureGuildSettingsStmt.run(guildId);
+  upsertGuildSettingsStmt.run({
+    guild_id: guildId,
+    log_channel_id: null,
+    cash_log_channel_id: null,
+    request_channel_id: null,
+    update_channel_id: channelId,
+    request_cooldown_sec: null,
+    logging_enabled: enabled,
+    max_ridebus_bet: null,
+    casino_category_id: null,
+    holdem_rake_bps: null,
+    holdem_rake_cap: null,
+    kitten_mode_enabled: null
+  });
+  return getGuildSettings(guildId);
+}
+
 export function setRequestTimer(guildId, seconds) {
   const secs = Math.max(0, Number(seconds) || 0);
   ensureGuildSettingsStmt.run(guildId);
