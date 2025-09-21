@@ -4,11 +4,34 @@ import pkg from './package.json' with { type: 'json' };
 
 export const BOT_VERSION = process.env.BOT_VERSION || pkg.version || '0.0.0';
 
+function chunkMessageContent(content, limit = 2000) {
+  const normalized = (content || '').replace(/\r\n/g, '\n');
+  const chunks = [];
+  let remaining = normalized.trim();
+
+  while (remaining.length > limit) {
+    const slice = remaining.slice(0, limit);
+    let breakIdx = slice.lastIndexOf('\n\n');
+    if (breakIdx === -1 || breakIdx < Math.floor(limit * 0.5)) breakIdx = slice.lastIndexOf('\n');
+    if (breakIdx === -1 || breakIdx < Math.floor(limit * 0.5)) breakIdx = slice.lastIndexOf(' ');
+    if (breakIdx === -1 || breakIdx < 1) breakIdx = limit;
+
+    const chunk = remaining.slice(0, breakIdx).trimEnd();
+    chunks.push(chunk);
+    remaining = remaining.slice(breakIdx).trimStart();
+  }
+
+  if (remaining.length) {
+    chunks.push(remaining);
+  }
+
+  return chunks;
+}
+
 export async function pushUpdateAnnouncement(client, guildId, { content, mentionEveryone = false } = {}) {
   if (!client) throw new Error('UPDATE_PUSH_MISSING_CLIENT');
   if (!guildId) throw new Error('UPDATE_PUSH_MISSING_GUILD');
   if (!content || !content.trim()) throw new Error('UPDATE_PUSH_MISSING_CONTENT');
-  if (content.length > 2000) throw new Error('UPDATE_PUSH_CONTENT_TOO_LONG');
 
   const settings = await getGuildSettings(guildId);
   const channelId = settings?.update_channel_id;
@@ -27,10 +50,32 @@ export async function pushUpdateAnnouncement(client, guildId, { content, mention
     throw new Error('UPDATE_PUSH_MISSING_PERMISSIONS');
   }
 
-  const payload = mentionEveryone
-    ? { content: content, allowedMentions: { parse: ['everyone'] } }
-    : { content };
+  const chunks = Array.isArray(content)
+    ? content.flatMap(value => chunkMessageContent(String(value)))
+    : chunkMessageContent(String(content));
 
-  return channel.send(payload);
+  if (!chunks.length) throw new Error('UPDATE_PUSH_MISSING_CONTENT');
+
+  const results = [];
+  for (let idx = 0; idx < chunks.length; idx++) {
+    const chunk = chunks[idx];
+    const payload = {
+      content: idx === 0 && mentionEveryone ? `@everyone\n${chunk}` : chunk
+    };
+    if (idx === 0 && mentionEveryone) {
+      payload.allowedMentions = { parse: ['everyone'] };
+    } else {
+      payload.allowedMentions = { parse: [] };
+    }
+    // Ensure chunk is within Discord limit after mention prefix
+    if (payload.content.length > 2000) {
+      throw new Error('UPDATE_PUSH_CONTENT_TOO_LONG');
+    }
+    // eslint-disable-next-line no-await-in-loop
+    const message = await channel.send(payload);
+    results.push(message);
+  }
+
+  return results;
 }
 // Helper: push update embeds into the configured update channel
