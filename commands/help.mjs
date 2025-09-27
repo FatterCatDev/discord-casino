@@ -16,6 +16,7 @@ export default async function handleHelp(interaction, ctx) {
           { emoji: '📡', cmd: '/ping', desc: 'Confirm your mistress is listening.' },
           { emoji: '💰', cmd: '/balance [user]', desc: 'Peek at your riches — mods may peek for other Kittens too.' },
           { emoji: '🏆', cmd: '/leaderboard [limit]', desc: 'Admire which Kittens are dripping in chips across every server.' },
+          { emoji: '👥', cmd: '/stafflist', desc: 'Peek at the admins and house Kittens tending my casino.' },
           { emoji: '🔄', cmd: 'Staking', desc: 'Every game but Hold’em burns Credits first; Chips only leap in when Credits fall short.' }
         ]},
         { label: '🎲 Games of Temptation', items: [
