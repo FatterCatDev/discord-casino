@@ -4,7 +4,9 @@ import { setRequestChannel } from '../db.auto.mjs';
 export default async function handleSetRequestChannel(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
-  if (!(await ctx.isAdmin(interaction))) {
+  const perms = interaction.memberPermissions ?? interaction.member?.permissions;
+  const hasDiscordAdmin = perms?.has?.(PermissionFlagsBits.Administrator);
+  if (!(hasDiscordAdmin || await ctx.isAdmin(interaction))) {
     return interaction.reply({ content: say('❌ Only my trusted admins may decide where I take requests, Kitten.', '❌ Casino admin access required.'), ephemeral: true });
   }
   const channel = interaction.options.getChannel('channel');
