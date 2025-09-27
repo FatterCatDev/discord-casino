@@ -3,7 +3,7 @@ import { takeFromUserToHouse } from '../db.auto.mjs';
 export default async function handleTakeChips(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
-  if (!(await ctx.isAdmin(interaction))) {
+  if (!(await ctx.isModerator(interaction))) {
     return interaction.reply({ content: say('❌ Only my trusted staff may collect chips for the house, Kitten.', '❌ You do not have permission.'), ephemeral: true });
   }
   const target = interaction.options.getUser('user');
