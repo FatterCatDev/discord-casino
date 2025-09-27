@@ -44,6 +44,7 @@ export default async function handleHelp(interaction, ctx) {
           { emoji: '📡', cmd: '/ping', desc: 'Check if the bot is alive.' },
           { emoji: '💰', cmd: '/balance [user]', desc: 'Check your balance (moderators can check others).' },
           { emoji: '🏆', cmd: '/leaderboard [limit]', desc: 'Show global top chip holders.' },
+          { emoji: '👥', cmd: '/stafflist', desc: 'See the admins and moderators keeping the casino running.' },
           { emoji: '🔄', cmd: 'Staking', desc: 'All games except Hold’em use Credits‑first staking (Credits burn on losses; Chips are used only if Credits are insufficient).' }
         ]},
         { label: '🎲 Games', items: [
