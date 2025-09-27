@@ -15,9 +15,12 @@ function pick(name, ...alts) {
 }
 
 // --- Common exports used across the app ---
-export const getModRoles = pick('getModRoles');
-export const addModRole = pick('addModRole');
-export const removeModRole = pick('removeModRole');
+export const getModerators = pick('getModerators');
+export const addModerator = pick('addModerator');
+export const removeModerator = pick('removeModerator');
+export const getAdmins = pick('getAdmins');
+export const addAdmin = pick('addAdmin');
+export const removeAdmin = pick('removeAdmin');
 
 export const getGuildSettings = pick('getGuildSettings');
 export const setGameLogChannel = pick('setGameLogChannel');
