@@ -130,6 +130,23 @@ async function seedGuildHouseFromLegacy() {
   await q('INSERT INTO guild_house (guild_id, chips) VALUES ($1, 0) ON CONFLICT DO NOTHING', [ECONOMY_GUILD_ID]);
 }
 
+async function ensureAccessControlTables() {
+  await q(`
+    CREATE TABLE IF NOT EXISTS mod_users (
+      guild_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      PRIMARY KEY (guild_id, user_id)
+    )
+  `);
+  await q(`
+    CREATE TABLE IF NOT EXISTS admin_users (
+      guild_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      PRIMARY KEY (guild_id, user_id)
+    )
+  `);
+}
+
 async function mergeEconomyToGlobalScope() {
   if (!USE_GLOBAL_ECONOMY) return;
   const gid = ECONOMY_GUILD_ID;
