@@ -303,9 +303,13 @@ try {
   }
 } catch {}
 
-const getModRolesStmt = db.prepare('SELECT role_id FROM mod_roles WHERE guild_id = ?');
-const insertModRoleStmt = db.prepare('INSERT OR IGNORE INTO mod_roles (guild_id, role_id) VALUES (?, ?)');
-const removeModRoleStmt = db.prepare('DELETE FROM mod_roles WHERE guild_id = ? AND role_id = ?');
+const getModUsersStmt = db.prepare('SELECT user_id FROM mod_users WHERE guild_id = ?');
+const insertModUserStmt = db.prepare('INSERT OR IGNORE INTO mod_users (guild_id, user_id) VALUES (?, ?)');
+const removeModUserStmt = db.prepare('DELETE FROM mod_users WHERE guild_id = ? AND user_id = ?');
+
+const getAdminUsersStmt = db.prepare('SELECT user_id FROM admin_users WHERE guild_id = ?');
+const insertAdminUserStmt = db.prepare('INSERT OR IGNORE INTO admin_users (guild_id, user_id) VALUES (?, ?)');
+const removeAdminUserStmt = db.prepare('DELETE FROM admin_users WHERE guild_id = ? AND user_id = ?');
 
 const ensureUserStmt = db.prepare('INSERT OR IGNORE INTO users (guild_id, discord_id) VALUES (?, ?)');
 const getUserStmt = db.prepare('SELECT chips, credits FROM users WHERE guild_id = ? AND discord_id = ?');
