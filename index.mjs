@@ -254,8 +254,11 @@ function buildCommandContext(interaction, extras = {}) {
   };
 
   return {
+    isModerator,
     isAdmin,
-    isOwnerRole,
+    listModerators: () => moderatorsForGuild(guildId),
+    listAdmins: () => adminsForGuild(guildId),
+    hasOwnerOverride,
     chipsAmount,
     formatChips,
     postCashLog: wrappedPostCashLog,
@@ -325,7 +328,6 @@ function buildCommandContext(interaction, extras = {}) {
     startBlackjack: (interaction, table, bet) => startBlackjackMod(interaction, table, bet),
     runSlotsSpin: (interaction, bet, key) => runSlotsSpinMod(interaction, bet, key),
     startRouletteSession: async (interaction) => startRouletteSessionMod(interaction),
-    MOD_ROLE_IDS,
     guildId,
     kittenModeEnabled: kittenModeFlag,
     isKittenModeEnabled: ensureKittenMode,
