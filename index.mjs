@@ -259,6 +259,7 @@ function buildCommandContext(interaction, extras = {}) {
     listModerators: () => moderatorsForGuild(guildId),
     listAdmins: () => adminsForGuild(guildId),
     hasOwnerOverride,
+    ownerUserIds: OWNER_USER_IDS,
     chipsAmount,
     formatChips,
     postCashLog: wrappedPostCashLog,
