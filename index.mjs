@@ -465,7 +465,7 @@ client.on(Events.InteractionCreate, async interaction => {
 
     // Request reject modal submits
     else if (interaction.isModalSubmit() && interaction.customId.startsWith('req|rejmodal|')) {
-      if (!(await isAdmin(interaction))) return interaction.reply({ content: '❌ Moderators only.', ephemeral: true });
+      if (!(await isModerator(interaction))) return interaction.reply({ content: '❌ Moderators only.', ephemeral: true });
       const ctx = buildCommandContext(interaction, ctxExtras);
       return onRequestRejectModal(interaction, ctx);
     }
