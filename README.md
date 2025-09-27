@@ -68,7 +68,7 @@ All games except Texas Hold’em use Credits‑first staking: your bet draws fro
 ## Command Catalogue
 
 Player
-- `/help`, `/ping`, `/balance [user]`, `/leaderboard [limit]`
+- `/help`, `/ping`, `/balance [user]`, `/leaderboard [limit]`, `/dailyspin`
 - `/stafflist`
 - `/ridebus bet:<int>`, `/blackjack table:<High|Low> bet:<int>`, `/slots bet:<int>`, `/roulette`, `/holdem`
 
