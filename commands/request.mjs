@@ -1,5 +1,5 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
-import { getGuildSettings, getActiveRequest, getLastRequestAt, getModRoles, getUserBalances, createActiveRequest, setLastRequestNow } from '../db.auto.mjs';
+import { getGuildSettings, getActiveRequest, getLastRequestAt, getUserBalances, createActiveRequest, setLastRequestNow } from '../db.auto.mjs';
 
 export default async function handleRequest(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
@@ -33,8 +33,15 @@ export default async function handleRequest(interaction, ctx) {
     return interaction.reply({ content: say('❌ I can’t reach the requests channel, Kitten.', '❌ Requests channel is invalid or inaccessible.'), ephemeral: true });
   }
 
-  const adminRoleIds = Array.from(new Set([...(ctx.MOD_ROLE_IDS||[]), ...(await getModRoles(interaction.guild.id))]));
-  const mentions = adminRoleIds.length ? adminRoleIds.map(id => `<@&${id}>`).join(' ') : '';
+  let mentions = '';
+  try {
+    const adminIds = await ctx.listAdmins();
+    const modIds = await ctx.listModerators();
+    const unique = Array.from(new Set([...(adminIds || []), ...(modIds || [])]));
+    if (unique.length) {
+      mentions = unique.map(id => `<@${id}>`).join(' ');
+    }
+  } catch {}
 
   let balText = '';
   try {
