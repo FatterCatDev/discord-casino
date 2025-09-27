@@ -11,7 +11,8 @@ import {
   getUserBalances,
   transferFromHouseToUser,
   getHouseBalance,
-  getModRoles,
+  getModerators,
+  getAdmins,
   takeFromUserToHouse,
   burnCredits
 } from './db.auto.mjs';
