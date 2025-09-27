@@ -235,25 +235,49 @@ const commands = [
     ]
   },
   {
-    name: 'addmodrole',
-    description: 'Add a role as casino moderator (admin only)',
+    name: 'addmod',
+    description: 'Add a user as casino moderator (admin only).',
     options: [
       {
-        type: 8, // ROLE
-        name: 'role',
-        description: 'The role to grant moderator access',
+        type: 6,
+        name: 'user',
+        description: 'The user to grant moderator access',
         required: true
       }
     ]
   },
   {
-    name: 'removemodrole',
-    description: 'Remove a role from casino moderator (admin only)',
+    name: 'removemod',
+    description: 'Remove a user from casino moderator (admin only).',
     options: [
       {
-        type: 8,
-        name: 'role',
-        description: 'The role to revoke moderator access',
+        type: 6,
+        name: 'user',
+        description: 'The user to revoke moderator access',
+        required: true
+      }
+    ]
+  },
+  {
+    name: 'addadmin',
+    description: 'Add a user as casino admin (admin only).',
+    options: [
+      {
+        type: 6,
+        name: 'user',
+        description: 'The user to grant admin access',
+        required: true
+      }
+    ]
+  },
+  {
+    name: 'removeadmin',
+    description: 'Remove a user from casino admin (admin only).',
+    options: [
+      {
+        type: 6,
+        name: 'user',
+        description: 'The user to revoke admin access',
         required: true
       }
     ]
