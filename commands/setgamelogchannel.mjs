@@ -4,9 +4,8 @@ import { setGameLogChannel } from '../db.auto.mjs';
 export default async function handleSetGameLogChannel(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
-  const perms = interaction.memberPermissions ?? interaction.member?.permissions;
-  if (!perms?.has(PermissionFlagsBits.Administrator)) {
-    return interaction.reply({ content: say('❌ Only a Discord Administrator may pick my game log channel, Kitten.', '❌ Discord Administrator permission required.'), ephemeral: true });
+  if (!(await ctx.isAdmin(interaction))) {
+    return interaction.reply({ content: say('❌ Only my trusted admins may choose that log channel, Kitten.', '❌ Casino admin access required.'), ephemeral: true });
   }
   const channel = interaction.options.getChannel('channel');
   const isTextish = channel && (
