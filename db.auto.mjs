@@ -21,6 +21,8 @@ export const removeModerator = pick('removeModerator');
 export const getAdmins = pick('getAdmins');
 export const addAdmin = pick('addAdmin');
 export const removeAdmin = pick('removeAdmin');
+export const getLastDailySpinAt = pick('getLastDailySpinAt');
+export const setLastDailySpinNow = pick('setLastDailySpinNow');
 
 export const getGuildSettings = pick('getGuildSettings');
 export const setGameLogChannel = pick('setGameLogChannel');
