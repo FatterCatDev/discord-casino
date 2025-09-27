@@ -404,18 +404,42 @@ const updateActiveReqStatusStmt = db.prepare(`
 `);
 const clearActiveReqStmt = db.prepare('DELETE FROM active_requests WHERE guild_id = ? AND user_id = ?');
 
-export function getModRoles(guildId) {
-  return getModRolesStmt.all(guildId).map(r => r.role_id);
+function canonicalGuildId(guildId) {
+  return guildId ? String(guildId) : DEFAULT_GUILD_ID;
 }
 
-export function addModRole(guildId, roleId) {
-  insertModRoleStmt.run(guildId, roleId);
-  return getModRoles(guildId);
+export function getModerators(guildId) {
+  const gid = canonicalGuildId(guildId);
+  return getModUsersStmt.all(gid).map(r => r.user_id);
 }
 
-export function removeModRole(guildId, roleId) {
-  removeModRoleStmt.run(guildId, roleId);
-  return getModRoles(guildId);
+export function addModerator(guildId, userId) {
+  const gid = canonicalGuildId(guildId);
+  insertModUserStmt.run(gid, String(userId));
+  return getModerators(gid);
+}
+
+export function removeModerator(guildId, userId) {
+  const gid = canonicalGuildId(guildId);
+  removeModUserStmt.run(gid, String(userId));
+  return getModerators(gid);
+}
+
+export function getAdmins(guildId) {
+  const gid = canonicalGuildId(guildId);
+  return getAdminUsersStmt.all(gid).map(r => r.user_id);
+}
+
+export function addAdmin(guildId, userId) {
+  const gid = canonicalGuildId(guildId);
+  insertAdminUserStmt.run(gid, String(userId));
+  return getAdmins(gid);
+}
+
+export function removeAdmin(guildId, userId) {
+  const gid = canonicalGuildId(guildId);
+  removeAdminUserStmt.run(gid, String(userId));
+  return getAdmins(gid);
 }
 
 export function getGuildSettings(guildId) {
