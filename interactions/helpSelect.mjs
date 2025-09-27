@@ -2,7 +2,7 @@ import { EmbedBuilder } from 'discord.js';
 
 export default async function handleHelpSelect(interaction, ctx) {
   const val = interaction.values[0];
-  const isMod = await ctx.isAdmin(interaction);
+  const isMod = await ctx.isModerator(interaction);
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
 
   const sections = [];
