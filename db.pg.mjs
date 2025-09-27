@@ -145,6 +145,14 @@ async function ensureAccessControlTables() {
       PRIMARY KEY (guild_id, user_id)
     )
   `);
+  await q(`
+    CREATE TABLE IF NOT EXISTS daily_spin_last (
+      guild_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      last_ts BIGINT NOT NULL,
+      PRIMARY KEY (guild_id, user_id)
+    )
+  `);
 }
 
 async function mergeEconomyToGlobalScope() {
