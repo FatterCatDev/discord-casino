@@ -65,6 +65,7 @@ import cmdRemoveMod from './commands/removemod.mjs';
 import cmdAddAdmin from './commands/addadmin.mjs';
 import cmdRemoveAdmin from './commands/removeadmin.mjs';
 import cmdStaffList from './commands/stafflist.mjs';
+import cmdDailySpin from './commands/dailyspin.mjs';
 import cmdRideBus from './commands/ridebus.mjs';
 import cmdBlackjack from './commands/blackjack.mjs';
 import cmdSlots from './commands/slots.mjs';
@@ -369,6 +370,7 @@ const commandHandlers = {
   removemod: cmdRemoveMod,
   addadmin: cmdAddAdmin,
   removeadmin: cmdRemoveAdmin,
+  dailyspin: cmdDailySpin,
   stafflist: cmdStaffList,
   ridebus: cmdRideBus,
   blackjack: cmdBlackjack,
