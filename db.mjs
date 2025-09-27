@@ -454,6 +454,18 @@ export function removeAdmin(guildId, userId) {
   return getAdmins(gid);
 }
 
+export function getLastDailySpinAt(guildId, userId) {
+  const gid = canonicalGuildId(guildId);
+  const row = getDailySpinStmt.get(gid, String(userId));
+  return row ? Number(row.last_ts || 0) : 0;
+}
+
+export function setLastDailySpinNow(guildId, userId, ts = Math.floor(Date.now() / 1000)) {
+  const gid = canonicalGuildId(guildId);
+  upsertDailySpinStmt.run(gid, String(userId), Number(ts));
+  return ts;
+}
+
 export function getGuildSettings(guildId) {
   return getGuildSettingsStmt.get(guildId) || { log_channel_id: null, cash_log_channel_id: null, request_channel_id: null, update_channel_id: null, request_cooldown_sec: 0, logging_enabled: 0, max_ridebus_bet: 1000, casino_category_id: null, holdem_rake_bps: 0, holdem_rake_cap: 0, kitten_mode_enabled: 0 };
 }
