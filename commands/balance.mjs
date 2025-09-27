@@ -14,8 +14,8 @@ export default async function handleBalance(interaction, ctx) {
     : say(`My polished Kitten <@${target.id}>`, `Balance for <@${target.id}>`);
   return interaction.reply({
     content: say(
-      `🧾 **${header}**\n💳 Credits: **${fmt.format(credits)}**\n🎟️ Chips: **${ctx.chipsAmount(chips)}**\nSavor it, Kitten <@${target.id}>`,
-      `🧾 **${header}**\n💳 Credits: **${fmt.format(credits)}**\n🎟️ Chips: **${ctx.chipsAmount(chips)}**`
+      `🧾 **${header}**\n💳 Credits: **${fmt.format(credits)}**\n🎟️ Chips: **${ctx.chipsAmount(chips)}**\n🌐 Economy: Global\nSavor it, Kitten <@${target.id}>`,
+      `🧾 **${header}**\n💳 Credits: **${fmt.format(credits)}**\n🎟️ Chips: **${ctx.chipsAmount(chips)}**\n🌐 Economy: Global`
     ),
     ephemeral: true
   });

@@ -11,8 +11,8 @@ export default async function handleHouseBalance(interaction, ctx) {
   const net = await getCasinoNetworth(guildId);
   return interaction.reply({
     content: say(
-      `🏦 House balance: **${ctx.chipsAmount(h)}**\n💼 Net worth of every tantalizing chip in play: **${ctx.chipsAmount(net)}**\nKeep it purring, Kitten.`,
-      `🏦 House balance: **${ctx.chipsAmount(h)}**\n💼 Net worth (all chips in circulation): **${ctx.chipsAmount(net)}**`
+      `🏦 Global house balance: **${ctx.chipsAmount(h)}**\n💼 Global net worth of every tantalizing chip in play: **${ctx.chipsAmount(net)}**\nKeep it purring, Kitten.`,
+      `🏦 Global house balance: **${ctx.chipsAmount(h)}**\n💼 Global net worth (all chips in circulation): **${ctx.chipsAmount(net)}**`
     ),
     ephemeral: true
   });

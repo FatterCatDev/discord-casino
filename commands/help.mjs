@@ -15,7 +15,7 @@ export default async function handleHelp(interaction, ctx) {
           { emoji: '🆘', cmd: '/help', desc: 'Summon my guidance whenever you need a whisper, Kitten.' },
           { emoji: '📡', cmd: '/ping', desc: 'Confirm your mistress is listening.' },
           { emoji: '💰', cmd: '/balance [user]', desc: 'Peek at your riches — mods may peek for other Kittens too.' },
-          { emoji: '🏆', cmd: '/leaderboard [limit]', desc: 'Admire which Kittens are dripping in chips.' },
+          { emoji: '🏆', cmd: '/leaderboard [limit]', desc: 'Admire which Kittens are dripping in chips across every server.' },
           { emoji: '🔄', cmd: 'Staking', desc: 'Every game but Hold’em burns Credits first; Chips only leap in when Credits fall short.' }
         ]},
         { label: '🎲 Games of Temptation', items: [
@@ -43,7 +43,7 @@ export default async function handleHelp(interaction, ctx) {
           { emoji: '🆘', cmd: '/help', desc: 'Show this help.' },
           { emoji: '📡', cmd: '/ping', desc: 'Check if the bot is alive.' },
           { emoji: '💰', cmd: '/balance [user]', desc: 'Check your balance (moderators can check others).' },
-          { emoji: '🏆', cmd: '/leaderboard [limit]', desc: 'Show top chip holders.' },
+          { emoji: '🏆', cmd: '/leaderboard [limit]', desc: 'Show global top chip holders.' },
           { emoji: '🔄', cmd: 'Staking', desc: 'All games except Hold’em use Credits‑first staking (Credits burn on losses; Chips are used only if Credits are insufficient).' }
         ]},
         { label: '🎲 Games', items: [
@@ -72,7 +72,7 @@ export default async function handleHelp(interaction, ctx) {
         groups: [
           { label: '✉️ Requests', items: [ { emoji: '⏱️', cmd: '/requesttimer seconds:<int>', desc: 'Set how long eager Kittens wait between /request pleas.' } ] },
           { label: '🏦 House & Chips', items: [
-            { emoji: '📊', cmd: '/housebalance', desc: 'Check the vault — the house keeps score.' },
+            { emoji: '📊', cmd: '/housebalance', desc: 'Check the global vault — the house keeps score everywhere.' },
             { emoji: '➕', cmd: '/houseadd amount:<int> [reason]', desc: 'Slip fresh chips into the house coffers.' },
             { emoji: '➖', cmd: '/houseremove amount:<int> [reason]', desc: 'Pull chips out for something special.' },
             { emoji: '🎁', cmd: '/givechips user:<@> amount:<int> [reason]', desc: 'Gift chips to a deserving Kitten.' },
@@ -118,7 +118,7 @@ export default async function handleHelp(interaction, ctx) {
         groups: [
           { label: '✉️ Requests', items: [ { emoji: '⏱️', cmd: '/requesttimer seconds:<int>', desc: 'Set cooldown between /request submissions.' } ] },
           { label: '🏦 House & Chips', items: [
-            { emoji: '📊', cmd: '/housebalance', desc: 'View house chip balance.' },
+            { emoji: '📊', cmd: '/housebalance', desc: 'View the global house chip balance.' },
             { emoji: '➕', cmd: '/houseadd amount:<int> [reason]', desc: 'Add chips to the house.' },
             { emoji: '➖', cmd: '/houseremove amount:<int> [reason]', desc: 'Remove chips from the house.' },
             { emoji: '🎁', cmd: '/givechips user:<@> amount:<int> [reason]', desc: 'Give chips from house to player.' },

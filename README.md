@@ -5,8 +5,10 @@ https://discord.com/oauth2/authorize?client_id=1415454565687492780&permissions=5
 
 Discord bot for a lightweight casino economy with two currencies and multiple mini‑games.
 
-- Chips: backed by a shared House bank and used for all payouts.
+- Chips: backed by a global House bank shared across every server and used for all payouts.
 - Credits: personal, non‑house currency; burned on losses when used to stake.
+
+Balances are global: the House bank and user wallets follow players across every guild where the bot runs. The economy owner (Discord ID `94915805375889408`) retains ultimate control over minting and burning.
 
 Includes slash commands for balances, leaderboards, admin operations, cash/request workflows, logging, and the following games: Ride the Bus, Blackjack, Slots, Roulette, Dice War, and a Texas Hold’em table.
 
@@ -61,7 +63,7 @@ All games except Texas Hold’em use Credits‑first staking: your bet draws fro
 - Log channels:
   - Game logs (e.g., session end) via `/setgamelogchannel channel:<#>`.
   - Cash logs (admin and request settlements) via `/setcashlog channel:<#>`.
-- Leaderboard: `/leaderboard [limit]` lists top chip holders.
+- Leaderboard: `/leaderboard [limit]` lists the global top chip holders.
 
 ## Command Catalogue
 

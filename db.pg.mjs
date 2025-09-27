@@ -11,6 +11,9 @@ const pool = new Pool({
 });
 
 const DEFAULT_GUILD_ID = process.env.PRIMARY_GUILD_ID || process.env.GUILD_ID || 'global';
+const ECONOMY_SCOPE = (process.env.ECONOMY_SCOPE || 'global').toLowerCase();
+const ECONOMY_GUILD_ID = process.env.GLOBAL_ECONOMY_ID || DEFAULT_GUILD_ID;
+const USE_GLOBAL_ECONOMY = ECONOMY_SCOPE !== 'guild';
 
 async function q(text, params = []) {
   const { rows } = await pool.query(text, params);
@@ -68,7 +71,7 @@ async function migrateUsersToGuildScoped() {
     `);
     await c.query(
       'INSERT INTO users (guild_id, discord_id, chips, credits, created_at, updated_at) SELECT $1, discord_id, chips, credits, created_at, updated_at FROM users_legacy',
-      [DEFAULT_GUILD_ID]
+      [ECONOMY_GUILD_ID]
     );
     await c.query('DROP TABLE users_legacy');
   });
@@ -93,7 +96,7 @@ async function migrateTransactionsToGuildScoped() {
     `);
     await c.query(
       'INSERT INTO transactions (id, guild_id, account, delta, reason, admin_id, currency, created_at) SELECT id, $1, account, delta, reason, admin_id, currency, created_at FROM transactions_legacy',
-      [DEFAULT_GUILD_ID]
+      [ECONOMY_GUILD_ID]
     );
     await c.query('DROP TABLE transactions_legacy');
     const seqRes = await c.query(`SELECT pg_get_serial_sequence('transactions','id') AS seq`);
@@ -122,14 +125,65 @@ async function seedGuildHouseFromLegacy() {
       const row = await q1('SELECT chips FROM house WHERE id = 1');
       if (row && Number.isFinite(Number(row.chips))) legacy = Number(row.chips);
     }
-    await q('INSERT INTO guild_house (guild_id, chips) VALUES ($1, $2) ON CONFLICT DO NOTHING', [DEFAULT_GUILD_ID, legacy]);
+    await q('INSERT INTO guild_house (guild_id, chips) VALUES ($1, $2) ON CONFLICT DO NOTHING', [ECONOMY_GUILD_ID, legacy]);
   }
-  await q('INSERT INTO guild_house (guild_id, chips) VALUES ($1, 0) ON CONFLICT DO NOTHING', [DEFAULT_GUILD_ID]);
+  await q('INSERT INTO guild_house (guild_id, chips) VALUES ($1, 0) ON CONFLICT DO NOTHING', [ECONOMY_GUILD_ID]);
+}
+
+async function mergeEconomyToGlobalScope() {
+  if (!USE_GLOBAL_ECONOMY) return;
+  const gid = ECONOMY_GUILD_ID;
+
+  const needsUserMerge = await q1('SELECT 1 FROM users WHERE guild_id <> $1 LIMIT 1', [gid]);
+  if (needsUserMerge) {
+    const aggregates = await q(`
+      SELECT discord_id,
+             COALESCE(SUM(chips), 0) AS chips,
+             COALESCE(SUM(credits), 0) AS credits,
+             MIN(created_at) AS created_at,
+             MAX(updated_at) AS updated_at
+      FROM users
+      GROUP BY discord_id
+    `);
+    await tx(async c => {
+      await c.query('DELETE FROM users');
+      for (const row of aggregates) {
+        const chips = Number(row?.chips || 0);
+        const credits = Number(row?.credits || 0);
+        const createdAt = row?.created_at || new Date();
+        const updatedAt = row?.updated_at || createdAt;
+        await c.query(
+          'INSERT INTO users (guild_id, discord_id, chips, credits, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,$6)',
+          [gid, row.discord_id, chips, credits, createdAt, updatedAt]
+        );
+      }
+    });
+  } else {
+    await q('UPDATE users SET guild_id = $1 WHERE guild_id <> $1', [gid]);
+  }
+
+  await q('UPDATE transactions SET guild_id = $1 WHERE guild_id <> $1', [gid]);
+
+  const needsHouseMerge = await q1('SELECT 1 FROM guild_house WHERE guild_id <> $1 LIMIT 1', [gid]);
+  if (needsHouseMerge) {
+    const totalRow = await q1('SELECT COALESCE(SUM(chips), 0) AS total FROM guild_house');
+    const total = Number(totalRow?.total || 0);
+    await tx(async c => {
+      await c.query('DELETE FROM guild_house');
+      await c.query(
+        'INSERT INTO guild_house (guild_id, chips) VALUES ($1,$2) ON CONFLICT (guild_id) DO UPDATE SET chips = EXCLUDED.chips, updated_at = NOW()',
+        [gid, total]
+      );
+    });
+  } else {
+    await q('INSERT INTO guild_house (guild_id, chips) VALUES ($1, 0) ON CONFLICT (guild_id) DO NOTHING', [gid]);
+  }
 }
 
 await migrateUsersToGuildScoped();
 await migrateTransactionsToGuildScoped();
 await seedGuildHouseFromLegacy();
+await mergeEconomyToGlobalScope();
 
 try {
   if (await tableExists('guild_settings') && !(await tableHasColumn('guild_settings', 'kitten_mode_enabled'))) {
@@ -148,6 +202,7 @@ try {
 }
 
 function resolveGuildId(guildId) {
+  if (USE_GLOBAL_ECONOMY) return ECONOMY_GUILD_ID;
   return guildId || DEFAULT_GUILD_ID;
 }
 
@@ -460,7 +515,7 @@ export async function clearActiveRequest(guildId, userId) {
 // --- Hold’em helpers ---
 async function guildForTable(tableId) {
   const row = await q1('SELECT guild_id FROM holdem_tables WHERE table_id = $1', [String(tableId)]);
-  return row?.guild_id || DEFAULT_GUILD_ID;
+  return resolveGuildId(row?.guild_id);
 }
 
 export async function ensureHoldemTable(params) {

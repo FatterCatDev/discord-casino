@@ -7,6 +7,9 @@ db.pragma('journal_mode = WAL');
 db.pragma('synchronous = NORMAL');
 
 const DEFAULT_GUILD_ID = process.env.PRIMARY_GUILD_ID || process.env.GUILD_ID || 'global';
+const ECONOMY_SCOPE = (process.env.ECONOMY_SCOPE || 'global').toLowerCase();
+const ECONOMY_GUILD_ID = process.env.GLOBAL_ECONOMY_ID || DEFAULT_GUILD_ID;
+const USE_GLOBAL_ECONOMY = ECONOMY_SCOPE !== 'guild';
 
 // --- SCHEMA & MIGRATIONS ---
 db.exec(`
@@ -15,6 +18,16 @@ CREATE TABLE IF NOT EXISTS mod_roles (
   guild_id TEXT NOT NULL,
   role_id TEXT NOT NULL,
   PRIMARY KEY (guild_id, role_id)
+);
+CREATE TABLE IF NOT EXISTS mod_users (
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  PRIMARY KEY (guild_id, user_id)
+);
+CREATE TABLE IF NOT EXISTS admin_users (
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  PRIMARY KEY (guild_id, user_id)
 );
 CREATE TABLE IF NOT EXISTS users (
   guild_id TEXT NOT NULL,
@@ -180,7 +193,7 @@ function migrateUsersToGuildScoped() {
     SELECT @guild, discord_id, chips, credits, created_at, updated_at FROM users
   `);
   const migrate = db.transaction(() => {
-    insertLegacy.run({ guild: DEFAULT_GUILD_ID });
+    insertLegacy.run({ guild: ECONOMY_GUILD_ID });
     db.exec('DROP TABLE users');
     db.exec('ALTER TABLE users_tmp RENAME TO users');
   });
@@ -207,7 +220,7 @@ function migrateTransactionsToGuildScoped() {
     SELECT id, @guild, account, delta, reason, admin_id, currency, created_at FROM transactions
   `);
   const migrate = db.transaction(() => {
-    insertLegacy.run({ guild: DEFAULT_GUILD_ID });
+    insertLegacy.run({ guild: ECONOMY_GUILD_ID });
     db.exec('DROP TABLE transactions');
     db.exec('ALTER TABLE transactions_tmp RENAME TO transactions');
   });
@@ -222,13 +235,60 @@ function seedGuildHouseFromLegacy() {
     const row = db.prepare('SELECT chips FROM house WHERE id = 1').get();
     if (row && Number.isFinite(row.chips)) legacy = row.chips;
   } catch {}
-  db.prepare('INSERT OR IGNORE INTO guild_house (guild_id, chips) VALUES (?, ?)').run(DEFAULT_GUILD_ID, legacy);
+  db.prepare('INSERT OR IGNORE INTO guild_house (guild_id, chips) VALUES (?, ?)').run(ECONOMY_GUILD_ID, legacy);
+}
+
+function mergeEconomyToGlobalScope() {
+  if (!USE_GLOBAL_ECONOMY) return;
+  const gid = ECONOMY_GUILD_ID;
+
+  const needsUserMerge = db.prepare('SELECT 1 FROM users WHERE guild_id != ? LIMIT 1').get(gid);
+  if (needsUserMerge) {
+    const aggregated = db.prepare(`
+      SELECT discord_id,
+             COALESCE(SUM(chips), 0) AS chips,
+             COALESCE(SUM(credits), 0) AS credits,
+             MIN(created_at) AS created_at,
+             MAX(updated_at) AS updated_at
+      FROM users
+      GROUP BY discord_id
+    `).all();
+    const deleteUsersStmt = db.prepare('DELETE FROM users');
+    const insertUserStmt = db.prepare('INSERT INTO users (guild_id, discord_id, chips, credits, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)');
+    const mergeUsers = db.transaction(() => {
+      deleteUsersStmt.run();
+      for (const row of aggregated) {
+        const chips = Number(row?.chips || 0);
+        const credits = Number(row?.credits || 0);
+        const createdAt = row?.created_at || new Date().toISOString();
+        const updatedAt = row?.updated_at || createdAt;
+        insertUserStmt.run(gid, row.discord_id, chips, credits, String(createdAt), String(updatedAt));
+      }
+    });
+    mergeUsers();
+  } else {
+    db.prepare('UPDATE users SET guild_id = ? WHERE guild_id != ?').run(gid, gid);
+  }
+
+  db.prepare('UPDATE transactions SET guild_id = ? WHERE guild_id != ?').run(gid, gid);
+
+  const needsHouseMerge = db.prepare('SELECT 1 FROM guild_house WHERE guild_id != ? LIMIT 1').get(gid);
+  if (needsHouseMerge) {
+    const totalRow = db.prepare('SELECT COALESCE(SUM(chips), 0) AS total FROM guild_house').get();
+    const total = Number(totalRow?.total || 0);
+    const mergeHouse = db.transaction(() => {
+      db.prepare('DELETE FROM guild_house').run();
+      db.prepare('INSERT INTO guild_house (guild_id, chips) VALUES (?, ?)').run(gid, total);
+    });
+    mergeHouse();
+  }
 }
 
 migrateUsersToGuildScoped();
 migrateTransactionsToGuildScoped();
 seedGuildHouseFromLegacy();
-db.prepare('INSERT OR IGNORE INTO guild_house (guild_id, chips) VALUES (?, 0)').run(DEFAULT_GUILD_ID);
+mergeEconomyToGlobalScope();
+db.prepare('INSERT OR IGNORE INTO guild_house (guild_id, chips) VALUES (?, 0)').run(ECONOMY_GUILD_ID);
 db.exec('CREATE INDEX IF NOT EXISTS idx_users_guild_discord ON users (guild_id, discord_id)');
 db.exec('CREATE INDEX IF NOT EXISTS idx_transactions_guild_created ON transactions (guild_id, created_at)');
 
@@ -272,6 +332,7 @@ const resetUsersStmt = db.prepare('UPDATE users SET chips = 0, credits = 100, up
 const resetHouseExactStmt = db.prepare('UPDATE guild_house SET chips = 0, updated_at = CURRENT_TIMESTAMP WHERE guild_id = ?');
 
 function resolveGuildId(guildId) {
+  if (USE_GLOBAL_ECONOMY) return ECONOMY_GUILD_ID;
   return guildId || DEFAULT_GUILD_ID;
 }
 
@@ -625,7 +686,7 @@ const getTableGuildStmt = db.prepare('SELECT guild_id FROM holdem_tables WHERE t
 
 function guildForTable(tableId) {
   const row = getTableGuildStmt.get(String(tableId));
-  return row?.guild_id || DEFAULT_GUILD_ID;
+  return resolveGuildId(row?.guild_id);
 }
 
 export function ensureHoldemTable({ tableId, guildId, channelId, sb, bb, min, max, rakeBps, hostId }) {

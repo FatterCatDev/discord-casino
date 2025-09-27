@@ -17,6 +17,6 @@ export default async function handleLeaderboard(interaction, ctx) {
       `${rank} <@${r.discord_id}> — **${fmt.format(Number(r.chips || 0))}**`
     );
   });
-  const title = say(`🏆 Chip Leaderboard — My Top ${rows.length} Kittens`, `🏆 Chip Leaderboard (Top ${rows.length})`);
+  const title = say(`🏆 Global Chip Leaderboard — My Top ${rows.length} Kittens`, `🏆 Global Chip Leaderboard (Top ${rows.length})`);
   return interaction.reply({ content: `**${title}**\n${lines.join('\n')}` });
 }

