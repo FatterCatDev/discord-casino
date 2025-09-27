@@ -9,7 +9,7 @@ export default async function handleRequestButtons(interaction, ctx) {
   const amount = Number(parts[4]);
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
-  if (!(await ctx.isAdmin(interaction))) {
+  if (!(await ctx.isModerator(interaction))) {
     return interaction.reply({ content: say('❌ Only my trusted moderators may touch these buttons, Kitten.', '❌ Moderators only.'), ephemeral: true });
   }
   const msg = interaction.message;
