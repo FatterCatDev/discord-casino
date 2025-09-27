@@ -201,6 +201,7 @@ await migrateUsersToGuildScoped();
 await migrateTransactionsToGuildScoped();
 await seedGuildHouseFromLegacy();
 await mergeEconomyToGlobalScope();
+await ensureAccessControlTables();
 
 try {
   if (await tableExists('guild_settings') && !(await tableHasColumn('guild_settings', 'kitten_mode_enabled'))) {
