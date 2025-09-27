@@ -1,7 +1,7 @@
 import { ActionRowBuilder, EmbedBuilder, StringSelectMenuBuilder } from 'discord.js';
 
 export default async function handleHelp(interaction, ctx) {
-  const isMod = await ctx.isAdmin(interaction);
+  const isMod = await ctx.isModerator(interaction);
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
 
   const sections = [];
