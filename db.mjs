@@ -29,6 +29,12 @@ CREATE TABLE IF NOT EXISTS admin_users (
   user_id TEXT NOT NULL,
   PRIMARY KEY (guild_id, user_id)
 );
+CREATE TABLE IF NOT EXISTS daily_spin_last (
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  last_ts INTEGER NOT NULL,
+  PRIMARY KEY (guild_id, user_id)
+);
 CREATE TABLE IF NOT EXISTS users (
   guild_id TEXT NOT NULL,
   discord_id TEXT NOT NULL,
@@ -310,6 +316,12 @@ const removeModUserStmt = db.prepare('DELETE FROM mod_users WHERE guild_id = ? A
 const getAdminUsersStmt = db.prepare('SELECT user_id FROM admin_users WHERE guild_id = ?');
 const insertAdminUserStmt = db.prepare('INSERT OR IGNORE INTO admin_users (guild_id, user_id) VALUES (?, ?)');
 const removeAdminUserStmt = db.prepare('DELETE FROM admin_users WHERE guild_id = ? AND user_id = ?');
+const getDailySpinStmt = db.prepare('SELECT last_ts FROM daily_spin_last WHERE guild_id = ? AND user_id = ?');
+const upsertDailySpinStmt = db.prepare(`
+  INSERT INTO daily_spin_last (guild_id, user_id, last_ts)
+  VALUES (?, ?, ?)
+  ON CONFLICT(guild_id, user_id) DO UPDATE SET last_ts = excluded.last_ts
+`);
 
 const ensureUserStmt = db.prepare('INSERT OR IGNORE INTO users (guild_id, discord_id) VALUES (?, ?)');
 const getUserStmt = db.prepare('SELECT chips, credits FROM users WHERE guild_id = ? AND discord_id = ?');
