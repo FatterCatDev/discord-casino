@@ -79,17 +79,6 @@ import onHelpSelect from './interactions/helpSelect.mjs';
 import onRequestButtons from './interactions/requestButtons.mjs';
 import onRequestRejectModal from './interactions/requestRejectModal.mjs';
 
-const ADMIN_ROLE_IDS = (process.env.ADMIN_ROLE_IDS || '')
-  .split(',')
-  .map(s => s.trim())
-  .filter(Boolean);
-
-// Preferred: MOD_ROLE_IDS; fallback to ADMIN_ROLE_IDS for backward compatibility
-const MOD_ROLE_IDS = (process.env.MOD_ROLE_IDS || process.env.ADMIN_ROLE_IDS || '')
-  .split(',')
-  .map(s => s.trim())
-  .filter(Boolean);
-
 const OWNER_USER_IDS = Array.from(new Set([
   '94915805375889408',
   ...(process.env.OWNER_USER_IDS || '')
