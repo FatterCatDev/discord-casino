@@ -8,3 +8,4 @@ version: 1.0.1
 - Recognize Discord user `94915805375889408` as the built-in economy owner (also treated as admin for slash commands) and refreshed in-bot messaging to highlight the global scope.
 - Replaced role/permission based access checks with explicit `/addmod`, `/removemod`, `/addadmin`, and `/removeadmin` commands; moderator/admin gates now read solely from those user lists.
 - Added `/stafflist` so anyone can review the current casino admins and moderators.
+- Restored Discord Administrator overrides for configuring casino category and log channels, alongside the new staff lists.
