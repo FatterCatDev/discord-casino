@@ -1,7 +1,7 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelType, PermissionFlagsBits } from 'discord.js';
 import crypto from 'node:crypto';
 import { postGameLogByIds } from './logging.mjs';
-import { getGuildSettings, ensureHoldemTable, createHoldemHand, escrowAdd, escrowReturn, escrowCommit, escrowCreditMany, settleRake, finalizeHoldemHand, getEscrowBalance, getModRoles, getUserBalances } from '../db.auto.mjs';
+import { getGuildSettings, ensureHoldemTable, createHoldemHand, escrowAdd, escrowReturn, escrowCommit, escrowCreditMany, settleRake, finalizeHoldemHand, getEscrowBalance, getUserBalances } from '../db.auto.mjs';
 
 // In-memory Table state; escrow/payouts are enforced via DB helpers.
 
@@ -1071,13 +1071,22 @@ export async function hostTable(interaction, ctx, { sb, bb, min, max, cap, rakeB
     const everyoneId = interaction.guild.roles.everyone.id;
     const botId = interaction.client.user.id;
     const hostId = interaction.user.id;
-    let modRoleIds = [];
-    try { modRoleIds = Array.from(new Set([...(ctx.MOD_ROLE_IDS||[]), ...(await getModRoles(interaction.guild.id))])); } catch {}
+    let staffUserIds = [];
+    try {
+      const adminIds = await ctx.listAdmins();
+      const modIds = await ctx.listModerators();
+      staffUserIds = Array.from(new Set([...(adminIds || []), ...(modIds || [])].map(String)));
+    } catch {}
     const overwrites = [
       { id: everyoneId, allow: [PermissionFlagsBits.ViewChannel], deny: [PermissionFlagsBits.SendMessages] },
       { id: botId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ManageMessages] },
       { id: hostId, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages] },
-      ...modRoleIds.map(id => ({ id, allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ManageMessages] }))
+      ...staffUserIds
+        .filter(id => id && id !== hostId)
+        .map(id => ({
+          id,
+          allow: [PermissionFlagsBits.ViewChannel, PermissionFlagsBits.SendMessages, PermissionFlagsBits.ManageChannels, PermissionFlagsBits.ManageMessages]
+        }))
     ];
     tableChannel = await interaction.guild.channels.create({
       name,
