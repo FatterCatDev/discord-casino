@@ -71,13 +71,13 @@ Player
 - `/help`, `/ping`, `/balance [user]`, `/leaderboard [limit]`
 - `/ridebus bet:<int>`, `/blackjack table:<High|Low> bet:<int>`, `/slots bet:<int>`, `/roulette`, `/holdem`
 
-Moderator (requires Discord Admin or moderator perms/roles)
+Moderator (granted via `/addmod`, admins via `/addadmin`)
 - House & chips: `/housebalance`, `/houseadd`, `/houseremove`, `/givechips`, `/takechips`, `/buyin`, `/cashout`
 - Credits: `/givecredits`, `/takecredits`
 - Logging: `/setgamelogchannel`, `/setcashlog`
 - Requests: `/setrequestchannel`, `/requesttimer`
 - Game limits: `/setmaxbet game:<Ride the Bus> amount:<int>`
-- Roles: `/addmodrole role:<Role>`, `/removemodrole role:<Role>`
+- Roles: `/addmod user:<@User>`, `/removemod user:<@User>`, `/addadmin user:<@User>`, `/removeadmin user:<@User>`
 - Maintenance (OWNER): `/resetallbalance`
 - Hold’em table (admin): `/setrake percent:<number> [cap:<int>]`
  - Setup: `/setcasinocategory category:<#Category>`
