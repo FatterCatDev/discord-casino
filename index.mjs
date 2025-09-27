@@ -105,99 +105,53 @@ const client = new Client({
 client.botVersion = BOT_VERSION;
 client.pushUpdateAnnouncement = (guildId, details = {}) => pushUpdateAnnouncement(client, guildId, details);
 
-// Moderator gate: treat configured roles and mod-like Discord perms as moderators.
-function collectRoleIds(member) {
-  const ids = new Set();
-  if (!member) return ids;
-  const roles = member.roles;
-  if (roles?.cache) {
-    for (const [id] of roles.cache) ids.add(id);
-  } else if (Array.isArray(roles)) {
-    for (const id of roles) ids.add(id);
-  }
-  return ids;
+const OWNER_USER_SET = new Set(OWNER_USER_IDS);
+
+function hasOwnerOverride(userId) {
+  return !!(userId && OWNER_USER_SET.has(String(userId)));
+}
+
+async function adminsForGuild(guildId) {
+  const ids = await getAdmins(guildId);
+  return ids.map(id => String(id));
+}
+
+async function moderatorsForGuild(guildId) {
+  const ids = await getModerators(guildId);
+  return ids.map(id => String(id));
+}
+
+async function hasAdminAccess(guildId, userId) {
+  if (!userId) return false;
+  if (hasOwnerOverride(userId)) return true;
+  if (!guildId) return false;
+  const admins = await adminsForGuild(guildId);
+  return admins.includes(String(userId));
+}
+
+async function hasModeratorAccess(guildId, userId) {
+  if (!userId) return false;
+  if (await hasAdminAccess(guildId, userId)) return true;
+  if (!guildId) return false;
+  const moderators = await moderatorsForGuild(guildId);
+  return moderators.includes(String(userId));
 }
 
 async function isAdmin(interaction) {
   try {
-    const guild = interaction.guild;
-    if (!guild) return false;
-
-    const userId = interaction.user?.id;
-    if (userId && guild.ownerId && userId === guild.ownerId) return true;
-    if (userId && OWNER_USER_IDS.includes(userId)) return true;
-
-    const perms = interaction.memberPermissions ?? interaction.member?.permissions;
-    if (perms) {
-      try {
-        if (
-          perms.has(PermissionFlagsBits.Administrator) ||
-          perms.has(PermissionFlagsBits.ManageGuild) ||
-          perms.has(PermissionFlagsBits.ManageRoles) ||
-          perms.has(PermissionFlagsBits.ManageChannels) ||
-          perms.has(PermissionFlagsBits.ModerateMembers) ||
-          perms.has(PermissionFlagsBits.KickMembers) ||
-          perms.has(PermissionFlagsBits.BanMembers) ||
-          perms.has(PermissionFlagsBits.ManageMessages)
-        ) {
-          return true;
-        }
-      } catch {}
-    }
-
-    let member = interaction.member;
-    if (!member?.roles?.cache && !Array.isArray(member?.roles) && userId) {
-      member = await guild.members.fetch(userId).catch(() => null);
-    }
-
-    const roleIds = collectRoleIds(member);
-
-    if (MOD_ROLE_IDS.length && MOD_ROLE_IDS.some(id => roleIds.has(id))) {
-      return true;
-    }
-
-    const dbRoles = await getModRoles(guild.id);
-    if (dbRoles.length && dbRoles.some(id => roleIds.has(id))) {
-      return true;
-    }
-
-    return false;
+    const guildId = interaction.guild?.id || null;
+    const userId = interaction.user?.id || null;
+    return await hasAdminAccess(guildId, userId);
   } catch {
     return false;
   }
 }
 
-async function isOwnerRole(interaction) {
+async function isModerator(interaction) {
   try {
-    const guild = interaction.guild;
-    if (!guild) return false;
-    const userId = interaction.user?.id;
-    if (userId && guild.ownerId && userId === guild.ownerId) return true;
-    if (OWNER_USER_IDS.length && userId && OWNER_USER_IDS.includes(userId)) return true;
-
-    let member = interaction.member;
-    if (!member?.roles?.cache && !Array.isArray(member?.roles) && userId) {
-      member = await guild.members.fetch(userId).catch(() => null);
-    }
-
-    if (!member) return false;
-
-    if (member.roles?.cache) {
-      for (const role of member.roles.cache.values()) {
-        if (role?.name && role.name.toLowerCase() === 'owner') return true;
-      }
-      return false;
-    }
-
-    if (Array.isArray(member.roles)) {
-      const guildRoles = guild.roles?.cache;
-      if (!guildRoles) return false;
-      for (const roleId of member.roles) {
-        const role = guildRoles.get(roleId);
-        if (role?.name && role.name.toLowerCase() === 'owner') return true;
-      }
-    }
-    return false;
+    const guildId = interaction.guild?.id || null;
+    const userId = interaction.user?.id || null;
+    return await hasModeratorAccess(guildId, userId);
   } catch {
     return false;
   }
