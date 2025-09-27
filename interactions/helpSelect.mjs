@@ -21,6 +21,7 @@ export default async function handleHelpSelect(interaction, ctx) {
           { emoji: '💰', cmd: '/balance [user]', desc: 'Peek at your riches — mods may peek for other Kittens too.' },
           { emoji: '🏆', cmd: '/leaderboard [limit]', desc: 'Admire which Kittens are dripping in chips.' },
           { emoji: '👥', cmd: '/stafflist', desc: 'Glance at the admins and house Kittens tending my casino.' },
+          { emoji: '🎡', cmd: '/dailyspin', desc: 'Spin the reward wheel once every 24h for free chips.' },
           { emoji: '🔄', cmd: 'Staking', desc: 'Every game but Hold’em burns Credits first; Chips only leap in when Credits fall short.' }
         ]},
         { label: '🎲 Games of Temptation', items: [
@@ -66,6 +67,7 @@ export default async function handleHelpSelect(interaction, ctx) {
           { emoji: '💰', cmd: '/balance [user]', desc: 'Check your balance (moderators can check others).' },
           { emoji: '🏆', cmd: '/leaderboard [limit]', desc: 'Show top chip holders.' },
           { emoji: '👥', cmd: '/stafflist', desc: 'List the current casino staff.' },
+          { emoji: '🎡', cmd: '/dailyspin', desc: 'Spin the wheel once per day for a chip bonus.' },
           { emoji: '🔄', cmd: 'Staking', desc: 'All games except Hold’em use Credits‑first staking (Credits burn on losses; Chips are used only if Credits are insufficient).' }
         ]},
         { label: '🎲 Games', items: [
