@@ -10,98 +10,55 @@ export default async function handleHelpSelect(interaction, ctx) {
 
   const sections = [];
 
-  if (kittenMode) {
+  sections.push({
+    id: 'player',
+    label: kittenMode ? '😼 Kitten’s Playground' : '🎮 Player',
+    groups: [
+      { label: kittenMode ? '💋 Essentials' : '🌟 Classics', items: [
+        { emoji: '👋', cmd: 'Getting Started', desc: kittenMode
+          ? 'Earn chips with `/dailyspin`, `/request`, and chip-paying games. Credits burn first; chips pay out from me.'
+          : 'Grab chips via `/dailyspin`, submit `/request` buy-ins, and play chip-paying games (Credits burn first).' },
+        { emoji: '🎲', cmd: 'Play Games', desc: kittenMode
+          ? 'Dive into `/ridebus`, `/blackjack`, `/slots`, `/roulette`, `/dicewar`, or `/holdem` for thrills.'
+          : 'Try `/ridebus`, `/blackjack`, `/slots`, `/roulette`, `/dicewar`, or `/holdem` to test your luck.' },
+        { emoji: '🗺️', cmd: 'Find Commands', desc: kittenMode
+          ? 'Peek at `/stafflist` for my caretakers; switch the menu below for mod/admin tools.'
+          : 'Use `/stafflist` to see the team, then explore this menu for moderator/admin sections.' }
+      ]},
+      { label: '🎁 Daily & Requests', items: [
+        { emoji: '🎡', cmd: '/dailyspin', desc: kittenMode
+          ? 'Spin once per day for a little chip treat from me.'
+          : 'Spin once every 24 hours for a free chip bonus.' },
+        { emoji: '📨', cmd: '/request type:<Buy In|Cash Out> amount:<int>', desc: kittenMode
+          ? 'Submit a buy-in or cash-out request and my staff will tend to you.'
+          : 'Send buy-in/cash-out requests to the staff when you need chips moved.' }
+      ]},
+      { label: '🎮 Games', items: [
+        { emoji: '🚌', cmd: '/ridebus bet:<int>', desc: kittenMode ? 'Ride the Bus through Q1–Q4; tease fate or cash out after Q3.' : 'Clear Q1–Q4 to win up to 10×; option to cash out after Q3.' },
+        { emoji: '🃏', cmd: '/blackjack table:<High|Low> bet:<int>', desc: kittenMode ? 'Face my house in sultry blackjack — High or Low stakes.' : 'House blackjack: pick High or Low tables for different stakes.' },
+        { emoji: '🎰', cmd: '/slots bet:<int>', desc: kittenMode ? 'Spin 20 lines; Credits stake first, chips are the prize.' : 'Spin a 5×3 slot with 20 lines; Credits stake first, chips pay out.' },
+        { emoji: '🎡', cmd: '/roulette', desc: kittenMode ? 'Lay bets and let me spin the wheel for you, Kitten.' : 'Place your bets interactively and spin American roulette.' },
+        { emoji: '⚔️', cmd: '/dicewar bet:<int>', desc: kittenMode ? 'Roll for me — any winning doubles give you double the chips.' : 'Roll against the house; winning doubles double your payout.' },
+        { emoji: '♠️', cmd: '/holdem', desc: kittenMode ? 'Summon a private lounge for a Texas Hold’em table.' : 'Create a preset or custom Texas Hold’em table for your server.' }
+      ]}
+    ]
+  });
+
+  if (isSetupAdmin) {
     sections.push({
-      id: 'player',
-      label: '😼 Kitten’s Playground',
+      id: 'setup',
+      label: '🛠️ Setup',
       groups: [
-        { label: '💋 Essentials', items: [
-          { emoji: '🆘', cmd: '/help', desc: 'Summon my guidance whenever you need a whisper, Kitten.' },
-          { emoji: '📡', cmd: '/ping', desc: 'Confirm your mistress is listening.' },
-          { emoji: '💰', cmd: '/balance [user]', desc: 'Peek at your riches — mods may peek for other Kittens too.' },
-          { emoji: '🏆', cmd: '/leaderboard [limit]', desc: 'Admire which Kittens are dripping in chips.' },
-          { emoji: '👥', cmd: '/stafflist', desc: 'Glance at the admins and house Kittens tending my casino.' },
-          { emoji: '🎡', cmd: '/dailyspin', desc: 'Spin the reward wheel once every 24h for free chips.' },
-          { emoji: '🔄', cmd: 'Staking', desc: 'Every game but Hold’em burns Credits first; Chips only leap in when Credits fall short.' }
-        ]},
-        { label: '🎲 Games of Temptation', items: [
-          { emoji: '🚌', cmd: '/ridebus bet:<int>', desc: 'Ride the Bus — flirt through Q1‑Q4, or cash out after Q3.' },
-          { emoji: '🃏', cmd: '/blackjack table:<High|Low> bet:<int>', desc: 'High table for bold Kittens, Low table for something softer.' },
-          { emoji: '🎰', cmd: '/slots bet:<int>', desc: 'Spin 20 shimmering lines — Credits first, always.' },
-          { emoji: '🎡', cmd: '/roulette', desc: 'Lay your bets and let the wheel tease you.' },
-          { emoji: '⚔️', cmd: '/dicewar bet:<int>', desc: 'Two dice, double the heat when doubles land.' },
-          { emoji: '♠️', cmd: '/holdem', desc: 'Summon a Hold’em lounge — presets or something custom for me.' },
-          { emoji: '📨', cmd: '/request type:<Buy In|Cash Out> amount:<int>', desc: 'Ask politely for a buy-in or cash-out.' }
-        ]},
-        { label: '♣️ Hold’em Lounge Notes', items: [
-          { emoji: '🧾', cmd: '/holdem tables', desc: 'Creates a private table channel that fades once the thrill is gone.' },
-          { emoji: '💼', cmd: 'Chips-only Buy-ins', desc: 'Escrow seduces your chips and pays them out — Credits never touch the felt.' },
-          { emoji: '⚙️', cmd: 'Custom Tables', desc: 'Pick SB, Min, Max (BB auto = 2×SB); I’ll recap every detail for your players.' }
+        { label: kittenMode ? 'Step-by-step' : 'Checklist', items: [
+          { emoji: '1️⃣', cmd: '/setcasinocategory category:<#Category>', desc: kittenMode ? 'Give me a dedicated home where I can host tables.' : 'Select the category that will contain casino channels.' },
+          { emoji: '2️⃣', cmd: '/setgamelogchannel channel:<#channel>', desc: kittenMode ? 'Tell me where to chronicle every thrilling game.' : 'Choose the channel for automated game logs.' },
+          { emoji: '3️⃣', cmd: '/setcashlog channel:<#channel>', desc: kittenMode ? 'Pick where buy-ins, cash-outs, and chip grants are whispered.' : 'Set a channel for chip and credit transactions.' },
+          { emoji: '4️⃣', cmd: '/setrequestchannel channel:<#channel>', desc: kittenMode ? 'Guide requests to the lounge your staff watches.' : 'Route /request submissions to a staffed channel.' },
+          { emoji: '5️⃣', cmd: '/setupdatech channel:<#channel>', desc: kittenMode ? 'Let me purr updates in a channel of your choice.' : 'Optional channel to broadcast bot update announcements.' },
+          { emoji: '6️⃣', cmd: '/addadmin user:<@User>', desc: kittenMode ? 'Crown your inner circle, then add house Kittens with /addmod.' : 'Seed your admin roster; add moderators via /addmod.' }
         ]}
       ]
     });
-    if (isSetupAdmin) {
-      sections.push({
-        id: 'setup',
-        label: '🛠️ Setup',
-        groups: [
-          { label: 'Step-by-step', items: [
-            { emoji: '1️⃣', cmd: '/setcasinocategory category:<#Category>', desc: 'Give me a dedicated home where I can host tables without interruption.' },
-            { emoji: '2️⃣', cmd: '/setgamelogchannel channel:<#channel>', desc: 'Tell me where to chronicle wins, losses, and session wraps.' },
-            { emoji: '3️⃣', cmd: '/setcashlog channel:<#channel>', desc: 'Pick the ledger room for buy-ins, cash-outs, and chip grants.' },
-            { emoji: '4️⃣', cmd: '/setrequestchannel channel:<#channel>', desc: 'Route /request pleas to a staffed channel so your Kittens get answers.' },
-            { emoji: '5️⃣', cmd: '/setupdatech channel:<#channel>', desc: 'Optional: choose where I purr about new updates and releases.' },
-            { emoji: '6️⃣', cmd: '/addadmin user:<@User>', desc: 'Crown your inner circle, then add moderators with /addmod user:<@User>.' }
-          ]}
-        ]
-      });
-    }
-  } else {
-    sections.push({
-      id: 'player',
-      label: '🎮 Player',
-      groups: [
-        { label: '🌟 General', items: [
-          { emoji: '🆘', cmd: '/help', desc: 'Show this help.' },
-          { emoji: '📡', cmd: '/ping', desc: 'Check if the bot is alive.' },
-          { emoji: '💰', cmd: '/balance [user]', desc: 'Check your balance (moderators can check others).' },
-          { emoji: '🏆', cmd: '/leaderboard [limit]', desc: 'Show top chip holders.' },
-          { emoji: '👥', cmd: '/stafflist', desc: 'List the current casino staff.' },
-          { emoji: '🎡', cmd: '/dailyspin', desc: 'Spin the wheel once per day for a chip bonus.' },
-          { emoji: '🔄', cmd: 'Staking', desc: 'All games except Hold’em use Credits‑first staking (Credits burn on losses; Chips are used only if Credits are insufficient).' }
-        ]},
-        { label: '🎲 Games', items: [
-          { emoji: '🚌', cmd: '/ridebus bet:<int>', desc: 'Ride the Bus — clear Q1–Q4 to win; cash out after Q3.' },
-          { emoji: '🃏', cmd: '/blackjack table:<High|Low> bet:<int>', desc: 'Blackjack vs. house (High=min 100, H17; Low=max 99, S17).' },
-          { emoji: '🎰', cmd: '/slots bet:<int>', desc: '5×3 slot with 20 lines; Credits‑first staking.' },
-          { emoji: '🎡', cmd: '/roulette', desc: 'American Roulette: add bets, then confirm.' },
-          { emoji: '⚔️', cmd: '/dicewar bet:<int>', desc: 'Dice War: 2d6 vs house; any doubles double the pot on a win (ties go to house).' },
-          { emoji: '♠️', cmd: '/holdem', desc: 'Texas Hold’em: presets or Custom (enter SB, Min, Max).' },
-          { emoji: '📨', cmd: '/request type:<Buy In|Cash Out> amount:<int>', desc: 'Request a chip buy‑in or cash‑out.' }
-        ]},
-        { label: '♣️ Texas Hold’em', items: [
-          { emoji: '🧾', cmd: '/holdem tables', desc: 'Creates a temporary channel (#holdem-table-N) under the casino category; auto‑deletes on timeout.' },
-          { emoji: '💼', cmd: 'Chips-only buy-ins', desc: 'Buy-ins use Chips (no Credits). Chips go to escrow; action commits move escrow to the pot; payouts+rake settle to players and the house.' },
-          { emoji: '⚙️', cmd: 'Custom tables', desc: 'Choose Custom to enter SB, Min, Max (BB auto = 2×SB); creation message summarizes host, channel, blinds, buy-ins, rake.' }
-        ]}
-      ]
-    });
-    if (isSetupAdmin) {
-      sections.push({
-        id: 'setup',
-        label: '🛠️ Setup',
-        groups: [
-          { label: 'Checklist', items: [
-            { emoji: '1️⃣', cmd: '/setcasinocategory category:<#Category>', desc: 'Select a category for casino channels so games stay organized.' },
-            { emoji: '2️⃣', cmd: '/setgamelogchannel channel:<#channel>', desc: 'Set the channel where automated game logs should post.' },
-            { emoji: '3️⃣', cmd: '/setcashlog channel:<#channel>', desc: 'Log buy-ins, cash-outs, and chip adjustments in a staff channel.' },
-            { emoji: '4️⃣', cmd: '/setrequestchannel channel:<#channel>', desc: 'Choose where /request tickets land for review.' },
-            { emoji: '5️⃣', cmd: '/setupdatech channel:<#channel>', desc: 'Optional broadcast spot for bot update announcements.' },
-            { emoji: '6️⃣', cmd: '/addadmin user:<@User>', desc: 'Seed your admin list, then add moderators via /addmod user:<@User>.' }
-          ]}
-        ]
-      });
-    }
   }
 
   if (isMod) {
