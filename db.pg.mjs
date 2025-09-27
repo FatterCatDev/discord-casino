@@ -246,17 +246,40 @@ async function recordTxn(guildId, account, delta, reason, adminId, currency = 'C
 }
 
 // --- Roles ---
-export async function getModRoles(guildId) {
-  const rows = await q('SELECT role_id FROM mod_roles WHERE guild_id = $1', [guildId]);
-  return rows.map(r => r.role_id);
+function canonicalGuildId(guildId) {
+  return guildId ? String(guildId) : DEFAULT_GUILD_ID;
 }
-export async function addModRole(guildId, roleId) {
-  await q('INSERT INTO mod_roles (guild_id, role_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [guildId, roleId]);
-  return getModRoles(guildId);
+
+export async function getModerators(guildId) {
+  const gid = canonicalGuildId(guildId);
+  const rows = await q('SELECT user_id FROM mod_users WHERE guild_id = $1', [gid]);
+  return rows.map(r => r.user_id);
 }
-export async function removeModRole(guildId, roleId) {
-  await q('DELETE FROM mod_roles WHERE guild_id = $1 AND role_id = $2', [guildId, roleId]);
-  return getModRoles(guildId);
+export async function addModerator(guildId, userId) {
+  const gid = canonicalGuildId(guildId);
+  await q('INSERT INTO mod_users (guild_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [gid, String(userId)]);
+  return getModerators(gid);
+}
+export async function removeModerator(guildId, userId) {
+  const gid = canonicalGuildId(guildId);
+  await q('DELETE FROM mod_users WHERE guild_id = $1 AND user_id = $2', [gid, String(userId)]);
+  return getModerators(gid);
+}
+
+export async function getAdmins(guildId) {
+  const gid = canonicalGuildId(guildId);
+  const rows = await q('SELECT user_id FROM admin_users WHERE guild_id = $1', [gid]);
+  return rows.map(r => r.user_id);
+}
+export async function addAdmin(guildId, userId) {
+  const gid = canonicalGuildId(guildId);
+  await q('INSERT INTO admin_users (guild_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [gid, String(userId)]);
+  return getAdmins(gid);
+}
+export async function removeAdmin(guildId, userId) {
+  const gid = canonicalGuildId(guildId);
+  await q('DELETE FROM admin_users WHERE guild_id = $1 AND user_id = $2', [gid, String(userId)]);
+  return getAdmins(gid);
 }
 
 // --- Users & House ---
