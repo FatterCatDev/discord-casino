@@ -69,6 +69,7 @@ All games except Texas Hold’em use Credits‑first staking: your bet draws fro
 
 Player
 - `/help`, `/ping`, `/balance [user]`, `/leaderboard [limit]`
+- `/stafflist`
 - `/ridebus bet:<int>`, `/blackjack table:<High|Low> bet:<int>`, `/slots bet:<int>`, `/roulette`, `/holdem`
 
 Moderator (granted via `/addmod`, admins via `/addadmin`)
