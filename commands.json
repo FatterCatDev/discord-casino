@@ -27,8 +27,10 @@
   { "name": "help", "description": "List all available Semuta Casino commands." },
   { "name": "setgamelogchannel", "description": "Pick the channel for automated casino game logs." },
   { "name": "setcashlog", "description": "Pick the channel for admin cash and request logs." },
-  { "name": "addmodrole", "description": "Register a role that counts as casino moderator." },
-  { "name": "removemodrole", "description": "Remove a role from the casino moderator list." },
+  { "name": "addmod", "description": "Grant moderator access to a user." },
+  { "name": "removemod", "description": "Remove moderator access from a user." },
+  { "name": "addadmin", "description": "Grant admin access to a user." },
+  { "name": "removeadmin", "description": "Remove admin access from a user." },
   { "name": "kittenmode", "description": "Toggle the Kitten personality for this server." },
   { "name": "ridebus", "description": "Play Ride the Bus with Credits-first staking." }
 ]
