@@ -3,7 +3,7 @@ import { resetAllBalances } from '../db.auto.mjs';
 export default async function handleResetAllBalance(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
-  if (!(await ctx.isOwnerRole(interaction))) {
+  if (!(await ctx.isAdmin(interaction))) {
     return interaction.reply({ content: say('❌ Only the server owner may wipe the ledgers clean, Kitten.', '❌ You do not have permission. OWNER only.'), ephemeral: true });
   }
   try {
