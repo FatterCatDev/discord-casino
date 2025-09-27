@@ -5,9 +5,8 @@ export default async function handleSetUpdateChannel(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
 
-  const perms = interaction.memberPermissions ?? interaction.member?.permissions;
-  if (!perms?.has(PermissionFlagsBits.Administrator)) {
-    return interaction.reply({ content: say('❌ Only the head of the house may choose my announcement lounge, Kitten.', '❌ Discord Administrator permission required.'), ephemeral: true });
+  if (!(await ctx.isAdmin(interaction))) {
+    return interaction.reply({ content: say('❌ Only my trusted admins may choose my announcement lounge, Kitten.', '❌ Casino admin access required.'), ephemeral: true });
   }
 
   const channel = interaction.options.getChannel('channel');
