@@ -5,7 +5,9 @@ export default async function handleSetCashLog(interaction, ctx) {
   await interaction.deferReply({ ephemeral: true });
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
-  if (!(await ctx.isAdmin(interaction))) {
+  const perms = interaction.memberPermissions ?? interaction.member?.permissions;
+  const hasDiscordAdmin = perms?.has?.(PermissionFlagsBits.Administrator);
+  if (!(hasDiscordAdmin || await ctx.isAdmin(interaction))) {
     return interaction.editReply(say('❌ Only my trusted admins may set that cash log channel, Kitten.', '❌ Casino admin access required.'));
   }
   const channel = interaction.options.getChannel('channel');
