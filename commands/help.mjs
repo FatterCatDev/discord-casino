@@ -1,7 +1,10 @@
-import { ActionRowBuilder, EmbedBuilder, StringSelectMenuBuilder } from 'discord.js';
+import { ActionRowBuilder, EmbedBuilder, StringSelectMenuBuilder, PermissionFlagsBits } from 'discord.js';
 
 export default async function handleHelp(interaction, ctx) {
+  const perms = interaction.memberPermissions ?? interaction.member?.permissions;
+  const hasDiscordAdmin = perms?.has?.(PermissionFlagsBits.Administrator);
   const isMod = await ctx.isModerator(interaction);
+  const isSetupAdmin = hasDiscordAdmin || await ctx.isAdmin(interaction);
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
 
   const sections = [];
@@ -35,6 +38,22 @@ export default async function handleHelp(interaction, ctx) {
         ]}
       ]
     });
+    if (isSetupAdmin) {
+      sections.push({
+        id: 'setup',
+        label: '🛠️ Set Up',
+        groups: [
+          { label: 'Step-by-step', items: [
+            { emoji: '1️⃣', cmd: '/setcasinocategory category:<#Category>', desc: 'Give me a dedicated home where I can host tables without interruption.' },
+            { emoji: '2️⃣', cmd: '/setgamelogchannel channel:<#channel>', desc: 'Tell me where to chronicle wins, losses, and session wraps.' },
+            { emoji: '3️⃣', cmd: '/setcashlog channel:<#channel>', desc: 'Pick the ledger room for buy-ins, cash-outs, and chip grants.' },
+            { emoji: '4️⃣', cmd: '/setrequestchannel channel:<#channel>', desc: 'Route /request pleas to a staffed channel so your Kittens get answers.' },
+            { emoji: '5️⃣', cmd: '/setupdatech channel:<#channel>', desc: 'Optional: choose where I purr about new updates and releases.' },
+            { emoji: '6️⃣', cmd: '/addadmin user:<@User>', desc: 'Crown your inner circle, then add moderators with /addmod user:<@User>.' }
+          ]}
+        ]
+      });
+    }
   } else {
     sections.push({
       id: 'player',
@@ -64,6 +83,22 @@ export default async function handleHelp(interaction, ctx) {
         ]}
       ]
     });
+    if (isSetupAdmin) {
+      sections.push({
+        id: 'setup',
+        label: '🛠️ Set Up',
+        groups: [
+          { label: 'Checklist', items: [
+            { emoji: '1️⃣', cmd: '/setcasinocategory category:<#Category>', desc: 'Select a category for casino channels so games stay organized.' },
+            { emoji: '2️⃣', cmd: '/setgamelogchannel channel:<#channel>', desc: 'Set the channel where automated game logs should post.' },
+            { emoji: '3️⃣', cmd: '/setcashlog channel:<#channel>', desc: 'Log buy-ins, cash-outs, and chip adjustments in a staff channel.' },
+            { emoji: '4️⃣', cmd: '/setrequestchannel channel:<#channel>', desc: 'Choose where /request tickets land for review.' },
+            { emoji: '5️⃣', cmd: '/setupdatech channel:<#channel>', desc: 'Optional broadcast spot for bot update announcements.' },
+            { emoji: '6️⃣', cmd: '/addadmin user:<@User>', desc: 'Seed your admin list, then add moderators via /addmod user:<@User>.' }
+          ]}
+        ]
+      });
+    }
   }
 
   if (isMod) {
