@@ -42,7 +42,7 @@ export default async function handleHelpSelect(interaction, ctx) {
     if (isSetupAdmin) {
       sections.push({
         id: 'setup',
-        label: '🛠️ Set Up',
+        label: '🛠️ Setup',
         groups: [
           { label: 'Step-by-step', items: [
             { emoji: '1️⃣', cmd: '/setcasinocategory category:<#Category>', desc: 'Give me a dedicated home where I can host tables without interruption.' },
@@ -87,7 +87,7 @@ export default async function handleHelpSelect(interaction, ctx) {
     if (isSetupAdmin) {
       sections.push({
         id: 'setup',
-        label: '🛠️ Set Up',
+        label: '🛠️ Setup',
         groups: [
           { label: 'Checklist', items: [
             { emoji: '1️⃣', cmd: '/setcasinocategory category:<#Category>', desc: 'Select a category for casino channels so games stay organized.' },
