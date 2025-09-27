@@ -31,6 +31,7 @@
   { "name": "removemod", "description": "Remove moderator access from a user." },
   { "name": "addadmin", "description": "Grant admin access to a user." },
   { "name": "removeadmin", "description": "Remove admin access from a user." },
+  { "name": "stafflist", "description": "Show the current casino admins and moderators." },
   { "name": "kittenmode", "description": "Toggle the Kitten personality for this server." },
   { "name": "ridebus", "description": "Play Ride the Bus with Credits-first staking." }
 ]
