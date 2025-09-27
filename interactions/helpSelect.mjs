@@ -101,8 +101,10 @@ export default async function handleHelpSelect(interaction, ctx) {
             { emoji: '💋', cmd: '/kittenmode enabled:<bool>', desc: 'Invite or dismiss my sultry persona. (Admin only)' }
           ]},
           { label: '👥 Roles', items: [
-            { emoji: '➕', cmd: '/addmodrole role:<@Role>', desc: 'Crown a new house Kitten with moderator powers. (Admin only)' },
-            { emoji: '➖', cmd: '/removemodrole role:<@Role>', desc: 'Revoke those powers with a snap. (Admin only)' }
+            { emoji: '➕', cmd: '/addmod user:<@User>', desc: 'Crown a new house Kitten with moderator powers. (Admin only)' },
+            { emoji: '➖', cmd: '/removemod user:<@User>', desc: 'Revoke those powers with a snap. (Admin only)' },
+            { emoji: '👑', cmd: '/addadmin user:<@User>', desc: 'Invite someone into my inner admin circle. (Admin only)' },
+            { emoji: '🗝️', cmd: '/removeadmin user:<@User>', desc: 'Dismiss an admin from that circle. (Admin only)' }
           ]},
           { label: '📊 Limits', items: [
             { emoji: '🎚️', cmd: '/setmaxbet game:<choice> amount:<int>', desc: 'Set how daring bets may be. (Admin only)' },
@@ -135,10 +137,12 @@ export default async function handleHelpSelect(interaction, ctx) {
           { emoji: '💼', cmd: '/setcashlog channel:<#channel>', desc: 'Set cash log channel. (Admin only)' },
           { emoji: '📬', cmd: '/setrequestchannel channel:<#channel>', desc: 'Set requests channel. (Admin only)' }
         ]},
-        { label: '👥 Roles', items: [
-          { emoji: '➕', cmd: '/addmodrole role:<@Role>', desc: 'Add a moderator role. (Admin only)' },
-          { emoji: '➖', cmd: '/removemodrole role:<@Role>', desc: 'Remove a moderator role. (Admin only)' }
-        ]},
+          { label: '👥 Roles', items: [
+            { emoji: '➕', cmd: '/addmod user:<@User>', desc: 'Add a moderator. (Admin only)' },
+            { emoji: '➖', cmd: '/removemod user:<@User>', desc: 'Remove a moderator. (Admin only)' },
+            { emoji: '👑', cmd: '/addadmin user:<@User>', desc: 'Add an administrator. (Admin only)' },
+            { emoji: '🗝️', cmd: '/removeadmin user:<@User>', desc: 'Remove an administrator. (Admin only)' }
+          ]},
         { label: '📊 Limits', items: [
           { emoji: '🎚️', cmd: '/setmaxbet game:<choice> amount:<int>', desc: 'Set a game’s max bet. (Admin only)' },
           { emoji: '💱', cmd: '/setrake percent:<number>', desc: 'Hold’em rake percent (cap = table max). (Admin only)' }
