@@ -288,6 +288,11 @@ const commands = [
     options: []
   },
   {
+    name: 'dailyspin',
+    description: 'Spin the reward wheel for a daily chip bonus.',
+    options: []
+  },
+  {
     name: 'ridebus',
     description: 'Play Ride the Bus (Credits first, then Chips).',
     options: [
