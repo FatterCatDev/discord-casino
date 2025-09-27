@@ -283,6 +283,11 @@ const commands = [
     ]
   },
   {
+    name: 'stafflist',
+    description: 'List current casino admins and moderators.',
+    options: []
+  },
+  {
     name: 'ridebus',
     description: 'Play Ride the Bus (Credits first, then Chips).',
     options: [
