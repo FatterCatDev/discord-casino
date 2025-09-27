@@ -1,4 +1,4 @@
-import { ChannelType, PermissionFlagsBits } from 'discord.js';
+import { ChannelType } from 'discord.js';
 import { setCasinoCategory } from '../db.auto.mjs';
 
 export default async function handleSetCasinoCategory(interaction, ctx) {
