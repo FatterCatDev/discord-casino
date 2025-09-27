@@ -290,6 +290,21 @@ export async function removeAdmin(guildId, userId) {
   return getAdmins(gid);
 }
 
+export async function getLastDailySpinAt(guildId, userId) {
+  const gid = canonicalGuildId(guildId);
+  const row = await q1('SELECT last_ts FROM daily_spin_last WHERE guild_id = $1 AND user_id = $2', [gid, String(userId)]);
+  return row ? Number(row.last_ts || 0) : 0;
+}
+
+export async function setLastDailySpinNow(guildId, userId, ts = Math.floor(Date.now() / 1000)) {
+  const gid = canonicalGuildId(guildId);
+  await q(
+    'INSERT INTO daily_spin_last (guild_id, user_id, last_ts) VALUES ($1,$2,$3) ON CONFLICT (guild_id, user_id) DO UPDATE SET last_ts = EXCLUDED.last_ts',
+    [gid, String(userId), Number(ts)]
+  );
+  return ts;
+}
+
 // --- Users & House ---
 export async function getUserBalances(guildId, discordId) {
   const gid = resolveGuildId(guildId);
