@@ -115,15 +115,17 @@ Required
 
 Optional
 - `DB_PATH` – SQLite file path (default `./casino.db`)
-- `MOD_ROLE_IDS` – Comma‑separated role IDs that count as moderators; `ADMIN_ROLE_IDS` is supported as a legacy fallback
 - `OWNER_USER_IDS` – Comma‑separated user IDs with OWNER override for maintenance commands
+- `ECONOMY_SCOPE` – `global` (default) to share balances across guilds, or `guild` for isolated ledgers
+- `GLOBAL_ECONOMY_ID` – Override the stored guild id used for the shared economy when `ECONOMY_SCOPE=global`
 
 Tip: verify env parsing with `npm run env`.
 
-## Permissions & Roles
+## Access Control
 
-- Moderator check order: Guild Owner → Discord Moderator perms (Moderate/Kick/Ban/Manage Messages) → IDs in `MOD_ROLE_IDS` (or legacy `ADMIN_ROLE_IDS`) → roles stored in DB (via `/addmodrole`).
-- OWNER override: guild owner, IDs in `OWNER_USER_IDS`, or a role named `OWNER` (case‑insensitive) for certain maintenance commands.
+- Moderators and admins are tracked by user ID per guild. Use `/addmod user:<@User>` and `/removemod user:<@User>` to manage moderators.
+- Admins are managed with `/addadmin user:<@User>` and `/removeadmin user:<@User>`; admins automatically enjoy moderator privileges.
+- Users listed in `OWNER_USER_IDS` are treated as admins everywhere, providing a recovery path if no administrators remain.
 
 ## Scripts
 - `npm start` – Run the bot (`index.mjs`)
