@@ -9,36 +9,41 @@ export default async function handleHelp(interaction, ctx) {
 
   const sections = [];
 
+  sections.push({
+    id: 'player',
+    label: kittenMode ? '😼 Kitten’s Playground' : '🎮 Player',
+    groups: [
+      { label: kittenMode ? '💋 Essentials' : '🌟 Classics', items: [
+        { emoji: '👋', cmd: 'Getting Started', desc: kittenMode
+          ? 'Earn chips with `/dailyspin`, `/request`, or games that pay out in chips. Credits burn first; chips come from me.'
+          : 'Earn chips via `/dailyspin`, `/request`, and chip-paying games. Games use Credits first; chips come from the house.' },
+        { emoji: '🎰', cmd: 'Play Games', desc: kittenMode
+          ? 'Try `/ridebus`, `/blackjack`, `/slots`, `/roulette`, `/dicewar`, and `/holdem` — each with its own stakes.'
+          : 'Jump into `/ridebus`, `/blackjack`, `/slots`, `/roulette`, `/dicewar`, or `/holdem` to spend Credits and win chips.' },
+        { emoji: '🗺️', cmd: 'Command Map', desc: kittenMode
+          ? 'Use `/stafflist` to see who runs things; the menu (below) lists every command by role.'
+          : 'Run `/stafflist` to see the team. Browse this menu to find role-specific commands.' }
+      ]},
+      { label: kittenMode ? '🎁 Daily & Requests' : '🎁 Daily & Requests', items: [
+        { emoji: '🎡', cmd: '/dailyspin', desc: kittenMode
+          ? 'Spin once every 24 hours for free chips — a little treat from me, Kitten.'
+          : 'Spin once every 24 hours for a free chip bonus.' },
+        { emoji: '📨', cmd: '/request type:<Buy In|Cash Out> amount:<int>', desc: kittenMode
+          ? 'Ask staff for buy-ins or cash-outs; stay sweet while you wait.'
+          : 'Submit buy-in or cash-out tickets for staff review.' }
+      ]},
+      { label: kittenMode ? '🎲 Featured Games' : '🎲 Featured Games', items: [
+        { emoji: '🚌', cmd: '/ridebus bet:<int>', desc: kittenMode ? 'Ride the Bus through Q1–Q4; flirt with fate or cash out early.' : 'Clear Q1–Q4 to win; cash out after Q3 if you’re cautious.' },
+        { emoji: '🃏', cmd: '/blackjack table:<High|Low> bet:<int>', desc: kittenMode ? 'Face my house in sultry blackjack — High or Low table, your thrill.' : 'Play against the house in blackjack; High or Low tables set stakes.' },
+        { emoji: '🎰', cmd: '/slots bet:<int>', desc: kittenMode ? 'Spin 20 shimmering lines; Credits stake first, chips pay out.' : 'Spin a 5×3 slot (20 lines). Credits stake first; chips pay out.' },
+        { emoji: '🎡', cmd: '/roulette', desc: kittenMode ? 'Place your bets and let the wheel tease you, Kitten.' : 'Place interactive bets on American roulette and spin.' },
+        { emoji: '⚔️', cmd: '/dicewar bet:<int>', desc: kittenMode ? 'Roll for me — doubles sizzling with doubled rewards.' : 'Roll versus the house. Doubles on your win double the payout.' },
+        { emoji: '♠️', cmd: '/holdem', desc: kittenMode ? 'Summon a private lounge for Texas Hold’em with your friends.' : 'Create a Texas Hold’em table with presets or custom stakes.' }
+      ]}
+    ]
+  });
+
   if (kittenMode) {
-    sections.push({
-      id: 'player',
-      label: '😼 Kitten’s Playground',
-      groups: [
-        { label: '💋 Essentials', items: [
-          { emoji: '🆘', cmd: '/help', desc: 'Summon my guidance whenever you need a whisper, Kitten.' },
-          { emoji: '📡', cmd: '/ping', desc: 'Confirm your mistress is listening.' },
-          { emoji: '💰', cmd: '/balance [user]', desc: 'Peek at your riches — mods may peek for other Kittens too.' },
-          { emoji: '🏆', cmd: '/leaderboard [limit]', desc: 'Admire which Kittens are dripping in chips across every server.' },
-          { emoji: '👥', cmd: '/stafflist', desc: 'Peek at the admins and house Kittens tending my casino.' },
-          { emoji: '🎡', cmd: '/dailyspin', desc: 'Spin the reward wheel once every 24h for free chips.' },
-          { emoji: '🔄', cmd: 'Staking', desc: 'Every game but Hold’em burns Credits first; Chips only leap in when Credits fall short.' }
-        ]},
-        { label: '🎲 Games of Temptation', items: [
-          { emoji: '🚌', cmd: '/ridebus bet:<int>', desc: 'Ride the Bus — flirt through Q1‑Q4, or cash out after Q3.' },
-          { emoji: '🃏', cmd: '/blackjack table:<High|Low> bet:<int>', desc: 'High table for bold Kittens, Low table for something softer.' },
-          { emoji: '🎰', cmd: '/slots bet:<int>', desc: 'Spin 20 shimmering lines — Credits first, always.' },
-          { emoji: '🎡', cmd: '/roulette', desc: 'Lay your bets and let the wheel tease you.' },
-          { emoji: '⚔️', cmd: '/dicewar bet:<int>', desc: 'Two dice, double the heat when doubles land.' },
-          { emoji: '♠️', cmd: '/holdem', desc: 'Summon a Hold’em lounge — presets or something custom for me.' },
-          { emoji: '📨', cmd: '/request type:<Buy In|Cash Out> amount:<int>', desc: 'Ask politely for a buy-in or cash-out.' }
-        ]},
-        { label: '♣️ Hold’em Lounge Notes', items: [
-          { emoji: '🧾', cmd: '/holdem tables', desc: 'Creates a private table channel that fades once the thrill is gone.' },
-          { emoji: '💼', cmd: 'Chips-only Buy-ins', desc: 'Escrow seduces your chips and pays them out — Credits never touch the felt.' },
-          { emoji: '⚙️', cmd: 'Custom Tables', desc: 'Pick SB, Min, Max (BB auto = 2×SB); I’ll recap every detail for your players.' }
-        ]}
-      ]
-    });
     if (isSetupAdmin) {
       sections.push({
         id: 'setup',
@@ -56,35 +61,6 @@ export default async function handleHelp(interaction, ctx) {
       });
     }
   } else {
-    sections.push({
-      id: 'player',
-      label: '🎮 Player',
-      groups: [
-        { label: '🌟 General', items: [
-          { emoji: '🆘', cmd: '/help', desc: 'Show this help.' },
-          { emoji: '📡', cmd: '/ping', desc: 'Check if the bot is alive.' },
-          { emoji: '💰', cmd: '/balance [user]', desc: 'Check your balance (moderators can check others).' },
-          { emoji: '🏆', cmd: '/leaderboard [limit]', desc: 'Show global top chip holders.' },
-          { emoji: '👥', cmd: '/stafflist', desc: 'See the admins and moderators keeping the casino running.' },
-          { emoji: '🎡', cmd: '/dailyspin', desc: 'Spin the wheel once per day for a chip bonus.' },
-          { emoji: '🔄', cmd: 'Staking', desc: 'All games except Hold’em use Credits‑first staking (Credits burn on losses; Chips are used only if Credits are insufficient).' }
-        ]},
-        { label: '🎲 Games', items: [
-          { emoji: '🚌', cmd: '/ridebus bet:<int>', desc: 'Ride the Bus — clear Q1–Q4 to win; cash out after Q3.' },
-          { emoji: '🃏', cmd: '/blackjack table:<High|Low> bet:<int>', desc: 'Blackjack vs. house (High=min 100, H17; Low=max 99, S17).' },
-          { emoji: '🎰', cmd: '/slots bet:<int>', desc: '5×3 slot with 20 lines; Credits‑first staking.' },
-          { emoji: '🎡', cmd: '/roulette', desc: 'American Roulette: add bets, then confirm.' },
-          { emoji: '⚔️', cmd: '/dicewar bet:<int>', desc: 'Dice War: 2d6 vs house; any doubles double the pot on a win (ties go to house).' },
-          { emoji: '♠️', cmd: '/holdem', desc: 'Texas Hold’em: presets or Custom (enter SB, Min, Max).' },
-          { emoji: '📨', cmd: '/request type:<Buy In|Cash Out> amount:<int>', desc: 'Request a chip buy‑in or cash‑out.' }
-        ]},
-        { label: '♣️ Texas Hold’em', items: [
-          { emoji: '🧾', cmd: '/holdem tables', desc: 'Creates a temporary channel (#holdem-table-N) under the casino category; auto‑deletes on timeout.' },
-          { emoji: '💼', cmd: 'Chips-only buy-ins', desc: 'Buy-ins use Chips (no Credits). Chips go to escrow; action commits move escrow to the pot; payouts+rake settle to players and the house.' },
-          { emoji: '⚙️', cmd: 'Custom tables', desc: 'Choose Custom to enter SB, Min, Max (BB auto = 2×SB); creation message summarizes host, channel, blinds, buy-ins, rake.' }
-        ]}
-      ]
-    });
     if (isSetupAdmin) {
       sections.push({
         id: 'setup',
