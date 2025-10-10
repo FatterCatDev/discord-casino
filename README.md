@@ -119,6 +119,13 @@ Optional
 - `OWNER_USER_IDS` – Comma‑separated user IDs with OWNER override for maintenance commands
 - `ECONOMY_SCOPE` – `global` (default) to share balances across guilds, or `guild` for isolated ledgers
 - `GLOBAL_ECONOMY_ID` – Override the stored guild id used for the shared economy when `ECONOMY_SCOPE=global`
+- `TOPGG_WEBHOOK_AUTH` – Shared secret for the Top.gg webhook endpoint (enables vote rewards)
+- `TOPGG_VOTE_URL` – Override the vote link shown in `/vote` (defaults to `https://top.gg/bot/<CLIENT_ID>/vote`)
+- `TOPGG_BOT_ID` – Bot ID for building the default Top.gg vote link (falls back to `CLIENT_ID`)
+- `VOTE_REWARD_TOPGG` – Base chip reward per Top.gg vote (integer, default 150)
+- `VOTE_REWARD_TOPGG_WEEKEND_MULTIPLIER` – Weekend multiplier for Top.gg votes (number, default 2)
+- `TOPGG_ALLOW_TEST_VOTES` – Set to `true` to reward Top.gg “test” webhook deliveries when debugging
+- `VOTE_EXTRA_LINKS` – JSON or comma `Label|https://url` list of additional vote buttons to display in `/vote`
 
 Tip: verify env parsing with `npm run env`.
 
