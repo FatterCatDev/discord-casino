@@ -276,6 +276,8 @@ async function showRaceNotice(state, client, text, duration = NOTICE_DURATION_MS
     console.error('Failed to show horse race notice:', err);
   }
 
+  refreshRaceTimeout(state, client);
+
   if (duration > 0) {
     state.noticeTimeout = setTimeout(() => {
       if (state.noticeText !== text) return;
