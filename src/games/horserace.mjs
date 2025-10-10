@@ -405,7 +405,7 @@ async function payoutRace(state, winners, client) {
       : '';
   const houseNetLine = `\n**🏦 House Net:** ${chipsAmountSigned(totals.houseNet)}`;
   const creditsBurnedLine = totals.creditsBurned > 0
-    ? `\n**💳 Credits Burned:** ${formatChips(totals.creditsBurned)}`
+    ? `\n**💳 Credits Burned:** ${formatChips(totals.creditsBurned)} Credits`
     : '';
   const resultsText = `**🥇 Winners:** ${winnerLines}\n${payouts.length ? payouts.map(p => `<@${p.userId}> won **${formatChips(p.amount)}**`).join('\n') : 'No winners this time.'}${tieNote}${houseNetLine}${creditsBurnedLine}`;
   state.lastResultsText = resultsText;
