@@ -2,7 +2,7 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
-import { lookupApiKey } from './db.auto.mjs';
+import { lookupApiKey } from '../db/db.auto.mjs';
 
 const app = express();
 app.use(helmet());
@@ -36,7 +36,7 @@ function auth(requiredScopes = []) {
 app.get('/api/v1/ping', (req, res) => res.json({ pong: true }));
 
 // 2.2 Get a user's balances (read-only)
-import { getUserBalances } from './db.auto.mjs';
+import { getUserBalances } from '../db/db.auto.mjs';
 app.get('/api/v1/guilds/:guildId/users/:discordId/balance', auth([]), async (req, res) => {
     const { guildId, discordId } = req.params;
     if (req.apiKey.guildId !== guildId) return res.status(403).json({ error: 'guild_mismatch' });
@@ -45,9 +45,9 @@ app.get('/api/v1/guilds/:guildId/users/:discordId/balance', auth([]), async (req
 });
 
 // 2.3 Grant chips (admin-like)
-import { transferFromHouseToUser } from './db.auto.mjs';
-import { addToHouse, takeFromUserToHouse } from './db.auto.mjs';
-import { burnFromUser, grantCredits, burnCredits } from './db.auto.mjs';
+import { transferFromHouseToUser } from '../db/db.auto.mjs';
+import { addToHouse, takeFromUserToHouse } from '../db/db.auto.mjs';
+import { burnFromUser, grantCredits, burnCredits } from '../db/db.auto.mjs';
 app.post('/api/v1/guilds/:guildId/users/:discordId/chips/grant', auth(['chips:grant']), async (req, res) => {
     const { guildId, discordId } = req.params;
     const { amount, reason } = req.body || {};
@@ -108,7 +108,7 @@ app.post('/api/v1/guilds/:guildId/users/:discordId/chips/burn', auth(['chips:bur
 });
 
 // 2.4 Set RideBus max bet for the guild (settings write)
-import { setMaxRidebusBet } from './db.auto.mjs';
+import { setMaxRidebusBet } from '../db/db.auto.mjs';
 app.post('/api/v1/guilds/:guildId/ridebus/max-bet', auth(['settings:write']), async (req, res) => {
     const { guildId } = req.params;
     const { amount } = req.body || {};
