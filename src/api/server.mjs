@@ -3,6 +3,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { lookupApiKey } from '../db/db.auto.mjs';
+import { recordTopggVote } from '../services/votes.mjs';
 
 const app = express();
 app.use(helmet());
@@ -144,6 +145,23 @@ app.post('/api/v1/guilds/:guildId/users/:discordId/credits/burn', auth(['credit:
         res.json({ credits });
     } catch (e) {
         if (e.message === 'INSUFFICIENT_USER_CREDITS') return res.status(409).json({ error: 'insufficient_user_credits' });
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+const TOPGG_WEBHOOK_TOKEN = (process.env.TOPGG_WEBHOOK_AUTH || process.env.TOPGG_WEBHOOK_TOKEN || '').trim();
+
+app.post('/api/v1/webhooks/topgg', async (req, res) => {
+    if (!TOPGG_WEBHOOK_TOKEN) return res.status(501).json({ error: 'topgg_webhook_disabled' });
+    const header = String(req.headers.authorization || '').trim();
+    const token = header.startsWith('Bearer ') ? header.slice(7).trim() : header;
+    if (!token || token !== TOPGG_WEBHOOK_TOKEN) return res.status(401).json({ error: 'invalid_token' });
+    try {
+        const result = await recordTopggVote(req.body || {});
+        res.json({ ok: true, ...result });
+    } catch (err) {
+        if (err?.message === 'TOPGG_USER_REQUIRED') return res.status(400).json({ error: 'missing_user' });
+        console.error('[api] top.gg webhook error:', err);
         res.status(500).json({ error: 'server_error' });
     }
 });
