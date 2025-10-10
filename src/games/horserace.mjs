@@ -15,7 +15,7 @@ const STAGE_COUNT = 5;
 const STAGE_DELAY_MS = 5_000;
 const START_COUNTDOWN_SEC = 5;
 const PAYOUT_MULTIPLIER = 4;
-const HORSE_LABELS = ['🟥 Horse 1', '🟩 Horse 2', '🟨 Horse 3', '🟦 Horse 4', '🟪 Horse 5'];
+const HORSE_LABELS = ['Horse 1', 'Horse 2', 'Horse 3', 'Horse 4', 'Horse 5'];
 const HORSE_EMOJIS = ['🟥', '🟩', '🟨', '🟦', '🟪'];
 
 const racesById = new Map();
