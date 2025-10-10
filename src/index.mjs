@@ -108,6 +108,18 @@ function getSessionStats(guildId, userId) {
 const RESPONSE_PATCHED = Symbol('responsePatched');
 let voteRewardProcessing = false;
 
+process.on('unhandledRejection', (reason) => {
+  if (reason && typeof reason === 'object' && 'code' in reason && Number(reason.code) === 10062) {
+    console.warn('Ignored expired interaction (code 10062)');
+    return;
+  }
+  console.error('Unhandled promise rejection:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught exception:', err);
+});
+
 function normalizeEphemeralOption(payload) {
   if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return payload;
   if (!Object.prototype.hasOwnProperty.call(payload, 'ephemeral')) return payload;
