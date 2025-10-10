@@ -88,7 +88,11 @@ function summarizeBets(state) {
   const entries = Array.from(state.bets.values())
     .sort((a, b) => b.amount - a.amount)
     .slice(0, 5)
-    .map(bet => `<@${bet.userId}> → Horse ${bet.horse + 1} for **${formatChips(bet.amount)}**`);
+    .map(bet => {
+      const changeFee = getBetChangeFee(state, bet);
+      const feeText = changeFee > 0 ? formatChips(changeFee) : 'Free';
+      return `<@${bet.userId}> → Horse ${bet.horse + 1} for **${formatChips(bet.amount)}** (swap fee: ${feeText})`;
+    });
   return entries.join('\n');
 }
 
