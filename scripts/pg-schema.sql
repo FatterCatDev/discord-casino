@@ -66,10 +66,12 @@ CREATE TABLE IF NOT EXISTS vote_rewards (
   reward_amount    BIGINT NOT NULL,
   metadata_json    TEXT,
   earned_at        BIGINT NOT NULL,
+  external_id      TEXT,
   claimed_at       BIGINT,
   claim_guild_id   TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_vote_rewards_user_claimed ON vote_rewards(discord_user_id, claimed_at);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_vote_rewards_source_external ON vote_rewards(source, external_id) WHERE external_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS active_requests (
   guild_id   TEXT NOT NULL,
