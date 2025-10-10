@@ -344,6 +344,7 @@ function ensureWinner(state) {
 }
 
 async function payoutRace(state, winners, client) {
+  clearRaceIdleTimer(state);
   if (state.noticeTimeout) {
     clearTimeout(state.noticeTimeout);
     state.noticeTimeout = null;
