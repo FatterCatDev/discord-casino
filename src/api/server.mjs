@@ -3,7 +3,7 @@ import helmet from 'helmet';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { lookupApiKey } from '../db/db.auto.mjs';
-import { recordTopggVote } from '../services/votes.mjs';
+import { recordTopggVote, recordDiscordBotListVote, isDiscordBotListWebhookEnabled, verifyDblSignature } from '../services/votes.mjs';
 
 const app = express();
 app.use(helmet());
@@ -150,6 +150,7 @@ app.post('/api/v1/guilds/:guildId/users/:discordId/credits/burn', auth(['credit:
 });
 
 const TOPGG_WEBHOOK_TOKEN = (process.env.TOPGG_WEBHOOK_AUTH || process.env.TOPGG_WEBHOOK_TOKEN || '').trim();
+const DBL_WEBHOOK_TOKEN = (process.env.DBL_WEBHOOK_AUTH || process.env.DBL_WEBHOOK_TOKEN || '').trim();
 
 app.post('/api/v1/webhooks/topgg', async (req, res) => {
     if (!TOPGG_WEBHOOK_TOKEN) return res.status(501).json({ error: 'topgg_webhook_disabled' });
@@ -162,6 +163,20 @@ app.post('/api/v1/webhooks/topgg', async (req, res) => {
     } catch (err) {
         if (err?.message === 'TOPGG_USER_REQUIRED') return res.status(400).json({ error: 'missing_user' });
         console.error('[api] top.gg webhook error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+app.post('/api/v1/webhooks/dbl', async (req, res) => {
+    if (!isDiscordBotListWebhookEnabled()) return res.status(501).json({ error: 'dbl_webhook_disabled' });
+    const header = String(req.headers.authorization || '').trim();
+    const token = header.startsWith('Bearer ') ? header.slice(7).trim() : header;
+    if (!verifyDblSignature(token)) return res.status(401).json({ error: 'invalid_token' });
+    try {
+        const recorded = await recordDiscordBotListVote(req.body || {});
+        res.json({ ok: true, recorded: recorded.length });
+    } catch (err) {
+        console.error('[api] discordbotlist webhook error:', err);
         res.status(500).json({ error: 'server_error' });
     }
 });
