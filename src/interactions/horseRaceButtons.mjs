@@ -55,7 +55,9 @@ export default async function handleHorseRaceButtons(interaction) {
     if (state.status === 'running') {
       const existing = state.bets.get(interaction.user.id);
       if (!existing) {
-        return interaction.reply({ content: '❌ You must have an active bet from the betting phase to switch horses mid-race.' });
+        await acknowledgeInteraction(interaction);
+        await showRaceNotice(state, interaction.client, '⚠ You must have an active bet from the betting phase to switch horses mid-race.');
+        return;
       }
       if (existing.horse === horseIndex) {
         await acknowledgeInteraction(interaction);
