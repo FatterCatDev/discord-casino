@@ -200,6 +200,71 @@ export async function autoRedeemPendingVoteRewards(options = {}) {
   return results;
 }
 
+function extractDblVotes(payload) {
+  if (!payload) return [];
+  const containers = [];
+  if (Array.isArray(payload)) containers.push(payload);
+  if (Array.isArray(payload?.votes)) containers.push(payload.votes);
+  if (Array.isArray(payload?.results)) containers.push(payload.results);
+  if (containers.length === 0) containers.push([payload]);
+
+  const seen = new Set();
+  const out = [];
+  for (const list of containers) {
+    if (!Array.isArray(list)) continue;
+    for (const entry of list) {
+      if (!entry) continue;
+      const voteId = entry.vote_id || entry.voteId || entry.id || entry._id || null;
+      const userId = entry.user_id || entry.userId || entry.user || entry.member?.id || entry.user?.id;
+      const normalizedUser = String(userId || '').trim();
+      if (!normalizedUser) continue;
+      const key = `${normalizedUser}:${voteId ?? 'null'}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      let earnedAt = Math.floor(Date.now() / 1000);
+      const tsRaw = entry.timestamp || entry.created_at || entry.createdAt || entry.date;
+      if (tsRaw) {
+        const parsed = new Date(tsRaw);
+        if (!Number.isNaN(parsed.valueOf())) earnedAt = Math.floor(parsed.valueOf() / 1000);
+      }
+      out.push({
+        userId: normalizedUser,
+        voteId: voteId ? String(voteId) : null,
+        earnedAt,
+        raw: entry
+      });
+    }
+  }
+  return out;
+}
+
+export function isDiscordBotListWebhookEnabled() {
+  return !!DBL_WEBHOOK_SECRET;
+}
+
+export function verifyDblSignature(token) {
+  if (!DBL_WEBHOOK_SECRET) return false;
+  if (!token) return false;
+  return String(token).trim() === DBL_WEBHOOK_SECRET;
+}
+
+export async function recordDiscordBotListVote(payload = {}) {
+  const votes = extractDblVotes(payload);
+  const recorded = [];
+  for (const vote of votes) {
+    const inserted = await recordVoteReward(
+      vote.userId,
+      'dbl',
+      DBL_VOTE_REWARD,
+      { dbl: vote.raw },
+      vote.earnedAt,
+      vote.voteId
+    );
+    if (inserted) recorded.push(vote);
+  }
+  return recorded;
+}
+
 export async function recordTopggVote(payload = {}) {
   const userId = String(payload.user || '').trim();
   if (!userId) throw new Error('TOPGG_USER_REQUIRED');
