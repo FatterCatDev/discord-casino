@@ -209,6 +209,7 @@ function clearRace(state) {
     state.noticeTimeout = null;
   }
   state.noticeText = null;
+  state.extraDescription = null;
   racesById.delete(state.id);
   racesByChannel.delete(state.channelId);
   if (state.messageId) racesByMessage.delete(state.messageId);
