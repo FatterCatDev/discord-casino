@@ -18,8 +18,8 @@ export default async function handleHelp(interaction, ctx) {
           ? 'Earn chips with `/dailyspin`, `/vote`, `/request`, and every chip-paying game. Votes credit instantly with a DM from me; Credits burn first while chips come from my stash.'
           : 'Earn chips via `/dailyspin`, `/vote`, `/request`, and chip-paying games. Voting auto-credits chips (watch your DMs); games spend Credits first before dipping into the house.' },
         { emoji: '🎰', cmd: 'Play Games', desc: kittenMode
-          ? 'Try `/ridebus`, `/blackjack`, `/slots`, `/roulette`, `/dicewar`, and `/holdem` — each with its own stakes.'
-          : 'Jump into `/ridebus`, `/blackjack`, `/slots`, `/roulette`, `/dicewar`, or `/holdem` to spend Credits and win chips.' },
+          ? 'Try `/ridebus`, `/blackjack`, `/slots`, `/roulette`, `/dicewar`, `/holdem`, and `/horserace` — each with its own stakes.'
+          : 'Jump into `/ridebus`, `/blackjack`, `/slots`, `/roulette`, `/dicewar`, `/holdem`, or `/horserace` to spend Credits and win chips.' },
         { emoji: '🗺️', cmd: 'Command Map', desc: kittenMode
           ? 'Use `/stafflist` to see who runs things; the menu (below) lists every command by role.'
           : 'Run `/stafflist` to see the team. Browse this menu to find role-specific commands.' }
