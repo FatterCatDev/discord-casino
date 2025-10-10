@@ -438,12 +438,14 @@ export async function handleRaceStart(interaction, state) {
   }
 
   state.hostConfirm = true;
-  await interaction.reply({ content: '✅ Countdown starting!', ephemeral: true });
   await editRaceMessage(state, interaction.client, {
     footerText: `🚦 Race starts in ${START_COUNTDOWN_SEC}s!`,
     extraDescription: `**🚨 COUNTDOWN: ${START_COUNTDOWN_SEC}s**`
   });
   await startCountdown(state, interaction.client);
+  if (!interaction.deferred && !interaction.replied) {
+    try { await interaction.deferUpdate(); } catch {}
+  }
 }
 
 export async function handleHorseBet(interaction, state, horseIndex, amount) {
@@ -522,13 +524,15 @@ export async function handleHorseBet(interaction, state, horseIndex, amount) {
   state.totalPot = Array.from(state.bets.values()).reduce((sum, bet) => sum + bet.amount, 0);
   state.totalExposure = Array.from(state.bets.values()).reduce((sum, bet) => sum + bet.amount * PAYOUT_MULTIPLIER, 0);
 
-  await interaction.reply({ content: `✅ Bet locked: Horse ${horseIndex + 1} for **${formatChips(amount)}**${fee > 0 ? ` (fee ${formatChips(fee)})` : ''}.`, ephemeral: true });
   const footerText = state.status === 'betting'
     ? (state.hostConfirm
         ? 'Countdown pending...'
         : 'Host must press Start to begin the countdown.')
     : 'Next stage in 5 seconds — adjust bets now!';
   await editRaceMessage(state, interaction.client, { footerText });
+  if (!interaction.deferred && !interaction.replied) {
+    try { await interaction.deferUpdate(); } catch {}
+  }
 }
 
 export async function handleRaceCancel(interaction, state) {
@@ -562,5 +566,7 @@ export async function handleRaceCancel(interaction, state) {
   }
 
   await editRaceMessage(state, interaction.client, { footerText: 'Race cancelled.' });
-  await interaction.reply({ content: '🛑 Race cancelled. All bets have been refunded.', ephemeral: true });
+  if (!interaction.deferred && !interaction.replied) {
+    try { await interaction.deferUpdate(); } catch {}
+  }
 }
