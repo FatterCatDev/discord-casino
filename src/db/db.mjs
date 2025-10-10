@@ -1016,6 +1016,93 @@ export function mintChips(guildId, discordId, amount, reason, adminId) {
   return getUserBalances(gid, discordId);
 }
 
+export function recordVoteReward(discordId, source, amount, metadata = {}, earnedAt = Math.floor(Date.now() / 1000)) {
+  const userId = String(discordId || '').trim();
+  const src = String(source || '').trim();
+  if (!userId) throw new Error('VOTE_REWARD_USER_REQUIRED');
+  if (!src) throw new Error('VOTE_REWARD_SOURCE_REQUIRED');
+  if (!Number.isInteger(amount) || amount <= 0) throw new Error('VOTE_REWARD_AMOUNT_POSITIVE');
+  const ts = Number.isInteger(earnedAt) && earnedAt > 0 ? earnedAt : Math.floor(Date.now() / 1000);
+  const meta = metadata && Object.keys(metadata).length ? JSON.stringify(metadata) : null;
+  insertVoteRewardStmt.run(userId, src, amount, meta, ts);
+  return true;
+}
+
+export function getPendingVoteRewards(discordId) {
+  const userId = String(discordId || '').trim();
+  if (!userId) return [];
+  const rows = pendingVoteRewardsStmt.all(userId);
+  return rows.map(row => ({
+    id: row.id,
+    source: row.source,
+    reward_amount: Number(row.reward_amount || 0),
+    earned_at: Number(row.earned_at || 0),
+    metadata: row.metadata_json ? safeParseJson(row.metadata_json) : null
+  }));
+}
+
+export function redeemVoteRewards(guildId, discordId, options = {}) {
+  const userId = String(discordId || '').trim();
+  if (!userId) throw new Error('VOTE_REWARD_USER_REQUIRED');
+  const gid = resolveGuildId(guildId);
+  const reason = options?.reason ? String(options.reason) : 'vote reward';
+  const adminId = options?.adminId ? String(options.adminId) : null;
+  const limit = Number.isInteger(options?.limit) && options.limit > 0 ? options.limit : null;
+
+  const result = db.transaction(() => {
+    ensureGuildUser(gid, userId);
+    const pendingRows = pendingVoteRewardsStmt.all(userId);
+    const selected = limit ? pendingRows.slice(0, limit) : pendingRows;
+    if (!selected.length) {
+      const balance = getUserStmt.get(gid, userId) || { chips: 0, credits: 0 };
+      return {
+        claimedTotal: 0,
+        claimedCount: 0,
+        claimedRewards: [],
+        balances: { chips: Number(balance.chips || 0), credits: Number(balance.credits || 0) },
+        remaining: pendingRows.length
+      };
+    }
+
+    let total = 0;
+    for (const row of selected) total += Number(row.reward_amount || 0);
+    if (!Number.isInteger(total) || total <= 0) {
+      const balance = getUserStmt.get(gid, userId) || { chips: 0, credits: 0 };
+      return {
+        claimedTotal: 0,
+        claimedCount: 0,
+        claimedRewards: [],
+        balances: { chips: Number(balance.chips || 0), credits: Number(balance.credits || 0) },
+        remaining: pendingRows.length
+      };
+    }
+
+    addChipsStmt.run(total, gid, userId);
+    recordTxn(gid, userId, total, reason || 'vote reward', adminId, 'CHIPS');
+    const now = Math.floor(Date.now() / 1000);
+    for (const row of selected) {
+      markVoteRewardClaimedStmt.run(now, gid, row.id);
+    }
+    const balance = getUserStmt.get(gid, userId) || { chips: 0, credits: 0 };
+    const claimedRewards = selected.map(row => ({
+      id: row.id,
+      source: row.source,
+      reward_amount: Number(row.reward_amount || 0),
+      earned_at: Number(row.earned_at || 0),
+      metadata: row.metadata_json ? safeParseJson(row.metadata_json) : null
+    }));
+    return {
+      claimedTotal: total,
+      claimedCount: selected.length,
+      claimedRewards,
+      balances: { chips: Number(balance.chips || 0), credits: Number(balance.credits || 0) },
+      remaining: pendingRows.length - selected.length
+    };
+  })();
+
+  return result;
+}
+
 export function takeFromUserToHouse(guildId, discordId, amount, reason, adminId) {
   const gid = resolveGuildId(guildId);
   if (!Number.isInteger(amount) || amount <= 0) throw new Error('Amount must be a positive integer.');
