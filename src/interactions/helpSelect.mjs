@@ -42,7 +42,8 @@ export default async function handleHelpSelect(interaction, ctx) {
         { emoji: '🎰', cmd: '/slots bet:<int>', desc: kittenMode ? 'Spin 20 lines; Credits stake first, chips are the prize.' : 'Spin a 5×3 slot with 20 lines; Credits stake first, chips pay out.' },
         { emoji: '🎡', cmd: '/roulette', desc: kittenMode ? 'Lay bets and let me spin the wheel for you, Kitten.' : 'Place your bets interactively and spin American roulette.' },
         { emoji: '⚔️', cmd: '/dicewar bet:<int>', desc: kittenMode ? 'Roll for me — any winning doubles give you double the chips.' : 'Roll against the house; winning doubles double your payout.' },
-        { emoji: '♠️', cmd: '/holdem', desc: kittenMode ? 'Summon a private lounge for a Texas Hold’em table.' : 'Create a preset or custom Texas Hold’em table for your server.' }
+        { emoji: '♠️', cmd: '/holdem', desc: kittenMode ? 'Summon a private lounge for a Texas Hold’em table.' : 'Create a preset or custom Texas Hold’em table for your server.' },
+        { emoji: '🏇', cmd: '/horserace', desc: kittenMode ? 'Wager on five flamboyant racers; change mounts between stages (for a flirty fee).' : 'Bet on a five-horse race; you can switch picks each stage for a 20% fee.' }
       ]}
     ]
   });
