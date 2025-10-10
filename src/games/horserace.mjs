@@ -439,7 +439,7 @@ async function payoutRace(state, winners, client) {
   }, 3_000);
 }
 
-function resetRaceState(state) {
+function resetRaceState(state, previousResults = null) {
   if (state.timeout) {
     clearTimeout(state.timeout);
     state.timeout = null;
@@ -463,6 +463,8 @@ function resetRaceState(state) {
   state.hostConfirm = false;
   state.noticeText = null;
   state.extraDescription = null;
+  state.lastResultsText = null;
+  state.previousResults = previousResults;
   state.footerText = INITIAL_FOOTER_TEXT;
 }
 
