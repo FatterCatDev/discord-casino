@@ -41,7 +41,8 @@ function createEmptyState(ctx, interaction) {
     messageId: null,
     timeout: null,
     countdown: null,
-    hostConfirm: false
+    hostConfirm: false,
+    lastResultsText: null
   };
 }
 
@@ -80,8 +81,9 @@ function createRaceEmbed(state, options = {}) {
   }
 
   let description = HORSE_LABELS.map((_, idx) => buildHorseLine(idx, state.progress[idx])).join('\n');
-  if (options.extraDescription) {
-    description += `\n\n${options.extraDescription}`;
+  const extra = options.extraDescription ?? state.lastResultsText;
+  if (extra) {
+    description += `\n\n${extra}`;
   }
 
   const embed = new EmbedBuilder()
