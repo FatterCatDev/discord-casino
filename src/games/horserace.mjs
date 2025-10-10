@@ -445,7 +445,7 @@ async function payoutRace(state, winners, client) {
     }
   }
   const totals = calculateHouseTotals(state, payouts);
-  const winnerLines = winners.map(idx => HORSE_LABELS[idx]).join(', ');
+  const winnerLines = winners.map(idx => getHorseLabel(state, idx)).join(', ');
   const tieNote = tieCount >= 3
     ? '\n(Tie of 3+ horses — stakes refunded)'
     : tieCount === 2
