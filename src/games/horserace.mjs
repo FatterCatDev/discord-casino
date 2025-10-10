@@ -9,6 +9,7 @@ import {
   grantCredits
 } from '../db/db.auto.mjs';
 import { formatChips } from './format.mjs';
+import { postGameSessionEnd, postGameSessionEndByIds } from './logging.mjs';
 
 const TRACK_LENGTH = 100;
 const STAGE_COUNT = 10;
