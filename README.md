@@ -126,6 +126,11 @@ Optional
 - `VOTE_REWARD_TOPGG_WEEKEND_MULTIPLIER` – Weekend multiplier for Top.gg votes (number, default 2)
 - `TOPGG_ALLOW_TEST_VOTES` – Set to `true` to reward Top.gg “test” webhook deliveries when debugging
 - `VOTE_EXTRA_LINKS` – JSON or comma `Label|https://url` list of additional vote buttons to display in `/vote`
+- `VOTE_REWARD_AUTO_GUILD_ID` – Guild ID to credit vote rewards against (defaults to `PRIMARY_GUILD_ID`/`GUILD_ID`)
+- `VOTE_REWARD_AUTO_INTERVAL_MS` – Interval for the bot to sweep pending vote rewards (default 15000)
+- `VOTE_REWARD_AUTO_BATCH_LIMIT` – Max distinct users processed per sweep (default 25)
+- `VOTE_REWARD_REASON` – Custom ledger reason when minting vote rewards (default `vote reward`)
+- `VOTE_AUTO_REDEEM` – Set to `false` to disable automatic crediting/DMs (the `/vote` command will still show links)
 
 Tip: verify env parsing with `npm run env`.
 

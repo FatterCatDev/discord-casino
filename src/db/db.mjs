@@ -361,6 +361,14 @@ const markVoteRewardClaimedStmt = db.prepare(`
   SET claimed_at = ?, claim_guild_id = ?
   WHERE id = ?
 `);
+const listPendingVoteUsersStmt = db.prepare(`
+  SELECT discord_user_id
+  FROM vote_rewards
+  WHERE claimed_at IS NULL
+  GROUP BY discord_user_id
+  ORDER BY MIN(earned_at) ASC, MIN(id) ASC
+  LIMIT ?
+`);
 
 const topUsersStmt = db.prepare(`
   SELECT discord_id, chips
@@ -1101,6 +1109,11 @@ export function redeemVoteRewards(guildId, discordId, options = {}) {
   })();
 
   return result;
+}
+
+export function listUsersWithPendingVoteRewards(limit = 50) {
+  const n = Math.max(1, Math.min(500, Number(limit) || 50));
+  return listPendingVoteUsersStmt.all(n).map(row => row.discord_user_id);
 }
 
 export function takeFromUserToHouse(guildId, discordId, amount, reason, adminId) {

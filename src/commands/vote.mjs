@@ -9,15 +9,15 @@ function chunk(array, size = 5) {
   return groups;
 }
 
-export function buildVoteResponse({ ctx, kittenMode, summary, sites, statusMessage = null }) {
+export function buildVoteResponse({ ctx, kittenMode, summary, sites }) {
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
   const embed = new EmbedBuilder()
     .setTitle(say('🗳️ Vote for Me, Kitten', '🗳️ Vote & Earn Chips'))
     .setColor(kittenMode ? 0xff9fd6 : 0x5865f2);
 
   const intro = say(
-    'Cast your vote every 12 hours and I will tuck more chips into your stash once Top.gg whispers back. Claim them here when you are done.',
-    'Vote every 12 hours to earn bonus chips. After the site confirms your vote, come back here to claim the reward.'
+    'Cast your vote every 12 hours and I will slide the chips right into your stash the moment Top.gg whispers back. Watch your DMs for the details. 💋',
+    'Vote every 12 hours to earn bonus chips. As soon as Top.gg confirms it, I’ll credit you automatically and send a DM with the receipt.'
   );
 
   const siteLines = (sites && sites.length)
@@ -40,18 +40,18 @@ export function buildVoteResponse({ ctx, kittenMode, summary, sites, statusMessa
   const breakdownText = describeBreakdown(summary?.breakdown || []);
   if (totalPending > 0) {
     embed.addFields({
-      name: say('💰 Pending Treats', '💰 Pending Rewards'),
+      name: say('⏳ In Flight', '⏳ In Flight'),
       value: say(
-        `You have **${ctx.chipsAmount(totalPending)}** waiting${breakdownText ? ` (${breakdownText})` : ''}. Press **Claim** to add them to your balance.`,
-        `You have **${ctx.chipsAmount(totalPending)}** waiting${breakdownText ? ` (${breakdownText})` : ''}. Press **Claim** to bring them into your bankroll.`
+        `Top.gg just pinged but I have not finished spoiling you yet. Expect **${ctx.chipsAmount(totalPending)}** to land any moment now.${breakdownText ? ` (${breakdownText})` : ''}`,
+        `Top.gg has pinged us, but the chips are still processing: **${ctx.chipsAmount(totalPending)}**${breakdownText ? ` (${breakdownText})` : ''}. I’ll DM you as soon as they drop.`
       )
     });
   } else {
     embed.addFields({
-      name: say('💰 Pending Treats', '💰 Pending Rewards'),
+      name: say('💌 Delivery', '💌 Delivery'),
       value: say(
-        'No treats are ready yet. Vote using the buttons below, then return here to claim them. 💕',
-        'No rewards are ready yet. Use the buttons below to vote, then come back to claim your chips.'
+        'Rewards are credited automatically — keep an eye on my DMs after each vote.',
+        'Rewards are credited automatically. Watch your DMs for the confirmation after every vote.'
       )
     });
   }
@@ -78,16 +78,7 @@ export function buildVoteResponse({ ctx, kittenMode, summary, sites, statusMessa
     components.push(row);
   }
 
-  const claimButton = new ButtonBuilder()
-    .setCustomId('vote|claim')
-    .setLabel(say('Claim my chips', 'Claim rewards'))
-    .setStyle(ButtonStyle.Primary)
-    .setDisabled(totalPending <= 0);
-  components.push(new ActionRowBuilder().addComponents(claimButton));
-
-  const response = { embeds: [embed], components };
-  if (statusMessage) response.content = statusMessage;
-  return response;
+  return { embeds: [embed], components };
 }
 
 export default async function handleVote(interaction, ctx) {
@@ -101,8 +92,5 @@ export default async function handleVote(interaction, ctx) {
   const summary = await getVoteSummary(userId);
   const sites = getVoteSites();
   const payload = buildVoteResponse({ ctx, kittenMode, summary, sites });
-  const reply = { ...payload, ephemeral: true };
-  if (!payload.content) delete reply.content;
-  return interaction.reply(reply);
+  return interaction.reply({ ...payload, ephemeral: true });
 }
-

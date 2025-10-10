@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Events, EmbedBuilder } from 'discord.js';
+import { Client, GatewayIntentBits, Events, EmbedBuilder, MessageFlags } from 'discord.js';
 import { slotSessions, buildSlotsPaytableEmbed as buildSlotsPaytableEmbedMod, runSlotsSpin as runSlotsSpinMod, SLOTS_LINES as SLOTS_LINESMod } from './games/slots.mjs';
 import { rouletteSessions, rouletteSummaryEmbed as rouletteSummaryEmbedMod, rouletteTypeSelectRow as rouletteTypeSelectRowMod, startRouletteSession as startRouletteSessionMod, spinRoulette as spinRouletteMod, rouletteWins as rouletteWinsMod, roulettePayoutMult as roulettePayoutMultMod } from './games/roulette.mjs';
 import { ridebusGames, startRideBus as startRideBusMod, wagerAt as wagerAtMod } from './games/ridebus.mjs';
@@ -17,6 +17,7 @@ import {
   burnCredits
 } from './db/db.auto.mjs';
 import { formatChips, chipsAmount } from './games/format.mjs';
+import { autoRedeemPendingVoteRewards, describeBreakdown } from './services/votes.mjs';
 import {
   activeSessions,
   getActiveSession,
@@ -102,6 +103,41 @@ function getSessionStats(guildId, userId) {
   const k = sessionKey(guildId, userId);
   if (!sessionStats.has(k)) sessionStats.set(k, { games: 0, net: 0 });
   return sessionStats.get(k);
+}
+
+const RESPONSE_PATCHED = Symbol('responsePatched');
+let voteRewardProcessing = false;
+
+function normalizeEphemeralOption(payload) {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return payload;
+  if (!Object.prototype.hasOwnProperty.call(payload, 'ephemeral')) return payload;
+
+  const cloned = { ...payload };
+  const { ephemeral } = cloned;
+  delete cloned.ephemeral;
+
+  if (ephemeral) {
+    const currentFlags = typeof cloned.flags === 'number' ? cloned.flags : 0;
+    cloned.flags = currentFlags | MessageFlags.Ephemeral;
+  }
+  return cloned;
+}
+
+function patchInteractionResponseMethods(interaction) {
+  if (!interaction || interaction[RESPONSE_PATCHED]) return;
+  const methods = ['reply', 'editReply', 'followUp', 'update', 'deferReply', 'deferUpdate'];
+  for (const method of methods) {
+    if (typeof interaction[method] !== 'function') continue;
+    const original = interaction[method].bind(interaction);
+    interaction[method] = (...args) => {
+      if (args.length > 0) {
+        const next = normalizeEphemeralOption(args[0]);
+        if (next !== args[0]) args[0] = next;
+      }
+      return original(...args);
+    };
+  }
+  interaction[RESPONSE_PATCHED] = true;
 }
 
 const client = new Client({
@@ -193,6 +229,40 @@ client.once(Events.ClientReady, c => {
       }
     } catch {}
   })();
+
+  const intervalMs = Math.max(5_000, Number(process.env.VOTE_REWARD_AUTO_INTERVAL_MS || 15_000));
+  const sweepVoteRewards = async () => {
+    if (voteRewardProcessing) return;
+    voteRewardProcessing = true;
+    try {
+      const results = await autoRedeemPendingVoteRewards();
+      for (const entry of results) {
+        if (!entry || entry.error || !(entry.claimedTotal > 0)) {
+          if (entry?.error) {
+            console.error('Auto vote reward redeem failed for', entry.userId, entry.error);
+          }
+          continue;
+        }
+        try {
+          const user = await client.users.fetch(entry.userId);
+          const amount = formatChips(entry.claimedTotal || 0);
+          const breakdownText = describeBreakdown(entry.breakdown || []);
+          const messages = [`🎉 Thanks for voting on Top.gg! I just credited **${amount}** to your chips.`];
+          if (breakdownText) messages.push(`Sources: ${breakdownText}.`);
+          await user.send(messages.join(' '));
+        } catch (err) {
+          console.error('Failed to DM vote reward notice', entry.userId, err);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to auto redeem vote rewards', err);
+    } finally {
+      voteRewardProcessing = false;
+    }
+  };
+
+  sweepVoteRewards().catch(() => {});
+  setInterval(() => { sweepVoteRewards().catch(() => {}); }, intervalMs);
 });
 
 // Command registry and context for modular handlers
@@ -389,6 +459,7 @@ const commandHandlers = {
 
 client.on(Events.InteractionCreate, async interaction => {
   try {
+    patchInteractionResponseMethods(interaction);
     const guildId = interaction.guild?.id || null;
     let kittenModeEnabled = false;
     if (guildId) {
@@ -456,12 +527,6 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 
     // Request buttons
-    else if (interaction.isButton() && interaction.customId.startsWith('vote|')) {
-      const ctx = buildCommandContext(interaction, ctxExtras);
-      const mod = await import('./interactions/voteButtons.mjs');
-      return mod.default(interaction, ctx);
-    }
-
     else if (interaction.isButton() && interaction.customId.startsWith('req|')) {
       const ctx = buildCommandContext(interaction, ctxExtras);
       return onRequestButtons(interaction, ctx);

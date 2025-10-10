@@ -1,10 +1,14 @@
-import { recordVoteReward, getPendingVoteRewards, redeemVoteRewards } from '../db/db.auto.mjs';
+import { recordVoteReward, getPendingVoteRewards, redeemVoteRewards, listUsersWithPendingVoteRewards } from '../db/db.auto.mjs';
 
 const TOPGG_BASE_REWARD = toPositiveInt(process.env.VOTE_REWARD_TOPGG, 150);
 const TOPGG_WEEKEND_MULTIPLIER = toPositiveNumber(process.env.VOTE_REWARD_TOPGG_WEEKEND_MULTIPLIER, 2);
 const TOPGG_ALLOW_TEST = String(process.env.TOPGG_ALLOW_TEST_VOTES || '').toLowerCase() === 'true';
 const FALLBACK_BOT_ID = (process.env.TOPGG_BOT_ID || process.env.CLIENT_ID || '').trim();
 const TOPGG_VOTE_URL = (process.env.TOPGG_VOTE_URL || (FALLBACK_BOT_ID ? `https://top.gg/bot/${FALLBACK_BOT_ID}/vote` : '')).trim();
+const AUTO_REDEEM_GUILD_ID = (process.env.VOTE_REWARD_AUTO_GUILD_ID || process.env.PRIMARY_GUILD_ID || process.env.GUILD_ID || '').trim() || null;
+const AUTO_REDEEM_LIMIT = toPositiveInt(process.env.VOTE_REWARD_AUTO_BATCH_LIMIT, 25);
+const AUTO_REDEEM_ENABLED = String(process.env.VOTE_AUTO_REDEEM ?? 'true').toLowerCase() !== 'false';
+const AUTO_REDEEM_REASON = process.env.VOTE_REWARD_REASON || 'vote reward';
 
 const EXTRA_SITES = parseExtraSites(process.env.VOTE_EXTRA_LINKS);
 
@@ -150,6 +154,34 @@ export async function claimVoteRewards(guildId, discordId) {
   };
 }
 
+export async function autoRedeemPendingVoteRewards(options = {}) {
+  if (!AUTO_REDEEM_ENABLED) return [];
+  const {
+    guildId = AUTO_REDEEM_GUILD_ID,
+    limit = AUTO_REDEEM_LIMIT,
+    reason = AUTO_REDEEM_REASON,
+    adminId = 'vote:auto'
+  } = options;
+  const userIds = await listUsersWithPendingVoteRewards(limit);
+  const results = [];
+  for (const userId of userIds) {
+    try {
+      const res = await redeemVoteRewards(guildId, userId, { reason, adminId });
+      if (res?.claimedCount > 0 && res?.claimedTotal > 0) {
+        results.push({
+          userId,
+          ...res,
+          breakdown: summarizeBySource(res.claimedRewards || [])
+        });
+      }
+    } catch (err) {
+      // Continue processing other users; caller can log.
+      results.push({ userId, error: err });
+    }
+  }
+  return results;
+}
+
 export async function recordTopggVote(payload = {}) {
   const userId = String(payload.user || '').trim();
   if (!userId) throw new Error('TOPGG_USER_REQUIRED');
@@ -184,4 +216,3 @@ export function describeBreakdown(breakdown = []) {
     })
     .join(', ');
 }
-

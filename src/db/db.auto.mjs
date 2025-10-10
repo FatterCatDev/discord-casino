@@ -66,6 +66,7 @@ export const mintChips = pick('mintChips');
 export const recordVoteReward = pick('recordVoteReward');
 export const getPendingVoteRewards = pick('getPendingVoteRewards');
 export const redeemVoteRewards = pick('redeemVoteRewards');
+export const listUsersWithPendingVoteRewards = pick('listUsersWithPendingVoteRewards');
 export const grantCredits = pick('grantCredits');
 export const burnCredits = pick('burnCredits');
 export const gameLoseWithCredits = pick('gameLoseWithCredits');

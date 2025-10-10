@@ -560,6 +560,20 @@ export async function redeemVoteRewards(guildId, discordId, options = {}) {
   });
 }
 
+export async function listUsersWithPendingVoteRewards(limit = 50) {
+  const n = Math.max(1, Math.min(500, Number(limit) || 50));
+  const rows = await q(
+    `SELECT discord_user_id
+     FROM vote_rewards
+     WHERE claimed_at IS NULL
+     GROUP BY discord_user_id
+     ORDER BY MIN(earned_at) ASC, MIN(id) ASC
+     LIMIT $1`,
+    [n]
+  );
+  return rows.map(row => row.discord_user_id);
+}
+
 export async function grantCredits(guildId, discordId, amount, reason, adminId) {
   const gid = resolveGuildId(guildId);
   const amt = Number(amount);
