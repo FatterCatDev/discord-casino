@@ -20,6 +20,11 @@ const commands = [
     ]
   },
   {
+    name: 'horserace',
+    description: 'Bet on a 5-horse race with staged progress.',
+    options: []
+  },
+  {
     name: 'holdem',
     description: 'Texas Hold’em: create a table with presets.',
     options: []
