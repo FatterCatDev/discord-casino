@@ -42,9 +42,14 @@ All games except Texas Hold’em use Credits‑first staking: your bet draws fro
 
 ### Dice War
 - Simple 2d6 vs the House: if you roll any doubles and beat the House, your win is doubled (ties go to the House).
-- Credits‑first staking with house cover check.
+- Credits-first staking with house cover check.
 - “Play Again” button repeats the same bet.
 - Session timeout: expires after 2 minutes of inactivity; any interaction (e.g., Play Again) resets the timer. On expiry, the session ends and a summary replaces the last message.
+
+### Horse Race
+- Five horses sprint down a 10-tick track over 5 stages; progress is visualised in an embed after each stage.
+- Players bet on a horse with `/horserace` and can swap picks between stages (5-second windows) by paying a 20% fee on the original stake.
+- The house enforces exposure limits; winners receive a 4× payout and the bot announces the results in-channel.
 
 ### Texas Hold’em
 - Multi‑player table with host/seat/start, betting actions, and ephemerally peeking your hole cards.
