@@ -15,7 +15,7 @@ import {
   getAdmins,
   takeFromUserToHouse,
   burnCredits
-} from './db.auto.mjs';
+} from './db/db.auto.mjs';
 import { formatChips, chipsAmount } from './games/format.mjs';
 import {
   activeSessions,
@@ -34,11 +34,11 @@ import {
   buildTimeoutField
 } from './games/session.mjs';
 import { postGameSessionEnd as postGameSessionEndMod, sweepExpiredSessions as sweepExpiredSessionsMod, postCashLog as postCashLogMod } from './games/logging.mjs';
-import { getGuildSettings, listEscrowForTable, escrowReturn } from './db.auto.mjs';
+import { getGuildSettings, listEscrowForTable, escrowReturn } from './db/db.auto.mjs';
 import { holdemTables } from './games/holdem.mjs';
 import { bjHandValue as bjHandValueMod, cardValueForSplit as cardValueForSplitMod, canAffordExtra as canAffordExtraMod } from './games/blackjack.mjs';
-import { kittenizeTextContent, kittenizeReplyArg } from './persona.mjs';
-import { BOT_VERSION, pushUpdateAnnouncement } from './updates.mjs';
+import { kittenizeTextContent, kittenizeReplyArg } from './services/persona.mjs';
+import { BOT_VERSION, pushUpdateAnnouncement } from './services/updates.mjs';
 
 // Slash command handlers (modularized)
 import cmdPing from './commands/ping.mjs';
