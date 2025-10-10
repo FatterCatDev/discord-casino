@@ -352,9 +352,18 @@ async function advanceStage(state, client) {
   state.stage += 1;
   // Random advance for first STAGE_COUNT - 1 stages
   if (state.stage <= STAGE_COUNT) {
+    let firstFinisher = null;
     for (let i = 0; i < state.progress.length; i += 1) {
-      const advance = 10 + Math.floor(Math.random() * 21); // 10-30
+      const advance = 5 + Math.floor(Math.random() * 11); // 5-15
       state.progress[i] = Math.min(TRACK_LENGTH, state.progress[i] + advance);
+      if (firstFinisher === null && state.progress[i] >= TRACK_LENGTH) {
+        firstFinisher = i;
+      }
+    }
+    if (firstFinisher !== null) {
+      state.status = 'finished';
+      await payoutRace(state, [firstFinisher], client);
+      return;
     }
   }
 
