@@ -384,6 +384,10 @@ export async function handleRaceStart(interaction, state) {
 
   state.hostConfirm = true;
   await interaction.reply({ content: '✅ Countdown starting!', ephemeral: true });
+  await editRaceMessage(state, interaction.client, {
+    footerText: `🚦 Race starts in ${START_COUNTDOWN_SEC}s!`,
+    extraDescription: `**🚨 COUNTDOWN: ${START_COUNTDOWN_SEC}s**`
+  });
   await startCountdown(state, interaction.client);
 }
 
