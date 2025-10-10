@@ -227,6 +227,22 @@ try {
   console.error('Failed to ensure update_channel_id column on guild_settings:', err);
 }
 
+try {
+  if (await tableExists('vote_rewards') && !(await tableHasColumn('vote_rewards', 'external_id'))) {
+    await q('ALTER TABLE vote_rewards ADD COLUMN external_id TEXT');
+  }
+} catch (err) {
+  console.error('Failed to ensure external_id column on vote_rewards:', err);
+}
+
+try {
+  if (await tableExists('vote_rewards')) {
+    await q('CREATE UNIQUE INDEX IF NOT EXISTS idx_vote_rewards_source_external ON vote_rewards(source, external_id) WHERE external_id IS NOT NULL');
+  }
+} catch (err) {
+  console.error('Failed to ensure unique index on vote_rewards source/external_id:', err);
+}
+
 function resolveGuildId(guildId) {
   if (USE_GLOBAL_ECONOMY) return ECONOMY_GUILD_ID;
   return guildId || DEFAULT_GUILD_ID;
