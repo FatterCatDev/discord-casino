@@ -86,6 +86,7 @@ CREATE TABLE IF NOT EXISTS vote_rewards (
   reward_amount INTEGER NOT NULL,
   metadata_json TEXT,
   earned_at INTEGER NOT NULL,
+  external_id TEXT,
   claimed_at INTEGER,
   claim_guild_id TEXT
 );
