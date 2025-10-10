@@ -1,5 +1,12 @@
 import { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
-import { getRaceById, handleRaceCancel, handleHorseBet, handleRaceStart } from '../games/horserace.mjs';
+import {
+  getRaceById,
+  handleRaceCancel,
+  handleHorseBet,
+  handleRaceStart,
+  showRaceNotice,
+  acknowledgeInteraction
+} from '../games/horserace.mjs';
 
 export default async function handleHorseRaceButtons(interaction) {
   const parts = interaction.customId.split('|');
@@ -8,17 +15,22 @@ export default async function handleHorseRaceButtons(interaction) {
   const state = getRaceById(raceId);
 
   if (!state) {
-    return interaction.reply({ content: '❌ This race has already finished.' });
+    try { await interaction.deferUpdate(); } catch {}
+    return;
   }
 
   if (action === 'pick') {
     const horseIndex = Number(parts[3]);
     if (!Number.isInteger(horseIndex) || horseIndex < 0 || horseIndex >= 5) {
-      return interaction.reply({ content: '❌ Invalid horse selection.' });
+      await acknowledgeInteraction(interaction);
+      await showRaceNotice(state, interaction.client, '⚠ Invalid horse selection.');
+      return;
     }
 
     if (state.status === 'countdown') {
-      return interaction.reply({ content: '❌ Countdown in progress; bets are locked.' });
+      await acknowledgeInteraction(interaction);
+      await showRaceNotice(state, interaction.client, '⚠ Countdown in progress; bets are locked.');
+      return;
     }
 
     if (state.status === 'betting') {
@@ -46,17 +58,23 @@ export default async function handleHorseRaceButtons(interaction) {
         return interaction.reply({ content: '❌ You must have an active bet from the betting phase to switch horses mid-race.' });
       }
       if (existing.horse === horseIndex) {
-        return interaction.reply({ content: '❌ You are already backing that horse.' });
+        await acknowledgeInteraction(interaction);
+        await showRaceNotice(state, interaction.client, '⚠ You are already backing that horse.');
+        return;
       }
       return handleHorseBet(interaction, state, horseIndex, existing.originalAmount);
     }
 
-    return interaction.reply({ content: '❌ Betting is closed for this race.' });
+    await acknowledgeInteraction(interaction);
+    await showRaceNotice(state, interaction.client, '⚠ Betting is closed for this race.');
+    return;
   }
 
   if (action === 'cancel') {
     if (!(state.status === 'betting' || state.status === 'countdown')) {
-      return interaction.reply({ content: '❌ You can only cancel before the race begins.' });
+      await acknowledgeInteraction(interaction);
+      await showRaceNotice(state, interaction.client, '⚠ You can only cancel before the race begins.');
+      return;
     }
     return handleRaceCancel(interaction, state);
   }
@@ -65,5 +83,5 @@ export default async function handleHorseRaceButtons(interaction) {
     return handleRaceStart(interaction, state);
   }
 
-  return interaction.reply({ content: '❌ Unknown action.' });
+  await acknowledgeInteraction(interaction);
 }
