@@ -113,6 +113,7 @@ function getSessionStats(guildId, userId) {
 
 const RESPONSE_PATCHED = Symbol('responsePatched');
 let voteRewardProcessing = false;
+let dblPollProcessing = false;
 
 process.on('unhandledRejection', (reason) => {
   if (reason && typeof reason === 'object' && 'code' in reason && Number(reason.code) === 10062) {
