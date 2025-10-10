@@ -219,7 +219,10 @@ async function startCountdown(state, client) {
 
   const tick = async () => {
     if (state.status !== 'countdown') return;
-    await editRaceMessage(state, client, { footerText: `🚦 Race starts in ${Math.max(0, remaining)}s!` });
+    await editRaceMessage(state, client, {
+      footerText: `🚦 Race starts in ${Math.max(0, remaining)}s!`,
+      extraDescription: `**🚨 COUNTDOWN: ${Math.max(0, remaining)}s**`
+    });
 
     if (remaining <= 0) {
       state.countdown = null;
