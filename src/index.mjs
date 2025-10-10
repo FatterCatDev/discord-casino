@@ -466,6 +466,7 @@ const commandHandlers = {
   roulette: cmdRoulette,
   holdem: cmdHoldem,
   dicewar: cmdDiceWar,
+  horserace: cmdHorseRace,
   setrake: cmdSetRake,
   setmaxbet: cmdSetMaxBet,
   resetallbalance: cmdResetAllBalance,
