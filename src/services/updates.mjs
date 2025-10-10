@@ -1,6 +1,6 @@
 import { PermissionFlagsBits } from 'discord.js';
-import { getGuildSettings } from './db.auto.mjs';
-import pkg from './package.json' with { type: 'json' };
+import { getGuildSettings } from '../db/db.auto.mjs';
+import pkg from '../../package.json' with { type: 'json' };
 
 export const BOT_VERSION = process.env.BOT_VERSION || pkg.version || '0.0.0';
 
