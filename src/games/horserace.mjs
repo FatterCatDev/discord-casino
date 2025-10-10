@@ -17,6 +17,8 @@ const START_COUNTDOWN_SEC = 5;
 const PAYOUT_MULTIPLIER = 4;
 const HORSE_LABELS = ['Horse 1', 'Horse 2', 'Horse 3', 'Horse 4', 'Horse 5'];
 const HORSE_EMOJIS = ['🟥', '🟩', '🟨', '🟦', '🟪'];
+const INITIAL_FOOTER_TEXT = 'Place your bets! Host must press Start to begin the countdown.';
+const DEFAULT_STAGE_FOOTER_TEXT = 'Place or change bets within 5 seconds of each stage.';
 
 const racesById = new Map();
 const racesByChannel = new Map();
@@ -41,7 +43,11 @@ function createEmptyState(ctx, interaction) {
     timeout: null,
     countdown: null,
     hostConfirm: false,
-    lastResultsText: null
+    lastResultsText: null,
+    noticeText: null,
+    noticeTimeout: null,
+    extraDescription: null,
+    footerText: INITIAL_FOOTER_TEXT
   };
 }
 
