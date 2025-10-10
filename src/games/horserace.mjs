@@ -246,6 +246,22 @@ async function editRaceMessage(state, client, options = {}) {
   }
 }
 
+function clearRaceIdleTimer(state) {
+  if (state.idleTimeout) {
+    clearTimeout(state.idleTimeout);
+    state.idleTimeout = null;
+  }
+}
+
+function refreshRaceTimeout(state, client) {
+  clearRaceIdleTimer(state);
+  if (!client) return;
+  if (state.status !== 'betting') return;
+  state.idleTimeout = setTimeout(() => {
+    handleRaceTimeout(state, client).catch(err => console.error('Horse race timeout error:', err));
+  }, RACE_TIMEOUT_MS);
+}
+
 async function showRaceNotice(state, client, text, duration = NOTICE_DURATION_MS) {
   if (!state || !client) return;
   if (state.noticeTimeout) {
