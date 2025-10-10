@@ -5,9 +5,9 @@ import { createApiKey, deleteApiKey, listApiKeys } from '../db/db.auto.mjs';
 
 function usage() {
   console.log(`Usage:
-  node api-cli.mjs create --guild <guildId> [--scopes <csv>] [--token <token>]
-  node api-cli.mjs delete --token <token>
-  node api-cli.mjs list [--guild <guildId>]
+  node src/api/cli.mjs create --guild <guildId> [--scopes <csv>] [--token <token>]
+  node src/api/cli.mjs delete --token <token>
+  node src/api/cli.mjs list [--guild <guildId>]
 
 Scopes:
   comma-separated, e.g. chips:grant,settings:write
