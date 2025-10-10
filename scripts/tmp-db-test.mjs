@@ -1,4 +1,4 @@
-import * as db from '../db.auto.mjs';
+import * as db from '../src/db/db.auto.mjs';
 function assert(cond, msg) { if (!cond) { console.error('ASSERT FAIL:', msg); process.exit(1); } }
 
 const gid = 'guild-1';
