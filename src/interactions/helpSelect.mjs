@@ -19,8 +19,8 @@ export default async function handleHelpSelect(interaction, ctx) {
           ? 'Earn chips with `/dailyspin`, `/vote`, `/request`, and any chip-paying game. Votes credit instantly with a DM from me; Credits burn first and chips arrive from my stash.'
           : 'Grab chips via `/dailyspin`, `/vote`, `/request`, and chip-paying games. Voting auto-credits chips (check your DMs) while games spend Credits before the house.' },
         { emoji: '🎲', cmd: 'Play Games', desc: kittenMode
-          ? 'Dive into `/ridebus`, `/blackjack`, `/slots`, `/roulette`, `/dicewar`, or `/holdem` for thrills.'
-          : 'Try `/ridebus`, `/blackjack`, `/slots`, `/roulette`, `/dicewar`, or `/holdem` to test your luck.' },
+          ? 'Dive into `/ridebus`, `/blackjack`, `/slots`, `/roulette`, `/dicewar`, `/holdem`, or `/horserace` for thrills.'
+          : 'Try `/ridebus`, `/blackjack`, `/slots`, `/roulette`, `/dicewar`, `/holdem`, or `/horserace` to test your luck.' },
         { emoji: '🗺️', cmd: 'Find Commands', desc: kittenMode
           ? 'Peek at `/stafflist` for my caretakers; switch the menu below for mod/admin tools.'
           : 'Use `/stafflist` to see the team, then explore this menu for moderator/admin sections.' }
