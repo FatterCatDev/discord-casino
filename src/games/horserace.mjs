@@ -720,7 +720,8 @@ export async function handleHorseBet(interaction, state, horseIndex, amount) {
     await showRaceNotice(state, interaction.client, '⚠ The race is not accepting bets right now.');
     return;
   }
-  if (horseIndex < 0 || horseIndex >= HORSE_LABELS.length) {
+  const horseCount = state.horseLabels?.length ?? HORSE_COUNT;
+  if (horseIndex < 0 || horseIndex >= horseCount) {
     await acknowledgeInteraction(interaction);
     await showRaceNotice(state, interaction.client, '⚠ Choose a horse between 1 and 5.');
     return;
