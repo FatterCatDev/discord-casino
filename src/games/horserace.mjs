@@ -360,6 +360,11 @@ async function startCountdown(state, client) {
     state.countdown = null;
   }
   state.lastResultsText = null;
+  if (state.noticeTimeout) {
+    clearTimeout(state.noticeTimeout);
+    state.noticeTimeout = null;
+  }
+  state.noticeText = null;
   state.status = 'countdown';
   let remaining = START_COUNTDOWN_SEC;
 
