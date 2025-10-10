@@ -206,21 +206,42 @@ async function payoutRace(state, winners, client) {
     }
   }
   const winnerLines = winners.map(idx => HORSE_LABELS[idx]).join(', ');
+  const resultsText = `**🥇 Winners:** ${winnerLines}\n${payouts.length ? payouts.map(p => `<@${p.userId}> won **${formatChips(p.amount)}**`).join('\n') : 'No winners this time.'}`;
+  state.lastResultsText = resultsText;
   state.status = 'finished';
   await editRaceMessage(state, client, {
     footerText: 'Race finished! Showing results in 3 seconds...',
-    extraDescription: `**🥇 Winners:** ${winnerLines}\n${payouts.length ? payouts.map(p => `<@${p.userId}> won **${formatChips(p.amount)}**`).join('\n') : 'No winners this time.'}`
+    extraDescription: resultsText
   });
   setTimeout(async () => {
     try {
+      resetRaceState(state);
       await editRaceMessage(state, client, {
-        footerText: 'Race finished! Place a new bet or host a new race.',
-        extraDescription: `**🥇 Winners:** ${winnerLines}\n${payouts.length ? payouts.map(p => `<@${p.userId}> won **${formatChips(p.amount)}**`).join('\n') : 'No winners this time.'}`
+        footerText: 'Place your bets! Host must press Start to begin the countdown.'
       });
     } catch (err) {
       console.error('Failed to render final horse race results:', err);
     }
   }, 3_000);
+}
+
+function resetRaceState(state) {
+  if (state.timeout) {
+    clearTimeout(state.timeout);
+    state.timeout = null;
+  }
+  if (state.countdown) {
+    clearTimeout(state.countdown);
+    state.countdown = null;
+  }
+  state.stage = 0;
+  state.stageDeadline = null;
+  state.progress = [0, 0, 0, 0, 0];
+  state.bets = new Map();
+  state.totalPot = 0;
+  state.totalExposure = 0;
+  state.status = 'betting';
+  state.hostConfirm = false;
 }
 
 async function startCountdown(state, client) {
