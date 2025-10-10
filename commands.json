@@ -2,6 +2,7 @@
   { "name": "ping", "description": "Replies with Pong!" },
   { "name": "balance", "description": "Check your chip & credit balance (mods can check others)." },
   { "name": "dicewar", "description": "2d6 vs the house; doubles double the payout when you win." },
+  { "name": "horserace", "description": "Bet on a 5-horse sprint with staged progress." },
   { "name": "holdem", "description": "Create a Texas Hold’em table with preset stakes." },
   { "name": "request", "description": "Request a buy-in or cash-out from casino staff." },
   { "name": "roulette", "description": "Play American Roulette with interactive bet setup." },
