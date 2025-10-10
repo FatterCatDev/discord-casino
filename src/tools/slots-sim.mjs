@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import crypto from 'node:crypto';
 
-// Copy of current slot config from index.mjs (20 lines setup)
+// Copy of current slot config from src/index.mjs (20 lines setup)
 const SYMBOLS = {
   W: { id: 'W', type: 'wild', pay: [0, 50, 500], substitutes: ['A','K','Q','J','T','N','H1','H2'] },
   S: { id: 'S', type: 'scatter', scatterPay: { 3: 40, 4: 200, 5: 1000 } },
@@ -103,4 +103,3 @@ async function main() {
 }
 
 main();
-
