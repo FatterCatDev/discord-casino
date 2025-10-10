@@ -609,6 +609,7 @@ export async function handleHorseBet(interaction, state, horseIndex, amount) {
         const collected = await collectFromUser(state, betKey, delta, 'horse race bet adjustment');
         updatedCreditsBurned += collected.creditsBurned;
         updatedChipsStaked += collected.chipsStaked;
+        stakeAmount = amount;
       } else {
         const delta = previousAmount - amount;
         let chipsRefund = Math.min(updatedChipsStaked, delta);
