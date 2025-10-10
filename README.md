@@ -129,7 +129,7 @@ Tip: verify env parsing with `npm run env`.
 - Users listed in `OWNER_USER_IDS` are treated as admins everywhere, providing a recovery path if no administrators remain.
 
 ## Scripts
-- `npm start` – Run the bot (`index.mjs`)
+- `npm start` – Run the bot (`src/index.mjs`)
 - `npm run deploy` – Register global slash commands (set `CLEAR_GUILD_IDS` to a comma list to wipe guild overrides)
 - `npm run env` – Print a redacted snapshot of env values
 - `npm run api:keys` – Manage HTTP API keys (create/list/delete)
