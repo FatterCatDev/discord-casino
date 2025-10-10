@@ -19,7 +19,7 @@ const PAYOUT_MULTIPLIER = 4;
 const HORSE_LABELS = ['Horse 1', 'Horse 2', 'Horse 3', 'Horse 4', 'Horse 5'];
 const HORSE_EMOJIS = ['🟥', '🟩', '🟨', '🟦', '🟪'];
 const INITIAL_FOOTER_TEXT = 'Place your bets! Host must press Start to begin the countdown.';
-const DEFAULT_STAGE_FOOTER_TEXT = 'Place or change bets within 5 seconds of each stage.';
+const DEFAULT_STAGE_FOOTER_TEXT = 'Place or change bets within 2.5 seconds of each stage.';
 const NOTICE_DURATION_MS = 4_000;
 const RACE_TIMEOUT_MS = 2 * 60 * 1_000;
 
@@ -493,7 +493,7 @@ async function startCountdown(state, client) {
       state.stage = 0;
       state.stageDeadline = Date.now() + STAGE_DELAY_MS;
       await editRaceMessage(state, client, {
-        footerText: 'Stage 1 results in 5 seconds — adjust bets now!',
+        footerText: 'Stage 1 results in 2.5 seconds — adjust bets now!',
         extraDescription: null
       });
       state.timeout = setTimeout(() => {
@@ -778,7 +778,7 @@ export async function handleHorseBet(interaction, state, horseIndex, amount) {
     ? (state.hostConfirm
         ? 'Countdown pending...'
         : 'Host must press Start to begin the countdown.')
-    : 'Next stage in 5 seconds — adjust bets now!';
+    : 'Next stage in 2.5 seconds — adjust bets now!';
   await editRaceMessage(state, interaction.client, { footerText });
   refreshRaceTimeout(state, interaction.client);
   if (!interaction.deferred && !interaction.replied) {
