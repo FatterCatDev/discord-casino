@@ -19,10 +19,7 @@ import {
 import { formatChips, chipsAmount } from './games/format.mjs';
 import {
   autoRedeemPendingVoteRewards,
-  describeBreakdown,
-  ingestDiscordBotListVotes,
-  isDiscordBotListPollingEnabled,
-  getDiscordBotListPollIntervalMs
+  describeBreakdown
 } from './services/votes.mjs';
 import {
   activeSessions,
@@ -113,7 +110,6 @@ function getSessionStats(guildId, userId) {
 
 const RESPONSE_PATCHED = Symbol('responsePatched');
 let voteRewardProcessing = false;
-let dblPollProcessing = false;
 
 process.on('unhandledRejection', (reason) => {
   if (reason && typeof reason === 'object' && 'code' in reason && Number(reason.code) === 10062) {
@@ -283,26 +279,6 @@ client.once(Events.ClientReady, c => {
   sweepVoteRewards().catch(() => {});
   setInterval(() => { sweepVoteRewards().catch(() => {}); }, intervalMs);
 
-  if (isDiscordBotListPollingEnabled()) {
-    const pollInterval = getDiscordBotListPollIntervalMs();
-    const pollDblVotes = async () => {
-      if (dblPollProcessing) return;
-      dblPollProcessing = true;
-      try {
-        const newVotes = await ingestDiscordBotListVotes();
-        if (Array.isArray(newVotes) && newVotes.length) {
-          console.log(`[votes] Recorded ${newVotes.length} DiscordBotList votes.`);
-        }
-      } catch (err) {
-        console.error('Failed to ingest DiscordBotList votes', err);
-      } finally {
-        dblPollProcessing = false;
-      }
-    };
-
-    pollDblVotes().catch(() => {});
-    setInterval(() => { pollDblVotes().catch(() => {}); }, pollInterval);
-  }
 });
 
 // Command registry and context for modular handlers
