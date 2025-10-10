@@ -332,6 +332,10 @@ function resetRaceState(state) {
     clearTimeout(state.countdown);
     state.countdown = null;
   }
+  if (state.noticeTimeout) {
+    clearTimeout(state.noticeTimeout);
+    state.noticeTimeout = null;
+  }
   state.stage = 0;
   state.stageDeadline = null;
   state.progress = [0, 0, 0, 0, 0];
@@ -340,6 +344,10 @@ function resetRaceState(state) {
   state.totalExposure = 0;
   state.status = 'betting';
   state.hostConfirm = false;
+  state.noticeText = null;
+  state.extraDescription = null;
+  state.lastResultsText = null;
+  state.footerText = INITIAL_FOOTER_TEXT;
 }
 
 async function startCountdown(state, client) {
