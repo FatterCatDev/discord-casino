@@ -59,6 +59,18 @@ CREATE TABLE IF NOT EXISTS api_keys (
   scopes  TEXT NOT NULL DEFAULT ''
 );
 
+CREATE TABLE IF NOT EXISTS vote_rewards (
+  id               BIGSERIAL PRIMARY KEY,
+  discord_user_id  TEXT NOT NULL,
+  source           TEXT NOT NULL,
+  reward_amount    BIGINT NOT NULL,
+  metadata_json    TEXT,
+  earned_at        BIGINT NOT NULL,
+  claimed_at       BIGINT,
+  claim_guild_id   TEXT
+);
+CREATE INDEX IF NOT EXISTS idx_vote_rewards_user_claimed ON vote_rewards(discord_user_id, claimed_at);
+
 CREATE TABLE IF NOT EXISTS active_requests (
   guild_id   TEXT NOT NULL,
   user_id    TEXT NOT NULL,
