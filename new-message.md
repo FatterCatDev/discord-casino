@@ -37,6 +37,7 @@ Just landed in the casino? Here’s your quick-start guide to earning chips, pla
 • 🎡 **Roulette** — `/roulette` (interactive bets with a live wheel spin)  
 • ⚔️ **Dice War** — `/dicewar bet:<int>` (simple roll vs. the house; winning doubles pay 2×)  
 • ♠️ **Texas Hold’em** — `/holdem` (spin up a private table; hole cards DM’d to you)
+• 🏇 **Horse Race** — `/horserace` (bet across 5 stages with live swaps and house-backed payouts)
 
 ---
 
