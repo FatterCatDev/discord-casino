@@ -8,7 +8,7 @@ Type=simple
 User=bot
 WorkingDirectory=/home/bot/discord-casino
 EnvironmentFile=/home/bot/discord-casino/.env
-ExecStart=/usr/bin/node index.mjs
+ExecStart=/usr/bin/node src/index.mjs
 Restart=always
 RestartSec=5
 # Uncomment if your bot writes logs to files inside the repo
@@ -16,4 +16,3 @@ RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
-

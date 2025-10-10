@@ -143,7 +143,7 @@ Tip: verify env parsing with `npm run env`.
 
 ## Updating Commands
 - After changing slash commands in `deploy-commands.mjs`, run `npm run deploy` to push updates globally. To remove old guild-scoped copies, run `CLEAR_GUILD_IDS=<guildId,...> npm run deploy` once.
-- Restart the bot only if you changed runtime logic (e.g., `index.mjs`).
+- Restart the bot only if you changed runtime logic (e.g., `src/index.mjs`).
 - Discord may take up to an hour to propagate global updates.
 
 ## Restarting for Updates
