@@ -150,7 +150,6 @@ app.post('/api/v1/guilds/:guildId/users/:discordId/credits/burn', auth(['credit:
 });
 
 const TOPGG_WEBHOOK_TOKEN = (process.env.TOPGG_WEBHOOK_AUTH || process.env.TOPGG_WEBHOOK_TOKEN || '').trim();
-const DBL_WEBHOOK_TOKEN = (process.env.DBL_WEBHOOK_AUTH || process.env.DBL_WEBHOOK_TOKEN || '').trim();
 
 app.post('/api/v1/webhooks/topgg', async (req, res) => {
     if (!TOPGG_WEBHOOK_TOKEN) return res.status(501).json({ error: 'topgg_webhook_disabled' });
