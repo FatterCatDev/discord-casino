@@ -28,6 +28,9 @@ export default async function handleHelp(interaction, ctx) {
         { emoji: '🎡', cmd: '/dailyspin', desc: kittenMode
           ? 'Spin once every 24 hours for free chips — a little treat from me, Kitten.'
           : 'Spin once every 24 hours for a free chip bonus.' },
+        { emoji: '🗳️', cmd: '/vote', desc: kittenMode
+          ? 'Tap after you vote for me on Top.gg to claim the chips I set aside for you.'
+          : 'Open vote links and claim your Top.gg chip rewards when they are ready.' },
         { emoji: '📨', cmd: '/request type:<Buy In|Cash Out> amount:<int>', desc: kittenMode
           ? 'Ask staff for buy-ins or cash-outs; stay sweet while you wait.'
           : 'Submit buy-in or cash-out tickets for staff review.' }
