@@ -10,7 +10,7 @@ Discord bot for a lightweight casino economy with two currencies and multiple mi
 
 Balances are global: the House bank and user wallets follow players across every guild where the bot runs. The economy owner (Discord ID `94915805375889408`) retains ultimate control over minting and burning.
 
-Includes slash commands for balances, leaderboards, admin operations, cash/request workflows, logging, and the following games: Ride the Bus, Blackjack, Slots, Roulette, Dice War, and a Texas Hold’em table.
+Includes slash commands for balances, leaderboards, admin operations, cash/request workflows, logging, and the following games: Ride the Bus, Blackjack, Slots, Roulette, Dice War, Horse Race, and a Texas Hold’em table.
 
 ## Games
 
@@ -18,7 +18,7 @@ All games except Texas Hold’em use Credits‑first staking: your bet draws fro
 
 ### Casino Category & Channel Policy
 - Configure a dedicated category via `/setcasinocategory category:<#Category>`.
-- Game slash commands (RideBus, Blackjack, Slots, Roulette, Hold’em) only run inside channels/threads under this category. Interactions for an already-started game continue to work where they began.
+- Game slash commands (RideBus, Blackjack, Slots, Roulette, HorseRace, Hold’em) only run inside channels/threads under this category. Interactions for an already-started game continue to work where they began.
 - Hold’em creates a temporary per‑table text channel under this category and removes it automatically when the table idles out.
 
 ### Ride the Bus
@@ -81,7 +81,7 @@ Player
 - `/dailyspin` – free chips every 24 hours.
 - `/vote` – vote on Top.gg; rewards credit automatically and the bot DMs the amount.
 - `/request type:<Buy In|Cash Out>` – work with staff for manual chip grants or withdrawals.
-- Chip-paying games (Ride the Bus, Blackjack, Slots, Roulette, Dice War, Hold’em) — Credits stake first, and any win pays out in Chips from the house.
+- Chip-paying games (Ride the Bus, Blackjack, Slots, Roulette, Dice War, Horse Race, Hold’em) — Credits stake first, and any win pays out in Chips from the house.
 
 Moderator (granted via `/addmod`, admins via `/addadmin`)
 - House & chips: `/housebalance`, `/houseadd`, `/houseremove`, `/givechips`, `/takechips`, `/buyin`, `/cashout`
@@ -97,7 +97,7 @@ Moderator (granted via `/addmod`, admins via `/addadmin`)
 ## Sessions & Timeouts
 
 - Active sessions expire after 2 minutes of inactivity; the last session message is replaced with a summary card. Game logs are posted to the configured channel.
-- Roulette/Slots/Blackjack/RideBus/Dice War sessions track games played and net; RideBus/Blackjack burn any Credits stake on expiration.
+- Roulette/Slots/Blackjack/RideBus/Dice War/HorseRace sessions track games played and net; RideBus/Blackjack burn any Credits stake on expiration.
 
 Tip: Dice War “Play Again” is only available to the original player and only while the session is active (within 2 minutes of the last action).
 
