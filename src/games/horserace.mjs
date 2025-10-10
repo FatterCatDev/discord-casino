@@ -468,7 +468,7 @@ export async function handleHorseBet(interaction, state, horseIndex, amount) {
   }
   const fee = existing
     ? (state.status === 'running'
-        ? Math.ceil(originalAmount * state.stage)
+        ? Math.ceil(originalAmount * Math.max(1, state.stage / 2))
         : 0)
     : 0;
 
