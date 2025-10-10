@@ -784,6 +784,11 @@ export async function handleRaceCancel(interaction, state) {
   }
 
   await editRaceMessage(state, interaction.client, { footerText: 'Race cancelled.', extraDescription: null });
+  try {
+    await postGameSessionEnd(interaction, { game: 'Horse Race', userId: state.hostId, houseNet: 0 });
+  } catch (err) {
+    console.error('Horse race cancel log failed:', err);
+  }
   if (!interaction.deferred && !interaction.replied) {
     try { await interaction.deferUpdate(); } catch {}
   }
