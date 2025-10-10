@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import crypto from 'node:crypto';
 import 'dotenv/config';
-import { createApiKey, deleteApiKey, listApiKeys } from './db.auto.mjs';
+import { createApiKey, deleteApiKey, listApiKeys } from '../db/db.auto.mjs';
 
 function usage() {
   console.log(`Usage:
