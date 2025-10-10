@@ -72,6 +72,12 @@ Player
 - `/stafflist`
 - `/ridebus bet:<int>`, `/blackjack table:<High|Low> bet:<int>`, `/slots bet:<int>`, `/roulette`, `/holdem`
 
+### Earning Chips
+- `/dailyspin` – free chips every 24 hours.
+- `/vote` – vote on Top.gg; rewards credit automatically and the bot DMs the amount.
+- `/request type:<Buy In|Cash Out>` – work with staff for manual chip grants or withdrawals.
+- Chip-paying games (Ride the Bus, Blackjack, Slots, Roulette, Dice War, Hold’em) — Credits stake first, and any win pays out in Chips from the house.
+
 Moderator (granted via `/addmod`, admins via `/addadmin`)
 - House & chips: `/housebalance`, `/houseadd`, `/houseremove`, `/givechips`, `/takechips`, `/buyin`, `/cashout`
 - Credits: `/givecredits`, `/takecredits`
