@@ -348,7 +348,6 @@ function resetRaceState(state) {
   state.hostConfirm = false;
   state.noticeText = null;
   state.extraDescription = null;
-  state.lastResultsText = null;
   state.footerText = INITIAL_FOOTER_TEXT;
 }
 
