@@ -7,10 +7,8 @@ const FALLBACK_BOT_ID = (process.env.TOPGG_BOT_ID || process.env.CLIENT_ID || ''
 const TOPGG_VOTE_URL = (process.env.TOPGG_VOTE_URL || (FALLBACK_BOT_ID ? `https://top.gg/bot/${FALLBACK_BOT_ID}/vote` : '')).trim();
 const DBL_BOT_ID = (process.env.DBL_BOT_ID || process.env.CLIENT_ID || '').trim();
 const DBL_VOTE_URL = (process.env.DBL_VOTE_URL || (DBL_BOT_ID ? `https://discordbotlist.com/bots/${DBL_BOT_ID}/upvote` : '')).trim();
-const DBL_API_TOKEN = (process.env.DBL_API_TOKEN || '').trim();
+const DBL_WEBHOOK_SECRET = (process.env.DBL_WEBHOOK_AUTH || process.env.DBL_WEBHOOK_TOKEN || '').trim();
 const DBL_VOTE_REWARD = toPositiveInt(process.env.DBL_VOTE_REWARD, TOPGG_BASE_REWARD);
-const DBL_POLL_ENABLED = String(process.env.DBL_POLL_ENABLED ?? 'true').toLowerCase() !== 'false';
-const DBL_POLL_INTERVAL = Math.max(60_000, Number(process.env.DBL_POLL_INTERVAL_MS || 300_000));
 const DBL_VOTE_REASON = process.env.DBL_VOTE_REWARD_REASON || 'discordbotlist vote reward';
 const AUTO_REDEEM_GUILD_ID = (process.env.VOTE_REWARD_AUTO_GUILD_ID || process.env.PRIMARY_GUILD_ID || process.env.GUILD_ID || '').trim() || null;
 const AUTO_REDEEM_LIMIT = toPositiveInt(process.env.VOTE_REWARD_AUTO_BATCH_LIMIT, 25);
