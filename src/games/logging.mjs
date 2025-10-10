@@ -5,7 +5,7 @@ import { ridebusGames } from './ridebus.mjs';
 import { blackjackGames } from './blackjack.mjs';
 import { rouletteSessions } from './roulette.mjs';
 import { slotSessions } from './slots.mjs';
-import { kittenizeTextContent, kittenizeReplyArg } from '../persona.mjs';
+import { kittenizeTextContent, kittenizeReplyArg } from '../services/persona.mjs';
 
 export async function postGameLog(interaction, lines) {
   try {
