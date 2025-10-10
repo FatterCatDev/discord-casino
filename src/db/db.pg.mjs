@@ -471,6 +471,95 @@ export async function mintChips(guildId, discordId, amount, reason, adminId) {
   return getUserBalances(gid, discordId);
 }
 
+export async function recordVoteReward(discordId, source, amount, metadata = {}, earnedAt = Math.floor(Date.now() / 1000)) {
+  const userId = String(discordId || '').trim();
+  const src = String(source || '').trim();
+  if (!userId) throw new Error('VOTE_REWARD_USER_REQUIRED');
+  if (!src) throw new Error('VOTE_REWARD_SOURCE_REQUIRED');
+  const amt = Number(amount);
+  if (!Number.isInteger(amt) || amt <= 0) throw new Error('VOTE_REWARD_AMOUNT_POSITIVE');
+  const ts = Number.isInteger(earnedAt) && earnedAt > 0 ? earnedAt : Math.floor(Date.now() / 1000);
+  const meta = metadata && Object.keys(metadata).length ? JSON.stringify(metadata) : null;
+  await q(
+    'INSERT INTO vote_rewards (discord_user_id, source, reward_amount, metadata_json, earned_at) VALUES ($1,$2,$3,$4,$5)',
+    [userId, src, amt, meta, ts]
+  );
+  return true;
+}
+
+export async function getPendingVoteRewards(discordId) {
+  const userId = String(discordId || '').trim();
+  if (!userId) return [];
+  const rows = await q(
+    'SELECT id, source, reward_amount, earned_at, metadata_json FROM vote_rewards WHERE discord_user_id = $1 AND claimed_at IS NULL ORDER BY earned_at ASC, id ASC',
+    [userId]
+  );
+  return rows.map(mapVoteRow).filter(Boolean);
+}
+
+export async function redeemVoteRewards(guildId, discordId, options = {}) {
+  const userId = String(discordId || '').trim();
+  if (!userId) throw new Error('VOTE_REWARD_USER_REQUIRED');
+  const gid = resolveGuildId(guildId);
+  const reason = options?.reason ? String(options.reason) : 'vote reward';
+  const adminId = options?.adminId ? String(options.adminId) : null;
+  const limit = Number.isInteger(options?.limit) && options.limit > 0 ? options.limit : null;
+
+  return tx(async c => {
+    await c.query('INSERT INTO users (guild_id, discord_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [gid, userId]);
+    const pendingRes = await c.query(
+      'SELECT id, source, reward_amount, earned_at, metadata_json FROM vote_rewards WHERE discord_user_id = $1 AND claimed_at IS NULL ORDER BY earned_at ASC, id ASC',
+      [userId]
+    );
+    const pendingRows = pendingRes.rows || [];
+    const selected = limit ? pendingRows.slice(0, limit) : pendingRows;
+    if (!selected.length) {
+      const balRes = await c.query('SELECT chips, credits FROM users WHERE guild_id = $1 AND discord_id = $2', [gid, userId]);
+      const balRow = balRes.rows?.[0] || { chips: 0, credits: 0 };
+      return {
+        claimedTotal: 0,
+        claimedCount: 0,
+        claimedRewards: [],
+        balances: { chips: Number(balRow.chips || 0), credits: Number(balRow.credits || 0) },
+        remaining: pendingRows.length
+      };
+    }
+
+    let total = 0;
+    for (const row of selected) total += Number(row.reward_amount || 0);
+    if (!Number.isInteger(total) || total <= 0) {
+      const balRes = await c.query('SELECT chips, credits FROM users WHERE guild_id = $1 AND discord_id = $2', [gid, userId]);
+      const balRow = balRes.rows?.[0] || { chips: 0, credits: 0 };
+      return {
+        claimedTotal: 0,
+        claimedCount: 0,
+        claimedRewards: [],
+        balances: { chips: Number(balRow.chips || 0), credits: Number(balRow.credits || 0) },
+        remaining: pendingRows.length
+      };
+    }
+
+    await c.query('UPDATE users SET chips = chips + $1, updated_at = NOW() WHERE guild_id = $2 AND discord_id = $3', [total, gid, userId]);
+    await c.query(
+      'INSERT INTO transactions (guild_id, account, delta, reason, admin_id, currency) VALUES ($1,$2,$3,$4,$5,$6)',
+      [gid, userId, total, reason || 'vote reward', adminId || null, 'CHIPS']
+    );
+    const now = Math.floor(Date.now() / 1000);
+    for (const row of selected) {
+      await c.query('UPDATE vote_rewards SET claimed_at = $1, claim_guild_id = $2 WHERE id = $3', [now, gid, row.id]);
+    }
+    const balRes = await c.query('SELECT chips, credits FROM users WHERE guild_id = $1 AND discord_id = $2', [gid, userId]);
+    const balRow = balRes.rows?.[0] || { chips: 0, credits: 0 };
+    return {
+      claimedTotal: total,
+      claimedCount: selected.length,
+      claimedRewards: selected.map(mapVoteRow).filter(Boolean),
+      balances: { chips: Number(balRow.chips || 0), credits: Number(balRow.credits || 0) },
+      remaining: pendingRows.length - selected.length
+    };
+  });
+}
+
 export async function grantCredits(guildId, discordId, amount, reason, adminId) {
   const gid = resolveGuildId(guildId);
   const amt = Number(amount);
