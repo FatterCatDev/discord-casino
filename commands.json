@@ -33,6 +33,7 @@
   { "name": "removeadmin", "description": "Remove admin access from a user." },
   { "name": "stafflist", "description": "Show the current casino admins and moderators." },
   { "name": "dailyspin", "description": "Spin a daily wheel for free chips." },
+  { "name": "vote", "description": "Show vote links and claim chip rewards." },
   { "name": "kittenmode", "description": "Toggle the Kitten personality for this server." },
   { "name": "ridebus", "description": "Play Ride the Bus with Credits-first staking." }
 ]
