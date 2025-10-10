@@ -17,6 +17,7 @@ const START_COUNTDOWN_SEC = 5;
 const PAYOUT_MULTIPLIER = 4;
 const BET_CHANGE_PERCENT = 0.2;
 const HORSE_LABELS = ['🟥 Horse 1', '🟩 Horse 2', '🟨 Horse 3', '🟦 Horse 4', '🟪 Horse 5'];
+const HORSE_EMOJIS = ['🟥', '🟩', '🟨', '🟦', '🟪'];
 
 const racesById = new Map();
 const racesByChannel = new Map();
@@ -96,41 +97,50 @@ function createRaceEmbed(state, options = {}) {
 }
 
 function buildComponents(state) {
+  if (state.status === 'finished' || state.status === 'cancelled') return [];
+
+  const horseButtons = HORSE_LABELS.map((label, idx) => new ButtonBuilder()
+    .setCustomId(`horse|pick|${state.id}|${idx}`)
+    .setStyle(ButtonStyle.Secondary)
+    .setLabel(String(idx + 1))
+    .setEmoji(HORSE_EMOJIS[idx] || null)
+    .setDisabled(state.status === 'countdown'));
+
+  const rows = [];
+  rows.push(new ActionRowBuilder().addComponents(horseButtons.slice(0, 3)));
+  rows.push(new ActionRowBuilder().addComponents(horseButtons.slice(3)));
+
   if (state.status === 'betting') {
-    const buttons = [
-      new ButtonBuilder()
-        .setCustomId(`horse|bet|${state.id}`)
-        .setStyle(ButtonStyle.Primary)
-        .setLabel('Bet'),
+    const controls = [];
+    controls.push(
       new ButtonBuilder()
         .setCustomId(`horse|cancel|${state.id}`)
         .setStyle(ButtonStyle.Danger)
-        .setLabel('Cancel')
-    ];
-
-    if (!state.hostConfirm) {
-      buttons.push(
-        new ButtonBuilder()
-          .setCustomId(`horse|confirm|${state.id}`)
-          .setStyle(ButtonStyle.Success)
-          .setLabel('Start Race')
-          .setDisabled(state.bets.size === 0)
-      );
-    }
-
-    return [new ActionRowBuilder().addComponents(buttons)];
-  }
-
-  if (state.status === 'running') {
-    return [new ActionRowBuilder().addComponents(
+        .setLabel('Cancel Race')
+    );
+    controls.push(
       new ButtonBuilder()
-        .setCustomId(`horse|bet|${state.id}`)
-        .setStyle(ButtonStyle.Primary)
-        .setLabel('Bet')
-    )];
+        .setCustomId(`horse|confirm|${state.id}`)
+        .setStyle(ButtonStyle.Success)
+        .setLabel('Start Race')
+        .setDisabled(state.hostConfirm || state.bets.size === 0)
+    );
+    rows.push(new ActionRowBuilder().addComponents(controls));
+  } else if (state.status === 'countdown') {
+    rows.push(new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`horse|cancel|${state.id}`)
+        .setStyle(ButtonStyle.Danger)
+        .setLabel('Cancel Race'),
+      new ButtonBuilder()
+        .setCustomId(`horse|confirm|${state.id}`)
+        .setStyle(ButtonStyle.Success)
+        .setLabel('Start Race')
+        .setDisabled(true)
+    ));
   }
 
-  return [];
+  return rows;
 }
 
 function storeRace(state, messageId) {
