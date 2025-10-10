@@ -45,6 +45,18 @@ function createEmptyState(ctx, interaction) {
   };
 }
 
+async function acknowledgeInteraction(interaction) {
+  if (!interaction || interaction.deferred || interaction.replied) return;
+  try {
+    if (typeof interaction.deferUpdate === 'function') {
+      await interaction.deferUpdate();
+    } else if (typeof interaction.deferReply === 'function') {
+      await interaction.deferReply({ ephemeral: true });
+      await interaction.deleteReply().catch(() => {});
+    }
+  } catch {}
+}
+
 const DISPLAY_TRACK_LENGTH = 20;
 const TRACK_LINE_WIDTH = 70;
 
