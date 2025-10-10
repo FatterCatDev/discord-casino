@@ -255,6 +255,17 @@ function safeParseJson(value) {
   }
 }
 
+function mapVoteRow(row) {
+  if (!row) return null;
+  return {
+    id: Number(row.id),
+    source: row.source,
+    reward_amount: Number(row.reward_amount || 0),
+    earned_at: Number(row.earned_at || 0),
+    metadata: safeParseJson(row.metadata_json)
+  };
+}
+
 async function recordTxn(guildId, account, delta, reason, adminId, currency = 'CHIPS') {
   await q(
     'INSERT INTO transactions (guild_id, account, delta, reason, admin_id, currency) VALUES ($1,$2,$3,$4,$5,$6)',
