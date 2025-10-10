@@ -76,6 +76,7 @@ import cmdSlots from './commands/slots.mjs';
 import cmdRoulette from './commands/roulette.mjs';
 import cmdHoldem from './commands/holdem.mjs';
 import cmdDiceWar from './commands/dicewar.mjs';
+import cmdHorseRace from './commands/horserace.mjs';
 import cmdSetRake from './commands/setrake.mjs';
 import cmdSetMaxBet from './commands/setmaxbet.mjs';
 import cmdResetAllBalance from './commands/resetallbalance.mjs';
