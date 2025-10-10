@@ -286,8 +286,8 @@ export async function recordTopggVote(payload = {}) {
   const earnedAt = Number.isInteger(payload.earned_at)
     ? Number(payload.earned_at)
     : Math.floor(Date.now() / 1000);
-  await recordVoteReward(userId, 'topgg', amount, metadata, earnedAt);
-  return { recorded: true, amount, isWeekend, test: isTest };
+  const recorded = await recordVoteReward(userId, 'topgg', amount, metadata, earnedAt, payload?.vote_id || payload?.id || null);
+  return { recorded, amount, isWeekend, test: isTest };
 }
 
 export function describeBreakdown(breakdown = []) {
