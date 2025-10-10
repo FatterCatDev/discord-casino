@@ -262,9 +262,9 @@ client.once(Events.ClientReady, c => {
           const user = await client.users.fetch(entry.userId);
           const amount = formatChips(entry.claimedTotal || 0);
           const breakdownText = describeBreakdown(entry.breakdown || []);
-          const messages = [`🎉 Thanks for voting on Top.gg! I just credited **${amount}** to your chips.`];
-          if (breakdownText) messages.push(`Sources: ${breakdownText}.`);
-          await user.send(messages.join(' '));
+          const sources = breakdownText || 'your recent votes';
+          const message = `🎉 Thanks for voting (${sources})! I just credited **${amount}** to your chips.`;
+          await user.send(message);
         } catch (err) {
           console.error('Failed to DM vote reward notice', entry.userId, err);
         }
