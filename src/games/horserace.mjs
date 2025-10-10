@@ -285,6 +285,44 @@ async function showRaceNotice(state, client, text, duration = NOTICE_DURATION_MS
   }
 }
 
+async function handleRaceTimeout(state, client) {
+  if (!state || !client) return;
+  if (!(state.status === 'betting')) return;
+  clearRaceIdleTimer(state);
+  state.status = 'timedout';
+  state.hostConfirm = false;
+  state.noticeText = null;
+  state.lastResultsText = null;
+  const timeoutDescription = '⌛ This horse race timed out after 2 minutes of inactivity.\nUse `/horserace` to start a new game.';
+
+  // Refund all stakes and fees
+  for (const bet of state.bets.values()) {
+    const totalCredits = bet.creditsBurned + bet.feesPaidCredits;
+    const totalChips = bet.chipsStaked + bet.feesPaidChips;
+    try {
+      if (totalCredits > 0 || totalChips > 0) {
+        await refundToUser(state, bet.userId, totalCredits, totalChips, 'horse race timed out');
+      }
+    } catch (err) {
+      console.error('Horse race timeout refund failed for', bet.userId, err);
+    }
+  }
+
+  state.bets = new Map();
+  state.totalPot = 0;
+  state.totalExposure = 0;
+  state.extraDescription = timeoutDescription;
+  state.footerText = 'Race expired. Use /horserace to try again.';
+
+  await editRaceMessage(state, client, {
+    footerText: state.footerText,
+    extraDescription: timeoutDescription,
+    includeNotice: false
+  });
+
+  clearRace(state);
+}
+
 function ensureWinner(state) {
   const maxProgress = Math.max(...state.progress);
   const leaders = state.progress.map((val, idx) => ({ val, idx }))
