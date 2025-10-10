@@ -11,8 +11,8 @@ import {
 import { formatChips } from './format.mjs';
 
 const TRACK_LENGTH = 100;
-const STAGE_COUNT = 5;
-const STAGE_DELAY_MS = 5_000;
+const STAGE_COUNT = 10;
+const STAGE_DELAY_MS = 2_500;
 const START_COUNTDOWN_SEC = 5;
 const PAYOUT_MULTIPLIER = 4;
 const HORSE_LABELS = ['Horse 1', 'Horse 2', 'Horse 3', 'Horse 4', 'Horse 5'];
