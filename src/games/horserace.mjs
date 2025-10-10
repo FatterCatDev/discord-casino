@@ -132,6 +132,10 @@ function clearRace(state) {
     clearTimeout(state.timeout);
     state.timeout = null;
   }
+  if (state.countdown) {
+    clearTimeout(state.countdown);
+    state.countdown = null;
+  }
   racesById.delete(state.id);
   racesByChannel.delete(state.channelId);
   if (state.messageId) racesByMessage.delete(state.messageId);
@@ -253,7 +257,7 @@ async function advanceStage(state, client) {
     ? 'Race finished!'
     : 'Next stage in 5 seconds — adjust bets now!';
 
-  await editRaceMessage(state, client, { footerText: footer, disableButtons: state.status !== 'running' });
+  await editRaceMessage(state, client, { footerText: footer });
 
   if (state.status === 'finished') {
     clearRace(state);
@@ -284,19 +288,18 @@ export async function createHorseRace(interaction, ctx) {
   }
 
   const state = createEmptyState(ctx, interaction);
-  const embed = createRaceEmbed(state, { footerText: 'Race will begin in 5 seconds. Place your bets!' });
+  const embed = createRaceEmbed(state, { footerText: 'Place your bets! Host must press Start to begin the countdown.' });
   const message = await interaction.reply({ embeds: [embed], components: buildComponents(state), fetchReply: true });
   storeRace(state, message.id);
-
-  state.timeout = setTimeout(() => {
-    advanceStage(state, interaction.client).catch(err => console.error('Horse race advance error:', err));
-  }, STAGE_DELAY_MS);
 
   return state;
 }
 
 export async function handleHorseBet(interaction, state, horseIndex, amount) {
-  if (state.status !== 'running') {
+  if (state.status === 'countdown') {
+    return interaction.reply({ content: '❌ Bets are locked during the countdown.', ephemeral: true });
+  }
+  if (!(state.status === 'betting' || state.status === 'running')) {
     return interaction.reply({ content: '❌ The race is not accepting bets right now.', ephemeral: true });
   }
   if (horseIndex < 0 || horseIndex >= HORSE_LABELS.length) {
