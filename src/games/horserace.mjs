@@ -13,6 +13,7 @@ import { formatChips } from './format.mjs';
 const TRACK_LENGTH = 10;
 const STAGE_COUNT = 5;
 const STAGE_DELAY_MS = 5_000;
+const START_COUNTDOWN_SEC = 5;
 const PAYOUT_MULTIPLIER = 4;
 const BET_CHANGE_PERCENT = 0.2;
 const HORSE_LABELS = ['🟥 Horse 1', '🟩 Horse 2', '🟨 Horse 3', '🟦 Horse 4', '🟪 Horse 5'];
@@ -30,14 +31,16 @@ function createEmptyState(ctx, interaction) {
     hostId: interaction.user.id,
     ctx,
     stage: 0,
-    stageDeadline: Date.now() + STAGE_DELAY_MS,
+    stageDeadline: null,
     progress: [0, 0, 0, 0, 0],
     bets: new Map(),
     totalPot: 0,
     totalExposure: 0,
-    status: 'running',
+    status: 'betting',
     messageId: null,
-    timeout: null
+    timeout: null,
+    countdown: null,
+    hostConfirm: false
   };
 }
 
@@ -62,8 +65,12 @@ function summarizeBets(state) {
 }
 
 function createRaceEmbed(state, options = {}) {
+  const title = state.status === 'running'
+    ? `🏇 Horse Race — Stage ${state.stage}/${STAGE_COUNT}`
+    : '🏇 Horse Race — Betting Stage';
+
   const embed = new EmbedBuilder()
-    .setTitle(`🏇 Horse Race — Stage ${state.stage}/${STAGE_COUNT}`)
+    .setTitle(title)
     .setDescription(HORSE_LABELS.map((_, idx) => buildHorseLine(idx, state.progress[idx])).join('\n'))
     .addFields(
       { name: '💰 Pot', value: `${formatChips(state.totalPot)} chips`, inline: true },
@@ -74,19 +81,32 @@ function createRaceEmbed(state, options = {}) {
   return embed;
 }
 
-function buildComponents(state, disabled = false) {
-  const row = new ActionRowBuilder().addComponents(
+function buildComponents(state) {
+  const bettingOpen = state.status === 'betting';
+  const buttons = [
     new ButtonBuilder()
       .setCustomId(`horse|bet|${state.id}`)
       .setStyle(ButtonStyle.Primary)
       .setLabel('Bet')
-      .setDisabled(disabled || state.status !== 'running'),
+      .setDisabled(!bettingOpen),
     new ButtonBuilder()
       .setCustomId(`horse|cancel|${state.id}`)
       .setStyle(ButtonStyle.Danger)
       .setLabel('Cancel')
-      .setDisabled(disabled || state.status !== 'running')
-  );
+      .setDisabled(!bettingOpen)
+  ];
+
+  if (bettingOpen && !state.hostConfirm) {
+    buttons.push(
+      new ButtonBuilder()
+        .setCustomId(`horse|confirm|${state.id}`)
+        .setStyle(ButtonStyle.Success)
+        .setLabel('Start Race')
+        .setDisabled(state.bets.size === 0)
+    );
+  }
+
+  const row = new ActionRowBuilder().addComponents(buttons);
   return [row];
 }
 
