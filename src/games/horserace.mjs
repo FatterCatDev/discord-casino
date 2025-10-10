@@ -97,7 +97,7 @@ function createRaceEmbed(state, options = {}) {
 }
 
 function buildComponents(state) {
-  if (state.status === 'finished' || state.status === 'cancelled') return [];
+  if (state.status === 'cancelled') return [];
 
   const horseButtons = HORSE_LABELS.map((label, idx) => new ButtonBuilder()
     .setCustomId(`horse|pick|${state.id}|${idx}`)
