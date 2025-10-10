@@ -1,4 +1,4 @@
-import { getRaceById, handleHorseBet } from '../games/horserace.mjs';
+import { getRaceById, handleHorseBet, showRaceNotice, acknowledgeInteraction } from '../games/horserace.mjs';
 
 export default async function handleHorseRaceBetModal(interaction) {
   const parts = interaction.customId.split('|');
@@ -7,7 +7,8 @@ export default async function handleHorseRaceBetModal(interaction) {
   const state = getRaceById(raceId);
 
   if (!state) {
-    return interaction.reply({ content: '❌ This race has already finished.' });
+    await acknowledgeInteraction(interaction);
+    return;
   }
 
   const amountRaw = interaction.fields.getTextInputValue('amount');
@@ -15,7 +16,9 @@ export default async function handleHorseRaceBetModal(interaction) {
   const amount = Number.parseInt(amountRaw, 10);
 
   if (!Number.isInteger(horseIndex) || horseIndex < 0 || horseIndex >= 5) {
-    return interaction.reply({ content: '❌ Invalid horse selection.' });
+    await acknowledgeInteraction(interaction);
+    await showRaceNotice(state, interaction.client, '⚠ Invalid horse selection.');
+    return;
   }
 
   await handleHorseBet(interaction, state, horseIndex, amount);
