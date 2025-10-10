@@ -415,7 +415,7 @@ export function getRaceByChannel(channelId) {
 
 export async function createHorseRace(interaction, ctx) {
   if (racesByChannel.has(interaction.channelId)) {
-    return interaction.reply({ content: '❌ A horse race is already running in this channel.', ephemeral: true });
+    return interaction.reply({ content: '❌ A horse race is already running in this channel.' });
   }
 
   const state = createEmptyState(ctx, interaction);
@@ -428,13 +428,13 @@ export async function createHorseRace(interaction, ctx) {
 
 export async function handleRaceStart(interaction, state) {
   if (state.status !== 'betting') {
-    return interaction.reply({ content: '❌ The race is already underway.', ephemeral: true });
+    return interaction.reply({ content: '❌ The race is already underway.' });
   }
   if (state.hostConfirm) {
-    return interaction.reply({ content: '❌ Countdown already in progress.', ephemeral: true });
+    return interaction.reply({ content: '❌ Countdown already in progress.' });
   }
   if (!state.bets.size) {
-    return interaction.reply({ content: '❌ At least one bet is required before starting the race.', ephemeral: true });
+    return interaction.reply({ content: '❌ At least one bet is required before starting the race.' });
   }
 
   const isHost = interaction.user.id === state.hostId;
@@ -446,7 +446,7 @@ export async function handleRaceStart(interaction, state) {
   }
 
   if (!isHost && !isModerator) {
-    return interaction.reply({ content: '❌ Only the race host or moderators can start the countdown.', ephemeral: true });
+    return interaction.reply({ content: '❌ Only the race host or moderators can start the countdown.' });
   }
 
   state.hostConfirm = true;
@@ -462,23 +462,23 @@ export async function handleRaceStart(interaction, state) {
 
 export async function handleHorseBet(interaction, state, horseIndex, amount) {
   if (state.status === 'countdown') {
-    return interaction.reply({ content: '❌ Bets are locked during the countdown.', ephemeral: true });
+    return interaction.reply({ content: '❌ Bets are locked during the countdown.' });
   }
   if (!(state.status === 'betting' || state.status === 'running')) {
-    return interaction.reply({ content: '❌ The race is not accepting bets right now.', ephemeral: true });
+    return interaction.reply({ content: '❌ The race is not accepting bets right now.' });
   }
   if (horseIndex < 0 || horseIndex >= HORSE_LABELS.length) {
-    return interaction.reply({ content: '❌ Choose a horse between 1 and 5.', ephemeral: true });
+    return interaction.reply({ content: '❌ Choose a horse between 1 and 5.' });
   }
   if (!Number.isInteger(amount) || amount <= 0) {
-    return interaction.reply({ content: '❌ Bet amount must be a positive integer.', ephemeral: true });
+    return interaction.reply({ content: '❌ Bet amount must be a positive integer.' });
   }
 
   const betKey = interaction.user.id;
   const existing = state.bets.get(betKey);
   const originalAmount = existing ? existing.originalAmount : amount;
   if (existing && amount !== originalAmount) {
-    return interaction.reply({ content: `❌ Keep your stake at **${formatChips(originalAmount)}**. Bet changes only swap horses and incur a fee.`, ephemeral: true });
+    return interaction.reply({ content: `❌ Keep your stake at **${formatChips(originalAmount)}**. Bet changes only swap horses and incur a fee.` });
   }
   const fee = existing
     ? (state.status === 'running'
@@ -489,7 +489,7 @@ export async function handleHorseBet(interaction, state, horseIndex, amount) {
   const newExposure = computeExposure(state, betKey, amount);
   const houseBalance = await getHouseBalance(state.guildId);
   if (houseBalance < newExposure) {
-    return interaction.reply({ content: '❌ The house cannot cover that wager right now. Try a smaller bet.', ephemeral: true });
+    return interaction.reply({ content: '❌ The house cannot cover that wager right now. Try a smaller bet.' });
   }
 
   let creditsBurned = 0;
@@ -511,7 +511,7 @@ export async function handleHorseBet(interaction, state, horseIndex, amount) {
     }
   } catch (err) {
     console.error('Horse race bet collection failed:', err);
-    return interaction.reply({ content: '❌ Could not process your bet. Do you have enough Credits/Chips?', ephemeral: true });
+    return interaction.reply({ content: '❌ Could not process your bet. Do you have enough Credits/Chips?' });
   }
 
   const betData = existing || {
