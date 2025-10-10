@@ -91,7 +91,7 @@ function summarizeBets(state) {
     .map(bet => {
       const changeFee = getBetChangeFee(state, bet);
       const feeText = changeFee > 0 ? formatChips(changeFee) : 'Free';
-      return `<@${bet.userId}> → Horse ${bet.horse + 1} for **${formatChips(bet.amount)}** (swap fee: ${feeText})`;
+      return `<@${bet.userId}> → Horse ${bet.horse + 1} for **${formatChips(bet.amount)}** (change fee: ${feeText})`;
     });
   return entries.join('\n');
 }
