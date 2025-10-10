@@ -19,24 +19,24 @@ const PAYOUT_MULTIPLIER = 4;
 const HORSE_NAME_POOL = [
   'Midnight',
   'Cinnamon',
-  'Velvet',
-  'Siren',
-  'Mudslide',
+  'Eclipse',
+  'Winx',
+  'Sea Biscuit',
   'Lucky',
   'Neon',
-  'Lantern',
+  'Becky',
   'Harbor',
   'Scarlet',
   'Whispering',
-  'Canyon',
+  'Loser',
   'Barrel',
   'Jade',
   'Copper',
   'Nimbus',
+  "Man O' War",
+  'Lightning',
   'Thundered',
-  'Moondust',
-  'Outlaw',
-  'Prairie'
+  'Butter Cup'
 ];
 const HORSE_EMOJIS = ['🟥', '🟩', '🟨', '🟦', '🟪'];
 const HORSE_COUNT = HORSE_EMOJIS.length;
