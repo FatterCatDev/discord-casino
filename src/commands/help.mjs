@@ -15,8 +15,8 @@ export default async function handleHelp(interaction, ctx) {
     groups: [
       { label: kittenMode ? '💋 Essentials' : '🌟 Classics', items: [
         { emoji: '👋', cmd: 'Getting Started', desc: kittenMode
-          ? 'Earn chips with `/dailyspin`, `/request`, or games that pay out in chips. Credits burn first; chips come from me.'
-          : 'Earn chips via `/dailyspin`, `/request`, and chip-paying games. Games use Credits first; chips come from the house.' },
+          ? 'Earn chips with `/dailyspin`, `/vote`, `/request`, and every chip-paying game. Votes credit instantly with a DM from me; Credits burn first while chips come from my stash.'
+          : 'Earn chips via `/dailyspin`, `/vote`, `/request`, and chip-paying games. Voting auto-credits chips (watch your DMs); games spend Credits first before dipping into the house.' },
         { emoji: '🎰', cmd: 'Play Games', desc: kittenMode
           ? 'Try `/ridebus`, `/blackjack`, `/slots`, `/roulette`, `/dicewar`, and `/holdem` — each with its own stakes.'
           : 'Jump into `/ridebus`, `/blackjack`, `/slots`, `/roulette`, `/dicewar`, or `/holdem` to spend Credits and win chips.' },
