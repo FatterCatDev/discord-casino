@@ -452,7 +452,11 @@ export async function handleHorseBet(interaction, state, horseIndex, amount) {
   if (existing && amount !== originalAmount) {
     return interaction.reply({ content: `❌ Keep your stake at **${formatChips(originalAmount)}**. Bet changes only swap horses and incur a fee.`, ephemeral: true });
   }
-  const fee = existing ? Math.ceil(originalAmount * BET_CHANGE_PERCENT) : 0;
+  const fee = existing
+    ? (state.status === 'running'
+        ? Math.ceil(originalAmount * state.stage)
+        : Math.ceil(originalAmount * BET_CHANGE_PERCENT))
+    : 0;
 
   const newExposure = computeExposure(state, betKey, amount);
   const houseBalance = await getHouseBalance(state.guildId);
