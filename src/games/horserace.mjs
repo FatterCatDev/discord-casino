@@ -466,7 +466,7 @@ async function advanceStage(state, client) {
     ? 'Race finished!'
     : 'Next stage in 5 seconds — adjust bets now!';
 
-  await editRaceMessage(state, client, { footerText: footer });
+  await editRaceMessage(state, client, { footerText: footer, extraDescription: null });
 
   if (state.status === 'finished') {
     await payoutRace(state, winners, client);
