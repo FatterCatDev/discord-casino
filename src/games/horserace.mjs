@@ -677,7 +677,7 @@ export async function handleRaceCancel(interaction, state) {
     }
   }
 
-  await editRaceMessage(state, interaction.client, { footerText: 'Race cancelled.' });
+  await editRaceMessage(state, interaction.client, { footerText: 'Race cancelled.', extraDescription: null });
   if (!interaction.deferred && !interaction.replied) {
     try { await interaction.deferUpdate(); } catch {}
   }
