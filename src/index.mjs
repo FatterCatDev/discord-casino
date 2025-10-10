@@ -282,6 +282,27 @@ client.once(Events.ClientReady, c => {
 
   sweepVoteRewards().catch(() => {});
   setInterval(() => { sweepVoteRewards().catch(() => {}); }, intervalMs);
+
+  if (isDiscordBotListPollingEnabled()) {
+    const pollInterval = getDiscordBotListPollIntervalMs();
+    const pollDblVotes = async () => {
+      if (dblPollProcessing) return;
+      dblPollProcessing = true;
+      try {
+        const newVotes = await ingestDiscordBotListVotes();
+        if (Array.isArray(newVotes) && newVotes.length) {
+          console.log(`[votes] Recorded ${newVotes.length} DiscordBotList votes.`);
+        }
+      } catch (err) {
+        console.error('Failed to ingest DiscordBotList votes', err);
+      } finally {
+        dblPollProcessing = false;
+      }
+    };
+
+    pollDblVotes().catch(() => {});
+    setInterval(() => { pollDblVotes().catch(() => {}); }, pollInterval);
+  }
 });
 
 // Command registry and context for modular handlers
