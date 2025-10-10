@@ -324,6 +324,34 @@ export async function createHorseRace(interaction, ctx) {
   return state;
 }
 
+export async function handleRaceStart(interaction, state) {
+  if (state.status !== 'betting') {
+    return interaction.reply({ content: '❌ The race is already underway.', ephemeral: true });
+  }
+  if (state.hostConfirm) {
+    return interaction.reply({ content: '❌ Countdown already in progress.', ephemeral: true });
+  }
+  if (!state.bets.size) {
+    return interaction.reply({ content: '❌ At least one bet is required before starting the race.', ephemeral: true });
+  }
+
+  const isHost = interaction.user.id === state.hostId;
+  let isModerator = false;
+  try {
+    isModerator = await state.ctx.isModerator(interaction);
+  } catch (err) {
+    isModerator = false;
+  }
+
+  if (!isHost && !isModerator) {
+    return interaction.reply({ content: '❌ Only the race host or moderators can start the countdown.', ephemeral: true });
+  }
+
+  state.hostConfirm = true;
+  await interaction.reply({ content: '✅ Countdown starting!', ephemeral: true });
+  await startCountdown(state, interaction.client);
+}
+
 export async function handleHorseBet(interaction, state, horseIndex, amount) {
   if (state.status === 'countdown') {
     return interaction.reply({ content: '❌ Bets are locked during the countdown.', ephemeral: true });
