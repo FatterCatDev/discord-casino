@@ -496,7 +496,7 @@ export async function createHorseRace(interaction, ctx) {
   }
 
   const state = createEmptyState(ctx, interaction);
-  const embed = createRaceEmbed(state, { footerText: 'Place your bets! Host must press Start to begin the countdown.' });
+  const embed = createRaceEmbed(state, { footerText: INITIAL_FOOTER_TEXT });
   const message = await interaction.reply({ embeds: [embed], components: buildComponents(state), fetchReply: true });
   storeRace(state, message.id);
 
