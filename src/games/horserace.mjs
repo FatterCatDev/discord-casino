@@ -184,15 +184,20 @@ async function editRaceMessage(state, client, options = {}) {
 function ensureWinner(state) {
   const maxProgress = Math.max(...state.progress);
   const leaders = state.progress.map((val, idx) => ({ val, idx }))
-    .filter(item => item.val === maxProgress)
-    .sort((a, b) => a.idx - b.idx);
-  if (maxProgress >= TRACK_LENGTH) {
-    const winners = leaders.map(item => item.idx);
-    return winners;
+    .filter(item => item.val >= TRACK_LENGTH)
+    .sort((a, b) => b.val - a.val || a.idx - b.idx);
+
+  if (leaders.length > 0) {
+    const topValue = leaders[0].val;
+    const tied = leaders.filter(item => item.val === topValue);
+    if (tied.length === 1) return [tied[0].idx];
+    return tied.sort((a, b) => a.idx - b.idx).map(item => item.idx);
   }
-  const winner = leaders[0];
-  state.progress[winner.idx] = TRACK_LENGTH;
-  return [winner.idx];
+
+  const maxBelow = Math.max(...state.progress);
+  const leader = state.progress.findIndex(val => val === maxBelow);
+  if (leader >= 0) state.progress[leader] = TRACK_LENGTH;
+  return [leader];
 }
 
 async function payoutRace(state, winners, client) {
