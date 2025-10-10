@@ -609,6 +609,7 @@ export async function handleRaceStart(interaction, state) {
     return;
   }
 
+  clearRaceIdleTimer(state);
   state.hostConfirm = true;
   await editRaceMessage(state, interaction.client, {
     footerText: `🚦 Race starts in ${START_COUNTDOWN_SEC}s!`,
