@@ -226,6 +226,29 @@ async function editRaceMessage(state, client, options = {}) {
   }
 }
 
+async function displayRaceNotice(state, client, text, duration = NOTICE_DURATION_MS) {
+  if (!state || !client) return;
+  if (state.noticeTimeout) {
+    clearTimeout(state.noticeTimeout);
+    state.noticeTimeout = null;
+  }
+  state.noticeText = text;
+  try {
+    await editRaceMessage(state, client);
+  } catch (err) {
+    console.error('Failed to show horse race notice:', err);
+  }
+
+  if (duration > 0) {
+    state.noticeTimeout = setTimeout(() => {
+      if (state.noticeText !== text) return;
+      state.noticeTimeout = null;
+      state.noticeText = null;
+      editRaceMessage(state, client).catch(err => console.error('Failed to clear horse race notice:', err));
+    }, duration);
+  }
+}
+
 function ensureWinner(state) {
   const maxProgress = Math.max(...state.progress);
   const leaders = state.progress.map((val, idx) => ({ val, idx }))
