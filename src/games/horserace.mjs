@@ -206,9 +206,19 @@ async function payoutRace(state, winners, client) {
   const winnerLines = winners.map(idx => HORSE_LABELS[idx]).join(', ');
   state.status = 'finished';
   await editRaceMessage(state, client, {
-    footerText: 'Race finished! Place a new bet or host a new race.',
+    footerText: 'Race finished! Showing results in 3 seconds...',
     extraDescription: `**🥇 Winners:** ${winnerLines}\n${payouts.length ? payouts.map(p => `<@${p.userId}> won **${formatChips(p.amount)}**`).join('\n') : 'No winners this time.'}`
   });
+  setTimeout(async () => {
+    try {
+      await editRaceMessage(state, client, {
+        footerText: 'Race finished! Place a new bet or host a new race.',
+        extraDescription: `**🥇 Winners:** ${winnerLines}\n${payouts.length ? payouts.map(p => `<@${p.userId}> won **${formatChips(p.amount)}**`).join('\n') : 'No winners this time.'}`
+      });
+    } catch (err) {
+      console.error('Failed to render final horse race results:', err);
+    }
+  }, 3_000);
 }
 
 async function startCountdown(state, client) {
