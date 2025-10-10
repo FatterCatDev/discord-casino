@@ -133,7 +133,7 @@ async function editRaceMessage(state, client, options = {}) {
     const channel = await client.channels.fetch(state.channelId);
     if (!channel || !channel.isTextBased()) return;
     const message = await channel.messages.fetch(state.messageId);
-    await message.edit({ embeds: [createRaceEmbed(state, options)], components: buildComponents(state, options.disableButtons) });
+    await message.edit({ embeds: [createRaceEmbed(state, options)], components: buildComponents(state) });
   } catch (err) {
     console.error('Failed to edit horse race message:', err);
   }
