@@ -77,6 +77,7 @@ import cmdSetMaxBet from './commands/setmaxbet.mjs';
 import cmdResetAllBalance from './commands/resetallbalance.mjs';
 import cmdSetCasinoCategory from './commands/setcasinocategory.mjs';
 import cmdKittenMode from './commands/kittenmode.mjs';
+import cmdVote from './commands/vote.mjs';
 
 // Interaction handlers
 import onHelpSelect from './interactions/helpSelect.mjs';
@@ -382,7 +383,8 @@ const commandHandlers = {
   setmaxbet: cmdSetMaxBet,
   resetallbalance: cmdResetAllBalance,
   setcasinocategory: cmdSetCasinoCategory,
-  kittenmode: cmdKittenMode
+  kittenmode: cmdKittenMode,
+  vote: cmdVote
 };
 
 client.on(Events.InteractionCreate, async interaction => {
@@ -454,6 +456,12 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 
     // Request buttons
+    else if (interaction.isButton() && interaction.customId.startsWith('vote|')) {
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      const mod = await import('./interactions/voteButtons.mjs');
+      return mod.default(interaction, ctx);
+    }
+
     else if (interaction.isButton() && interaction.customId.startsWith('req|')) {
       const ctx = buildCommandContext(interaction, ctxExtras);
       return onRequestButtons(interaction, ctx);
