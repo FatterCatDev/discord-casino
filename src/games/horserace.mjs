@@ -396,19 +396,29 @@ async function payoutRace(state, winners, client) {
       }
     }
   }
+  const totals = calculateHouseTotals(state, payouts);
   const winnerLines = winners.map(idx => HORSE_LABELS[idx]).join(', ');
   const tieNote = tieCount >= 3
     ? '\n(Tie of 3+ horses — stakes refunded)'
     : tieCount === 2
       ? '\n(Tie of 2 horses — payouts halved)'
       : '';
-  const resultsText = `**🥇 Winners:** ${winnerLines}\n${payouts.length ? payouts.map(p => `<@${p.userId}> won **${formatChips(p.amount)}**`).join('\n') : 'No winners this time.'}${tieNote}`;
+  const houseNetLine = `\n**🏦 House Net:** ${chipsAmountSigned(totals.houseNet)}`;
+  const creditsBurnedLine = totals.creditsBurned > 0
+    ? `\n**💳 Credits Burned:** ${formatChips(totals.creditsBurned)}`
+    : '';
+  const resultsText = `**🥇 Winners:** ${winnerLines}\n${payouts.length ? payouts.map(p => `<@${p.userId}> won **${formatChips(p.amount)}**`).join('\n') : 'No winners this time.'}${tieNote}${houseNetLine}${creditsBurnedLine}`;
   state.lastResultsText = resultsText;
   state.status = 'finished';
   await editRaceMessage(state, client, {
     footerText: 'Race finished! Showing results in 3 seconds...',
     extraDescription: resultsText
   });
+  try {
+    await postGameSessionEndByIds(client, state.guildId, state.hostId, { game: 'Horse Race', houseNet: totals.houseNet });
+  } catch (err) {
+    console.error('Horse race results log failed:', err);
+  }
   setTimeout(async () => {
     try {
       resetRaceState(state);
