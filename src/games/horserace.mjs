@@ -740,6 +740,7 @@ export async function handleHorseBet(interaction, state, horseIndex, amount) {
         : 'Host must press Start to begin the countdown.')
     : 'Next stage in 5 seconds — adjust bets now!';
   await editRaceMessage(state, interaction.client, { footerText });
+  refreshRaceTimeout(state, interaction.client);
   if (!interaction.deferred && !interaction.replied) {
     try { await interaction.deferUpdate(); } catch {}
   }
