@@ -348,8 +348,8 @@ const sumUserChipsStmt = db.prepare('SELECT COALESCE(SUM(chips), 0) AS total FRO
 const insertTxnStmt = db.prepare('INSERT INTO transactions (guild_id, account, delta, reason, admin_id, currency) VALUES (?, ?, ?, ?, ?, ?)');
 
 const insertVoteRewardStmt = db.prepare(`
-  INSERT INTO vote_rewards (discord_user_id, source, reward_amount, metadata_json, earned_at)
-  VALUES (?, ?, ?, ?, ?)
+  INSERT INTO vote_rewards (discord_user_id, source, reward_amount, metadata_json, earned_at, external_id)
+  VALUES (?, ?, ?, ?, ?, ?)
 `);
 const pendingVoteRewardsStmt = db.prepare(`
   SELECT id, source, reward_amount, metadata_json, earned_at
