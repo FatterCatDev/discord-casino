@@ -576,7 +576,7 @@ async function advanceStage(state, client) {
 
   const footer = state.status === 'finished'
     ? 'Race finished!'
-    : 'Next stage in 5 seconds — adjust bets now!';
+    : 'Next stage in 2.5 seconds — adjust bets now!';
 
   await editRaceMessage(state, client, { footerText: footer, extraDescription: null });
 
