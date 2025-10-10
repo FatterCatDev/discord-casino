@@ -152,6 +152,10 @@ function createRaceEmbed(state, options = {}) {
     description += `\n${baseExtra}`;
   }
 
+  if (state.status === 'betting' && state.previousResults) {
+    description += `\n**Last Race Results:**\n${state.previousResults}`;
+  }
+
   const includeNotice = options.includeNotice ?? true;
   if (includeNotice && state.noticeText) {
     const notice = state.noticeText.trim();
