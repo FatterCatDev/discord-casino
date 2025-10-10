@@ -222,6 +222,7 @@ function clearRace(state) {
     clearTimeout(state.noticeTimeout);
     state.noticeTimeout = null;
   }
+  clearRaceIdleTimer(state);
   state.noticeText = null;
   state.extraDescription = null;
   racesById.delete(state.id);
