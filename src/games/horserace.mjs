@@ -389,6 +389,7 @@ async function payoutRace(state, winners, client) {
         footerText: INITIAL_FOOTER_TEXT,
         extraDescription: null
       });
+      refreshRaceTimeout(state, client);
     } catch (err) {
       console.error('Failed to render final horse race results:', err);
     }
@@ -408,6 +409,7 @@ function resetRaceState(state) {
     clearTimeout(state.noticeTimeout);
     state.noticeTimeout = null;
   }
+  clearRaceIdleTimer(state);
   state.stage = 0;
   state.stageDeadline = null;
   state.progress = [0, 0, 0, 0, 0];
