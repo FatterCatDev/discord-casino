@@ -537,6 +537,12 @@ client.on(Events.InteractionCreate, async interaction => {
       return mod.default(interaction, ctx);
     }
 
+    // Horse race buttons
+    else if (interaction.isButton() && interaction.customId.startsWith('horse|')) {
+      const mod = await import('./interactions/horseRaceButtons.mjs');
+      return mod.default(interaction);
+    }
+
     // Hold'em buttons
     else if (interaction.isButton() && interaction.customId.startsWith('hold|')) {
       const ctx = buildCommandContext(interaction, ctxExtras);
@@ -594,6 +600,11 @@ client.on(Events.InteractionCreate, async interaction => {
       const ctx = buildCommandContext(interaction, ctxExtras);
       const mod = await import('./interactions/holdemCustomModal.mjs');
       return mod.default(interaction, ctx);
+    }
+
+    else if (interaction.isModalSubmit() && interaction.customId.startsWith('horse|betmodal|')) {
+      const mod = await import('./interactions/horseRaceBetModal.mjs');
+      return mod.default(interaction);
     }
 
     // ignore other interaction types
