@@ -274,6 +274,11 @@ function ensureWinner(state) {
 }
 
 async function payoutRace(state, winners, client) {
+  if (state.noticeTimeout) {
+    clearTimeout(state.noticeTimeout);
+    state.noticeTimeout = null;
+  }
+  state.noticeText = null;
   const payouts = [];
   const tieCount = winners.length;
   let multiplier = PAYOUT_MULTIPLIER;
