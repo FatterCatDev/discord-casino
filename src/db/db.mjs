@@ -346,6 +346,22 @@ const sumUserChipsStmt = db.prepare('SELECT COALESCE(SUM(chips), 0) AS total FRO
 
 const insertTxnStmt = db.prepare('INSERT INTO transactions (guild_id, account, delta, reason, admin_id, currency) VALUES (?, ?, ?, ?, ?, ?)');
 
+const insertVoteRewardStmt = db.prepare(`
+  INSERT INTO vote_rewards (discord_user_id, source, reward_amount, metadata_json, earned_at)
+  VALUES (?, ?, ?, ?, ?)
+`);
+const pendingVoteRewardsStmt = db.prepare(`
+  SELECT id, source, reward_amount, metadata_json, earned_at
+  FROM vote_rewards
+  WHERE discord_user_id = ? AND claimed_at IS NULL
+  ORDER BY earned_at ASC, id ASC
+`);
+const markVoteRewardClaimedStmt = db.prepare(`
+  UPDATE vote_rewards
+  SET claimed_at = ?, claim_guild_id = ?
+  WHERE id = ?
+`);
+
 const topUsersStmt = db.prepare(`
   SELECT discord_id, chips
   FROM users
