@@ -47,6 +47,7 @@ function createEmptyState(ctx, interaction) {
     countdown: null,
     hostConfirm: false,
     lastResultsText: null,
+    previousResults: null,
     noticeText: null,
     noticeTimeout: null,
     idleTimeout: null,
