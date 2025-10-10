@@ -253,6 +253,7 @@ async function startCountdown(state, client) {
     clearTimeout(state.countdown);
     state.countdown = null;
   }
+  state.lastResultsText = null;
   state.status = 'countdown';
   let remaining = START_COUNTDOWN_SEC;
 
