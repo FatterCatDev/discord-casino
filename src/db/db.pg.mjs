@@ -246,6 +246,15 @@ async function houseRow(guildId) {
   return { chips: Number(row?.chips || 0) };
 }
 
+function safeParseJson(value) {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
 async function recordTxn(guildId, account, delta, reason, adminId, currency = 'CHIPS') {
   await q(
     'INSERT INTO transactions (guild_id, account, delta, reason, admin_id, currency) VALUES ($1,$2,$3,$4,$5,$6)',
