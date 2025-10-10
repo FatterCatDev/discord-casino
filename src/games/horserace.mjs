@@ -78,9 +78,14 @@ function createRaceEmbed(state, options = {}) {
     title = '🏇 Horse Race — Betting Stage';
   }
 
+  let description = HORSE_LABELS.map((_, idx) => buildHorseLine(idx, state.progress[idx])).join('\n');
+  if (options.extraDescription) {
+    description += `\n\n${options.extraDescription}`;
+  }
+
   const embed = new EmbedBuilder()
     .setTitle(title)
-    .setDescription(HORSE_LABELS.map((_, idx) => buildHorseLine(idx, state.progress[idx])).join('\n'))
+    .setDescription(description)
     .addFields(
       { name: '💰 Pot', value: `${formatChips(state.totalPot)} chips`, inline: true },
       { name: '🎯 Exposure', value: `${formatChips(state.totalExposure)} chips`, inline: true },
