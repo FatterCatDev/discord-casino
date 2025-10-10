@@ -210,6 +210,12 @@ function clearRace(state) {
 
 async function editRaceMessage(state, client, options = {}) {
   try {
+    if (options.footerText !== undefined) {
+      state.footerText = options.footerText ?? null;
+    }
+    if (options.extraDescription !== undefined) {
+      state.extraDescription = options.extraDescription;
+    }
     const channel = await client.channels.fetch(state.channelId);
     if (!channel || !channel.isTextBased()) return;
     const message = await channel.messages.fetch(state.messageId);
