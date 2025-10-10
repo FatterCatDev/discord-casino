@@ -293,6 +293,11 @@ const commands = [
     options: []
   },
   {
+    name: 'vote',
+    description: 'Show vote links and claim chip rewards.',
+    options: []
+  },
+  {
     name: 'ridebus',
     description: 'Play Ride the Bus (Credits first, then Chips).',
     options: [
