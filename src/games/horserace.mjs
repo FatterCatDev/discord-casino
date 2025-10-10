@@ -16,8 +16,30 @@ const STAGE_COUNT = 10;
 const STAGE_DELAY_MS = 2_500;
 const START_COUNTDOWN_SEC = 5;
 const PAYOUT_MULTIPLIER = 4;
-const HORSE_LABELS = ['Horse 1', 'Horse 2', 'Horse 3', 'Horse 4', 'Horse 5'];
+const HORSE_NAME_POOL = [
+  'Midnight',
+  'Cinnamon',
+  'Velvet',
+  'Siren',
+  'Mudslide',
+  'Lucky',
+  'Neon',
+  'Lantern',
+  'Harbor',
+  'Scarlet',
+  'Whispering',
+  'Canyon',
+  'Barrel',
+  'Jade',
+  'Copper',
+  'Nimbus',
+  'Thundered',
+  'Moondust',
+  'Outlaw',
+  'Prairie'
+];
 const HORSE_EMOJIS = ['🟥', '🟩', '🟨', '🟦', '🟪'];
+const HORSE_COUNT = HORSE_EMOJIS.length;
 const INITIAL_FOOTER_TEXT = 'Place your bets! Host must press Start to begin the countdown.';
 const DEFAULT_STAGE_FOOTER_TEXT = 'Place or change bets within 2.5 seconds of each stage.';
 const NOTICE_DURATION_MS = 4_000;
@@ -39,6 +61,7 @@ function createEmptyState(ctx, interaction) {
     stageDeadline: null,
     progress: [0, 0, 0, 0, 0],
     bets: new Map(),
+    horseLabels: pickHorseNames(),
     totalPot: 0,
     totalExposure: 0,
     status: 'betting',
@@ -71,6 +94,15 @@ async function acknowledgeInteraction(interaction) {
 const DISPLAY_TRACK_LENGTH = 20;
 const TRACK_LINE_WIDTH = 70;
 
+function pickHorseNames() {
+  const pool = [...HORSE_NAME_POOL];
+  for (let i = pool.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, HORSE_COUNT);
+}
+
 function renderTrack(progress) {
   const ratio = progress / TRACK_LENGTH;
   const filledTicks = Math.min(DISPLAY_TRACK_LENGTH, Math.max(0, Math.round(DISPLAY_TRACK_LENGTH * ratio)));
@@ -78,8 +110,13 @@ function renderTrack(progress) {
   return `${'■'.repeat(filledTicks)}${'░'.repeat(emptyTicks)}`;
 }
 
-function buildHorseLine(index, progress) {
-  const label = `${HORSE_EMOJIS[index]} ${HORSE_LABELS[index]}`;
+function getHorseLabel(state, index) {
+  return state.horseLabels?.[index] ?? `Horse ${index + 1}`;
+}
+
+function buildHorseLine(state, index, progress) {
+  const labelName = getHorseLabel(state, index);
+  const label = `${HORSE_EMOJIS[index]} ${labelName}`;
   const progressText = `${progress}/${TRACK_LENGTH}`;
   const left = `${label.padEnd(12)} ${progressText.padStart(8)}`;
   const track = `│${renderTrack(progress)}│`;
@@ -95,7 +132,8 @@ function summarizeBets(state) {
     .map(bet => {
       const changeFee = getBetChangeFee(state, bet);
       const feeText = changeFee > 0 ? formatChips(changeFee) : 'Free';
-      return `<@${bet.userId}> → Horse ${bet.horse + 1} for **${formatChips(bet.amount)}** (change fee: ${feeText})`;
+      const labelName = getHorseLabel(state, bet.horse);
+      return `<@${bet.userId}> → ${labelName} for **${formatChips(bet.amount)}** (change fee: ${feeText})`;
     });
   return entries.join('\n');
 }
@@ -138,7 +176,7 @@ function createRaceEmbed(state, options = {}) {
     title = '🏇 Horse Race — Betting Stage';
   }
 
-  const trackLines = HORSE_LABELS.map((_, idx) => buildHorseLine(idx, state.progress[idx]));
+  const trackLines = Array.from({ length: HORSE_COUNT }, (_, idx) => buildHorseLine(state, idx, state.progress[idx]));
   let description = '```\n' + trackLines.join('\n') + '\n```';
   let baseExtra;
   if (options.extraDescription !== undefined) {
@@ -179,12 +217,15 @@ function createRaceEmbed(state, options = {}) {
 function buildComponents(state) {
   if (state.status === 'cancelled' || state.status === 'timedout') return [];
 
-  const horseButtons = HORSE_LABELS.map((label, idx) => new ButtonBuilder()
+  const horseButtons = Array.from({ length: HORSE_COUNT }, (_, idx) => {
+    const name = getHorseLabel(state, idx);
+    return new ButtonBuilder()
     .setCustomId(`horse|pick|${state.id}|${idx}`)
     .setStyle(ButtonStyle.Secondary)
-    .setLabel(String(idx + 1))
+    .setLabel(`${idx + 1}: ${name}`)
     .setEmoji(HORSE_EMOJIS[idx] || null)
-    .setDisabled(state.status === 'countdown'));
+    .setDisabled(state.status === 'countdown`);
+  });
 
   const rows = [];
   rows.push(new ActionRowBuilder().addComponents(horseButtons.slice(0, 3)));
