@@ -46,10 +46,13 @@ function createEmptyState(ctx, interaction) {
   };
 }
 
+const DISPLAY_TRACK_LENGTH = 20;
+
 function renderTrack(progress) {
-  const filled = '■'.repeat(progress);
-  const empty = '░'.repeat(Math.max(0, TRACK_LENGTH - progress));
-  return `${filled}${empty}`;
+  const ratio = progress / TRACK_LENGTH;
+  const filledTicks = Math.min(DISPLAY_TRACK_LENGTH, Math.max(0, Math.round(DISPLAY_TRACK_LENGTH * ratio)));
+  const emptyTicks = DISPLAY_TRACK_LENGTH - filledTicks;
+  return `${'■'.repeat(filledTicks)}${'░'.repeat(emptyTicks)}`;
 }
 
 function buildHorseLine(index, progress) {
