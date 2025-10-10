@@ -48,7 +48,7 @@ All games except Texas Hold’em use Credits‑first staking: your bet draws fro
 
 ### Horse Race
 - Five horses sprint down a 10-tick track over 5 stages; progress is visualised in an embed after each stage.
-- Players bet on a horse with `/horserace` and can swap picks between stages (5-second windows) by paying a 20% fee on the original stake.
+- Players bet with `/horserace`, the host starts a bold countdown, and everyone gets a 5-second window between stages to swap picks (20% fee on the original stake).
 - The house enforces exposure limits; winners receive a 4× payout and the bot announces the results in-channel.
 
 ### Texas Hold’em
