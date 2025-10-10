@@ -183,6 +183,9 @@ try { db.prepare(`SELECT holdem_rake_cap FROM guild_settings LIMIT 1`).get(); } 
 try { db.prepare(`SELECT kitten_mode_enabled FROM guild_settings LIMIT 1`).get(); } catch {
   db.exec(`ALTER TABLE guild_settings ADD COLUMN kitten_mode_enabled INTEGER NOT NULL DEFAULT 0`);
 }
+try { db.prepare(`SELECT external_id FROM vote_rewards LIMIT 1`).get(); } catch {
+  db.exec(`ALTER TABLE vote_rewards ADD COLUMN external_id TEXT`);
+}
 
 
 function migrateUsersToGuildScoped() {
