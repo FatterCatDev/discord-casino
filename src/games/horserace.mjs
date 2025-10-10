@@ -346,7 +346,6 @@ async function advanceStage(state, client) {
   await editRaceMessage(state, client, { footerText: footer });
 
   if (state.status === 'finished') {
-    clearRace(state);
     await payoutRace(state, winners, client);
   } else {
     state.stageDeadline = Date.now() + STAGE_DELAY_MS;
