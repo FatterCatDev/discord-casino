@@ -87,10 +87,11 @@ function createRaceEmbed(state, options = {}) {
     title = '🏇 Horse Race — Betting Stage';
   }
 
-  let description = HORSE_LABELS.map((_, idx) => buildHorseLine(idx, state.progress[idx])).join('\n');
+  const trackLines = HORSE_LABELS.map((_, idx) => buildHorseLine(idx, state.progress[idx]));
+  let description = '```\n' + trackLines.join('\n') + '\n```';
   const extra = options.extraDescription ?? state.lastResultsText;
   if (extra) {
-    description += `\n\n${extra}`;
+    description += `\n${extra}`;
   }
 
   const embed = new EmbedBuilder()
