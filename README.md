@@ -189,14 +189,14 @@ Adjust the username and service as needed.
 
 ## HTTP API
 
-Optional Express API (`api.mjs`) for integrations (dashboards, partner tools). Uses bearer token auth, scopes, and basic hardening (helmet, CORS, rate limit).
+Optional Express API (`src/api/server.mjs`) for integrations (dashboards, partner tools). Uses bearer token auth, scopes, and basic hardening (helmet, CORS, rate limit).
 
 Auth
 - Header: `Authorization: Bearer <token>`
 - Manage tokens with CLI: `npm run api:keys`
-  - Create: `node api-cli.mjs create --guild <GUILD_ID> --scopes chips:grant,settings:write`
-  - List: `node api-cli.mjs list [--guild <GUILD_ID>]`
-  - Delete: `node api-cli.mjs delete --token <token>`
+  - Create: `node src/api/cli.mjs create --guild <GUILD_ID> --scopes chips:grant,settings:write`
+  - List: `node src/api/cli.mjs list [--guild <GUILD_ID>]`
+  - Delete: `node src/api/cli.mjs delete --token <token>`
 
 Scopes
 - `chips:grant`, `chips:take`, `chips:burn`, `house:add`
@@ -226,4 +226,4 @@ curl -X POST \
   http://localhost:3000/api/v1/guilds/$GUILD_ID/users/123456789012345678/chips/grant
 ```
 
-Run locally: `node api.mjs` (port `3000` by default; override with `PORT`).
+Run locally: `node src/api/server.mjs` (port `3000` by default; override with `PORT`).
