@@ -7,7 +7,7 @@ export default async function handleHorseRaceBetModal(interaction) {
   const state = getRaceById(raceId);
 
   if (!state) {
-    return interaction.reply({ content: '❌ This race has already finished.', ephemeral: true });
+    return interaction.reply({ content: '❌ This race has already finished.' });
   }
 
   const amountRaw = interaction.fields.getTextInputValue('amount');
@@ -15,7 +15,7 @@ export default async function handleHorseRaceBetModal(interaction) {
   const amount = Number.parseInt(amountRaw, 10);
 
   if (!Number.isInteger(horseIndex) || horseIndex < 0 || horseIndex >= 5) {
-    return interaction.reply({ content: '❌ Invalid horse selection.', ephemeral: true });
+    return interaction.reply({ content: '❌ Invalid horse selection.' });
   }
 
   await handleHorseBet(interaction, state, horseIndex, amount);
