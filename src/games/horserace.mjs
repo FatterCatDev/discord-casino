@@ -114,6 +114,8 @@ function createRaceEmbed(state, options = {}) {
     title = '🏇 Horse Race — Finished';
   } else if (state.status === 'cancelled') {
     title = '🏇 Horse Race — Cancelled';
+  } else if (state.status === 'timedout') {
+    title = '🏇 Horse Race — Timed Out';
   } else {
     title = '🏇 Horse Race — Betting Stage';
   }
