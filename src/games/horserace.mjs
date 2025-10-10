@@ -192,7 +192,6 @@ function ensureWinner(state) {
 
 async function payoutRace(state, winners, client) {
   const payouts = [];
-  const losers = [];
   for (const bet of state.bets.values()) {
     if (winners.includes(bet.horse)) {
       const winnings = bet.amount * PAYOUT_MULTIPLIER;
@@ -202,25 +201,14 @@ async function payoutRace(state, winners, client) {
       } catch (err) {
         console.error('Failed to pay horse race winnings for', bet.userId, err);
       }
-    } else {
-      losers.push(bet);
     }
   }
-
-  const channel = await client.channels.fetch(state.channelId).catch(() => null);
-  if (!channel || !channel.isTextBased()) return;
-
   const winnerLines = winners.map(idx => HORSE_LABELS[idx]).join(', ');
-  const resultEmbed = new EmbedBuilder()
-    .setTitle('🏁 Horse Race Results')
-    .setDescription(HORSE_LABELS.map((_, idx) => buildHorseLine(idx, state.progress[idx])).join('\n'))
-    .addFields(
-      { name: '🥇 Winning Horse(s)', value: winnerLines },
-      { name: '💰 Payouts', value: payouts.length ? payouts.map(p => `<@${p.userId}> won **${formatChips(p.amount)}**`).join('\n') : 'No winners this time.' }
-    )
-    .setFooter({ text: 'Thanks for playing!' });
-
-  await channel.send({ embeds: [resultEmbed] }).catch(() => {});
+  state.status = 'finished';
+  await editRaceMessage(state, client, {
+    footerText: 'Race finished! Place a new bet or host a new race.',
+    extraDescription: `**🥇 Winners:** ${winnerLines}\n${payouts.length ? payouts.map(p => `<@${p.userId}> won **${formatChips(p.amount)}**`).join('\n') : 'No winners this time.'}`
+  });
 }
 
 async function startCountdown(state, client) {
