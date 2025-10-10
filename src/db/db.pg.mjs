@@ -487,7 +487,7 @@ export async function mintChips(guildId, discordId, amount, reason, adminId) {
   return getUserBalances(gid, discordId);
 }
 
-export async function recordVoteReward(discordId, source, amount, metadata = {}, earnedAt = Math.floor(Date.now() / 1000)) {
+export async function recordVoteReward(discordId, source, amount, metadata = {}, earnedAt = Math.floor(Date.now() / 1000), externalId = null) {
   const userId = String(discordId || '').trim();
   const src = String(source || '').trim();
   if (!userId) throw new Error('VOTE_REWARD_USER_REQUIRED');
@@ -496,11 +496,17 @@ export async function recordVoteReward(discordId, source, amount, metadata = {},
   if (!Number.isInteger(amt) || amt <= 0) throw new Error('VOTE_REWARD_AMOUNT_POSITIVE');
   const ts = Number.isInteger(earnedAt) && earnedAt > 0 ? earnedAt : Math.floor(Date.now() / 1000);
   const meta = metadata && Object.keys(metadata).length ? JSON.stringify(metadata) : null;
-  await q(
-    'INSERT INTO vote_rewards (discord_user_id, source, reward_amount, metadata_json, earned_at) VALUES ($1,$2,$3,$4,$5)',
-    [userId, src, amt, meta, ts]
-  );
-  return true;
+  const extId = externalId ? String(externalId).trim() || null : null;
+  try {
+    await q(
+      'INSERT INTO vote_rewards (discord_user_id, source, reward_amount, metadata_json, earned_at, external_id) VALUES ($1,$2,$3,$4,$5,$6)',
+      [userId, src, amt, meta, ts, extId]
+    );
+    return true;
+  } catch (err) {
+    if (err?.code === '23505') return false;
+    throw err;
+  }
 }
 
 export async function getPendingVoteRewards(discordId) {
