@@ -508,6 +508,7 @@ function resetRaceState(state, previousResults = null) {
   state.lastResultsText = null;
   state.previousResults = previousResults;
   state.footerText = INITIAL_FOOTER_TEXT;
+  state.horseLabels = pickHorseNames();
 }
 
 async function startCountdown(state, client) {
