@@ -214,6 +214,14 @@ async function payoutRace(state, winners, client) {
 }
 
 async function startCountdown(state, client) {
+  if (state.timeout) {
+    clearTimeout(state.timeout);
+    state.timeout = null;
+  }
+  if (state.countdown) {
+    clearTimeout(state.countdown);
+    state.countdown = null;
+  }
   state.status = 'countdown';
   let remaining = START_COUNTDOWN_SEC;
 
