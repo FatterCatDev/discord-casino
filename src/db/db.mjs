@@ -79,6 +79,16 @@ CREATE TABLE IF NOT EXISTS api_keys (
   guild_id TEXT NOT NULL,
   scopes TEXT NOT NULL DEFAULT '' -- comma-separated list of scopes
 );
+CREATE TABLE IF NOT EXISTS vote_rewards (
+  id INTEGER PRIMARY KEY,
+  discord_user_id TEXT NOT NULL,
+  source TEXT NOT NULL,
+  reward_amount INTEGER NOT NULL,
+  metadata_json TEXT,
+  earned_at INTEGER NOT NULL,
+  claimed_at INTEGER,
+  claim_guild_id TEXT
+);
 CREATE TABLE IF NOT EXISTS active_requests (
   guild_id TEXT NOT NULL,
   user_id TEXT NOT NULL,
