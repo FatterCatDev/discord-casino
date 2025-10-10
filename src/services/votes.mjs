@@ -5,6 +5,8 @@ const TOPGG_WEEKEND_MULTIPLIER = toPositiveNumber(process.env.VOTE_REWARD_TOPGG_
 const TOPGG_ALLOW_TEST = String(process.env.TOPGG_ALLOW_TEST_VOTES || '').toLowerCase() === 'true';
 const FALLBACK_BOT_ID = (process.env.TOPGG_BOT_ID || process.env.CLIENT_ID || '').trim();
 const TOPGG_VOTE_URL = (process.env.TOPGG_VOTE_URL || (FALLBACK_BOT_ID ? `https://top.gg/bot/${FALLBACK_BOT_ID}/vote` : '')).trim();
+const DBL_BOT_ID = (process.env.DBL_BOT_ID || process.env.CLIENT_ID || '').trim();
+const DBL_VOTE_URL = (process.env.DBL_VOTE_URL || (DBL_BOT_ID ? `https://discordbotlist.com/bots/${DBL_BOT_ID}/upvote` : '')).trim();
 const AUTO_REDEEM_GUILD_ID = (process.env.VOTE_REWARD_AUTO_GUILD_ID || process.env.PRIMARY_GUILD_ID || process.env.GUILD_ID || '').trim() || null;
 const AUTO_REDEEM_LIMIT = toPositiveInt(process.env.VOTE_REWARD_AUTO_BATCH_LIMIT, 25);
 const AUTO_REDEEM_ENABLED = String(process.env.VOTE_AUTO_REDEEM ?? 'true').toLowerCase() !== 'false';
@@ -97,6 +99,17 @@ function buildVoteSites() {
       supportsReward: true,
       baseReward: TOPGG_BASE_REWARD,
       weekendMultiplier: TOPGG_WEEKEND_MULTIPLIER
+    });
+  }
+  if (DBL_VOTE_URL) {
+    sites.push({
+      id: 'dbl',
+      label: 'DiscordBotList.com',
+      emoji: '🔔',
+      url: DBL_VOTE_URL,
+      supportsReward: false,
+      baseReward: 0,
+      weekendMultiplier: 1
     });
   }
   for (const site of EXTRA_SITES) {
