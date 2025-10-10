@@ -380,7 +380,10 @@ async function startCountdown(state, client) {
       state.status = 'running';
       state.stage = 0;
       state.stageDeadline = Date.now() + STAGE_DELAY_MS;
-      await editRaceMessage(state, client, { footerText: 'Stage 1 results in 5 seconds — adjust bets now!' });
+      await editRaceMessage(state, client, {
+        footerText: 'Stage 1 results in 5 seconds — adjust bets now!',
+        extraDescription: null
+      });
       state.timeout = setTimeout(() => {
         advanceStage(state, client).catch(err => console.error('Horse race advance error:', err));
       }, STAGE_DELAY_MS);
