@@ -16,8 +16,8 @@ export default async function handleHelpSelect(interaction, ctx) {
     groups: [
       { label: kittenMode ? '💋 Essentials' : '🌟 Classics', items: [
         { emoji: '👋', cmd: 'Getting Started', desc: kittenMode
-          ? 'Earn chips with `/dailyspin`, `/request`, and chip-paying games. Credits burn first; chips pay out from me.'
-          : 'Grab chips via `/dailyspin`, submit `/request` buy-ins, and play chip-paying games (Credits burn first).' },
+          ? 'Earn chips with `/dailyspin`, `/vote`, `/request`, and any chip-paying game. Votes credit instantly with a DM from me; Credits burn first and chips arrive from my stash.'
+          : 'Grab chips via `/dailyspin`, `/vote`, `/request`, and chip-paying games. Voting auto-credits chips (check your DMs) while games spend Credits before the house.' },
         { emoji: '🎲', cmd: 'Play Games', desc: kittenMode
           ? 'Dive into `/ridebus`, `/blackjack`, `/slots`, `/roulette`, `/dicewar`, or `/holdem` for thrills.'
           : 'Try `/ridebus`, `/blackjack`, `/slots`, `/roulette`, `/dicewar`, or `/holdem` to test your luck.' },
@@ -29,6 +29,9 @@ export default async function handleHelpSelect(interaction, ctx) {
         { emoji: '🎡', cmd: '/dailyspin', desc: kittenMode
           ? 'Spin once per day for a little chip treat from me.'
           : 'Spin once every 24 hours for a free chip bonus.' },
+        { emoji: '🗳️', cmd: '/vote', desc: kittenMode
+          ? 'After you vote on Top.gg I credit the chips immediately and slide the receipt into your DMs.'
+          : 'Vote on Top.gg; the bot auto-credits the chips and DMs you the amount.' },
         { emoji: '📨', cmd: '/request type:<Buy In|Cash Out> amount:<int>', desc: kittenMode
           ? 'Submit a buy-in or cash-out request and my staff will tend to you.'
           : 'Send buy-in/cash-out requests to the staff when you need chips moved.' }
