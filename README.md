@@ -162,7 +162,7 @@ bot ALL=NOPASSWD: /bin/systemctl restart discord-casino, /bin/systemctl start di
 Adjust the username and service as needed.
 
 ## Notes
-- Commands are registered globally (see `deploy-commands.mjs`). Expect up to an hour for propagation.
+- Commands are registered globally (see `src/cli/deploy-commands.mjs`). Expect up to an hour for propagation.
 - SQLite runs in WAL mode; the DB file is `casino.db` by default. Avoid committing `.env`, `casino.db*`, and any `*.bak` files.
 - `/setcasinocategory` is the canonical casino category command.
 
