@@ -105,6 +105,22 @@ function getBetChangeFee(state, bet) {
   return Math.ceil(bet.originalAmount * Math.max(1, state.stage / 2));
 }
 
+function calculateHouseTotals(state, payouts = []) {
+  let chipsCollected = 0;
+  let creditsBurned = 0;
+  for (const bet of state.bets.values()) {
+    chipsCollected += (bet.chipsStaked || 0) + (bet.feesPaidChips || 0);
+    creditsBurned += (bet.creditsBurned || 0) + (bet.feesPaidCredits || 0);
+  }
+  const chipsPaid = payouts.reduce((sum, payout) => sum + (payout.amount || 0), 0);
+  return {
+    chipsCollected,
+    creditsBurned,
+    chipsPaid,
+    houseNet: chipsCollected - chipsPaid
+  };
+}
+
 function createRaceEmbed(state, options = {}) {
   let title;
   if (state.status === 'running') {
