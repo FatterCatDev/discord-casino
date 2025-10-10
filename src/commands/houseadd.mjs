@@ -1,4 +1,4 @@
-import { addToHouse } from '../db.auto.mjs';
+import { addToHouse } from '../db/db.auto.mjs';
 
 export default async function handleHouseAdd(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;

@@ -1,4 +1,4 @@
-import { getHouseBalance, getCasinoNetworth } from '../db.auto.mjs';
+import { getHouseBalance, getCasinoNetworth } from '../db/db.auto.mjs';
 
 export default async function handleHouseBalance(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;

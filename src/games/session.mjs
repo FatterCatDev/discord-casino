@@ -1,5 +1,5 @@
 import { EmbedBuilder } from 'discord.js';
-import { getUserBalances, burnCredits } from '../db.auto.mjs';
+import { getUserBalances, burnCredits } from '../db/db.auto.mjs';
 import { chipsAmount, chipsAmountSigned } from './format.mjs';
 import { finalizeSessionUIByIds, postGameSessionEndByIds } from './logging.mjs';
 import { ridebusGames } from './ridebus.mjs';

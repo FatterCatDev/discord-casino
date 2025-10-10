@@ -1,4 +1,4 @@
-import { removeModerator } from '../db.auto.mjs';
+import { removeModerator } from '../db/db.auto.mjs';
 
 export default async function handleRemoveMod(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;

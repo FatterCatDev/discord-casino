@@ -1,5 +1,5 @@
 import { setTableRake, ensureTableInChannel, buildTableEmbed, tableButtons } from '../games/holdem.mjs';
-import { setDefaultHoldemRake } from '../db.auto.mjs';
+import { setDefaultHoldemRake } from '../db/db.auto.mjs';
 
 export default async function handleSetRake(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;

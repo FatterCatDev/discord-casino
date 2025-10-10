@@ -1,5 +1,5 @@
 import { EmbedBuilder } from 'discord.js';
-import { getGuildSettings, getUserBalances, getHouseBalance, takeFromUserToHouse, transferFromHouseToUser, burnCredits } from '../db.auto.mjs';
+import { getGuildSettings, getUserBalances, getHouseBalance, takeFromUserToHouse, transferFromHouseToUser, burnCredits } from '../db/db.auto.mjs';
 import { chipsAmount } from '../games/format.mjs';
 
 async function inCasinoCategory(interaction, kittenMode) {

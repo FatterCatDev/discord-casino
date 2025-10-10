@@ -1,4 +1,4 @@
-import { mintChips } from '../db.auto.mjs';
+import { mintChips } from '../db/db.auto.mjs';
 
 export default async function handleBuyIn(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;

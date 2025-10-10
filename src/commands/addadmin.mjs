@@ -1,4 +1,4 @@
-import { addAdmin } from '../db.auto.mjs';
+import { addAdmin } from '../db/db.auto.mjs';
 
 export default async function handleAddAdmin(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;

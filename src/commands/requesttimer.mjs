@@ -1,4 +1,4 @@
-import { setRequestTimer } from '../db.auto.mjs';
+import { setRequestTimer } from '../db/db.auto.mjs';
 
 export default async function handleRequestTimer(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;

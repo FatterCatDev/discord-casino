@@ -1,5 +1,5 @@
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
-import { getGuildSettings } from '../db.auto.mjs';
+import { getGuildSettings } from '../db/db.auto.mjs';
 
 async function inCasinoCategory(interaction) {
   try {

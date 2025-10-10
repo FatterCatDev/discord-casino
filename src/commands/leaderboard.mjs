@@ -1,4 +1,4 @@
-import { getTopUsers } from '../db.auto.mjs';
+import { getTopUsers } from '../db/db.auto.mjs';
 
 export default async function handleLeaderboard(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;

@@ -1,4 +1,4 @@
-import { removeAdmin } from '../db.auto.mjs';
+import { removeAdmin } from '../db/db.auto.mjs';
 
 export default async function handleRemoveAdmin(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;

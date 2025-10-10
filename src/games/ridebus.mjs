@@ -1,5 +1,5 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
-import { getGuildSettings, getUserBalances, getHouseBalance, takeFromUserToHouse, burnCredits } from '../db.auto.mjs';
+import { getGuildSettings, getUserBalances, getHouseBalance, takeFromUserToHouse, burnCredits } from '../db/db.auto.mjs';
 import { makeDeck, show, color, val } from './cards.mjs';
 import { chipsAmount } from './format.mjs';
 import { buildPlayerBalanceField, sendGameMessage, setActiveSession, buildTimeoutField } from './session.mjs';

@@ -1,5 +1,5 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
-import { clearActiveRequest } from '../db.auto.mjs';
+import { clearActiveRequest } from '../db/db.auto.mjs';
 
 export default async function handleRequestRejectModal(interaction, ctx) {
   const parts = interaction.customId.split('|');

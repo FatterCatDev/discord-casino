@@ -1,5 +1,5 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
-import { updateActiveRequestStatus, clearActiveRequest, mintChips, burnFromUser } from '../db.auto.mjs';
+import { updateActiveRequestStatus, clearActiveRequest, mintChips, burnFromUser } from '../db/db.auto.mjs';
 
 export default async function handleRequestButtons(interaction, ctx) {
   const parts = interaction.customId.split('|');

@@ -1,5 +1,5 @@
 import { ChannelType, PermissionFlagsBits } from 'discord.js';
-import { setGameLogChannel } from '../db.auto.mjs';
+import { setGameLogChannel } from '../db/db.auto.mjs';
 
 export default async function handleSetGameLogChannel(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;

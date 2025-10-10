@@ -1,4 +1,4 @@
-import { setKittenMode } from '../db.auto.mjs';
+import { setKittenMode } from '../db/db.auto.mjs';
 
 export default async function handleKittenMode(interaction, ctx) {
   if (!interaction.guild) {

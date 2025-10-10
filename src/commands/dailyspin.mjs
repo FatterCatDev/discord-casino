@@ -1,4 +1,4 @@
-import { mintChips, getLastDailySpinAt, setLastDailySpinNow } from '../db.auto.mjs';
+import { mintChips, getLastDailySpinAt, setLastDailySpinNow } from '../db/db.auto.mjs';
 
 const SECONDS_PER_DAY = 24 * 60 * 60;
 

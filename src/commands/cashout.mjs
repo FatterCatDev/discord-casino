@@ -1,4 +1,4 @@
-import { burnFromUser } from '../db.auto.mjs';
+import { burnFromUser } from '../db/db.auto.mjs';
 
 export default async function handleCashOut(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;

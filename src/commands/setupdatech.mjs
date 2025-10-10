@@ -1,5 +1,5 @@
 import { ChannelType, PermissionFlagsBits } from 'discord.js';
-import { setUpdateChannel } from '../db.auto.mjs';
+import { setUpdateChannel } from '../db/db.auto.mjs';
 
 export default async function handleSetUpdateChannel(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;

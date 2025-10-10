@@ -1,4 +1,4 @@
-import { takeFromUserToHouse } from '../db.auto.mjs';
+import { takeFromUserToHouse } from '../db/db.auto.mjs';
 
 export default async function handleTakeChips(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;

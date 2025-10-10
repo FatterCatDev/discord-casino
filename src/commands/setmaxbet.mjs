@@ -1,4 +1,4 @@
-import { setMaxRidebusBet } from '../db.auto.mjs';
+import { setMaxRidebusBet } from '../db/db.auto.mjs';
 
 export default async function handleSetMaxBet(interaction, ctx) {
   try {

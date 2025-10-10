@@ -1,4 +1,4 @@
-import { getGuildSettings } from '../db.auto.mjs';
+import { getGuildSettings } from '../db/db.auto.mjs';
 
 async function inCasinoCategory(interaction, kittenMode) {
   const say = (kitten, normal) => (kittenMode ? kitten : normal);

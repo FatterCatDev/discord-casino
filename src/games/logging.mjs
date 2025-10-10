@@ -1,4 +1,4 @@
-import { getGuildSettings, getUserBalances, getHouseBalance } from '../db.auto.mjs';
+import { getGuildSettings, getUserBalances, getHouseBalance } from '../db/db.auto.mjs';
 import { chipsAmount, chipsAmountSigned } from './format.mjs';
 import { buildSessionEndEmbed, activeSessions, ACTIVE_TIMEOUT_MS, burnUpToCredits } from './session.mjs';
 import { ridebusGames } from './ridebus.mjs';

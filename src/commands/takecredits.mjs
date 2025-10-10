@@ -1,4 +1,4 @@
-import { burnCredits } from '../db.auto.mjs';
+import { burnCredits } from '../db/db.auto.mjs';
 
 export default async function handleTakeCredits(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;

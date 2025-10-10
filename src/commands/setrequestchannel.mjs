@@ -1,5 +1,5 @@
 import { ChannelType, PermissionFlagsBits } from 'discord.js';
-import { setRequestChannel } from '../db.auto.mjs';
+import { setRequestChannel } from '../db/db.auto.mjs';
 
 export default async function handleSetRequestChannel(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;

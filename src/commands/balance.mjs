@@ -1,4 +1,4 @@
-import { getUserBalances } from '../db.auto.mjs';
+import { getUserBalances } from '../db/db.auto.mjs';
 
 export default async function handleBalance(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;

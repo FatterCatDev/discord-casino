@@ -1,4 +1,4 @@
-import { resetAllBalances } from '../db.auto.mjs';
+import { resetAllBalances } from '../db/db.auto.mjs';
 
 export default async function handleResetAllBalance(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;

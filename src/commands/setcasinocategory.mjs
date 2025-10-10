@@ -1,5 +1,5 @@
 import { ChannelType, PermissionFlagsBits } from 'discord.js';
-import { setCasinoCategory } from '../db.auto.mjs';
+import { setCasinoCategory } from '../db/db.auto.mjs';
 
 export default async function handleSetCasinoCategory(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;

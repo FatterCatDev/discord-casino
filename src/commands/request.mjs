@@ -1,5 +1,5 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
-import { getGuildSettings, getActiveRequest, getLastRequestAt, getUserBalances, createActiveRequest, setLastRequestNow } from '../db.auto.mjs';
+import { getGuildSettings, getActiveRequest, getLastRequestAt, getUserBalances, createActiveRequest, setLastRequestNow } from '../db/db.auto.mjs';
 
 export default async function handleRequest(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;

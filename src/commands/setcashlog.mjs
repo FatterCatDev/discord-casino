@@ -1,5 +1,5 @@
 import { ChannelType, PermissionFlagsBits } from 'discord.js';
-import { setCashLogChannel } from '../db.auto.mjs';
+import { setCashLogChannel } from '../db/db.auto.mjs';
 
 export default async function handleSetCashLog(interaction, ctx) {
   await interaction.deferReply({ ephemeral: true });

@@ -1,4 +1,4 @@
-import { removeFromHouse } from '../db.auto.mjs';
+import { removeFromHouse } from '../db/db.auto.mjs';
 
 export default async function handleHouseRemove(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;

@@ -1,6 +1,6 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
 import crypto from 'node:crypto';
-import { getUserBalances, getHouseBalance, takeFromUserToHouse, transferFromHouseToUser, burnCredits } from '../db.auto.mjs';
+import { getUserBalances, getHouseBalance, takeFromUserToHouse, transferFromHouseToUser, burnCredits } from '../db/db.auto.mjs';
 import { chipsAmount } from './format.mjs';
 import { sessionLineFor, setActiveSession, recordSessionGame, buildTimeoutField, sendGameMessage } from './session.mjs';
 
