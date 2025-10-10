@@ -8,3 +8,5 @@ version: 1.0.4
 - Added DiscordBotList webhook endpoint (`/api/v1/webhooks/dbl`) plus new env toggles (`DBL_WEBHOOK_AUTH`, `DBL_VOTE_REWARD`, `DBL_VOTE_REWARD_REASON`).
 - Help menu, README, and player guide refreshed to highlight automated vote rewards and onboarding steps.
 - Interaction DM copy now reflects the actual vote sources instead of always mentioning Top.gg.
+- Added `scripts/post-message.mjs` to let admins broadcast multi-part announcements safely.
+- Introduced `/horserace`, a five-horse betting game with staged embeds, bet-change fees, and automatic payouts.
