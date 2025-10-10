@@ -326,6 +326,12 @@ async function handleRaceTimeout(state, client) {
     includeNotice: false
   });
 
+  try {
+    await postGameSessionEndByIds(client, state.guildId, state.hostId, { game: 'Horse Race', houseNet: 0 });
+  } catch (err) {
+    console.error('Horse race timeout log failed:', err);
+  }
+
   clearRace(state);
 }
 
