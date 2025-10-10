@@ -570,15 +570,17 @@ export async function handleHorseBet(interaction, state, horseIndex, amount) {
 
   const betKey = interaction.user.id;
   const existing = state.bets.get(betKey);
-  const originalAmount = existing ? existing.originalAmount : amount;
-  if (existing && amount !== originalAmount) {
+  const isBettingStage = state.status === 'betting';
+  let stakeAmount = existing ? existing.originalAmount : amount;
+  const previousAmount = stakeAmount;
+  if (existing && !isBettingStage && amount !== stakeAmount) {
     await acknowledgeInteraction(interaction);
-    await showRaceNotice(state, interaction.client, `⚠ Keep your stake at **${formatChips(originalAmount)}**. Bet changes only swap horses and incur a fee.`);
+    await showRaceNotice(state, interaction.client, `⚠ Keep your stake at **${formatChips(stakeAmount)}**. Bet changes only swap horses and incur a fee.`);
     return;
   }
   const fee = existing
     ? (state.status === 'running'
-        ? Math.ceil(originalAmount * Math.max(1, state.stage / 2))
+        ? Math.ceil(stakeAmount * Math.max(1, state.stage / 2))
         : 0)
     : 0;
 
@@ -590,16 +592,35 @@ export async function handleHorseBet(interaction, state, horseIndex, amount) {
     return;
   }
 
-  let creditsBurned = 0;
-  let chipsStaked = 0;
+  let updatedCreditsBurned = existing ? existing.creditsBurned : 0;
+  let updatedChipsStaked = existing ? existing.chipsStaked : 0;
   let feeCredits = 0;
   let feeChips = 0;
 
   try {
     if (!existing) {
       const collected = await collectFromUser(state, betKey, amount, 'horse race bet');
-      creditsBurned = collected.creditsBurned;
-      chipsStaked = collected.chipsStaked;
+      updatedCreditsBurned = collected.creditsBurned;
+      updatedChipsStaked = collected.chipsStaked;
+      stakeAmount = amount;
+    } else if (isBettingStage && amount !== previousAmount) {
+      if (amount > previousAmount) {
+        const delta = amount - previousAmount;
+        const collected = await collectFromUser(state, betKey, delta, 'horse race bet adjustment');
+        updatedCreditsBurned += collected.creditsBurned;
+        updatedChipsStaked += collected.chipsStaked;
+      } else {
+        const delta = previousAmount - amount;
+        let chipsRefund = Math.min(updatedChipsStaked, delta);
+        let creditsRefund = Math.min(updatedCreditsBurned, delta - chipsRefund);
+        const totalRefund = chipsRefund + creditsRefund;
+        if (totalRefund > 0) {
+          await refundToUser(state, betKey, creditsRefund, chipsRefund, 'horse race bet adjusted');
+          updatedChipsStaked -= chipsRefund;
+          updatedCreditsBurned -= creditsRefund;
+        }
+        stakeAmount = amount;
+      }
     }
 
     if (fee > 0) {
@@ -624,10 +645,13 @@ export async function handleHorseBet(interaction, state, horseIndex, amount) {
     changes: 0
   };
 
-  betData.amount = originalAmount;
+  if (!existing || isBettingStage) {
+    betData.originalAmount = stakeAmount;
+  }
+  betData.amount = betData.originalAmount;
   betData.horse = horseIndex;
-  betData.creditsBurned += creditsBurned;
-  betData.chipsStaked += chipsStaked;
+  betData.creditsBurned = updatedCreditsBurned;
+  betData.chipsStaked = updatedChipsStaked;
   betData.feesPaidCredits += feeCredits;
   betData.feesPaidChips += feeChips;
   if (existing) betData.changes += 1;
