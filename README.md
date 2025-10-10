@@ -130,10 +130,8 @@ Optional
 - `TOPGG_BOT_ID` – Bot ID for building the default Top.gg vote link (falls back to `CLIENT_ID`)
 - `DBL_VOTE_URL` – Override the DiscordBotList vote link shown in `/vote` (defaults to `https://discordbotlist.com/bots/<CLIENT_ID>/upvote`)
 - `DBL_BOT_ID` – Bot ID for building the default DiscordBotList vote link (falls back to `CLIENT_ID`)
-- `DBL_API_TOKEN` – DiscordBotList API token used to poll vote data (enables automatic DBL rewards)
+- `DBL_WEBHOOK_AUTH` – Shared secret for the DiscordBotList vote webhook endpoint
 - `DBL_VOTE_REWARD` – Chip reward per DiscordBotList vote (integer, default matches `VOTE_REWARD_TOPGG`)
-- `DBL_POLL_ENABLED` – Set to `false` to disable DiscordBotList polling (default true when token provided)
-- `DBL_POLL_INTERVAL_MS` – Polling interval for DiscordBotList votes (default 300000)
 - `DBL_VOTE_REWARD_REASON` – Ledger reason to record for DiscordBotList rewards (default `discordbotlist vote reward`)
 - `VOTE_REWARD_TOPGG` – Base chip reward per Top.gg vote (integer, default 150)
 - `VOTE_REWARD_TOPGG_WEEKEND_MULTIPLIER` – Weekend multiplier for Top.gg votes (number, default 2)
