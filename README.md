@@ -70,7 +70,7 @@ All games except Texas Hold’em use Credits‑first staking: your bet draws fro
 Player
 - `/help`, `/ping`, `/balance [user]`, `/leaderboard [limit]`, `/dailyspin`, `/vote`
 - `/stafflist`
-- `/ridebus bet:<int>`, `/blackjack table:<High|Low> bet:<int>`, `/slots bet:<int>`, `/roulette`, `/holdem`
+- `/ridebus bet:<int>`, `/blackjack table:<High|Low> bet:<int>`, `/slots bet:<int>`, `/roulette`, `/holdem`, `/horserace`
 
 ### Earning Chips
 - `/dailyspin` – free chips every 24 hours.
