@@ -484,6 +484,10 @@ export async function handleRaceCancel(interaction, state) {
     return interaction.reply({ content: '❌ Only the race host or moderators can cancel this race.', ephemeral: true });
   }
 
+  if (!(state.status === 'betting' || state.status === 'countdown')) {
+    return interaction.reply({ content: '❌ You can only cancel before the race begins.', ephemeral: true });
+  }
+
   state.status = 'cancelled';
   clearRace(state);
 
