@@ -310,6 +310,9 @@ async function handleRaceTimeout(state, client) {
   }
 
   state.bets = new Map();
+  state.progress = [0, 0, 0, 0, 0];
+  state.stage = 0;
+  state.stageDeadline = null;
   state.totalPot = 0;
   state.totalExposure = 0;
   state.extraDescription = timeoutDescription;
