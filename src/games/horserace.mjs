@@ -10,7 +10,7 @@ import {
 } from '../db/db.auto.mjs';
 import { formatChips } from './format.mjs';
 
-const TRACK_LENGTH = 10;
+const TRACK_LENGTH = 100;
 const STAGE_COUNT = 5;
 const STAGE_DELAY_MS = 5_000;
 const START_COUNTDOWN_SEC = 5;
@@ -340,7 +340,7 @@ async function advanceStage(state, client) {
   // Random advance for first STAGE_COUNT - 1 stages
   if (state.stage <= STAGE_COUNT) {
     for (let i = 0; i < state.progress.length; i += 1) {
-      const advance = Math.floor(Math.random() * 3); // 0-2
+      const advance = 10 + Math.floor(Math.random() * 21); // 10-30
       state.progress[i] = Math.min(TRACK_LENGTH, state.progress[i] + advance);
     }
   }
