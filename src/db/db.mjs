@@ -1029,7 +1029,7 @@ export function mintChips(guildId, discordId, amount, reason, adminId) {
   return getUserBalances(gid, discordId);
 }
 
-export function recordVoteReward(discordId, source, amount, metadata = {}, earnedAt = Math.floor(Date.now() / 1000)) {
+export function recordVoteReward(discordId, source, amount, metadata = {}, earnedAt = Math.floor(Date.now() / 1000), externalId = null) {
   const userId = String(discordId || '').trim();
   const src = String(source || '').trim();
   if (!userId) throw new Error('VOTE_REWARD_USER_REQUIRED');
@@ -1037,8 +1037,17 @@ export function recordVoteReward(discordId, source, amount, metadata = {}, earne
   if (!Number.isInteger(amount) || amount <= 0) throw new Error('VOTE_REWARD_AMOUNT_POSITIVE');
   const ts = Number.isInteger(earnedAt) && earnedAt > 0 ? earnedAt : Math.floor(Date.now() / 1000);
   const meta = metadata && Object.keys(metadata).length ? JSON.stringify(metadata) : null;
-  insertVoteRewardStmt.run(userId, src, amount, meta, ts);
-  return true;
+  const extId = externalId ? String(externalId).trim() || null : null;
+  try {
+    insertVoteRewardStmt.run(userId, src, amount, meta, ts, extId);
+    return true;
+  } catch (err) {
+    const msg = String(err?.message || '').toUpperCase();
+    if (msg.includes('UNIQUE') || msg.includes('CONSTRAINT')) {
+      return false;
+    }
+    throw err;
+  }
 }
 
 export function getPendingVoteRewards(discordId) {
