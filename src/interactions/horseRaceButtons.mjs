@@ -1,5 +1,5 @@
 import { ModalBuilder, TextInputBuilder, TextInputStyle, ActionRowBuilder } from 'discord.js';
-import { getRaceById, handleRaceCancel } from '../games/horserace.mjs';
+import { getRaceById, handleRaceCancel, handleRaceStart } from '../games/horserace.mjs';
 
 export default async function handleHorseRaceButtons(interaction) {
   const parts = interaction.customId.split('|');
@@ -11,11 +11,14 @@ export default async function handleHorseRaceButtons(interaction) {
     return interaction.reply({ content: '❌ This race has already finished.', ephemeral: true });
   }
 
-  if (state.status !== 'running') {
-    return interaction.reply({ content: '❌ Betting is closed for this race.', ephemeral: true });
-  }
-
   if (action === 'bet') {
+    if (state.status === 'countdown') {
+      return interaction.reply({ content: '❌ Bets are locked during the countdown.', ephemeral: true });
+    }
+    if (!(state.status === 'betting' || state.status === 'running')) {
+      return interaction.reply({ content: '❌ Betting is closed for this race.', ephemeral: true });
+    }
+
     const modal = new ModalBuilder()
       .setCustomId(`horse|betmodal|${raceId}`)
       .setTitle('Place/Update Horse Bet');
@@ -43,7 +46,14 @@ export default async function handleHorseRaceButtons(interaction) {
   }
 
   if (action === 'cancel') {
+    if (state.status !== 'betting') {
+      return interaction.reply({ content: '❌ You can only cancel while the race is still in betting.', ephemeral: true });
+    }
     return handleRaceCancel(interaction, state);
+  }
+
+  if (action === 'confirm') {
+    return handleRaceStart(interaction, state);
   }
 
   return interaction.reply({ content: '❌ Unknown action.', ephemeral: true });
