@@ -573,6 +573,7 @@ export async function createHorseRace(interaction, ctx) {
   const embed = createRaceEmbed(state, { footerText: INITIAL_FOOTER_TEXT });
   const message = await interaction.reply({ embeds: [embed], components: buildComponents(state), fetchReply: true });
   storeRace(state, message.id);
+  refreshRaceTimeout(state, interaction.client);
 
   return state;
 }
