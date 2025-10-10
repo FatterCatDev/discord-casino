@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { createApiKey } from './db.auto.mjs';
+import { createApiKey } from '../db/db.auto.mjs';
 const key = createApiKey({
   name: 'PartnerA',
   guildId: process.env.GUILD_ID, // the guild your bot manages for them

@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Client, GatewayIntentBits } from 'discord.js';
-import { pushUpdateAnnouncement } from '../updates.mjs';
+import { pushUpdateAnnouncement } from '../src/services/updates.mjs';
 import pkg from '../package.json' with { type: 'json' };
 
 const __filename = fileURLToPath(import.meta.url);
