@@ -315,7 +315,8 @@ async function payoutRace(state, winners, client) {
     try {
       resetRaceState(state);
       await editRaceMessage(state, client, {
-        footerText: 'Place your bets! Host must press Start to begin the countdown.'
+        footerText: INITIAL_FOOTER_TEXT,
+        extraDescription: null
       });
     } catch (err) {
       console.error('Failed to render final horse race results:', err);
