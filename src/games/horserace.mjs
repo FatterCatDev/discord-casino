@@ -220,11 +220,11 @@ function buildComponents(state) {
   const horseButtons = Array.from({ length: HORSE_COUNT }, (_, idx) => {
     const name = getHorseLabel(state, idx);
     return new ButtonBuilder()
-    .setCustomId(`horse|pick|${state.id}|${idx}`)
-    .setStyle(ButtonStyle.Secondary)
-    .setLabel(`${idx + 1}: ${name}`)
-    .setEmoji(HORSE_EMOJIS[idx] || null)
-    .setDisabled(state.status === 'countdown`);
+      .setCustomId(`horse|pick|${state.id}|${idx}`)
+      .setStyle(ButtonStyle.Secondary)
+      .setLabel(`${idx + 1}: ${name}`)
+      .setEmoji(HORSE_EMOJIS[idx] || null)
+      .setDisabled(state.status === 'countdown');
   });
 
   const rows = [];
