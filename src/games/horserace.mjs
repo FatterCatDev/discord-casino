@@ -54,9 +54,16 @@ function renderTrack(progress) {
   return `${'■'.repeat(filledTicks)}${'░'.repeat(emptyTicks)}`;
 }
 
+const DISPLAY_TRACK_LENGTH = 20;
+const TRACK_LINE_WIDTH = 70;
+
 function buildHorseLine(index, progress) {
-  const label = HORSE_LABELS[index];
-  return `${label} — 🐎 │${renderTrack(progress)}│ (${progress}/${TRACK_LENGTH})`;
+  const label = `${HORSE_EMOJIS[index]} ${HORSE_LABELS[index]}`;
+  const progressText = `${progress}/${TRACK_LENGTH}`;
+  const left = `${label.padEnd(12)} ${progressText.padStart(8)}`;
+  const track = `│${renderTrack(progress)}│`;
+  const spaces = ' '.repeat(Math.max(1, TRACK_LINE_WIDTH - left.length - track.length));
+  return `${left}${spaces}${track}`;
 }
 
 function summarizeBets(state) {
