@@ -479,6 +479,7 @@ async function startCountdown(state, client) {
     state.countdown = null;
   }
   state.lastResultsText = null;
+  state.previousResults = null;
   clearRaceIdleTimer(state);
   if (state.noticeTimeout) {
     clearTimeout(state.noticeTimeout);
