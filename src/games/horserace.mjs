@@ -65,9 +65,18 @@ function summarizeBets(state) {
 }
 
 function createRaceEmbed(state, options = {}) {
-  const title = state.status === 'running'
-    ? `🏇 Horse Race — Stage ${state.stage}/${STAGE_COUNT}`
-    : '🏇 Horse Race — Betting Stage';
+  let title;
+  if (state.status === 'running') {
+    title = `🏇 Horse Race — Stage ${state.stage}/${STAGE_COUNT}`;
+  } else if (state.status === 'countdown') {
+    title = '🏇 Horse Race — Countdown';
+  } else if (state.status === 'finished') {
+    title = '🏇 Horse Race — Finished';
+  } else if (state.status === 'cancelled') {
+    title = '🏇 Horse Race — Cancelled';
+  } else {
+    title = '🏇 Horse Race — Betting Stage';
+  }
 
   const embed = new EmbedBuilder()
     .setTitle(title)
