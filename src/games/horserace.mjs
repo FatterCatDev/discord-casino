@@ -96,6 +96,12 @@ function summarizeBets(state) {
   return entries.join('\n');
 }
 
+function getBetChangeFee(state, bet) {
+  if (!bet) return 0;
+  if (state.status !== 'running') return 0;
+  return Math.ceil(bet.originalAmount * Math.max(1, state.stage / 2));
+}
+
 function createRaceEmbed(state, options = {}) {
   let title;
   if (state.status === 'running') {
