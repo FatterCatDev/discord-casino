@@ -17,7 +17,13 @@ import {
   burnCredits
 } from './db/db.auto.mjs';
 import { formatChips, chipsAmount } from './games/format.mjs';
-import { autoRedeemPendingVoteRewards, describeBreakdown } from './services/votes.mjs';
+import {
+  autoRedeemPendingVoteRewards,
+  describeBreakdown,
+  ingestDiscordBotListVotes,
+  isDiscordBotListPollingEnabled,
+  getDiscordBotListPollIntervalMs
+} from './services/votes.mjs';
 import {
   activeSessions,
   getActiveSession,
