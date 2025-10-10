@@ -392,6 +392,15 @@ function houseRow(guildId) {
   return getHouseStmt.get(guildId) || { chips: 0 };
 }
 
+function safeParseJson(value) {
+  if (!value) return null;
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
+}
+
 const getGuildSettingsStmt = db.prepare('SELECT log_channel_id, cash_log_channel_id, request_channel_id, update_channel_id, request_cooldown_sec, logging_enabled, max_ridebus_bet, casino_category_id, holdem_rake_bps, holdem_rake_cap, kitten_mode_enabled FROM guild_settings WHERE guild_id = ?');
 const ensureGuildSettingsStmt = db.prepare('INSERT OR IGNORE INTO guild_settings (guild_id) VALUES (?)');
 const upsertGuildSettingsStmt = db.prepare(`
