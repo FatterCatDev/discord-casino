@@ -194,9 +194,16 @@ function ensureWinner(state) {
 
 async function payoutRace(state, winners, client) {
   const payouts = [];
+  const tieCount = winners.length;
+  let multiplier = PAYOUT_MULTIPLIER;
+  if (tieCount === 2) {
+    multiplier = Math.max(1, Math.floor(PAYOUT_MULTIPLIER / 2));
+  } else if (tieCount >= 3) {
+    multiplier = 1;
+  }
   for (const bet of state.bets.values()) {
     if (winners.includes(bet.horse)) {
-      const winnings = bet.amount * PAYOUT_MULTIPLIER;
+      const winnings = bet.amount * multiplier;
       try {
         await transferFromHouseToUser(state.guildId, bet.userId, winnings, 'horse race win', null);
         payouts.push({ userId: bet.userId, amount: winnings });
@@ -206,7 +213,12 @@ async function payoutRace(state, winners, client) {
     }
   }
   const winnerLines = winners.map(idx => HORSE_LABELS[idx]).join(', ');
-  const resultsText = `**🥇 Winners:** ${winnerLines}\n${payouts.length ? payouts.map(p => `<@${p.userId}> won **${formatChips(p.amount)}**`).join('\n') : 'No winners this time.'}`;
+  const tieNote = tieCount >= 3
+    ? '\n(Tie of 3+ horses — stakes refunded)'
+    : tieCount === 2
+      ? '\n(Tie of 2 horses — payouts halved)'
+      : '';
+  const resultsText = `**🥇 Winners:** ${winnerLines}\n${payouts.length ? payouts.map(p => `<@${p.userId}> won **${formatChips(p.amount)}**`).join('\n') : 'No winners this time.'}${tieNote}`;
   state.lastResultsText = resultsText;
   state.status = 'finished';
   await editRaceMessage(state, client, {
