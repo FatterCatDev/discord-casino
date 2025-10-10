@@ -505,13 +505,19 @@ export async function createHorseRace(interaction, ctx) {
 
 export async function handleRaceStart(interaction, state) {
   if (state.status !== 'betting') {
-    return interaction.reply({ content: '❌ The race is already underway.' });
+    await acknowledgeInteraction(interaction);
+    await displayRaceNotice(state, interaction.client, '⚠ The race is already underway.');
+    return;
   }
   if (state.hostConfirm) {
-    return interaction.reply({ content: '❌ Countdown already in progress.' });
+    await acknowledgeInteraction(interaction);
+    await displayRaceNotice(state, interaction.client, '⚠ Countdown already in progress.');
+    return;
   }
   if (!state.bets.size) {
-    return interaction.reply({ content: '❌ At least one bet is required before starting the race.' });
+    await acknowledgeInteraction(interaction);
+    await displayRaceNotice(state, interaction.client, '⚠ At least one bet is required before starting the race.');
+    return;
   }
 
   const isHost = interaction.user.id === state.hostId;
@@ -523,7 +529,9 @@ export async function handleRaceStart(interaction, state) {
   }
 
   if (!isHost && !isModerator) {
-    return interaction.reply({ content: '❌ Only the race host or moderators can start the countdown.' });
+    await acknowledgeInteraction(interaction);
+    await displayRaceNotice(state, interaction.client, '⚠ Only the race host or moderators can start the countdown.');
+    return;
   }
 
   state.hostConfirm = true;
