@@ -19,6 +19,7 @@ const HORSE_LABELS = ['Horse 1', 'Horse 2', 'Horse 3', 'Horse 4', 'Horse 5'];
 const HORSE_EMOJIS = ['🟥', '🟩', '🟨', '🟦', '🟪'];
 const INITIAL_FOOTER_TEXT = 'Place your bets! Host must press Start to begin the countdown.';
 const DEFAULT_STAGE_FOOTER_TEXT = 'Place or change bets within 5 seconds of each stage.';
+const NOTICE_DURATION_MS = 4_000;
 
 const racesById = new Map();
 const racesByChannel = new Map();
