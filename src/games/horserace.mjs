@@ -107,9 +107,24 @@ function createRaceEmbed(state, options = {}) {
 
   const trackLines = HORSE_LABELS.map((_, idx) => buildHorseLine(idx, state.progress[idx]));
   let description = '```\n' + trackLines.join('\n') + '\n```';
-  const extra = options.extraDescription ?? state.lastResultsText;
-  if (extra) {
-    description += `\n${extra}`;
+  let baseExtra;
+  if (options.extraDescription !== undefined) {
+    baseExtra = options.extraDescription;
+  } else if (state.extraDescription != null) {
+    baseExtra = state.extraDescription;
+  } else if (state.lastResultsText) {
+    baseExtra = state.lastResultsText;
+  }
+  if (baseExtra) {
+    description += `\n${baseExtra}`;
+  }
+
+  const includeNotice = options.includeNotice ?? true;
+  if (includeNotice && state.noticeText) {
+    const notice = state.noticeText.trim();
+    if (notice && (!baseExtra || !baseExtra.includes(notice))) {
+      description += `\n${notice}`;
+    }
   }
 
   const embed = new EmbedBuilder()
@@ -120,7 +135,7 @@ function createRaceEmbed(state, options = {}) {
       { name: '🎯 Exposure', value: `${formatChips(state.totalExposure)} chips`, inline: true },
       { name: '🏁 Bets', value: summarizeBets(state) }
     )
-    .setFooter({ text: options.footerText || 'Place or change bets within 5 seconds of each stage.' });
+    .setFooter({ text: options.footerText ?? state.footerText ?? DEFAULT_STAGE_FOOTER_TEXT });
   return embed;
 }
 
