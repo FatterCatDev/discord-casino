@@ -48,6 +48,7 @@ function createEmptyState(ctx, interaction) {
     lastResultsText: null,
     noticeText: null,
     noticeTimeout: null,
+    idleTimeout: null,
     extraDescription: null,
     footerText: INITIAL_FOOTER_TEXT
   };
