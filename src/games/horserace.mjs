@@ -684,4 +684,4 @@ export async function handleRaceCancel(interaction, state) {
   }
 }
 
-export { displayRaceNotice, acknowledgeInteraction };
+export { showRaceNotice, acknowledgeInteraction };
