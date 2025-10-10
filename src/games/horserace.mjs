@@ -468,6 +468,6 @@ export async function handleRaceCancel(interaction, state) {
     }
   }
 
-  await editRaceMessage(state, interaction.client, { footerText: 'Race cancelled.', disableButtons: true });
+  await editRaceMessage(state, interaction.client, { footerText: 'Race cancelled.' });
   await interaction.reply({ content: '🛑 Race cancelled. All bets have been refunded.', ephemeral: true });
 }
