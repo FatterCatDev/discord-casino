@@ -427,7 +427,7 @@ async function payoutRace(state, winners, client) {
   }
   setTimeout(async () => {
     try {
-      resetRaceState(state);
+      resetRaceState(state, resultsText);
       await editRaceMessage(state, client, {
         footerText: INITIAL_FOOTER_TEXT,
         extraDescription: null
