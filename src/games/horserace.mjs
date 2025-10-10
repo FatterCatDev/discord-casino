@@ -199,6 +199,35 @@ async function payoutRace(state, winners, client) {
   await channel.send({ embeds: [resultEmbed] }).catch(() => {});
 }
 
+async function startCountdown(state, client) {
+  state.status = 'countdown';
+  let remaining = START_COUNTDOWN_SEC;
+
+  const tick = async () => {
+    if (state.status !== 'countdown') return;
+    await editRaceMessage(state, client, { footerText: `🚦 Race starts in ${Math.max(0, remaining)}s!` });
+
+    if (remaining <= 0) {
+      state.countdown = null;
+      state.status = 'running';
+      state.stage = 0;
+      state.stageDeadline = Date.now() + STAGE_DELAY_MS;
+      await editRaceMessage(state, client, { footerText: 'Stage 1 results in 5 seconds — adjust bets now!' });
+      state.timeout = setTimeout(() => {
+        advanceStage(state, client).catch(err => console.error('Horse race advance error:', err));
+      }, STAGE_DELAY_MS);
+      return;
+    }
+
+    remaining -= 1;
+    state.countdown = setTimeout(() => {
+      tick().catch(err => console.error('Horse race countdown error:', err));
+    }, 1_000);
+  };
+
+  await tick();
+}
+
 function computeExposure(state, replacingUserId, newAmount) {
   let exposure = 0;
   for (const bet of state.bets.values()) {
