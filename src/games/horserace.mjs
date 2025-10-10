@@ -46,6 +46,7 @@ function createEmptyState(ctx, interaction) {
 }
 
 const DISPLAY_TRACK_LENGTH = 20;
+const TRACK_LINE_WIDTH = 70;
 
 function renderTrack(progress) {
   const ratio = progress / TRACK_LENGTH;
@@ -53,9 +54,6 @@ function renderTrack(progress) {
   const emptyTicks = DISPLAY_TRACK_LENGTH - filledTicks;
   return `${'■'.repeat(filledTicks)}${'░'.repeat(emptyTicks)}`;
 }
-
-const DISPLAY_TRACK_LENGTH = 20;
-const TRACK_LINE_WIDTH = 70;
 
 function buildHorseLine(index, progress) {
   const label = `${HORSE_EMOJIS[index]} ${HORSE_LABELS[index]}`;
