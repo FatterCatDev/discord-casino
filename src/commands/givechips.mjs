@@ -1,4 +1,5 @@
 import { transferFromHouseToUser } from '../db/db.auto.mjs';
+import { emoji } from '../lib/emojis.mjs';
 
 export default async function handleGiveChips(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
@@ -16,20 +17,20 @@ export default async function handleGiveChips(interaction, ctx) {
     const { chips, house } = await transferFromHouseToUser(interaction.guild?.id, target.id, amount, reason, interaction.user.id);
     const logLines = kittenMode
       ? [
-          '🎁 **Give Chips**',
+          `${emoji('gift')} **Give Chips**`,
           `To: My spoiled Kitten <@${target.id}> • Amount: **${ctx.chipsAmount(amount)}**${reason ? ` • Reason: ${reason}` : ''}`,
           `User Chips: **${ctx.chipsAmount(chips)}** • House: **${ctx.chipsAmount(house)}**`
         ]
       : [
-          '🎁 **Give Chips**',
+          `${emoji('gift')} **Give Chips**`,
           `To: <@${target.id}> • Amount: **${ctx.chipsAmount(amount)}**${reason ? ` • Reason: ${reason}` : ''}`,
           `User Chips: **${ctx.chipsAmount(chips)}** • House: **${ctx.chipsAmount(house)}**`
         ];
     await ctx.postCashLog(interaction, logLines);
     return interaction.reply({
       content: say(
-        `🎁 Gave **${ctx.chipsAmount(amount)}** to my playful Kitten <@${target.id}>${reason ? ` (${reason})` : ''}.\n• Bask in it, Kitten — balance: **${ctx.chipsAmount(chips)}**\n• House balance: **${ctx.chipsAmount(house)}**`,
-        `🎁 Gave **${ctx.chipsAmount(amount)}** to <@${target.id}>${reason ? ` (${reason})` : ''}.\n• <@${target.id}>'s new balance: **${ctx.chipsAmount(chips)}**\n• House balance: **${ctx.chipsAmount(house)}**`
+        `${emoji('gift')} Gave **${ctx.chipsAmount(amount)}** to my playful Kitten <@${target.id}>${reason ? ` (${reason})` : ''}.\n• Bask in it, Kitten — balance: **${ctx.chipsAmount(chips)}**\n• House balance: **${ctx.chipsAmount(house)}**`,
+        `${emoji('gift')} Gave **${ctx.chipsAmount(amount)}** to <@${target.id}>${reason ? ` (${reason})` : ''}.\n• <@${target.id}>'s new balance: **${ctx.chipsAmount(chips)}**\n• House balance: **${ctx.chipsAmount(house)}**`
       ),
       ephemeral: true
     });
