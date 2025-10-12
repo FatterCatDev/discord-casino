@@ -1,4 +1,5 @@
 import { setKittenMode } from '../db/db.auto.mjs';
+import { emoji } from '../lib/emojis.mjs';
 
 export default async function handleKittenMode(interaction, ctx) {
   if (!interaction.guild) {
@@ -19,8 +20,8 @@ export default async function handleKittenMode(interaction, ctx) {
   let message;
   if (active) {
     message = previous === true
-      ? '💋 Kitten mode was already purring for this server. I\'m staying in that sultry, mature tone just for you, Kitten.'
-      : '💋 Kitten mode is now purring across this server. I\'ll slip into that mature, teasing tone and call everyone my Kitten.';
+      ? `${emoji('kiss')} Kitten mode was already purring for this server. I\'m staying in that sultry, mature tone just for you, Kitten.`
+      : `${emoji('kiss')} Kitten mode is now purring across this server. I\'ll slip into that mature, teasing tone and call everyone my Kitten.`;
   } else {
     message = previous === false
       ? 'Kitten mode was already disabled here. I\'ll keep the standard casino voice until you invite me to purr again.'
