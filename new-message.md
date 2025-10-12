@@ -8,7 +8,7 @@ Your favorite house of chance just leveled up, and the tables are hotter than ev
 - 🔔 **Smarter Updates** – Admins get hands-free announcements straight into the casino update channel, version bump included.
 
 ## 🕹️ Jump In and Play
-- `/horserace` – Wager across staged sprints, swap mounts between legs (20% fee), and watch the real-time track.  
+- `/horserace` – Wager across staged sprints, swap mounts between legs (stage-based swap fee once the race is running), and watch the real-time track.  
 - `/ridebus bet:<int>` – Climb from Q1 to Q4, cash out early, or take the full 10× plunge.  
 - `/blackjack table:<High|Low> bet:<int>` – Pick your table, burn Credits first, and chase chip-rich blackjacks.  
 - `/slots bet:<int>` – Spin 20-line reels with Credit-first staking and instant chip payouts.  
