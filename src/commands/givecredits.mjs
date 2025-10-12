@@ -1,4 +1,5 @@
 import { grantCredits } from '../db/db.auto.mjs';
+import { emoji } from '../lib/emojis.mjs';
 
 export default async function handleGiveCredits(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
@@ -16,12 +17,12 @@ export default async function handleGiveCredits(interaction, ctx) {
   const nf = new Intl.NumberFormat('en-US');
   const logLines = kittenMode
     ? [
-        '🎁 **Grant Credits**',
+        `${emoji('gift')} **Grant Credits**`,
         `To: My pampered Kitten <@${target.id}> • Amount: **${nf.format(amount)}** credits${reason ? ` • Reason: ${reason}` : ''}`,
         `User Credits: **${nf.format(credits)}**`
       ]
     : [
-        '🎁 **Grant Credits**',
+        `${emoji('gift')} **Grant Credits**`,
         `To: <@${target.id}> • Amount: **${nf.format(amount)}** credits${reason ? ` • Reason: ${reason}` : ''}`,
         `User Credits: **${nf.format(credits)}**`
       ];
