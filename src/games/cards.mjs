@@ -1,7 +1,14 @@
 export const RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 export const RANK_VAL = Object.fromEntries(RANKS.map((r, i) => [r, i + 2])); // 2..14
 export const SUITS = ['C', 'D', 'H', 'S'];
-export const SUIT_EMOJI = { C: '♣', D: '♦', H: '♥', S: '♠' };
+import { EMOJI, emoji } from '../lib/emojis.mjs';
+
+export const SUIT_EMOJI = {
+  C: EMOJI.pokerClub,
+  D: EMOJI.pokerDiamond,
+  H: EMOJI.pokerHeart,
+  S: EMOJI.pokerSpade
+};
 
 export function makeDeck() {
   const d = [];
@@ -16,4 +23,3 @@ export function makeDeck() {
 export const val = (card) => RANK_VAL[card.r];
 export const color = (card) => (card.s === 'H' || card.s === 'D') ? 'RED' : 'BLACK';
 export const show = (card) => `${card.r}${SUIT_EMOJI[card.s]}`;
-
