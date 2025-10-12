@@ -42,7 +42,7 @@ export default async function handleHelp(interaction, ctx) {
         { emoji: '🎡', cmd: '/roulette', desc: kittenMode ? 'Place your bets and let the wheel tease you, Kitten.' : 'Place interactive bets on American roulette and spin.' },
         { emoji: '⚔️', cmd: '/dicewar bet:<int>', desc: kittenMode ? 'Roll for me — doubles sizzling with doubled rewards.' : 'Roll versus the house. Doubles on your win double the payout.' },
         { emoji: '♠️', cmd: '/holdem', desc: kittenMode ? 'Summon a private lounge for Texas Hold’em with your friends.' : 'Create a Texas Hold’em table with presets or custom stakes.' },
-        { emoji: '🏇', cmd: '/horserace', desc: kittenMode ? 'Wager on my five dazzling racers — bets lock each stage, with a cheeky fee if you swap saddles.' : 'Bet on a five-horse sprint; swap picks between stages (20% fee) and watch the live progress.' }
+        { emoji: '🏇', cmd: '/horserace', desc: kittenMode ? 'Wager on my five dazzling racers — bets lock each stage, with a cheeky fee if you swap saddles.' : 'Bet on a five-horse sprint; swap picks between stages with a stage-based swap fee and watch the live progress.' }
       ]}
     ]
   });
