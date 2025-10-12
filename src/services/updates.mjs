@@ -28,13 +28,13 @@ function chunkMessageContent(content, limit = 2000) {
   return chunks;
 }
 
-export async function pushUpdateAnnouncement(client, guildId, { content, mentionEveryone = false, channelIdOverride = null } = {}) {
+export async function pushUpdateAnnouncement(client, guildId, { content, mentionEveryone = false } = {}) {
   if (!client) throw new Error('UPDATE_PUSH_MISSING_CLIENT');
   if (!guildId) throw new Error('UPDATE_PUSH_MISSING_GUILD');
   if (!content || !content.trim()) throw new Error('UPDATE_PUSH_MISSING_CONTENT');
 
   const settings = await getGuildSettings(guildId);
-  const channelId = channelIdOverride ?? settings?.update_channel_id;
+  const channelId = settings?.update_channel_id;
   if (!channelId) throw new Error('UPDATE_CHANNEL_NOT_CONFIGURED');
 
   const guild = await client.guilds.fetch(guildId).catch(() => null);
