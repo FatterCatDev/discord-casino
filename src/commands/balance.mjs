@@ -1,4 +1,5 @@
 import { getUserBalances } from '../db/db.auto.mjs';
+import { emoji } from '../lib/emojis.mjs';
 
 export default async function handleBalance(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
@@ -14,8 +15,8 @@ export default async function handleBalance(interaction, ctx) {
     : say(`My polished Kitten <@${target.id}>`, `Balance for <@${target.id}>`);
   return interaction.reply({
     content: say(
-      `🧾 **${header}**\n💳 Credits: **${fmt.format(credits)}**\n🎟️ Chips: **${ctx.chipsAmount(chips)}**\n🌐 Economy: Global\nSavor it, Kitten <@${target.id}>`,
-      `🧾 **${header}**\n💳 Credits: **${fmt.format(credits)}**\n🎟️ Chips: **${ctx.chipsAmount(chips)}**\n🌐 Economy: Global`
+      `${emoji('receipt')} **${header}**\n${emoji('creditCard')} Credits: **${fmt.format(credits)}**\n${emoji('moneyBag')} Chips: **${ctx.chipsAmount(chips)}**\n${emoji('globe')} Economy: Global\nSavor it, Kitten <@${target.id}>`,
+      `${emoji('receipt')} **${header}**\n${emoji('creditCard')} Credits: **${fmt.format(credits)}**\n${emoji('moneyBag')} Chips: **${ctx.chipsAmount(chips)}**\n${emoji('globe')} Economy: Global`
     ),
     ephemeral: true
   });
