@@ -49,6 +49,9 @@ export const EMOJI = {
   slider: '🎚',
   timer: '⏱️',
   theater: '🎭',
+  handUp: '✋',
+  scissors: '✂️',
+  plus: '➕',
 
   // Status & alerts
   check: '✅',
