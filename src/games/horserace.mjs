@@ -112,11 +112,11 @@ function renderTrack(progress) {
 
 function getHorseLabel(state, index) {
   const base = state.horseLabels?.[index] ?? `Horse ${index + 1}`;
-  return `🐎 ${base}`;
+  return base;
 }
 
 function buildHorseLine(state, index, progress) {
-  const labelName = getHorseLabel(state, index).padEnd(16);
+  const labelName = `${HORSE_EMOJIS[index]} 🐎 ${getHorseLabel(state, index)}`.padEnd(18);
   const track = `│${renderTrack(progress)}│`;
   const progressText = `${progress}/${TRACK_LENGTH}`;
   const spaces = ' '.repeat(Math.max(1, TRACK_LINE_WIDTH - labelName.length - track.length - progressText.length - 1));
