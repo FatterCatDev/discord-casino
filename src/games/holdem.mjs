@@ -314,7 +314,7 @@ function buildClosedPayload(mode = 'empty') {
   const desc = mode === 'idle'
     ? 'Table idle for 10 minutes without a hand.'
     : 'No players for 2 minutes.';
-  const e = new EmbedBuilder().setTitle('🛑 Table closed').setColor(0x2b2d31).setDescription(desc);
+  const e = new EmbedBuilder().setTitle(`${emoji('stopSign')} Table closed`).setColor(0x2b2d31).setDescription(desc);
   return { content: '', embeds: [e], components: [] };
 }
 
