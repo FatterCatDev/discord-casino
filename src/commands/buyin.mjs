@@ -1,4 +1,5 @@
 import { mintChips } from '../db/db.auto.mjs';
+import { emoji } from '../lib/emojis.mjs';
 
 export default async function handleBuyIn(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
@@ -16,20 +17,20 @@ export default async function handleBuyIn(interaction, ctx) {
     const { chips } = await mintChips(interaction.guild?.id, target.id, amount, reason, interaction.user.id);
     const logLines = kittenMode
       ? [
-          '🪙 **Buy-in**',
+          `${emoji('coin')} **Buy-in**`,
           `User: My eager Kitten <@${target.id}> • Amount: **${ctx.chipsAmount(amount)}**${reason ? ` • Reason: ${reason}` : ''}`,
           `User Chips (after): **${ctx.chipsAmount(chips)}**`
         ]
       : [
-          '🪙 **Buy-in**',
+          `${emoji('coin')} **Buy-in**`,
           `User: <@${target.id}> • Amount: **${ctx.chipsAmount(amount)}**${reason ? ` • Reason: ${reason}` : ''}`,
           `User Chips (after): **${ctx.chipsAmount(chips)}**`
         ];
     await ctx.postCashLog(interaction, logLines);
     try {
       const dm = say(
-        `🪙 Buy-in: Drink it in, Kitten <@${target.id}> — your chips drip with my affection.`,
-        `🪙 Buy-in: You received ${ctx.chipsAmount(amount)}. Processed by ${interaction.user.tag}.`
+        `${emoji('coin')} Buy-in: Drink it in, Kitten <@${target.id}> — your chips drip with my affection.`,
+        `${emoji('coin')} Buy-in: You received ${ctx.chipsAmount(amount)}. Processed by ${interaction.user.tag}.`
       );
       await target.send(dm);
     } catch {}
