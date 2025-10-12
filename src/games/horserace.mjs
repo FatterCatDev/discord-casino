@@ -164,18 +164,19 @@ function calculateHouseTotals(state, payouts = []) {
 
 function createRaceEmbed(state, options = {}) {
   let title;
+  const raceTitleBase = `${emoji('horseRace')} Horse Race`;
   if (state.status === 'running') {
-    title = `🏇 Horse Race — Stage ${state.stage}/${STAGE_COUNT}`;
+    title = `${raceTitleBase} — Stage ${state.stage}/${STAGE_COUNT}`;
   } else if (state.status === 'countdown') {
-    title = '🏇 Horse Race — Countdown';
+    title = `${raceTitleBase} — Countdown`;
   } else if (state.status === 'finished') {
-    title = '🏇 Horse Race — Finished';
+    title = `${raceTitleBase} — Finished`;
   } else if (state.status === 'cancelled') {
-    title = '🏇 Horse Race — Cancelled';
+    title = `${raceTitleBase} — Cancelled`;
   } else if (state.status === 'timedout') {
-    title = '🏇 Horse Race — Timed Out';
+    title = `${raceTitleBase} — Timed Out`;
   } else {
-    title = '🏇 Horse Race — Betting Stage';
+    title = `${raceTitleBase} — Betting Stage`;
   }
 
   const trackLines = Array.from({ length: HORSE_COUNT }, (_, idx) => buildHorseLine(state, idx, state.progress[idx]));
