@@ -1,4 +1,5 @@
 import { removeFromHouse } from '../db/db.auto.mjs';
+import { emoji } from '../lib/emojis.mjs';
 
 export default async function handleHouseRemove(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
@@ -16,12 +17,12 @@ export default async function handleHouseRemove(interaction, ctx) {
   const newBal = await removeFromHouse(guildId, amount, reason, interaction.user.id);
     const logLines = kittenMode
       ? [
-          '🏦 **House Remove**',
+          `${emoji('vault')} **House Remove**`,
           `Amount withdrawn for my schemes: **${ctx.chipsAmount(amount)}**${reason ? ` • Reason: ${reason}` : ''}`,
           `New House Balance: **${ctx.chipsAmount(newBal)}**`
         ]
       : [
-          '🏦 **House Remove**',
+          `${emoji('vault')} **House Remove**`,
           `Amount: **${ctx.chipsAmount(amount)}**${reason ? ` • Reason: ${reason}` : ''}`,
           `New House Balance: **${ctx.chipsAmount(newBal)}**`
         ];
