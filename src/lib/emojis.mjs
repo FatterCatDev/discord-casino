@@ -52,6 +52,8 @@ export const EMOJI = {
   handUp: '✋',
   scissors: '✂️',
   plus: '➕',
+  doubleArrow: '⏫',
+  repeat: '🔁',
 
   // Status & alerts
   check: '✅',
