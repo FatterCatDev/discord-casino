@@ -115,41 +115,42 @@ export default async function handleHelpSelect(interaction, ctx) {
       });
       sections.push({ id: 'owner', label: `${emoji('proprietor')} Proprietor`, groups: [ { label: `${emoji('broom')} Maintenance`, items: [ { emoji: emoji('recycle'), cmd: '/resetallbalance', desc: 'Wipe every balance clean when you crave a fresh start. (Owner only)' } ] } ] });
     } else {
-      sections.push({ id: 'moderator', label: '🛡️ Moderator', groups: [
-        { label: '✉️ Requests', items: [ { emoji: '⏱️', cmd: '/requesttimer seconds:<int>', desc: 'Set cooldown between /request submissions.' } ] },
-        { label: '🏦 House & Chips', items: [
-          { emoji: '📊', cmd: '/housebalance', desc: 'View house chip balance.' },
-          { emoji: '➕', cmd: '/houseadd amount:<int> [reason]', desc: 'Add chips to the house.' },
-          { emoji: '➖', cmd: '/houseremove amount:<int> [reason]', desc: 'Remove chips from the house.' },
-          { emoji: '🎁', cmd: '/givechips user:<@> amount:<int> [reason]', desc: 'Give chips from house to player.' },
-          { emoji: '🪙', cmd: '/buyin user:<@> amount:<int> [reason]', desc: 'Mint chips to a player.' },
-          { emoji: '🏛️', cmd: '/takechips user:<@> amount:<int> [reason]', desc: 'Take chips to the house.' },
-          { emoji: '🔥', cmd: '/cashout user:<@> amount:<int> [reason]', desc: 'Burn chips from a player.' }
+      sections.push({ id: 'moderator', label: `${emoji('shield')} Moderator`, groups: [
+        { label: `${emoji('requestEnvelope')} Requests`, items: [ { emoji: emoji('timer'), cmd: '/requesttimer seconds:<int>', desc: 'Set cooldown between /request submissions.' } ] },
+        { label: `${emoji('vault')} House & Chips`, items: [
+          { emoji: emoji('chartUp'), cmd: '/housebalance', desc: 'View house chip balance.' },
+          { emoji: emoji('plus'), cmd: '/houseadd amount:<int> [reason]', desc: 'Add chips to the house.' },
+          { emoji: emoji('minus'), cmd: '/houseremove amount:<int> [reason]', desc: 'Remove chips from the house.' },
+          { emoji: emoji('gift'), cmd: '/givechips user:<@> amount:<int> [reason]', desc: 'Give chips from house to player.' },
+          { emoji: emoji('coin'), cmd: '/buyin user:<@> amount:<int> [reason]', desc: 'Mint chips to a player.' },
+          { emoji: emoji('parthenon'), cmd: '/takechips user:<@> amount:<int> [reason]', desc: 'Take chips to the house.' },
+          { emoji: emoji('fire'), cmd: '/cashout user:<@> amount:<int> [reason]', desc: 'Burn chips from a player.' }
         ]},
-        { label: '💳 Credits', items: [
-          { emoji: '🎟️', cmd: '/givecredits user:<@> amount:<int> [reason]', desc: 'Grant Credits to a player.' },
-          { emoji: '🧾', cmd: '/takecredits user:<@> amount:<int> [reason]', desc: 'Burn a player’s Credits.' }
+        { label: `${emoji('creditCard')} Credits`, items: [
+          { emoji: emoji('ticket'), cmd: '/givecredits user:<@> amount:<int> [reason]', desc: 'Grant Credits to a player.' },
+          { emoji: emoji('receipt'), cmd: '/takecredits user:<@> amount:<int> [reason]', desc: 'Burn a player’s Credits.' }
         ]}
       ]});
-      sections.push({ id: 'admin', label: '⚙️ Admin', groups: [
-        { label: '🏗️ Setup & Channels', items: [
-          { emoji: '🗂️', cmd: '/setcasinocategory category:<#Category>', desc: 'Set the casino category. (Admin only)' },
-          { emoji: '📜', cmd: '/setgamelogchannel channel:<#channel>', desc: 'Set game log channel. (Admin only)' },
-          { emoji: '💼', cmd: '/setcashlog channel:<#channel>', desc: 'Set cash log channel. (Admin only)' },
-          { emoji: '📬', cmd: '/setrequestchannel channel:<#channel>', desc: 'Set requests channel. (Admin only)' }
+      sections.push({ id: 'admin', label: `${emoji('gear')} Admin`, groups: [
+        { label: `${emoji('construction')} Setup & Channels`, items: [
+          { emoji: emoji('folder'), cmd: '/setcasinocategory category:<#Category>', desc: 'Set the casino category. (Admin only)' },
+          { emoji: emoji('scroll'), cmd: '/setgamelogchannel channel:<#channel>', desc: 'Set game log channel. (Admin only)' },
+          { emoji: emoji('briefcase'), cmd: '/setcashlog channel:<#channel>', desc: 'Set cash log channel. (Admin only)' },
+          { emoji: emoji('mailbox'), cmd: '/setrequestchannel channel:<#channel>', desc: 'Set requests channel. (Admin only)' }
         ]},
-          { label: '👥 Roles', items: [
-            { emoji: '➕', cmd: '/addmod user:<@User>', desc: 'Add a moderator. (Admin only)' },
-            { emoji: '➖', cmd: '/removemod user:<@User>', desc: 'Remove a moderator. (Admin only)' },
-            { emoji: '👑', cmd: '/addadmin user:<@User>', desc: 'Add an administrator. (Admin only)' },
-            { emoji: '🗝️', cmd: '/removeadmin user:<@User>', desc: 'Remove an administrator. (Admin only)' }
-          ]},
-        { label: '📊 Limits', items: [
-          { emoji: '🎚️', cmd: '/setmaxbet game:<choice> amount:<int>', desc: 'Set a game’s max bet. (Admin only)' },
-          { emoji: '💱', cmd: '/setrake percent:<number>', desc: 'Hold’em rake percent (cap = table max). (Admin only)' }
+        { label: `${emoji('theater')} Personality`, items: [ { emoji: emoji('kiss'), cmd: '/kittenmode enabled:<bool>', desc: 'Toggle the Kitten persona for this server. (Admin only)' } ] },
+        { label: `${emoji('busts')} Roles`, items: [
+          { emoji: emoji('plus'), cmd: '/addmod user:<@User>', desc: 'Add a moderator. (Admin only)' },
+          { emoji: emoji('minus'), cmd: '/removemod user:<@User>', desc: 'Remove a moderator. (Admin only)' },
+          { emoji: emoji('crown'), cmd: '/addadmin user:<@User>', desc: 'Add an administrator. (Admin only)' },
+          { emoji: emoji('key'), cmd: '/removeadmin user:<@User>', desc: 'Remove an administrator. (Admin only)' }
+        ]},
+        { label: `${emoji('chartUp')} Limits`, items: [
+          { emoji: emoji('slider'), cmd: '/setmaxbet game:<choice> amount:<int>', desc: 'Set a game’s max bet. (Admin only)' },
+          { emoji: emoji('currencyExchange'), cmd: '/setrake percent:<number>', desc: 'Hold’em rake percent (cap = table max). (Admin only)' }
         ]}
       ]});
-      sections.push({ id: 'owner', label: '👑 Owner', groups: [ { label: '🧹 Maintenance', items: [ { emoji: '♻️', cmd: '/resetallbalance', desc: 'Reset all balances to defaults. (Owner only)' } ] } ] });
+      sections.push({ id: 'owner', label: `${emoji('proprietor')} Owner`, groups: [ { label: `${emoji('broom')} Maintenance`, items: [ { emoji: emoji('recycle'), cmd: '/resetallbalance', desc: 'Reset all balances to defaults. (Owner only)' } ] } ] });
     }
   }
 
