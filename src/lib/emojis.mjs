@@ -3,6 +3,8 @@ export const EMOJI = {
   horseRace: '🏇',
   trophy: '🏆',
   finishFlag: '🏁',
+  videoGame: '🎮',
+  kittenFace: '😼',
   target: '🎯',
   slots: '🎰',
   dice: '🎲',
@@ -31,6 +33,8 @@ export const EMOJI = {
   briefcase: '💼',
   receipt: '🧾',
   coinStack: '🪙',
+  plus: '➕',
+  minus: '➖',
 
   // Rewards & events
   gift: '🎁',
@@ -83,6 +87,7 @@ export const EMOJI = {
   tuxedo: '🤵',
   princess: '👸',
   man: '👨',
+  proprietor: '👑',
   winkCat: '😼',
   smile: '🙂',
   sad: '😢',
