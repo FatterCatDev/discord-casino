@@ -1,4 +1,5 @@
 import { mintChips, getLastDailySpinAt, setLastDailySpinNow } from '../db/db.auto.mjs';
+import { emoji } from '../lib/emojis.mjs';
 
 const SECONDS_PER_DAY = 24 * 60 * 60;
 
@@ -48,8 +49,8 @@ export default async function handleDailySpin(interaction, ctx) {
   if (last && remaining > 0) {
     return interaction.reply({
       content: say(
-        `⏳ Patience, Kitten. Come back in **${formatCooldown(remaining)}** for another spin.`,
-        `⏳ You can spin again in **${formatCooldown(remaining)}**.`
+        `${emoji('hourglass')} Patience, Kitten. Come back in **${formatCooldown(remaining)}** for another spin.`,
+        `${emoji('hourglass')} You can spin again in **${formatCooldown(remaining)}**.`
       ),
       ephemeral: true
     });
@@ -61,8 +62,8 @@ export default async function handleDailySpin(interaction, ctx) {
 
   return interaction.reply({
     content: say(
-      `🎡 The wheel stops on **${ctx.chipsAmount(reward)}**! Enjoy your winnings, Kitten.\nYour new chip stash: **${ctx.chipsAmount(chips)}**.`,
-      `🎡 You won **${ctx.chipsAmount(reward)}**! Your new balance is **${ctx.chipsAmount(chips)}**.`
+      `${emoji('roulette')} The wheel stops on **${ctx.chipsAmount(reward)}**! Enjoy your winnings, Kitten.\nYour new chip stash: **${ctx.chipsAmount(chips)}**.`,
+      `${emoji('roulette')} You won **${ctx.chipsAmount(reward)}**! Your new balance is **${ctx.chipsAmount(chips)}**.`
     ),
     ephemeral: true
   });
