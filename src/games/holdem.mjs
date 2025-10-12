@@ -54,8 +54,9 @@ function embedColorForPhase(phase) {
 }
 
 export function buildTableEmbed(state) {
+  const suitBanner = `${emoji('pokerSpade')}${emoji('pokerHeart')}${emoji('pokerDiamond')}${emoji('pokerClub')}`;
   const e = new EmbedBuilder()
-    .setTitle('♠♥♦♣ Texas Hold’em')
+    .setTitle(`${suitBanner} Texas Hold’em`)
     .setColor(embedColorForPhase(state.phase));
 
   // Prominent board at the top, with placeholders per street when a hand is active
