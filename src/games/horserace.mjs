@@ -209,9 +209,9 @@ function createRaceEmbed(state, options = {}) {
     .setTitle(title)
     .setDescription(description)
     .addFields(
-      { name: '💰 Pot', value: `${formatChips(state.totalPot)} chips`, inline: true },
-      { name: '🎯 Exposure', value: `${formatChips(state.totalExposure)} chips`, inline: true },
-      { name: '🏁 Bets', value: summarizeBets(state) }
+      { name: `${emoji('moneyBag')} Pot`, value: `${formatChips(state.totalPot)} chips`, inline: true },
+      { name: `${emoji('target')} Exposure`, value: `${formatChips(state.totalExposure)} chips`, inline: true },
+      { name: `${emoji('finishFlag')} Bets`, value: summarizeBets(state) }
     )
     .setFooter({ text: options.footerText ?? state.footerText ?? DEFAULT_STAGE_FOOTER_TEXT });
   return embed;
