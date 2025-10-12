@@ -111,7 +111,8 @@ function renderTrack(progress) {
 }
 
 function getHorseLabel(state, index) {
-  return state.horseLabels?.[index] ?? `Horse ${index + 1}`;
+  const base = state.horseLabels?.[index] ?? `Horse ${index + 1}`;
+  return `${base} 🐎`;
 }
 
 function buildHorseLine(state, index, progress) {
