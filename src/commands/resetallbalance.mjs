@@ -1,4 +1,5 @@
 import { resetAllBalances } from '../db/db.auto.mjs';
+import { emoji } from '../lib/emojis.mjs';
 
 export default async function handleResetAllBalance(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
@@ -10,12 +11,12 @@ export default async function handleResetAllBalance(interaction, ctx) {
     const { usersBefore, usersUpdated, house } = resetAllBalances(interaction.guild?.id);
     const logLines = kittenMode
       ? [
-          '🧹 **Reset All Balances**',
+          `${emoji('broom')} **Reset All Balances**`,
           `Users refreshed: **${usersUpdated}** (of ${usersBefore}) • House after: **${ctx.formatChips(house)}**`,
           'Defaults restored: chips=0, credits=100, house=0'
         ]
       : [
-          '🧹 **Reset All Balances**',
+          `${emoji('broom')} **Reset All Balances**`,
           `Users affected: **${usersUpdated}** (of ${usersBefore}) • House after: **${ctx.formatChips(house)}**`,
           'Defaults: chips=0, credits=100, house=0'
         ];
