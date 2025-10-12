@@ -1,4 +1,5 @@
 import { EmbedBuilder, PermissionFlagsBits } from 'discord.js';
+import { emoji } from '../lib/emojis.mjs';
 
 export default async function handleHelpSelect(interaction, ctx) {
   const val = interaction.values[0];
