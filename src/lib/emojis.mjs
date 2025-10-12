@@ -43,6 +43,8 @@ export const EMOJI = {
   sparkles: '<:sparkle:1427057444185571482>',
   balloon: '🎈',
   slider: '🎚',
+  timer: '⏱️',
+  theater: '🎭',
 
   // Status & alerts
   check: '✅',
@@ -78,6 +80,7 @@ export const EMOJI = {
   map: '🗺',
   ballot: '🗳',
   announcementChannel: '<:new_button:1427057389219086486>',
+  recycle: '<:recycle:1427057413382602823>',
 
   // People & persona
   wave: '👋',
@@ -101,6 +104,7 @@ export const EMOJI = {
   heartHands: '🫶',
   labFlask: '<:lab_flask:1427057380423897109>',
   ladybug: '<:ladybug:1427057381824794687>',
+  broom: '🧹',
 
   // Environment & misc
   rocket: '🚀',
