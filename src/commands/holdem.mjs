@@ -1,5 +1,6 @@
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { getGuildSettings } from '../db/db.auto.mjs';
+import { emoji } from '../lib/emojis.mjs';
 
 async function inCasinoCategory(interaction) {
   try {
@@ -22,7 +23,8 @@ export default async function handleHoldem(interaction, ctx) {
   const loc = await inCasinoCategory(interaction);
   if (!loc.ok) return interaction.reply({ content: loc.reason, ephemeral: true });
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
-  let title = '♠♥♦♣ Texas Hold’em — Create Table';
+  const suitBanner = `${emoji('pokerSpade')}${emoji('pokerHeart')}${emoji('pokerDiamond')}${emoji('pokerClub')}`;
+  let title = `${suitBanner} Texas Hold’em — Create Table`;
   let description = 'Choose a preset to create a table in this channel:';
   let optionFields = [
     { name: 'Option 1', value: 'SB/BB: **1/2** • Min/Max: **10/100**' },
@@ -30,7 +32,7 @@ export default async function handleHoldem(interaction, ctx) {
     { name: 'Option 3', value: 'SB/BB: **20/40** • Min/Max: **200/2000**' }
   ];
   if (kittenMode) {
-    title = '♠♥♦♣ Mistress Kitten’s Hold’em Lounge';
+    title = `${suitBanner} Mistress Kitten’s Hold’em Lounge`;
     description = 'Choose a table that delights me, Kitten. Pick a preset or tempt me with something custom.';
     optionFields = [
       { name: 'Velvet Table', value: 'SB/BB: **1/2** • Min/Max: **10/100** — a gentle warm-up, Kitten.' },
