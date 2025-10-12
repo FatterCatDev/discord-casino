@@ -974,7 +974,7 @@ function kickerTextFor(res) {
 function buildResultEmbed(state, result) {
   const e = new EmbedBuilder().setTitle(`${emoji('finishFlag')} Hand Result`).setColor(0xEB459E);
   const boardLine = (state.board && state.board.length) ? state.board.map(formatCard).join('   ') : '—';
-  e.setDescription(`🎴 **Board**\n\n${boardLine}`);
+  e.setDescription(`${emoji('slotsReel')} **Board**\n\n${boardLine}`);
   // Winners + amounts
   try {
     const fmt = new Intl.NumberFormat('en-US');
