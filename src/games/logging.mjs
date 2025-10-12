@@ -7,6 +7,31 @@ import { rouletteSessions } from './roulette.mjs';
 import { slotSessions } from './slots.mjs';
 import { kittenizeTextContent, kittenizeReplyArg } from '../services/persona.mjs';
 
+async function resolveDisplayName(client, guild, guildId, userId) {
+  const fallback = `User ${userId}`;
+  try {
+    if (guild) {
+      const cached = guild.members?.cache?.get(userId);
+      if (cached) {
+        return cached.displayName || cached.user?.globalName || cached.user?.username || fallback;
+      }
+      const fetched = await guild.members.fetch(userId).catch(() => null);
+      if (fetched) {
+        return fetched.displayName || fetched.user?.globalName || fetched.user?.username || fallback;
+      }
+    }
+    const resolvedGuild = client.guilds.cache.get(guildId) || await client.guilds.fetch(guildId);
+    if (!resolvedGuild) return fallback;
+    const cached = resolvedGuild.members?.cache?.get(userId);
+    if (cached) return cached.displayName || cached.user?.globalName || cached.user?.username || fallback;
+    const fetched = await resolvedGuild.members.fetch(userId).catch(() => null);
+    if (fetched) return fetched.displayName || fetched.user?.globalName || fetched.user?.username || fallback;
+    return fallback;
+  } catch {
+    return fallback;
+  }
+}
+
 export async function postGameLog(interaction, lines) {
   try {
     const guildId = interaction.guild?.id;
@@ -17,7 +42,8 @@ export async function postGameLog(interaction, lines) {
     const ch = await interaction.client.channels.fetch(log_channel_id).catch(() => null);
     if (!ch || !ch.isTextBased()) return;
     const header = `🎮 **Game Log** • <t:${Math.floor(Date.now() / 1000)}:f>`;
-    const context = `Server: **${interaction.guild.name}** • Player: <@${interaction.user.id}>`;
+    const displayName = await resolveDisplayName(interaction.client, interaction.guild, guildId, interaction.user.id);
+    const context = `Server: **${interaction.guild.name}** • Player: **${displayName}**`;
     // const context = `Server: **${interaction.guild.name}** • Player: Sultry Kitten <@${interaction.user.id}>`;
     const body = Array.isArray(lines) ? lines.join('\n') : String(lines);
     let message = `${header}\n${context}\n${body}`;
@@ -34,10 +60,11 @@ export async function postGameSessionEnd(interaction, { game, userId, houseNet }
     const guildId = interaction.guild?.id;
     const { chips } = await getUserBalances(guildId, uid);
     const house = await getHouseBalance(guildId);
+    const displayName = await resolveDisplayName(interaction.client, interaction.guild, guildId, uid);
     const lines = [
       '🎮 **Game Session End**',
       `Game: **${game}**`,
-      `Player: <@${uid}>`,
+      `Player: **${displayName}**`,
       // `Player: Sultry Kitten <@${uid}>`,
       `Player Balance: **${chipsAmount(chips)}**`,
       `House Balance: **${chipsAmount(house)}**`,
@@ -58,7 +85,8 @@ export async function postGameLogByIds(client, guildId, userId, lines) {
     let guildName = guildId;
     try { const g = await client.guilds.fetch(guildId); guildName = g?.name || guildName; } catch {}
     const header = `🎮 **Game Log** • <t:${Math.floor(Date.now() / 1000)}:f>`;
-    const context = `Server: **${guildName}** • Player: <@${userId}>`;
+    const displayName = await resolveDisplayName(client, null, guildId, userId);
+    const context = `Server: **${guildName}** • Player: **${displayName}**`;
     // const context = `Server: **${guildName}** • Player: Sultry Kitten <@${userId}>`;
     const body = Array.isArray(lines) ? lines.join('\n') : String(lines);
     let message = `${header}\n${context}\n${body}`;
@@ -73,10 +101,11 @@ export async function postGameSessionEndByIds(client, guildId, userId, { game, h
   try {
     const { chips } = await getUserBalances(guildId, userId);
     const house = await getHouseBalance(guildId);
+    const displayName = await resolveDisplayName(client, null, guildId, userId);
     const lines = [
       '🎮 **Game Session End**',
       `Game: **${game}**`,
-      `Player: <@${userId}>`,
+      `Player: **${displayName}**`,
       // `Player: Sultry Kitten <@${userId}>`,
       `Player Balance: **${chipsAmount(chips)}**`,
       `House Balance: **${chipsAmount(house)}**`,
@@ -163,7 +192,8 @@ export async function postCashLog(interaction, lines) {
     const ch = await interaction.client.channels.fetch(cash_log_channel_id).catch(() => null);
     if (!ch || !ch.isTextBased()) return;
     const header = `💵 **Cash Log** • <t:${Math.floor(Date.now() / 1000)}:f>`;
-    const context = `Server: **${interaction.guild.name}** • Actor: <@${interaction.user.id}>`;
+    const actorName = await resolveDisplayName(interaction.client, interaction.guild, guildId, interaction.user.id);
+    const context = `Server: **${interaction.guild.name}** • Actor: **${actorName}**`;
     // const context = `Server: **${interaction.guild.name}** • Actor: Sultry Kitten <@${interaction.user.id}>`;
     const body = Array.isArray(lines) ? lines.join('\n') : String(lines);
     let message = `${header}\n${context}\n${body}`;
