@@ -13,38 +13,38 @@ export default async function handleHelpSelect(interaction, ctx) {
 
   sections.push({
     id: 'player',
-    label: kittenMode ? '😼 Kitten’s Playground' : '🎮 Player',
+    label: kittenMode ? `${emoji('kittenFace')} Kitten’s Playground` : `${emoji('videoGame')} Player`,
     groups: [
-      { label: kittenMode ? '💋 Essentials' : '🌟 Classics', items: [
-        { emoji: '👋', cmd: 'Getting Started', desc: kittenMode
+      { label: kittenMode ? `${emoji('kiss')} Essentials` : `${emoji('star')} Classics`, items: [
+        { emoji: emoji('wave'), cmd: 'Getting Started', desc: kittenMode
           ? 'Earn chips with `/dailyspin`, `/vote`, `/request`, and any chip-paying game. Votes credit instantly with a DM from me; Credits burn first and chips arrive from my stash.'
           : 'Grab chips via `/dailyspin`, `/vote`, `/request`, and chip-paying games. Voting auto-credits chips (check your DMs) while games spend Credits before the house.' },
-        { emoji: '🎲', cmd: 'Play Games', desc: kittenMode
+        { emoji: emoji('dice'), cmd: 'Play Games', desc: kittenMode
           ? 'Dive into `/ridebus`, `/blackjack`, `/slots`, `/roulette`, `/dicewar`, `/holdem`, or `/horserace` for thrills.'
           : 'Try `/ridebus`, `/blackjack`, `/slots`, `/roulette`, `/dicewar`, `/holdem`, or `/horserace` to test your luck.' },
-        { emoji: '🗺️', cmd: 'Find Commands', desc: kittenMode
+        { emoji: emoji('map'), cmd: 'Find Commands', desc: kittenMode
           ? 'Peek at `/stafflist` for my caretakers; switch the menu below for mod/admin tools.'
           : 'Use `/stafflist` to see the team, then explore this menu for moderator/admin sections.' }
       ]},
-      { label: '🎁 Daily & Requests', items: [
-        { emoji: '🎡', cmd: '/dailyspin', desc: kittenMode
+      { label: `${emoji('gift')} Daily & Requests`, items: [
+        { emoji: emoji('roulette'), cmd: '/dailyspin', desc: kittenMode
           ? 'Spin once per day for a little chip treat from me.'
           : 'Spin once every 24 hours for a free chip bonus.' },
-        { emoji: '🗳️', cmd: '/vote', desc: kittenMode
+        { emoji: emoji('ballot'), cmd: '/vote', desc: kittenMode
           ? 'After you vote on Top.gg I credit the chips immediately and slide the receipt into your DMs.'
           : 'Vote on Top.gg; the bot auto-credits the chips and DMs you the amount.' },
-        { emoji: '📨', cmd: '/request type:<Buy In|Cash Out> amount:<int>', desc: kittenMode
+        { emoji: emoji('inbox'), cmd: '/request type:<Buy In|Cash Out> amount:<int>', desc: kittenMode
           ? 'Submit a buy-in or cash-out request and my staff will tend to you.'
           : 'Send buy-in/cash-out requests to the staff when you need chips moved.' }
       ]},
-      { label: '🎮 Games', items: [
-        { emoji: '🚌', cmd: '/ridebus bet:<int>', desc: kittenMode ? 'Ride the Bus through Q1–Q4; tease fate or cash out after Q3.' : 'Clear Q1–Q4 to win up to 10×; option to cash out after Q3.' },
-        { emoji: '🃏', cmd: '/blackjack table:<High|Low> bet:<int>', desc: kittenMode ? 'Face my house in sultry blackjack — High or Low stakes.' : 'House blackjack: pick High or Low tables for different stakes.' },
-        { emoji: '🎰', cmd: '/slots bet:<int>', desc: kittenMode ? 'Spin 20 lines; Credits stake first, chips are the prize.' : 'Spin a 5×3 slot with 20 lines; Credits stake first, chips pay out.' },
-        { emoji: '🎡', cmd: '/roulette', desc: kittenMode ? 'Lay bets and let me spin the wheel for you, Kitten.' : 'Place your bets interactively and spin American roulette.' },
-        { emoji: '⚔️', cmd: '/dicewar bet:<int>', desc: kittenMode ? 'Roll for me — any winning doubles give you double the chips.' : 'Roll against the house; winning doubles double your payout.' },
-        { emoji: '♠️', cmd: '/holdem', desc: kittenMode ? 'Summon a private lounge for a Texas Hold’em table.' : 'Create a preset or custom Texas Hold’em table for your server.' },
-        { emoji: '🏇', cmd: '/horserace', desc: kittenMode ? 'Wager on five flamboyant racers; change mounts between stages (for a flirty fee).' : 'Bet on a five-horse race; swap picks mid-run with a stage-based swap fee.' }
+      { label: `${emoji('videoGame')} Games`, items: [
+        { emoji: emoji('bus'), cmd: '/ridebus bet:<int>', desc: kittenMode ? 'Ride the Bus through Q1–Q4; tease fate or cash out after Q3.' : 'Clear Q1–Q4 to win up to 10×; option to cash out after Q3.' },
+        { emoji: emoji('chipAce'), cmd: '/blackjack table:<High|Low> bet:<int>', desc: kittenMode ? 'Face my house in sultry blackjack — High or Low stakes.' : 'House blackjack: pick High or Low tables for different stakes.' },
+        { emoji: emoji('slots'), cmd: '/slots bet:<int>', desc: kittenMode ? 'Spin 20 lines; Credits stake first, chips are the prize.' : 'Spin a 5×3 slot with 20 lines; Credits stake first, chips pay out.' },
+        { emoji: emoji('roulette'), cmd: '/roulette', desc: kittenMode ? 'Lay bets and let me spin the wheel for you, Kitten.' : 'Place your bets interactively and spin American roulette.' },
+        { emoji: emoji('diceWar'), cmd: '/dicewar bet:<int>', desc: kittenMode ? 'Roll for me — any winning doubles give you double the chips.' : 'Roll against the house; winning doubles double your payout.' },
+        { emoji: emoji('holdem'), cmd: '/holdem', desc: kittenMode ? 'Summon a private lounge for a Texas Hold’em table.' : 'Create a preset or custom Texas Hold’em table for your server.' },
+        { emoji: emoji('horseRace'), cmd: '/horserace', desc: kittenMode ? 'Wager on five flamboyant racers; change mounts between stages (for a flirty fee).' : 'Bet on a five-horse race; swap picks mid-run with a stage-based swap fee.' }
       ]}
     ]
   });
