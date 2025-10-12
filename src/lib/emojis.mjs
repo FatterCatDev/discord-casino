@@ -22,6 +22,9 @@ export const EMOJI = {
   holdem: '<:spade:1427057442075705476>',
   slotsReel: '🎴',
   pingPong: '🏓',
+  medalGold: '🥇',
+  medalSilver: '🥈',
+  medalBronze: '🥉',
 
   // Economy
   moneyBag: '<:chips:1427057303865266246>',
