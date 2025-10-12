@@ -1,5 +1,6 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
 import { updateActiveRequestStatus, clearActiveRequest, mintChips, burnFromUser } from '../db/db.auto.mjs';
+import { emoji } from '../lib/emojis.mjs';
 
 export default async function handleRequestButtons(interaction, ctx) {
   const parts = interaction.customId.split('|');
@@ -38,20 +39,20 @@ export default async function handleRequestButtons(interaction, ctx) {
         const { chips } = await mintChips(guildId, targetId, amount, 'request buy-in', interaction.user.id);
         await ctx.postCashLog(interaction, kittenMode
           ? [
-              '🪙 **Buy-in (Request)**',
+              `${emoji('coin')} **Buy-in (Request)**`,
               `User: My daring Kitten <@${targetId}> • Amount: **${ctx.chipsAmount(amount)}**`,
               `User Chips (after): **${ctx.chipsAmount(chips)}**`
             ]
           : [
-              '🪙 **Buy-in (Request)**',
+              `${emoji('coin')} **Buy-in (Request)**`,
               `User: <@${targetId}> • Amount: **${ctx.chipsAmount(amount)}**`,
               `User Chips (after): **${ctx.chipsAmount(chips)}**`
             ]);
         try {
           const user = await interaction.client.users.fetch(targetId);
           const dm = say(
-            `🪙 Buy-in: Come savor these chips, Kitten <@${targetId}> — processed by ${interaction.user.tag}.`,
-            `🪙 Buy-in: You received ${ctx.chipsAmount(amount)}. Processed by ${interaction.user.tag}.`
+            `${emoji('coin')} Buy-in: Come savor these chips, Kitten <@${targetId}> — processed by ${interaction.user.tag}.`,
+            `${emoji('coin')} Buy-in: You received ${ctx.chipsAmount(amount)}. Processed by ${interaction.user.tag}.`
           );
           await user.send(dm);
         } catch {}
@@ -60,20 +61,20 @@ export default async function handleRequestButtons(interaction, ctx) {
         const { chips } = await burnFromUser(guildId, targetId, amount, 'request cashout', interaction.user.id);
         await ctx.postCashLog(interaction, kittenMode
           ? [
-              '💸 **Cash Out (Request)**',
+              `${emoji('moneyWings')} **Cash Out (Request)**`,
               `User: My daring Kitten <@${targetId}> • Amount: **${ctx.chipsAmount(amount)}**`,
               `User Chips (after): **${ctx.chipsAmount(chips)}**`
             ]
           : [
-              '💸 **Cash Out (Request)**',
+              `${emoji('moneyWings')} **Cash Out (Request)**`,
               `User: <@${targetId}> • Amount: **${ctx.chipsAmount(amount)}**`,
               `User Chips (after): **${ctx.chipsAmount(chips)}**`
             ]);
         try {
           const user = await interaction.client.users.fetch(targetId);
           const dm = say(
-            `💸 Cash Out: Easy now, Kitten <@${targetId}> — ${ctx.chipsAmount(amount)} removed by ${interaction.user.tag}.`,
-            `💸 Cash Out: ${ctx.chipsAmount(amount)} removed from your balance. Processed by ${interaction.user.tag}.`
+            `${emoji('moneyWings')} Cash Out: Easy now, Kitten <@${targetId}> — ${ctx.chipsAmount(amount)} removed by ${interaction.user.tag}.`,
+            `${emoji('moneyWings')} Cash Out: ${ctx.chipsAmount(amount)} removed from your balance. Processed by ${interaction.user.tag}.`
           );
           await user.send(dm);
         } catch {}
