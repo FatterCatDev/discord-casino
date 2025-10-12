@@ -17,10 +17,10 @@ Your favorite house of chance just leveled up, and the tables are hotter than ev
 - `/holdem` – Spawn a private Texas Hold’em lounge; hole cards DM’d, rake customizable.
 
 ## 💡 Tips for Every Player
-- 🧾 **Credits Burn First** – Every chip-paying game uses Credits before dipping into your chip stack; wins pay in chips straight from the house.  
+- 💰 **Stack Those Chips Fast** – Hit `/dailyspin` every 24 hours, vote with `/vote` for instant chip credits, and use `/request type:Buy In amount:<int>` when staff-approved bankrolls make sense.  
+- 🧾 **Credits Burn First** – Every chip-paying game uses Credits before dipping into your chip stack; wins fling chips from the house straight into your pocket.  
 - 🔁 **Session Tracking** – Stay active (actions every 2 minutes) to keep your session alive; if it times out, the bot logs the end and refunds what’s owed.  
-- 📣 **Update Alerts** – `/setupdatech` keeps staff in the loop with announcements the moment a new version drops.  
-- 🎁 **Daily Rewards & Requests** – `/dailyspin`, `/vote`, and `/request` keep your bankroll topped up without ever leaving the server.
+- 📣 **Update Alerts** – `/setupdatech` keeps staff in the loop with announcements the moment a new version drops.
 
 Ready to roll the dice, spin the reels, or sprint to the finish? Fire up the commands above and let **Casino Bot v1.0.5** deal you in!  
 _“May the odds bend in your favor—and the house logs every glorious second.”_
