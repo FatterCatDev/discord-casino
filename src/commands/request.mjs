@@ -1,5 +1,6 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
 import { getGuildSettings, getActiveRequest, getLastRequestAt, getUserBalances, createActiveRequest, setLastRequestNow } from '../db/db.auto.mjs';
+import { emoji } from '../lib/emojis.mjs';
 
 export default async function handleRequest(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
@@ -12,7 +13,7 @@ export default async function handleRequest(interaction, ctx) {
   const settings = await getGuildSettings(interaction.guild.id);
   try {
     const active = await getActiveRequest(interaction.guild.id, interaction.user.id);
-    if (active) return interaction.reply({ content: '⏳ You already have an active request. Please wait until it is completed or rejected.', ephemeral: true });
+    if (active) return interaction.reply({ content: `${emoji('hourglass')} You already have an active request. Please wait until it is completed or rejected.`, ephemeral: true });
   } catch {}
   const cooldown = Number(settings.request_cooldown_sec || 0);
   if (cooldown > 0) {
@@ -21,7 +22,7 @@ export default async function handleRequest(interaction, ctx) {
     const elapsed = now - (last || 0);
     if (last && elapsed < cooldown) {
       const remain = cooldown - elapsed;
-      return interaction.reply({ content: say(`⏳ You can submit another request in ${remain} seconds, Kitten.`, `⏳ You can submit another request in ${remain} seconds.`), ephemeral: true });
+      return interaction.reply({ content: say(`${emoji('hourglass')} You can submit another request in ${remain} seconds, Kitten.`, `${emoji('hourglass')} You can submit another request in ${remain} seconds.`), ephemeral: true });
     }
   }
   const reqChannelId = settings.request_channel_id;
@@ -51,7 +52,7 @@ export default async function handleRequest(interaction, ctx) {
   } catch {}
 
   const e = new EmbedBuilder()
-    .setTitle(say('📝 Kitten’s Chip Request', '📝 Chip Request'))
+    .setTitle(say(`${emoji('clipboard')} Kitten’s Chip Request`, `${emoji('clipboard')} Chip Request`))
     .setColor(type === 'buyin' ? 0x57F287 : 0xED4245)
     .addFields(
       { name: say('Requester — your confident Kitten', 'Requester'), value: `<@${interaction.user.id}>`, inline: true },
