@@ -1,5 +1,6 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
 import { getVoteSites, getVoteSummary, describeBreakdown } from '../services/votes.mjs';
+import { emoji } from '../lib/emojis.mjs';
 
 function chunk(array, size = 5) {
   const groups = [];
@@ -12,11 +13,11 @@ function chunk(array, size = 5) {
 export function buildVoteResponse({ ctx, kittenMode, summary, sites }) {
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
   const embed = new EmbedBuilder()
-    .setTitle(say('🗳️ Vote for Me, Kitten', '🗳️ Vote & Earn Chips'))
+    .setTitle(say(`${emoji('ballot')} Vote for Me, Kitten`, `${emoji('ballot')} Vote & Earn Chips`))
     .setColor(kittenMode ? 0xff9fd6 : 0x5865f2);
 
   const intro = say(
-    'Cast your vote every 12 hours and I will slide the chips right into your stash the moment Top.gg whispers back. Watch your DMs for the details. 💋',
+    `Cast your vote every 12 hours and I will slide the chips right into your stash the moment Top.gg whispers back. Watch your DMs for the details. ${emoji('kiss')}`,
     'Vote every 12 hours to earn bonus chips. As soon as Top.gg confirms it, I’ll credit you automatically and send a DM with the receipt.'
   );
 
@@ -30,7 +31,7 @@ export function buildVoteResponse({ ctx, kittenMode, summary, sites }) {
           }
         }
         const suffix = rewardBits.length ? ` — ${rewardBits.join(' · ')}` : '';
-        return `${site.emoji || '🔗'} [${site.label}](${site.url})${suffix}`;
+        return `${site.emoji || emoji('link')} [${site.label}](${site.url})${suffix}`;
       })
     : [say('No vote link is configured yet. Ask an admin to set TOPGG_VOTE_URL.', 'No vote links are configured yet. Set TOPGG_VOTE_URL to share your voting link.')];
 
@@ -40,7 +41,7 @@ export function buildVoteResponse({ ctx, kittenMode, summary, sites }) {
   const breakdownText = describeBreakdown(summary?.breakdown || []);
   if (totalPending > 0) {
     embed.addFields({
-      name: say('⏳ In Flight', '⏳ In Flight'),
+      name: say(`${emoji('hourglass')} In Flight`, `${emoji('hourglass')} In Flight`),
       value: say(
         `Top.gg just pinged but I have not finished spoiling you yet. Expect **${ctx.chipsAmount(totalPending)}** to land any moment now.${breakdownText ? ` (${breakdownText})` : ''}`,
         `Top.gg has pinged us, but the chips are still processing: **${ctx.chipsAmount(totalPending)}**${breakdownText ? ` (${breakdownText})` : ''}. I’ll DM you as soon as they drop.`
@@ -48,7 +49,7 @@ export function buildVoteResponse({ ctx, kittenMode, summary, sites }) {
     });
   } else {
     embed.addFields({
-      name: say('💌 Delivery', '💌 Delivery'),
+      name: say(`${emoji('loveLetter')} Delivery`, `${emoji('loveLetter')} Delivery`),
       value: say(
         'Rewards are credited automatically — keep an eye on my DMs after each vote.',
         'Rewards are credited automatically. Watch your DMs for the confirmation after every vote.'
