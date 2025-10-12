@@ -454,11 +454,11 @@ async function payoutRace(state, winners, client) {
     : tieCount === 2
       ? '\n(Tie of 2 horses — payouts halved)'
       : '';
-  const houseNetLine = `\n**🏦 House Net:** ${chipsAmountSigned(totals.houseNet)}`;
+  const houseNetLine = `\n**${emoji('vault')} House Net:** ${chipsAmountSigned(totals.houseNet)}`;
   const creditsBurnedLine = totals.creditsBurned > 0
-    ? `\n**💳 Credits Burned:** ${formatChips(totals.creditsBurned)} Credits`
+    ? `\n**${emoji('creditCard')} Credits Burned:** ${formatChips(totals.creditsBurned)} Credits`
     : '';
-  const resultsText = `**🥇 Winners:** ${winnerLines}\n${payouts.length ? payouts.map(p => `<@${p.userId}> won **${formatChips(p.amount)}**`).join('\n') : 'No winners this time.'}${tieNote}${houseNetLine}${creditsBurnedLine}`;
+  const resultsText = `**${emoji('medalGold')} Winners:** ${winnerLines}\n${payouts.length ? payouts.map(p => `<@${p.userId}> won **${formatChips(p.amount)}**`).join('\n') : 'No winners this time.'}${tieNote}${houseNetLine}${creditsBurnedLine}`;
   state.lastResultsText = resultsText;
   state.status = 'finished';
   await editRaceMessage(state, client, {
