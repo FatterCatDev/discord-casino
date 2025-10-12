@@ -79,6 +79,8 @@ function resolveGuildIds() {
   return ids;
 }
 
+const CHANNEL_OVERRIDE = process.env.UPDATE_CHANNEL_ID_OVERRIDE || '1426730736312123466';
+
 async function main() {
   const token = process.env.DISCORD_TOKEN;
   if (!token) throw new Error('DISCORD_TOKEN is required to push update announcements.');
@@ -108,7 +110,8 @@ async function main() {
     try {
       await pushUpdateAnnouncement(client, guildId, {
         content: appendInstallLink(trimmed),
-        mentionEveryone: true
+        mentionEveryone: true,
+        channelIdOverride: CHANNEL_OVERRIDE
       });
       console.log(`Update announcement sent for guild ${guildId}`);
       successCount += 1;
