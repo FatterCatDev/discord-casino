@@ -77,7 +77,7 @@ export const EMOJI = {
   requestEnvelope: '✉️',
   map: '🗺',
   ballot: '🗳',
-  announcementChannel: '📣',
+  announcementChannel: '<:new_button:1427057389219086486>',
 
   // People & persona
   wave: '👋',
@@ -99,6 +99,8 @@ export const EMOJI = {
   lightBulb: '💡',
   gem: '<:gem:1427057338979848204>',
   heartHands: '🫶',
+  labFlask: '<:lab_flask:1427057380423897109>',
+  ladybug: '<:ladybug:1427057381824794687>',
 
   // Environment & misc
   rocket: '🚀',
