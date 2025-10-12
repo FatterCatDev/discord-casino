@@ -1,4 +1,5 @@
 import { EmbedBuilder } from 'discord.js';
+import { emoji } from '../lib/emojis.mjs';
 
 export default async function handleStaffList(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
@@ -31,11 +32,11 @@ export default async function handleStaffList(interaction, ctx) {
   const modText = fmtList(modOnly, say('_No dedicated moderators yet_', '_No moderators configured_'));
 
   const embed = new EmbedBuilder()
-    .setTitle(say('👥 Casino Staff Roster', '👥 Casino Staff'))
+    .setTitle(say(`${emoji('busts')} Casino Staff Roster`, `${emoji('busts')} Casino Staff`))
     .setColor(0xF5A623)
     .addFields(
-      { name: say('👑 Administrators', '👑 Administrators'), value: adminText, inline: false },
-      { name: say('🛡️ Moderators', '🛡️ Moderators'), value: modText, inline: false }
+      { name: say(`${emoji('crown')} Administrators`, `${emoji('crown')} Administrators`), value: adminText, inline: false },
+      { name: say(`${emoji('shield')} Moderators`, `${emoji('shield')} Moderators`), value: modText, inline: false }
     )
     .setFooter({ text: say('Use /addmod or /addadmin to adjust this roster, Kitten.', 'Use /addmod or /addadmin to manage staff.') })
     .setTimestamp(new Date());
