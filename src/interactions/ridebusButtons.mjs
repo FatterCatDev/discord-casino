@@ -203,10 +203,10 @@ export default async function onRideBusButtons(interaction, ctx) {
 
     state.step = 4;
     const q4Row = ctx.rowButtons([
-      { id: `rb|q4|S`, label: say('♠ Spades — sharp & daring', '♠ Spades'), style: 2 },
-      { id: `rb|q4|H`, label: say('♥ Hearts — warm & wicked', '♥ Hearts'), style: 4 },
-      { id: `rb|q4|D`, label: say('♦ Diamonds — glitter & tease', '♦ Diamonds'), style: 4 },
-      { id: `rb|q4|C`, label: say('♣ Clubs — bold & rooted', '♣ Clubs'), style: 2 },
+      { id: `rb|q4|S`, label: say(`${emoji('pokerSpade')} Spades — sharp & daring`, `${emoji('pokerSpade')} Spades`), style: 2 },
+      { id: `rb|q4|H`, label: say(`${emoji('pokerHeart')} Hearts — warm & wicked`, `${emoji('pokerHeart')} Hearts`), style: 4 },
+      { id: `rb|q4|D`, label: say(`${emoji('pokerDiamond')} Diamonds — glitter & tease`, `${emoji('pokerDiamond')} Diamonds`), style: 4 },
+      { id: `rb|q4|C`, label: say(`${emoji('pokerClub')} Clubs — bold & rooted`, `${emoji('pokerClub')} Clubs`), style: 2 },
       { id: `rb|cash|3`, label: say(`Cash Out, Kitten (${ctx.formatChips(ctx.wagerAt(state, 3))})`, `Cash Out (${ctx.formatChips(ctx.wagerAt(state, 3))})`), style: 2 }
     ], { kittenMode });
     const emb = await ctx.embedForState(state, {
