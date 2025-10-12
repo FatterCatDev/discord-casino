@@ -78,8 +78,8 @@ export function buildTableEmbed(state) {
   const cap = Number(state.cap || 0) > 0 ? ` • Cap **${state.cap}**` : '';
   e.addFields({ name: 'Seats', value: `Players **${state.seats.length}**${cap}` , inline: true });
   const seated = state.seats.map((s, i) => {
-    const tags = [ state.buttonIndex===i ? '🔘' : null, s.sitOut ? '(sit‑out)' : null ].filter(Boolean).join(' ');
-    return `Seat ${i+1}: <@${s.userId}> — **${s.stack}** ${tags}`.trim();
+    const tags = [ state.buttonIndex===i ? emoji('radioButton') : null, s.sitOut ? '(sit‑out)' : null ].filter(Boolean).join(' ');
+    return `${emoji('chair')} Seat ${i+1}: <@${s.userId}> — **${s.stack}** ${tags}`.trim();
     // return `Seat ${i+1}: My velvet Kitten <@${s.userId}> — **${s.stack}** ${tags}`.trim();
   });
   e.addFields({ name: 'Players', value: seated.length ? seated.join('\n') : '_No players yet_' });
