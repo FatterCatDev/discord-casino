@@ -914,7 +914,7 @@ async function startHandAuto(client, state) {
             } catch {}
           }
           const seat = state.seats.splice(i, 1)[0];
-          if (seat) announce(interaction.client, state, `🚫 <@${seat.userId}> removed after missing two big blinds.`);
+          if (seat) announce(interaction.client, state, `${emoji('noEntry')} <@${seat.userId}> removed after missing two big blinds.`);
           // if (seat) announce(interaction.client, state, `🚫 Naughty Kitten <@${seat.userId}> slipped away after missing two big blinds.`);
         } catch {}
       }
@@ -1370,7 +1370,7 @@ export async function startHand(interaction, ctx) {
       }
     }
   });
-  if (toRemove.length) { toRemove.sort((a,b)=>b-a).forEach(i => { try { const r = state.seats.splice(i,1)[0]; if (r) announce(interaction.client, state, `🚫 <@${r.userId}> removed after missing two big blinds.`); } catch {} }); }
+  if (toRemove.length) { toRemove.sort((a,b)=>b-a).forEach(i => { try { const r = state.seats.splice(i,1)[0]; if (r) announce(interaction.client, state, `${emoji('noEntry')} <@${r.userId}> removed after missing two big blinds.`); } catch {} }); }
   if (state.seats[bbIndex]?.waitForBB) { try { state.seats[bbIndex].waitForBB = false; } catch {} }
   const post = async (i, amt, label) => {
     const seat = state.seats[i];
