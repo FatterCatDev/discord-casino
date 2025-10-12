@@ -1,4 +1,5 @@
 import { burnCredits } from '../db/db.auto.mjs';
+import { emoji } from '../lib/emojis.mjs';
 
 export default async function handleTakeCredits(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
@@ -17,18 +18,18 @@ export default async function handleTakeCredits(interaction, ctx) {
     const nf = new Intl.NumberFormat('en-US');
     const logLines = kittenMode
       ? [
-          '🔥 **Burn Credits**',
+          `${emoji('fire')} **Burn Credits**`,
           `User: My devoted Kitten <@${target.id}> • Amount: **${nf.format(amount)}** credits${reason ? ` • Reason: ${reason}` : ''}`,
           `User Credits (after): **${nf.format(credits)}**`
         ]
       : [
-          '🔥 **Burn Credits**',
+          `${emoji('fire')} **Burn Credits**`,
           `User: <@${target.id}> • Amount: **${nf.format(amount)}** credits${reason ? ` • Reason: ${reason}` : ''}`,
           `User Credits (after): **${nf.format(credits)}**`
         ];
     await ctx.postCashLog(interaction, logLines);
     const fmt = new Intl.NumberFormat('en-US');
-    return interaction.reply({ content: say(`🔥 Burned **${fmt.format(amount)}** Credits from my daring Kitten <@${target.id}>${reason ? ` (${reason})` : ''}.\n• Your remaining indulgence: **${fmt.format(credits)}**`, `🔥 Burned **${fmt.format(amount)}** Credits from <@${target.id}>${reason ? ` (${reason})` : ''}.\n• <@${target.id}>'s Credits: **${fmt.format(credits)}**`), ephemeral: true });
+    return interaction.reply({ content: say(`${emoji('fire')} Burned **${fmt.format(amount)}** Credits from my daring Kitten <@${target.id}>${reason ? ` (${reason})` : ''}.\n• Your remaining indulgence: **${fmt.format(credits)}**`, `${emoji('fire')} Burned **${fmt.format(amount)}** Credits from <@${target.id}>${reason ? ` (${reason})` : ''}.\n• <@${target.id}>'s Credits: **${fmt.format(credits)}**`), ephemeral: true });
   } catch (err) {
     if (err.message === 'INSUFFICIENT_USER_CREDITS') {
       return interaction.reply({ content: say('❌ That Kitten doesn’t have enough Credits to scorch.', '❌ That user does not have enough Credits.'), ephemeral: true });
