@@ -12,6 +12,7 @@ export const EMOJI = {
   bus: '<:bus:1427057299549323284>',
   joystick: '<:joystick:1427057372060450927>',
   chipCard: '<:card_back:1427057302518632499>',
+  cardBack: '<:card_back:1427057302518632499>',
   chipAce: '<:ace_of_spades:1427057289684062312>',
   chipJoker: '<:joker:1427057365101842609>',
   pokerSpade: '<:spade:1427057442075705476>',
@@ -51,10 +52,12 @@ export const EMOJI = {
   theater: '🎭',
   handUp: '✋',
   scissors: '✂️',
-  plus: '➕',
   doubleArrow: '⏫',
   repeat: '🔁',
-  question: '❓'
+  question: '❓',
+  radioButton: '🔘',
+  chair: '🪑',
+  boardBanner: '🎴'
 
   // Status & alerts
   check: '✅',
