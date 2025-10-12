@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { Client, GatewayIntentBits } from 'discord.js';
 import { pushUpdateAnnouncement } from '../src/services/updates.mjs';
 import pkg from '../package.json' with { type: 'json' };
+import { setUpdateChannel } from '../src/db/db.auto.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -79,6 +80,8 @@ function resolveGuildIds() {
   return ids;
 }
 
+const UPDATE_CHANNEL_ID = process.env.UPDATE_CHANNEL_ID || '1426730736312123466';
+
 async function main() {
   const token = process.env.DISCORD_TOKEN;
   if (!token) throw new Error('DISCORD_TOKEN is required to push update announcements.');
@@ -106,6 +109,13 @@ async function main() {
   let successCount = 0;
   for (const guildId of guildIds) {
     try {
+      if (UPDATE_CHANNEL_ID) {
+        try {
+          await setUpdateChannel(guildId, UPDATE_CHANNEL_ID);
+        } catch (err) {
+          console.warn(`Warning: could not set update channel for guild ${guildId}:`, err?.message || err);
+        }
+      }
       await pushUpdateAnnouncement(client, guildId, {
         content: appendInstallLink(trimmed),
         mentionEveryone: true
