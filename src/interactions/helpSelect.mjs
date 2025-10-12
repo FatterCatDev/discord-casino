@@ -68,52 +68,52 @@ export default async function handleHelpSelect(interaction, ctx) {
 
   if (isMod) {
     if (kittenMode) {
-      sections.push({
+     sections.push({
         id: 'moderator',
-        label: '🛡️ House Kittens',
+        label: `${emoji('shield')} House Kittens`,
         groups: [
-          { label: '✉️ Requests', items: [ { emoji: '⏱️', cmd: '/requesttimer seconds:<int>', desc: 'Set how long eager Kittens wait between /request pleas.' } ] },
-          { label: '🏦 House & Chips', items: [
-            { emoji: '📊', cmd: '/housebalance', desc: 'Check the vault — the house keeps score.' },
-            { emoji: '➕', cmd: '/houseadd amount:<int> [reason]', desc: 'Slip fresh chips into the house coffers.' },
-            { emoji: '➖', cmd: '/houseremove amount:<int> [reason]', desc: 'Pull chips out for something special.' },
-            { emoji: '🎁', cmd: '/givechips user:<@> amount:<int> [reason]', desc: 'Gift chips to a deserving Kitten.' },
-            { emoji: '🪙', cmd: '/buyin user:<@> amount:<int> [reason]', desc: 'Mint chips straight into a Kitten’s paws.' },
-            { emoji: '🏛️', cmd: '/takechips user:<@> amount:<int> [reason]', desc: 'Collect chips back for the house.' },
-            { emoji: '🔥', cmd: '/cashout user:<@> amount:<int> [reason]', desc: 'Burn chips when a Kitten cashes out.' }
+          { label: `${emoji('requestEnvelope')} Requests`, items: [ { emoji: emoji('timer'), cmd: '/requesttimer seconds:<int>', desc: 'Set how long eager Kittens wait between /request pleas.' } ] },
+          { label: `${emoji('vault')} House & Chips`, items: [
+            { emoji: emoji('chartUp'), cmd: '/housebalance', desc: 'Check the vault — the house keeps score.' },
+            { emoji: emoji('plus'), cmd: '/houseadd amount:<int> [reason]', desc: 'Slip fresh chips into the house coffers.' },
+            { emoji: emoji('minus'), cmd: '/houseremove amount:<int> [reason]', desc: 'Pull chips out for something special.' },
+            { emoji: emoji('gift'), cmd: '/givechips user:<@> amount:<int> [reason]', desc: 'Gift chips to a deserving Kitten.' },
+            { emoji: emoji('coin'), cmd: '/buyin user:<@> amount:<int> [reason]', desc: 'Mint chips straight into a Kitten’s paws.' },
+            { emoji: emoji('parthenon'), cmd: '/takechips user:<@> amount:<int> [reason]', desc: 'Collect chips back for the house.' },
+            { emoji: emoji('fire'), cmd: '/cashout user:<@> amount:<int> [reason]', desc: 'Burn chips when a Kitten cashes out.' }
           ]},
-          { label: '💳 Credits', items: [
-            { emoji: '🎟️', cmd: '/givecredits user:<@> amount:<int> [reason]', desc: 'Shower Credits on a playful Kitten.' },
-            { emoji: '🧾', cmd: '/takecredits user:<@> amount:<int> [reason]', desc: 'Burn Credits when discipline is needed.' }
+          { label: `${emoji('creditCard')} Credits`, items: [
+            { emoji: emoji('ticket'), cmd: '/givecredits user:<@> amount:<int> [reason]', desc: 'Shower Credits on a playful Kitten.' },
+            { emoji: emoji('receipt'), cmd: '/takecredits user:<@> amount:<int> [reason]', desc: 'Burn Credits when discipline is needed.' }
           ]}
         ]
       });
       sections.push({
         id: 'admin',
-        label: '⚙️ Headmistress',
+        label: `${emoji('gear')} Headmistress`,
         groups: [
-          { label: '🏗️ Salon Setup', items: [
-            { emoji: '🗂️', cmd: '/setcasinocategory category:<#Category>', desc: 'Choose where my casino lounges live. (Admin only)' },
-            { emoji: '📜', cmd: '/setgamelogchannel channel:<#channel>', desc: 'Point game logs to the proper parlor. (Admin only)' },
-            { emoji: '💼', cmd: '/setcashlog channel:<#channel>', desc: 'Decide where chip and credit ledgers are whispered. (Admin only)' },
-            { emoji: '📬', cmd: '/setrequestchannel channel:<#channel>', desc: 'Pick the room where requests arrive. (Admin only)' }
+          { label: `${emoji('construction')} Salon Setup`, items: [
+            { emoji: emoji('folder'), cmd: '/setcasinocategory category:<#Category>', desc: 'Choose where my casino lounges live. (Admin only)' },
+            { emoji: emoji('scroll'), cmd: '/setgamelogchannel channel:<#channel>', desc: 'Point game logs to the proper parlor. (Admin only)' },
+            { emoji: emoji('briefcase'), cmd: '/setcashlog channel:<#channel>', desc: 'Decide where chip and credit ledgers are whispered. (Admin only)' },
+            { emoji: emoji('mailbox'), cmd: '/setrequestchannel channel:<#channel>', desc: 'Pick the room where requests arrive. (Admin only)' }
           ]},
-          { label: '🎭 Persona', items: [
-            { emoji: '💋', cmd: '/kittenmode enabled:<bool>', desc: 'Invite or dismiss my sultry persona. (Admin only)' }
+          { label: `${emoji('theater')} Persona`, items: [
+            { emoji: emoji('kiss'), cmd: '/kittenmode enabled:<bool>', desc: 'Invite or dismiss my sultry persona. (Admin only)' }
           ]},
-          { label: '👥 Roles', items: [
-            { emoji: '➕', cmd: '/addmod user:<@User>', desc: 'Crown a new house Kitten with moderator powers. (Admin only)' },
-            { emoji: '➖', cmd: '/removemod user:<@User>', desc: 'Revoke those powers with a snap. (Admin only)' },
-            { emoji: '👑', cmd: '/addadmin user:<@User>', desc: 'Invite someone into my inner admin circle. (Admin only)' },
-            { emoji: '🗝️', cmd: '/removeadmin user:<@User>', desc: 'Dismiss an admin from that circle. (Admin only)' }
+          { label: `${emoji('busts')} Roles`, items: [
+            { emoji: emoji('plus'), cmd: '/addmod user:<@User>', desc: 'Crown a new house Kitten with moderator powers. (Admin only)' },
+            { emoji: emoji('minus'), cmd: '/removemod user:<@User>', desc: 'Revoke those powers with a snap. (Admin only)' },
+            { emoji: emoji('crown'), cmd: '/addadmin user:<@User>', desc: 'Invite someone into my inner admin circle. (Admin only)' },
+            { emoji: emoji('key'), cmd: '/removeadmin user:<@User>', desc: 'Dismiss an admin from that circle. (Admin only)' }
           ]},
-          { label: '📊 Limits', items: [
-            { emoji: '🎚️', cmd: '/setmaxbet game:<choice> amount:<int>', desc: 'Set how daring bets may be. (Admin only)' },
-            { emoji: '💱', cmd: '/setrake percent:<number>', desc: 'Adjust Hold’em rake to keep the house pampered. (Admin only)' }
+          { label: `${emoji('chartUp')} Limits`, items: [
+            { emoji: emoji('slider'), cmd: '/setmaxbet game:<choice> amount:<int>', desc: 'Set how daring bets may be. (Admin only)' },
+            { emoji: emoji('currencyExchange'), cmd: '/setrake percent:<number>', desc: 'Adjust Hold’em rake to keep the house pampered. (Admin only)' }
           ]}
         ]
       });
-      sections.push({ id: 'owner', label: '👑 Proprietor', groups: [ { label: '🧹 Maintenance', items: [ { emoji: '♻️', cmd: '/resetallbalance', desc: 'Wipe every balance clean when you crave a fresh start. (Owner only)' } ] } ] });
+      sections.push({ id: 'owner', label: `${emoji('proprietor')} Proprietor`, groups: [ { label: `${emoji('broom')} Maintenance`, items: [ { emoji: emoji('recycle'), cmd: '/resetallbalance', desc: 'Wipe every balance clean when you crave a fresh start. (Owner only)' } ] } ] });
     } else {
       sections.push({ id: 'moderator', label: '🛡️ Moderator', groups: [
         { label: '✉️ Requests', items: [ { emoji: '⏱️', cmd: '/requesttimer seconds:<int>', desc: 'Set cooldown between /request submissions.' } ] },
