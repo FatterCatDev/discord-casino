@@ -6,7 +6,10 @@ export default async function handleLeaderboard(interaction, ctx) {
   const limit = interaction.options.getInteger('limit') ?? 10;
   const rows = await getTopUsers(interaction.guild?.id, limit);
   if (!rows.length) {
-    return interaction.reply({ content: say('📉 No Kittens have claimed any chips yet. Be the first to indulge!', '📉 No players with chips yet. Be the first to earn some!') });
+    return interaction.reply({
+      content: say('📉 No Kittens have claimed any chips yet. Be the first to indulge!', '📉 No players with chips yet. Be the first to earn some!'),
+      ephemeral: true
+    });
   }
   const medals = ['🥇', '🥈', '🥉'];
   const fmt = new Intl.NumberFormat('en-US');
@@ -18,5 +21,8 @@ export default async function handleLeaderboard(interaction, ctx) {
     );
   });
   const title = say(`🏆 Global Chip Leaderboard — My Top ${rows.length} Kittens`, `🏆 Global Chip Leaderboard (Top ${rows.length})`);
-  return interaction.reply({ content: `**${title}**\n${lines.join('\n')}` });
+  return interaction.reply({
+    content: `**${title}**\n${lines.join('\n')}`,
+    ephemeral: true
+  });
 }
