@@ -40,6 +40,8 @@ const HORSE_NAME_POOL = [
   'Butter Cup'
 ];
 const HORSE_EMOJIS = HORSE_COLOR_EMOJIS;
+const HORSE_BLOCK_EMOJIS = ['🟥', '🟩', '🟨', '🟦', '🟪'];
+const HORSE_ICON_BLOCK = '🐎';
 const HORSE_COUNT = HORSE_EMOJIS.length;
 const INITIAL_FOOTER_TEXT = 'Place your bets! Host must press Start to begin the countdown.';
 const DEFAULT_STAGE_FOOTER_TEXT = 'Place or change bets within 2.5 seconds of each stage.';
@@ -116,7 +118,8 @@ function getHorseLabel(state, index) {
 }
 
 function buildHorseLine(state, index, progress) {
-  const labelName = `${HORSE_EMOJIS[index]} ${emoji('horse')} ${getHorseLabel(state, index)}`.padEnd(18);
+  const blockColor = HORSE_BLOCK_EMOJIS[index] ?? '■';
+  const labelName = `${blockColor} ${HORSE_ICON_BLOCK} ${getHorseLabel(state, index)}`.padEnd(18);
   const track = `│${renderTrack(progress)}│`;
   const progressText = `${progress}/${TRACK_LENGTH}`;
   const spaces = ' '.repeat(Math.max(1, TRACK_LINE_WIDTH - labelName.length - track.length - progressText.length - 1));
