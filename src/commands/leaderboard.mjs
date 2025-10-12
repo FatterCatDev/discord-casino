@@ -1,4 +1,5 @@
 import { getTopUsers } from '../db/db.auto.mjs';
+import { emoji } from '../lib/emojis.mjs';
 
 export default async function handleLeaderboard(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
@@ -7,11 +8,11 @@ export default async function handleLeaderboard(interaction, ctx) {
   const rows = await getTopUsers(interaction.guild?.id, limit);
   if (!rows.length) {
     return interaction.reply({
-      content: say('📉 No Kittens have claimed any chips yet. Be the first to indulge!', '📉 No players with chips yet. Be the first to earn some!'),
+      content: say(`${emoji('chartDown')} No Kittens have claimed any chips yet. Be the first to indulge!`, `${emoji('chartDown')} No players with chips yet. Be the first to earn some!`),
       ephemeral: true
     });
   }
-  const medals = ['🥇', '🥈', '🥉'];
+  const medals = [emoji('medalGold'), emoji('medalSilver'), emoji('medalBronze')];
   const fmt = new Intl.NumberFormat('en-US');
 
   const resolveName = async (userId) => {
@@ -43,7 +44,7 @@ export default async function handleLeaderboard(interaction, ctx) {
       `${rank} **${name}** — **${fmt.format(Number(r.chips || 0))}**`
     );
   }));
-  const title = say(`🏆 Global Chip Leaderboard — My Top ${rows.length} Kittens`, `🏆 Global Chip Leaderboard (Top ${rows.length})`);
+  const title = say(`${emoji('trophy')} Global Chip Leaderboard — My Top ${rows.length} Kittens`, `${emoji('trophy')} Global Chip Leaderboard (Top ${rows.length})`);
   return interaction.reply({
     content: `**${title}**\n${lines.join('\n')}`,
     ephemeral: true
