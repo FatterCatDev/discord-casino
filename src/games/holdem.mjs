@@ -67,7 +67,7 @@ export function buildTableEmbed(state) {
     const placeholders = Array.from({ length: Math.max(0, 5 - shown.length) }, () => emoji('cardBack'));
     boardLine = [...shown, ...placeholders].join('   ');
   }
-  e.setDescription(`🎴 **Board**\n\n${boardLine}`);
+  e.setDescription(`${emoji('slotsReel')} **Board**\n\n${boardLine}`);
 
   e.addFields(
     { name: 'Blinds', value: `SB **${state.sb}** • BB **${state.bb}**`, inline: true },
