@@ -13,13 +13,36 @@ export default async function handleLeaderboard(interaction, ctx) {
   }
   const medals = ['🥇', '🥈', '🥉'];
   const fmt = new Intl.NumberFormat('en-US');
-  const lines = rows.map((r, i) => {
+
+  const resolveName = async (userId) => {
+    const fallback = `User ${userId}`;
+    try {
+      const guild = interaction.guild;
+      if (guild) {
+        const cached = guild.members.cache.get(userId);
+        if (cached) {
+          return cached.displayName || cached.user?.globalName || cached.user?.username || fallback;
+        }
+        const fetched = await guild.members.fetch(userId).catch(() => null);
+        if (fetched) {
+          return fetched.displayName || fetched.user?.globalName || fetched.user?.username || fallback;
+        }
+      }
+      const user = await interaction.client.users.fetch(userId).catch(() => null);
+      return user?.globalName || user?.username || fallback;
+    } catch {
+      return fallback;
+    }
+  };
+
+  const lines = await Promise.all(rows.map(async (r, i) => {
     const rank = i < 3 ? medals[i] : `#${i + 1}`;
+    const name = await resolveName(r.discord_id);
     return say(
-      `${rank} My radiant Kitten <@${r.discord_id}> — **${fmt.format(Number(r.chips || 0))}**`,
-      `${rank} <@${r.discord_id}> — **${fmt.format(Number(r.chips || 0))}**`
+      `${rank} My radiant Kitten **${name}** — **${fmt.format(Number(r.chips || 0))}**`,
+      `${rank} **${name}** — **${fmt.format(Number(r.chips || 0))}**`
     );
-  });
+  }));
   const title = say(`🏆 Global Chip Leaderboard — My Top ${rows.length} Kittens`, `🏆 Global Chip Leaderboard (Top ${rows.length})`);
   return interaction.reply({
     content: `**${title}**\n${lines.join('\n')}`,
