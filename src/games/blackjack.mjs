@@ -117,12 +117,12 @@ export async function startBlackjack(interaction, table, bet) {
   const firstDecision = state.player.length === 2;
   const actions = [ { id: 'bj|hit', label: 'Hit', style: ButtonStyle.Primary, emoji: emoji('plus') }, { id: 'bj|stand', label: 'Stand', style: ButtonStyle.Secondary, emoji: emoji('handUp') } ];
 // Game: Blackjack — stateful hand play, settlement, and UI (Credits-first).
-  if (firstDecision && await canAffordExtra(state.guildId, state.userId, state.bet)) actions.push({ id: 'bj|double', label: 'Double', style: ButtonStyle.Success, emoji: '⏫' });
+  if (firstDecision && await canAffordExtra(state.guildId, state.userId, state.bet)) actions.push({ id: 'bj|double', label: 'Double', style: ButtonStyle.Success, emoji: emoji('doubleArrow') });
   if (firstDecision) {
     const v1 = cardValueForSplit(state.player[0]);
     const v2 = cardValueForSplit(state.player[1]);
     if (v1 === v2 && await canAffordExtra(state.guildId, state.userId, state.bet)) actions.push({ id: 'bj|split', label: 'Split', style: ButtonStyle.Secondary, emoji: '✂️' });
   }
-  const row = new ActionRowBuilder().addComponents(...actions.map(({ id, label, style }) => new ButtonBuilder().setCustomId(id).setLabel(label).setStyle(style)));
+  const row = new ActionRowBuilder().addComponents(...actions.map(({ id, label, style, emoji: icon }) => new ButtonBuilder().setCustomId(id).setLabel(label).setStyle(style).setEmoji(icon)));
   return sendGameMessage(interaction, { embeds: [await bjEmbed(state)], components: [row] } );
 }
