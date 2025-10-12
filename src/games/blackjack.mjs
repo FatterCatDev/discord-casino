@@ -26,7 +26,7 @@ export async function canAffordExtra(guildId, userId, amount) {
 
 // Build the current Blackjack UI embed
 export async function bjEmbed(state, opts = {}) {
-  const { title = '🂡 Blackjack', color = 0x2b2d31, footer } = opts;
+  const { title = '<:ace_of_spades:1427057289684062312> Blackjack', color = 0x2b2d31, footer } = opts;
   const e = new EmbedBuilder().setTitle(title).setColor(color);
   const dUp = state.dealer[0];
   const dHidden = state.revealed ? bjShowHand(state.dealer) : `${show(dUp)} ❓`;
@@ -38,12 +38,12 @@ export async function bjEmbed(state, opts = {}) {
   if (state.split && Array.isArray(state.hands)) {
     const a = bjHandValue(state.hands[0].cards); const b = bjHandValue(state.hands[1].cards);
     e.addFields(
-      { name: `🃏 Your Hand A${state.active===0?' (active)':''}`, value: `${bjShowHand(state.hands[0].cards)} • **${a.total}**${a.soft?' (soft)':''}` },
-      { name: `🃏 Your Hand B${state.active===1?' (active)':''}`, value: `${bjShowHand(state.hands[1].cards)} • **${b.total}**${b.soft?' (soft)':''}` }
+      { name: `<:joker:1427057365101842609> Your Hand A${state.active===0?' (active)':''}`, value: `${bjShowHand(state.hands[0].cards)} • **${a.total}**${a.soft?' (soft)':''}` },
+      { name: `<:joker:1427057365101842609> Your Hand B${state.active===1?' (active)':''}`, value: `${bjShowHand(state.hands[1].cards)} • **${b.total}**${b.soft?' (soft)':''}` }
     );
   } else {
     const p = bjHandValue(state.player); const pHand = bjShowHand(state.player);
-    e.addFields({ name: '🃏 Your Hand', value: `${pHand} • **${p.total}**${p.soft ? ' (soft)' : ''}` });
+    e.addFields({ name: '<:joker:1427057365101842609> Your Hand', value: `${pHand} • **${p.total}**${p.soft ? ' (soft)' : ''}` });
   }
   e.addFields({ name: '🤵 Dealer', value: state.revealed ? `${dHidden} • **${bjHandValue(state.dealer).total}**` : dHidden });
   try { e.addFields(await buildPlayerBalanceField(state.guildId, state.userId)); } catch {}
