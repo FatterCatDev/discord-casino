@@ -1,4 +1,5 @@
 import { addToHouse } from '../db/db.auto.mjs';
+import { emoji } from '../lib/emojis.mjs';
 
 export default async function handleHouseAdd(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
@@ -15,12 +16,12 @@ export default async function handleHouseAdd(interaction, ctx) {
   const newBal = await addToHouse(guildId, amount, reason, interaction.user.id);
   const logLines = kittenMode
     ? [
-        '🏦 **House Add**',
+        `${emoji('vault')} **House Add**`,
         `Amount for my velvet house: **${ctx.chipsAmount(amount)}**${reason ? ` • Reason: ${reason}` : ''}`,
         `New House Balance: **${ctx.chipsAmount(newBal)}**`
       ]
     : [
-        '🏦 **House Add**',
+        `${emoji('vault')} **House Add**`,
         `Amount: **${ctx.chipsAmount(amount)}**${reason ? ` • Reason: ${reason}` : ''}`,
         `New House Balance: **${ctx.chipsAmount(newBal)}**`
       ];
