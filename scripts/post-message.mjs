@@ -89,4 +89,4 @@ const run = async () => {
 };
 
 run();
-// Use "cat new-message.md | node scripts/post-message.mjs 1426269394207768607"
+// Use "cat new-message.md | node scripts/post-message.mjs 1426730736312123466"
