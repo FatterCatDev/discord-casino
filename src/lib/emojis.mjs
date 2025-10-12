@@ -21,6 +21,7 @@ export const EMOJI = {
   diceWar: '<:crossed_swords:1427057319363084328>',
   holdem: '<:spade:1427057442075705476>',
   slotsReel: '🎴',
+  pingPong: '🏓',
 
   // Economy
   moneyBag: '<:chips:1427057303865266246>',
