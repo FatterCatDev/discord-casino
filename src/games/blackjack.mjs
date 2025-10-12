@@ -3,6 +3,7 @@ import { getUserBalances, getHouseBalance, transferFromHouseToUser, takeFromUser
 import { makeDeck, show } from './cards.mjs';
 import { chipsAmount, formatChips } from './format.mjs';
 import { setActiveSession, buildPlayerBalanceField, addHouseNet, recordSessionGame, sendGameMessage, buildTimeoutField } from './session.mjs';
+import { emoji } from '../lib/emojis.mjs';
 
 export const blackjackGames = new Map();
 
@@ -26,26 +27,26 @@ export async function canAffordExtra(guildId, userId, amount) {
 
 // Build the current Blackjack UI embed
 export async function bjEmbed(state, opts = {}) {
-  const { title = '<:ace_of_spades:1427057289684062312> Blackjack', color = 0x2b2d31, footer } = opts;
+  const { title = `${emoji('chipAce')} Blackjack`, color = 0x2b2d31, footer } = opts;
   const e = new EmbedBuilder().setTitle(title).setColor(color);
   const dUp = state.dealer[0];
-  const dHidden = state.revealed ? bjShowHand(state.dealer) : `${show(dUp)} ❓`;
+  const dHidden = state.revealed ? bjShowHand(state.dealer) : `${show(dUp)} ${emoji('info')}`;
   e.addFields(
-    { name: '🎰 Table', value: `${state.table}`, inline: true },
-    { name: '🪙 Bet', value: `**${chipsAmount(state.bet)}**`, inline: true },
-    { name: '📜 Rule', value: state.table === 'HIGH' ? 'H17 (Dealer hits soft 17)' : 'S17 (Dealer stands on soft 17)', inline: false }
+    { name: `${emoji('slots')} Table`, value: `${state.table}`, inline: true },
+    { name: `${emoji('coin')} Bet`, value: `**${chipsAmount(state.bet)}**`, inline: true },
+    { name: `${emoji('scroll')} Rule`, value: state.table === 'HIGH' ? 'H17 (Dealer hits soft 17)' : 'S17 (Dealer stands on soft 17)', inline: false }
   );
   if (state.split && Array.isArray(state.hands)) {
     const a = bjHandValue(state.hands[0].cards); const b = bjHandValue(state.hands[1].cards);
     e.addFields(
-      { name: `<:joker:1427057365101842609> Your Hand A${state.active===0?' (active)':''}`, value: `${bjShowHand(state.hands[0].cards)} • **${a.total}**${a.soft?' (soft)':''}` },
-      { name: `<:joker:1427057365101842609> Your Hand B${state.active===1?' (active)':''}`, value: `${bjShowHand(state.hands[1].cards)} • **${b.total}**${b.soft?' (soft)':''}` }
+      { name: `${emoji('chipJoker')} Your Hand A${state.active===0?' (active)':''}`, value: `${bjShowHand(state.hands[0].cards)} • **${a.total}**${a.soft?' (soft)':''}` },
+      { name: `${emoji('chipJoker')} Your Hand B${state.active===1?' (active)':''}`, value: `${bjShowHand(state.hands[1].cards)} • **${b.total}**${b.soft?' (soft)':''}` }
     );
   } else {
     const p = bjHandValue(state.player); const pHand = bjShowHand(state.player);
-    e.addFields({ name: '<:joker:1427057365101842609> Your Hand', value: `${pHand} • **${p.total}**${p.soft ? ' (soft)' : ''}` });
+    e.addFields({ name: `${emoji('chipJoker')} Your Hand`, value: `${pHand} • **${p.total}**${p.soft ? ' (soft)' : ''}` });
   }
-  e.addFields({ name: '🤵 Dealer', value: state.revealed ? `${dHidden} • **${bjHandValue(state.dealer).total}**` : dHidden });
+  e.addFields({ name: `${emoji('tuxedo')} Dealer`, value: state.revealed ? `${dHidden} • **${bjHandValue(state.dealer).total}**` : dHidden });
   try { e.addFields(await buildPlayerBalanceField(state.guildId, state.userId)); } catch {}
   try { e.addFields(buildTimeoutField(state.guildId, state.userId)); } catch {}
   if (footer) e.setFooter({ text: footer });
@@ -54,7 +55,7 @@ export async function bjEmbed(state, opts = {}) {
 
 export function bjPlayAgainRow(table, bet, userId) {
   return new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`bj|again|${table}|${bet}|${userId}`).setLabel(`Play Again (${formatChips(bet)})`).setEmoji('🔁').setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId(`bj|again|${table}|${bet}|${userId}`).setLabel(`Play Again (${formatChips(bet)})`).setEmoji(emoji('repeat')).setStyle(ButtonStyle.Secondary)
   );
 }
 
