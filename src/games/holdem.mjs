@@ -265,7 +265,7 @@ async function kickHostForInactivity(client, state) {
         await updateTableCard(client, state);
       }
     }
-    await announce(client, state, `🚫 Host <@${hostId}> removed due to 10 minutes of inactivity.${state.hostId ? ` New host: <@${state.hostId}>.` : ''}`);
+    await announce(client, state, `${emoji('noEntry')} Host <@${hostId}> removed due to 10 minutes of inactivity.${state.hostId ? ` New host: <@${state.hostId}>.` : ''}`);
     // await announce(client, state, `🚫 My vigilant Kitten <@${hostId}> was whisked away after 10 minutes.${state.hostId ? ` Another Kitten <@${state.hostId}> now hosts.` : ''}`);
     // Schedule kick timer for new host (if any)
     scheduleHostKick(client, state, 10 * 60 * 1000);
@@ -303,7 +303,7 @@ async function notifyAutoKick(client, state, removed) {
     for (const r of removed) {
       try {
         const user = await client.users.fetch(r.userId);
-        const msg = applyKittenText(state, `🚫 You were removed from the Hold’em table — insufficient chips to cover the big blind (${bb}).`);
+        const msg = applyKittenText(state, `${emoji('noEntry')} You were removed from the Hold’em table — insufficient chips to cover the big blind (${bb}).`);
         await user.send(msg);
       } catch {}
     }
