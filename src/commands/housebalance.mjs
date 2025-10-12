@@ -1,4 +1,5 @@
 import { getHouseBalance, getCasinoNetworth } from '../db/db.auto.mjs';
+import { emoji } from '../lib/emojis.mjs';
 
 export default async function handleHouseBalance(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
@@ -11,8 +12,8 @@ export default async function handleHouseBalance(interaction, ctx) {
   const net = await getCasinoNetworth(guildId);
   return interaction.reply({
     content: say(
-      `🏦 Global house balance: **${ctx.chipsAmount(h)}**\n💼 Global net worth of every tantalizing chip in play: **${ctx.chipsAmount(net)}**\nKeep it purring, Kitten.`,
-      `🏦 Global house balance: **${ctx.chipsAmount(h)}**\n💼 Global net worth (all chips in circulation): **${ctx.chipsAmount(net)}**`
+      `${emoji('vault')} Global house balance: **${ctx.chipsAmount(h)}**\n${emoji('briefcase')} Global net worth of every tantalizing chip in play: **${ctx.chipsAmount(net)}**\nKeep it purring, Kitten.`,
+      `${emoji('vault')} Global house balance: **${ctx.chipsAmount(h)}**\n${emoji('briefcase')} Global net worth (all chips in circulation): **${ctx.chipsAmount(net)}**`
     ),
     ephemeral: true
   });
