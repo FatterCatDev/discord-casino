@@ -52,7 +52,7 @@ export default async function handleHelpSelect(interaction, ctx) {
   if (isSetupAdmin) {
     sections.push({
       id: 'setup',
-      label: '🛠️ Setup',
+      label: `${emoji('hammerWrench')} Setup`,
       groups: [
         { label: kittenMode ? 'Step-by-step' : 'Checklist', items: [
           { emoji: '1️⃣', cmd: '/setcasinocategory category:<#Category>', desc: kittenMode ? 'Give me a dedicated home where I can host tables.' : 'Select the category that will contain casino channels.' },
