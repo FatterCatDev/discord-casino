@@ -1262,8 +1262,8 @@ export async function leaveTable(interaction, ctx) {
     else { try { scheduleLobbyClose(interaction.client, state); } catch {} }
     const fmt = new Intl.NumberFormat('en-US');
     const msg = refunded > 0
-      ? `👋 You left the table. Refunded **${fmt.format(refunded)}** Chips.`
-      : '👋 You left the table.';
+      ? `${emoji('wave')} You left the table. Refunded **${fmt.format(refunded)}** Chips.`
+      : `${emoji('wave')} You left the table.`;
     if (interaction.isButton && interaction.isButton()) {
       await interaction.update(payload);
       return interaction.followUp({ content: msg, ephemeral: true });
@@ -1276,8 +1276,8 @@ export async function leaveTable(interaction, ctx) {
   const payload = buildTablePayload(state);
   const fmt2 = new Intl.NumberFormat('en-US');
   const msg2 = refunded > 0
-    ? `👋 You left the table. Refunded **${fmt2.format(refunded)}** Chips.`
-    : '👋 You left the table.';
+    ? `${emoji('wave')} You left the table. Refunded **${fmt2.format(refunded)}** Chips.`
+    : `${emoji('wave')} You left the table.`;
   if (interaction.isButton && interaction.isButton()) {
     await interaction.update(payload);
     return interaction.followUp({ content: msg2, ephemeral: true });
