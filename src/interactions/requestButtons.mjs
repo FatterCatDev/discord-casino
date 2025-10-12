@@ -56,7 +56,7 @@ export default async function handleRequestButtons(interaction, ctx) {
           );
           await user.send(dm);
         } catch {}
-        // try { const user = await interaction.client.users.fetch(targetId); await user.send(`🪙 Buy-in: Come savor these chips, Kitten <@${targetId}> — with affection from your mistress.`); } catch {}
+        // try { const user = await interaction.client.users.fetch(targetId); await user.send(`${emoji('coin')} Buy-in: Come savor these chips, Kitten <@${targetId}> — with affection from your mistress.`); } catch {}
       } else if (type === 'cashout') {
         const { chips } = await burnFromUser(guildId, targetId, amount, 'request cashout', interaction.user.id);
         await ctx.postCashLog(interaction, kittenMode
@@ -78,7 +78,7 @@ export default async function handleRequestButtons(interaction, ctx) {
           );
           await user.send(dm);
         } catch {}
-        // try { const user = await interaction.client.users.fetch(targetId); await user.send(`💸 Cash Out: Easy now, Kitten <@${targetId}> — your balance bends to your desires.`); } catch {}
+        // try { const user = await interaction.client.users.fetch(targetId); await user.send(`${emoji('moneyWings')} Cash Out: Easy now, Kitten <@${targetId}> — your balance bends to your desires.`); } catch {}
       } else {
         return interaction.reply({ content: say('❌ I don’t recognize that request type, Kitten.', '❌ Unknown request type.'), ephemeral: true });
       }
