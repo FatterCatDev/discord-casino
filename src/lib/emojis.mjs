@@ -54,6 +54,7 @@ export const EMOJI = {
   plus: '➕',
   doubleArrow: '⏫',
   repeat: '🔁',
+  question: '❓'
 
   // Status & alerts
   check: '✅',
