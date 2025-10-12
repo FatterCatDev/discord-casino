@@ -1,4 +1,5 @@
 import { EmbedBuilder } from 'discord.js';
+import { emoji } from '../lib/emojis.mjs';
 
 export default async function onRouletteButtons(interaction, ctx) {
   const key = ctx.keyFor(interaction);
@@ -31,7 +32,11 @@ export default async function onRouletteButtons(interaction, ctx) {
     if (await ctx.getHouseBalance() < neededCover) return interaction.reply({ content: `❌ House cannot cover potential payout. Needed: **${ctx.chipsAmount(neededCover)}**.`, ephemeral: true });
     if (chipStake>0) try { await ctx.takeFromUserToHouse(interaction.user.id, chipStake, 'roulette buy-in (chips)', interaction.user.id); } catch { return interaction.reply({ content: '❌ Could not process buy-in.', ephemeral: true }); }
     const spin = ctx.spinRoulette();
-    const colorEmoji = spin.color === 'RED' ? '🟥' : spin.color === 'BLACK' ? '⬛' : '🟩';
+    const colorEmoji = spin.color === 'RED'
+      ? emoji('squareRed')
+      : spin.color === 'BLACK'
+        ? '⬛'
+        : emoji('squareGreen');
     const pocketLabel = spin.label;
     let winnings = 0;
     const wins = [];
@@ -43,12 +48,12 @@ export default async function onRouletteButtons(interaction, ctx) {
     const returnStake = wins.reduce((s,b)=>s+b.chipPart,0);
     const payout = winnings + returnStake;
     if (payout>0) { try { await ctx.transferFromHouseToUser(interaction.user.id, payout, 'roulette payout', null); } catch { return interaction.reply({ content:'⚠️ Payout failed.', ephemeral:true }); } }
-    const lines = [`🎡 Roulette Result: ${colorEmoji} **${pocketLabel}**`, ...state.bets.map(b=>`${wins.includes(b)?'✅ Win':'❌ Lose'}: ${b.type}${b.pocket!==undefined?` ${b.pocket}`:''} — **${ctx.chipsAmount(b.amount)}**`), `Total won: **${ctx.chipsAmount(winnings)}**`];
+    const lines = [`${emoji('roulette')} Roulette Result: ${colorEmoji} **${pocketLabel}**`, ...state.bets.map(b=>`${wins.includes(b)?'✅ Win':'❌ Lose'}: ${b.type}${b.pocket!==undefined?` ${b.pocket}`:''} — **${ctx.chipsAmount(b.amount)}**`), `Total won: **${ctx.chipsAmount(winnings)}**`];
     ctx.addHouseNet(interaction.guild.id, interaction.user.id, 'roulette', chipStake - payout);
     try { ctx.recordSessionGame(interaction.guild.id, interaction.user.id, payout - chipStake); } catch {}
     ctx.rouletteSessions.delete(key);
     const resultEmbed = new EmbedBuilder()
-      .setTitle('🎡 Roulette')
+      .setTitle(`${emoji('roulette')} Roulette`)
       .setColor(winnings > 0 ? 0x57F287 : 0xED4245)
       .setDescription(lines.join('\n'));
     try {
