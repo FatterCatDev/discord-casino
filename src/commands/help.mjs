@@ -1,4 +1,5 @@
 import { ActionRowBuilder, EmbedBuilder, StringSelectMenuBuilder, PermissionFlagsBits } from 'discord.js';
+import { emoji } from '../lib/emojis.mjs';
 
 export default async function handleHelp(interaction, ctx) {
   const perms = interaction.memberPermissions ?? interaction.member?.permissions;
@@ -13,36 +14,36 @@ export default async function handleHelp(interaction, ctx) {
     id: 'player',
     label: kittenMode ? '😼 Kitten’s Playground' : '🎮 Player',
     groups: [
-      { label: kittenMode ? '💋 Essentials' : '🌟 Classics', items: [
-        { emoji: '👋', cmd: 'Getting Started', desc: kittenMode
+      { label: kittenMode ? `${emoji('kiss')} Essentials` : `${emoji('star')} Classics`, items: [
+        { emoji: emoji('wave'), cmd: 'Getting Started', desc: kittenMode
           ? 'Earn chips with `/dailyspin`, `/vote`, `/request`, and every chip-paying game. Votes credit instantly with a DM from me; Credits burn first while chips come from my stash.'
           : 'Earn chips via `/dailyspin`, `/vote`, `/request`, and chip-paying games. Voting auto-credits chips (watch your DMs); games spend Credits first before dipping into the house.' },
-        { emoji: '🎰', cmd: 'Play Games', desc: kittenMode
+        { emoji: emoji('slots'), cmd: 'Play Games', desc: kittenMode
           ? 'Try `/ridebus`, `/blackjack`, `/slots`, `/roulette`, `/dicewar`, `/holdem`, and `/horserace` — each with its own stakes.'
           : 'Jump into `/ridebus`, `/blackjack`, `/slots`, `/roulette`, `/dicewar`, `/holdem`, or `/horserace` to spend Credits and win chips.' },
-        { emoji: '🗺️', cmd: 'Command Map', desc: kittenMode
+        { emoji: emoji('map'), cmd: 'Command Map', desc: kittenMode
           ? 'Use `/stafflist` to see who runs things; the menu (below) lists every command by role.'
           : 'Run `/stafflist` to see the team. Browse this menu to find role-specific commands.' }
       ]},
-      { label: kittenMode ? '🎁 Daily & Requests' : '🎁 Daily & Requests', items: [
-        { emoji: '🎡', cmd: '/dailyspin', desc: kittenMode
+      { label: `${emoji('gift')} Daily & Requests`, items: [
+        { emoji: emoji('roulette'), cmd: '/dailyspin', desc: kittenMode
           ? 'Spin once every 24 hours for free chips — a little treat from me, Kitten.'
           : 'Spin once every 24 hours for a free chip bonus.' },
-        { emoji: '🗳️', cmd: '/vote', desc: kittenMode
+        { emoji: emoji('ballot'), cmd: '/vote', desc: kittenMode
           ? 'Peek here for the links — once you vote, I slip the chips to you automatically and whisper the amount in your DMs.'
           : 'Grab the vote links here; rewards credit automatically and I DM you the receipt after every vote.' },
-        { emoji: '📨', cmd: '/request type:<Buy In|Cash Out> amount:<int>', desc: kittenMode
+        { emoji: emoji('inbox'), cmd: '/request type:<Buy In|Cash Out> amount:<int>', desc: kittenMode
           ? 'Ask staff for buy-ins or cash-outs; stay sweet while you wait.'
           : 'Submit buy-in or cash-out tickets for staff review.' }
       ]},
-      { label: kittenMode ? '🎲 Featured Games' : '🎲 Featured Games', items: [
-        { emoji: '🚌', cmd: '/ridebus bet:<int>', desc: kittenMode ? 'Ride the Bus through Q1–Q4; flirt with fate or cash out early.' : 'Clear Q1–Q4 to win; cash out after Q3 if you’re cautious.' },
-        { emoji: '🃏', cmd: '/blackjack table:<High|Low> bet:<int>', desc: kittenMode ? 'Face my house in sultry blackjack — High or Low table, your thrill.' : 'Play against the house in blackjack; High or Low tables set stakes.' },
-        { emoji: '🎰', cmd: '/slots bet:<int>', desc: kittenMode ? 'Spin 20 shimmering lines; Credits stake first, chips pay out.' : 'Spin a 5×3 slot (20 lines). Credits stake first; chips pay out.' },
-        { emoji: '🎡', cmd: '/roulette', desc: kittenMode ? 'Place your bets and let the wheel tease you, Kitten.' : 'Place interactive bets on American roulette and spin.' },
-        { emoji: '⚔️', cmd: '/dicewar bet:<int>', desc: kittenMode ? 'Roll for me — doubles sizzling with doubled rewards.' : 'Roll versus the house. Doubles on your win double the payout.' },
-        { emoji: '♠️', cmd: '/holdem', desc: kittenMode ? 'Summon a private lounge for Texas Hold’em with your friends.' : 'Create a Texas Hold’em table with presets or custom stakes.' },
-        { emoji: '🏇', cmd: '/horserace', desc: kittenMode ? 'Wager on my five dazzling racers — bets lock each stage, with a cheeky fee if you swap saddles.' : 'Bet on a five-horse sprint; swap picks between stages with a stage-based swap fee and watch the live progress.' }
+      { label: `${emoji('dice')} Featured Games`, items: [
+        { emoji: emoji('bus'), cmd: '/ridebus bet:<int>', desc: kittenMode ? 'Ride the Bus through Q1–Q4; flirt with fate or cash out early.' : 'Clear Q1–Q4 to win; cash out after Q3 if you’re cautious.' },
+        { emoji: emoji('chipAce'), cmd: '/blackjack table:<High|Low> bet:<int>', desc: kittenMode ? 'Face my house in sultry blackjack — High or Low table, your thrill.' : 'Play against the house in blackjack; High or Low tables set stakes.' },
+        { emoji: emoji('slots'), cmd: '/slots bet:<int>', desc: kittenMode ? 'Spin 20 shimmering lines; Credits stake first, chips pay out.' : 'Spin a 5×3 slot (20 lines). Credits stake first; chips pay out.' },
+        { emoji: emoji('roulette'), cmd: '/roulette', desc: kittenMode ? 'Place your bets and let the wheel tease you, Kitten.' : 'Place interactive bets on American roulette and spin.' },
+        { emoji: emoji('diceWar'), cmd: '/dicewar bet:<int>', desc: kittenMode ? 'Roll for me — doubles sizzling with doubled rewards.' : 'Roll versus the house. Doubles on your win double the payout.' },
+        { emoji: emoji('holdem'), cmd: '/holdem', desc: kittenMode ? 'Summon a private lounge for Texas Hold’em with your friends.' : 'Create a Texas Hold’em table with presets or custom stakes.' },
+        { emoji: emoji('horseRace'), cmd: '/horserace', desc: kittenMode ? 'Wager on my five dazzling racers — bets lock each stage, with a cheeky fee if you swap saddles.' : 'Bet on a five-horse sprint; swap picks between stages with a stage-based swap fee and watch the live progress.' }
       ]}
     ]
   });
