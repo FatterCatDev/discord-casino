@@ -1,4 +1,5 @@
 import { takeFromUserToHouse } from '../db/db.auto.mjs';
+import { emoji } from '../lib/emojis.mjs';
 
 export default async function handleTakeChips(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
@@ -16,12 +17,12 @@ export default async function handleTakeChips(interaction, ctx) {
     const { chips, house } = await takeFromUserToHouse(interaction.guild?.id, target.id, amount, reason, interaction.user.id);
     const logLines = kittenMode
       ? [
-          '🏦 **Take Chips to House**',
+          `${emoji('vault')} **Take Chips to House**`,
           `User: My daring Kitten <@${target.id}> • Amount: **${ctx.chipsAmount(amount)}**${reason ? ` • Reason: ${reason}` : ''}`,
           `User Chips (after): **${ctx.chipsAmount(chips)}** • House (after): **${ctx.chipsAmount(house)}**`
         ]
       : [
-          '🏦 **Take Chips to House**',
+          `${emoji('vault')} **Take Chips to House**`,
           `User: <@${target.id}> • Amount: **${ctx.chipsAmount(amount)}**${reason ? ` • Reason: ${reason}` : ''}`,
           `User Chips (after): **${ctx.chipsAmount(chips)}** • House (after): **${ctx.chipsAmount(house)}**`
         ];
