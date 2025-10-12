@@ -112,17 +112,15 @@ function renderTrack(progress) {
 
 function getHorseLabel(state, index) {
   const base = state.horseLabels?.[index] ?? `Horse ${index + 1}`;
-  return `${base} 🐎`;
+  return `🐎 ${base}`;
 }
 
 function buildHorseLine(state, index, progress) {
-  const labelName = getHorseLabel(state, index);
-  const label = `${HORSE_EMOJIS[index]} ${labelName}`;
-  const progressText = `${progress}/${TRACK_LENGTH}`;
-  const left = `${label.padEnd(12)} ${progressText.padStart(8)}`;
+  const labelName = getHorseLabel(state, index).padEnd(16);
   const track = `│${renderTrack(progress)}│`;
-  const spaces = ' '.repeat(Math.max(1, TRACK_LINE_WIDTH - left.length - track.length));
-  return `${left}${spaces}${track}`;
+  const progressText = `${progress}/${TRACK_LENGTH}`;
+  const spaces = ' '.repeat(Math.max(1, TRACK_LINE_WIDTH - labelName.length - track.length - progressText.length - 1));
+  return `${labelName}${spaces}${track} ${progressText}`;
 }
 
 function summarizeBets(state) {
