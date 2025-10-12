@@ -1,3 +1,5 @@
+import { emoji } from '../lib/emojis.mjs';
+
 export default async function onRideBusButtons(interaction, ctx) {
   const parts = interaction.customId.split('|'); // rb|<step>|<arg>[|ownerId]
   const step = parts[1];
@@ -76,8 +78,8 @@ export default async function onRideBusButtons(interaction, ctx) {
       try { ctx.recordSessionGame(state.guildId, state.userId, payout - (state.chipsStake || 0)); } catch {}
       ctx.addHouseNet(state.guildId, state.userId, 'ridebus', (state.chipsStake || 0) - payout);
       const description = say(
-        `💰 **Cash Out!** You slipped away with **${ctx.formatChips(payout)}** at Q3, my clever Kitten.\nYour balance now purrs at **${ctx.formatChips(chips)}**`,
-        `💰 **CASH OUT!** You took **${ctx.formatChips(payout)}** at Q3.\nYour balance: **${ctx.formatChips(chips)}**`
+        `${emoji('moneyBag')} **Cash Out!** You slipped away with **${ctx.formatChips(payout)}** at Q3, my clever Kitten.\nYour balance now purrs at **${ctx.formatChips(chips)}**`,
+        `${emoji('moneyBag')} **CASH OUT!** You took **${ctx.formatChips(payout)}** at Q3.\nYour balance: **${ctx.formatChips(chips)}**`
       );
       const doneEmbed = await ctx.embedForState(state, { description, color: 0x57F287, kittenMode });
       return interaction.update({ embeds: [doneEmbed], components: [ctx.playAgainRow(state.bet, state.userId, { kittenMode })] });
@@ -243,8 +245,8 @@ export default async function onRideBusButtons(interaction, ctx) {
       ctx.addHouseNet(state.guildId, state.userId, 'ridebus', (state.chipsStake || 0) - payout);
       const winEmbed = await ctx.embedForState(state, {
         description: say(
-          `🏆 **Win!** Final card ${ctx.show(c4)} obeyed your command, Kitten. Enjoy **${ctx.formatChips(payout)}** chips—balance now **${ctx.formatChips(chips)}**.`,
-          `🏆 **WIN!** Final card ${ctx.show(c4)} matched. You are paid **${ctx.formatChips(payout)}** chips.\nYour balance: **${ctx.formatChips(chips)}**`
+          `${emoji('trophy')} **Win!** Final card ${ctx.show(c4)} obeyed your command, Kitten. Enjoy **${ctx.formatChips(payout)}** chips—balance now **${ctx.formatChips(chips)}**.`,
+          `${emoji('trophy')} **WIN!** Final card ${ctx.show(c4)} matched. You are paid **${ctx.formatChips(payout)}** chips.\nYour balance: **${ctx.formatChips(chips)}**`
         ),
         color: 0x57F287,
         kittenMode
