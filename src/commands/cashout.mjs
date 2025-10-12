@@ -1,4 +1,5 @@
 import { burnFromUser } from '../db/db.auto.mjs';
+import { emoji } from '../lib/emojis.mjs';
 
 export default async function handleCashOut(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
@@ -16,12 +17,12 @@ export default async function handleCashOut(interaction, ctx) {
     const { chips } = await burnFromUser(interaction.guild?.id, target.id, amount, reason, interaction.user.id);
     const logLines = kittenMode
       ? [
-          '💸 **Cash Out**',
+          `${emoji('moneyWings')} **Cash Out**`,
           `User: My indulgent Kitten <@${target.id}> • Amount: **${ctx.chipsAmount(amount)}**${reason ? ` • Reason: ${reason}` : ''}`,
           `User Chips (after): **${ctx.chipsAmount(chips)}**`
         ]
       : [
-          '💸 **Cash Out**',
+          `${emoji('moneyWings')} **Cash Out**`,
           `User: <@${target.id}> • Amount: **${ctx.chipsAmount(amount)}**${reason ? ` • Reason: ${reason}` : ''}`,
           `User Chips (after): **${ctx.chipsAmount(chips)}**`
         ];
