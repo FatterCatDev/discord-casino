@@ -1,6 +1,7 @@
 import { EmbedBuilder } from 'discord.js';
 import { getGuildSettings, getUserBalances, getHouseBalance, takeFromUserToHouse, transferFromHouseToUser, burnCredits } from '../db/db.auto.mjs';
 import { chipsAmount } from '../games/format.mjs';
+import { emoji } from '../lib/emojis.mjs';
 
 async function inCasinoCategory(interaction, kittenMode) {
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
@@ -86,11 +87,11 @@ export async function playDiceWar(interaction, ctx, bet) {
   }
 
   const e = new EmbedBuilder()
-    .setTitle(say('🎲 Dice War with Mistress Kitten', '🎲 Dice War'))
+    .setTitle(say(`${emoji('dice')} Dice War with Mistress Kitten`, `${emoji('dice')} Dice War`))
     .setColor(playerTotal > houseTotal ? 0x57F287 : 0xED4245)
     .addFields(
-      { name: say('Your Roll, Kitten', 'Your Roll'), value: `🎲 ${p1} + ${p2} = **${playerTotal}**${playerDoubles ? ' (doubles)' : ''}`, inline: true },
-      { name: 'House Roll', value: `🎲 ${h1} + ${h2} = **${houseTotal}**`, inline: true },
+      { name: say('Your Roll, Kitten', 'Your Roll'), value: `${emoji('dice')} ${p1} + ${p2} = **${playerTotal}**${playerDoubles ? ' (doubles)' : ''}`, inline: true },
+      { name: 'House Roll', value: `${emoji('dice')} ${h1} + ${h2} = **${houseTotal}**`, inline: true },
       { name: say('Your Wager', 'Bet'), value: `**${chipsAmount(bet)}**`, inline: true },
       { name: say('Result, Sweetheart', 'Result'), value: outcome, inline: false }
     );
@@ -110,7 +111,7 @@ export async function playDiceWar(interaction, ctx, bet) {
   // Play again button
   const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = await import('discord.js');
   const again = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`dice|again|${bet}|${interaction.user.id}`).setLabel(say('Play Again, Kitten', 'Play Again')).setEmoji('🎲').setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId(`dice|again|${bet}|${interaction.user.id}`).setLabel(say('Play Again, Kitten', 'Play Again')).setEmoji(emoji('dice')).setStyle(ButtonStyle.Secondary)
   );
 
   return ctx.sendGameMessage(interaction, { embeds: [e], components: [again] });
