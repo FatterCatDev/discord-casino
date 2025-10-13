@@ -1,7 +1,7 @@
 export const EMOJI = {
   // Core gameplay
   horseRace: '<:horse_race:1427057361176105100>',
-  trophy: '🏆',
+  trophy: '<:trophy:1427072392420921394>',
   finishFlag: '<:finish_flag:1427072391074418689>',
   videoGame: '<:a_button:1427057287645630497>',
   kittenFace: '<:smirk_cat:1427057437009117284>',
@@ -23,9 +23,9 @@ export const EMOJI = {
   holdem: '<:spade:1427057442075705476>',
   slotsReel: '🎴',
   pingPong: '🏓',
-  medalGold: '🥇',
-  medalSilver: '🥈',
-  medalBronze: '🥉',
+  medalGold: '<:medalgold:1427118283999674408>',
+  medalSilver: '<:medalsilver:1427118285811486764>',
+  medalBronze: '<:medalbronze:1427118287313178806>',
 
   // Economy
   chips: '<:chips:1427057303865266246>',
