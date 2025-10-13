@@ -33,11 +33,11 @@ export const EMOJI = {
   creditCard: '<:credit_card:1427057314472661102>',
   cashStack: '<:dollar_bills:1427057330721390682>',
   moneyWings: '<:money_with_wings:1427057386652172400>',
-  coin: '🪙',
+  coin: '<:chips:1427057303865266246>',
   vault: '<:bank:1427057291491938546>',
   briefcase: '💼',
   receipt: '🧾',
-  coinStack: '🪙',
+  coinStack: '<:chips:1427057303865266246>',
   plus: '➕',
   minus: '➖',
 
