@@ -67,20 +67,20 @@ export function renderSlotsGrid(grid) {
 
 // UI: Pay table (ephemeral)
 export function buildSlotsPaytableEmbed() {
-  const keycap3 = emoji('keycap3');
-  const keycap4 = emoji('keycap4');
-  const keycap5 = emoji('keycap5');
-  const e = new EmbedBuilder().setTitle(`${emoji('scroll')} Slots Pay Table`).setColor(0x5865F2);
+  const keycap3 = '3️⃣';
+  const keycap4 = '4️⃣';
+  const keycap5 = '5️⃣';
+  const e = new EmbedBuilder().setTitle('📜 Slots Pay Table').setColor(0x5865F2);
   const lineItems = [
-    { k: 'H1', name: `High 1 ${emoji('gem')}` },
-    { k: 'H2', name: `High 2 ${emoji('bell')}` },
-    { k: 'A', name: `A ${emoji('letterA')}` },
-    { k: 'K', name: `K ${emoji('crown')}` },
-    { k: 'Q', name: `Q ${emoji('princess')}` },
-    { k: 'J', name: `J ${emoji('chessPawn')}` },
-    { k: 'T', name: `10 ${emoji('keycap10')}` },
-    { k: 'N', name: `9 ${emoji('keycap9')}` },
-    { k: 'W', name: `Wild ${emoji('chipJoker')} (also substitutes)` }
+    { k: 'H1', name: 'High 1 💎' },
+    { k: 'H2', name: 'High 2 🔔' },
+    { k: 'A', name: 'A 🅰️' },
+    { k: 'K', name: 'K 👑' },
+    { k: 'Q', name: 'Q 👸' },
+    { k: 'J', name: 'J ♟️' },
+    { k: 'T', name: '10 🔟' },
+    { k: 'N', name: '9 9️⃣' },
+    { k: 'W', name: 'Wild 🃏 (also substitutes)' }
   ];
   for (const it of lineItems) {
     const sym = SLOTS_SYMBOLS[it.k];
@@ -88,10 +88,10 @@ export function buildSlotsPaytableEmbed() {
     e.addFields({ name: it.name, value: `${keycap3} ${pays[0]} • ${keycap4} ${pays[1]} • ${keycap5} ${pays[2]}` });
   }
   const scat = SLOTS_SYMBOLS.S.scatterPay;
-  e.addFields({ name: `Scatter ${emoji('star')} (anywhere)`, value: `${keycap3} ${scat[3]} • ${keycap4} ${scat[4]} • ${keycap5} ${scat[5]}` });
+  e.addFields({ name: 'Scatter ⭐ (anywhere)', value: `${keycap3} ${scat[3]} • ${keycap4} ${scat[4]} • ${keycap5} ${scat[5]}` });
   const lines = SLOTS_LINES.length;
-  const wildIcon = emoji('chipJoker');
-  const scatterIcon = emoji('star');
+  const wildIcon = '🃏';
+  const scatterIcon = '⭐';
   e.addFields({ name: 'Rules', value: [
     `• ${lines} fixed lines; pays left→right on 3+ matching symbols.`,
     `• Wild ${wildIcon} substitutes for regular symbols.`,
