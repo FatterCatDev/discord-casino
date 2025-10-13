@@ -6,6 +6,7 @@ import { ridebusGames } from './ridebus.mjs';
 import { blackjackGames } from './blackjack.mjs';
 import { rouletteSessions } from './roulette.mjs';
 import { slotSessions } from './slots.mjs';
+import { emoji } from '../lib/emojis.mjs';
 
 export const ACTIVE_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 export const activeSessions = new Map(); // key: `${guildId}:${userId}` -> state
@@ -150,7 +151,7 @@ export function expireAtUnix(guildId, userId) {
 }
 
 // UI helper: relative time to automatic expiration
-export function buildTimeoutField(guildId, userId, name = '⏳ Timeout') {
+export function buildTimeoutField(guildId, userId, name = `${emoji('hourglassFlow')} Timeout`) {
   const ts = expireAtUnix(guildId, userId);
   return { name, value: `<t:${ts}:R>` };
 }
