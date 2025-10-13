@@ -6,6 +6,7 @@ import { Client, GatewayIntentBits } from 'discord.js';
 import { pushUpdateAnnouncement } from '../src/services/updates.mjs';
 import pkg from '../package.json' with { type: 'json' };
 import { setUpdateChannel } from '../src/db/db.auto.mjs';
+import { emoji } from '../src/lib/emojis.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -60,7 +61,7 @@ const INSTALL_LINK = 'https://top.gg/bot/1415454565687492780';
 function appendInstallLink(content) {
   if (!content || content.includes(INSTALL_LINK)) return content;
   const separator = content.endsWith('\n') ? '' : '\n\n';
-  return `${content}${separator}🔗 Invite the bot: ${INSTALL_LINK}`;
+  return `${content}${separator}${emoji('link')} Invite the bot: ${INSTALL_LINK}`;
 }
 
 function bumpPatch(version) {
