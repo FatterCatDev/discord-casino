@@ -1,4 +1,5 @@
 import { recordVoteReward, getPendingVoteRewards, redeemVoteRewards, listUsersWithPendingVoteRewards } from '../db/db.auto.mjs';
+import { emoji } from '../lib/emojis.mjs';
 
 const TOPGG_BASE_REWARD = toPositiveInt(process.env.VOTE_REWARD_TOPGG, 150);
 const TOPGG_WEEKEND_MULTIPLIER = toPositiveNumber(process.env.VOTE_REWARD_TOPGG_WEEKEND_MULTIPLIER, 2);
