@@ -871,7 +871,7 @@ async function startHandAuto(client, state) {
       state.pot = 0;
       state.toAct = null;
       if (state?.seats?.length === 1) state.hostId = state.seats[0].userId;
-      await updateTableCard(client, state, buildTablePayload(state, '🪑 Waiting for players…'));
+      await updateTableCard(client, state, buildTablePayload(state, `${emoji('chair')} Waiting for players…`));
       if (state?.seats?.length === 0) { try { scheduleEmptyClose(client, state); } catch {} }
       return;
     }
