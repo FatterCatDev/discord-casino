@@ -3,6 +3,7 @@ import { getGuildSettings, getUserBalances, getHouseBalance, takeFromUserToHouse
 import { makeDeck, show, color, val } from './cards.mjs';
 import { chipsAmount } from './format.mjs';
 import { buildPlayerBalanceField, sendGameMessage, setActiveSession, buildTimeoutField } from './session.mjs';
+import { emoji } from '../lib/emojis.mjs';
 
 export const ridebusGames = new Map(); // key = `${guildId}:${userId}` -> state
 
