@@ -6,6 +6,7 @@ import { blackjackGames } from './blackjack.mjs';
 import { rouletteSessions } from './roulette.mjs';
 import { slotSessions } from './slots.mjs';
 import { kittenizeTextContent, kittenizeReplyArg } from '../services/persona.mjs';
+import { emoji } from '../lib/emojis.mjs';
 
 async function resolveDisplayName(client, guild, guildId, userId) {
   const fallback = `User ${userId}`;
@@ -41,7 +42,7 @@ export async function postGameLog(interaction, lines) {
     if (!log_channel_id) return;
     const ch = await interaction.client.channels.fetch(log_channel_id).catch(() => null);
     if (!ch || !ch.isTextBased()) return;
-    const header = `🎮 **Game Log** • <t:${Math.floor(Date.now() / 1000)}:f>`;
+    const header = `${emoji('videoGame')} **Game Log** • <t:${Math.floor(Date.now() / 1000)}:f>`;
     const displayName = await resolveDisplayName(interaction.client, interaction.guild, guildId, interaction.user.id);
     const context = `Server: **${interaction.guild.name}** • Player: **${displayName}**`;
     // const context = `Server: **${interaction.guild.name}** • Player: Sultry Kitten <@${interaction.user.id}>`;
@@ -62,7 +63,7 @@ export async function postGameSessionEnd(interaction, { game, userId, houseNet }
     const house = await getHouseBalance(guildId);
     const displayName = await resolveDisplayName(interaction.client, interaction.guild, guildId, uid);
     const lines = [
-      '🎮 **Game Session End**',
+      `${emoji('videoGame')} **Game Session End**`,
       `Game: **${game}**`,
       `Player: **${displayName}**`,
       // `Player: Sultry Kitten <@${uid}>`,
@@ -84,7 +85,7 @@ export async function postGameLogByIds(client, guildId, userId, lines) {
     if (!ch || !ch.isTextBased()) return;
     let guildName = guildId;
     try { const g = await client.guilds.fetch(guildId); guildName = g?.name || guildName; } catch {}
-    const header = `🎮 **Game Log** • <t:${Math.floor(Date.now() / 1000)}:f>`;
+    const header = `${emoji('videoGame')} **Game Log** • <t:${Math.floor(Date.now() / 1000)}:f>`;
     const displayName = await resolveDisplayName(client, null, guildId, userId);
     const context = `Server: **${guildName}** • Player: **${displayName}**`;
     // const context = `Server: **${guildName}** • Player: Sultry Kitten <@${userId}>`;
@@ -103,7 +104,7 @@ export async function postGameSessionEndByIds(client, guildId, userId, { game, h
     const house = await getHouseBalance(guildId);
     const displayName = await resolveDisplayName(client, null, guildId, userId);
     const lines = [
-      '🎮 **Game Session End**',
+      `${emoji('videoGame')} **Game Session End**`,
       `Game: **${game}**`,
       `Player: **${displayName}**`,
       // `Player: Sultry Kitten <@${userId}>`,
@@ -191,7 +192,7 @@ export async function postCashLog(interaction, lines) {
     if (!cash_log_channel_id) return;
     const ch = await interaction.client.channels.fetch(cash_log_channel_id).catch(() => null);
     if (!ch || !ch.isTextBased()) return;
-    const header = `💵 **Cash Log** • <t:${Math.floor(Date.now() / 1000)}:f>`;
+    const header = `${emoji('cashStack')} **Cash Log** • <t:${Math.floor(Date.now() / 1000)}:f>`;
     const actorName = await resolveDisplayName(interaction.client, interaction.guild, guildId, interaction.user.id);
     const context = `Server: **${interaction.guild.name}** • Actor: **${actorName}**`;
     // const context = `Server: **${interaction.guild.name}** • Actor: Sultry Kitten <@${interaction.user.id}>`;
