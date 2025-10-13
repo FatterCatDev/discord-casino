@@ -125,7 +125,11 @@ export function tableButtons(state) {
 }
 
 function suitEmoji(s) {
-  return s === '♥' ? '♥️' : s === '♦' ? '♦️' : s === '♣' ? '♣️' : '♠️';
+  if (s === '♥') return emoji('pokerHeart');
+  if (s === '♦') return emoji('pokerDiamond');
+  if (s === '♣') return emoji('pokerClub');
+  if (s === '♠') return emoji('pokerSpade');
+  return s;
 }
 function formatCard(card) {
   if (!card) return '??';
