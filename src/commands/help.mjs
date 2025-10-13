@@ -117,6 +117,8 @@ export default async function handleHelp(interaction, ctx) {
       sections.push({
         id: 'admin',
         label: `${emoji('gear')} Headmistress`,
+        menuLabel: 'Headmistress',
+        menuEmoji: '⚙️',
         groups: [
           { label: `${emoji('construction')} Salon Setup`, items: [
             { emoji: emoji('folder'), cmd: '/setcasinocategory category:<#Category>', desc: 'Choose where my casino lounges live. (Admin only)' },
