@@ -12,6 +12,8 @@ Balances are global: the House bank and user wallets follow players across every
 
 Includes slash commands for balances, leaderboards, admin operations, cash/request workflows, logging, and the following games: Ride the Bus, Blackjack, Slots, Roulette, Dice War, Horse Race, and a Texas Hold’em table.
 
+> **Note on UI Icons:** For any player-facing components (buttons, select menus, interactive text), use standard Unicode emojis or plain text. Avoid referencing custom server emojis in interactive UI so the controls render consistently across guilds.
+
 ## Games
 
 All games except Texas Hold’em use Credits‑first staking: your bet draws from your Credits balance first, with any remainder automatically covered by Chips. On loss, the Credits portion is burned; if Chips were used, that portion is transferred to the House. Winnings are always paid in Chips from the House.
