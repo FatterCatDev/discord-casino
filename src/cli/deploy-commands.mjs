@@ -5,6 +5,7 @@ const ADMIN_PERMS = String(PermissionFlagsBits.Administrator);
 
 const commands = [
   { name: 'ping', description: 'Replies with Pong!' },
+  { name: 'status', description: 'Show the bot version, gateway status, and global reach.' },
   {
     name: 'balance',
     description: 'Check your chip & credit balance (moderators can check others).',
