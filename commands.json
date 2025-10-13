@@ -1,5 +1,6 @@
 [
   { "name": "ping", "description": "Replies with Pong!" },
+  { "name": "status", "description": "Show the bot version, gateway status, and global reach." },
   { "name": "balance", "description": "Check your chip & credit balance (mods can check others)." },
   { "name": "dicewar", "description": "2d6 vs the house; doubles double the payout when you win." },
   { "name": "horserace", "description": "Bet on a 5-horse sprint with staged progress." },
