@@ -65,7 +65,7 @@ export function rouletteWins(type, pocket, spin) {
 }
 
 export async function rouletteSummaryEmbed(state) {
-  const e = new EmbedBuilder().setTitle('🎡 Roulette Bets').setColor(0x2b2d31);
+  const e = new EmbedBuilder().setTitle(`${emoji('roulette')} Roulette Bets`).setColor(0x2b2d31);
   const lines = state.bets.length
     ? state.bets.map((b,i)=>`#${i+1}. ${b.type}${b.pocket!==undefined?` ${b.pocket}`:''} — **${chipsAmount(b.amount)}**`).join('\n')
     : '_No bets yet_';
