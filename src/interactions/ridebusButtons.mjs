@@ -83,8 +83,8 @@ export default async function onRideBusButtons(interaction, ctx) {
       try { ctx.recordSessionGame(state.guildId, state.userId, payout - (state.chipsStake || 0)); } catch {}
       ctx.addHouseNet(state.guildId, state.userId, 'ridebus', (state.chipsStake || 0) - payout);
       const description = say(
-        `${emoji('moneyBag')} **Cash Out!** You slipped away with **${ctx.formatChips(payout)}** at Q3, my clever Kitten.\nYour balance now purrs at **${ctx.formatChips(chips)}**`,
-        `${emoji('moneyBag')} **CASH OUT!** You took **${ctx.formatChips(payout)}** at Q3.\nYour balance: **${ctx.formatChips(chips)}**`
+        `${emoji('chips')} **Cash Out!** You slipped away with **${ctx.formatChips(payout)}** at Q3, my clever Kitten.\nYour balance now purrs at **${ctx.formatChips(chips)}**`,
+        `${emoji('chips')} **CASH OUT!** You took **${ctx.formatChips(payout)}** at Q3.\nYour balance: **${ctx.formatChips(chips)}**`
       );
       const doneEmbed = await ctx.embedForState(state, { description, color: 0x57F287, kittenMode });
       return interaction.update({ embeds: [doneEmbed], components: [ctx.playAgainRow(state.bet, state.userId, { kittenMode })] });
