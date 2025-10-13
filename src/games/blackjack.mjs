@@ -121,7 +121,7 @@ export async function startBlackjack(interaction, table, bet) {
   if (firstDecision) {
     const v1 = cardValueForSplit(state.player[0]);
     const v2 = cardValueForSplit(state.player[1]);
-    if (v1 === v2 && await canAffordExtra(state.guildId, state.userId, state.bet)) actions.push({ id: 'bj|split', label: 'Split', style: ButtonStyle.Secondary, emoji: '✂️' });
+    if (v1 === v2 && await canAffordExtra(state.guildId, state.userId, state.bet)) actions.push({ id: 'bj|split', label: 'Split', style: ButtonStyle.Secondary, emoji: emoji('scissors') });
   }
   const row = new ActionRowBuilder().addComponents(...actions.map(({ id, label, style, emoji: icon }) => new ButtonBuilder().setCustomId(id).setLabel(label).setStyle(style).setEmoji(icon)));
   return sendGameMessage(interaction, { embeds: [await bjEmbed(state)], components: [row] } );
