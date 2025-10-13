@@ -439,9 +439,10 @@ async function payoutRace(state, winners, client) {
   for (const bet of state.bets.values()) {
     if (winners.includes(bet.horse)) {
       const winnings = bet.amount * multiplier;
+      const feePaid = (bet.feesPaidChips || 0) + (bet.feesPaidCredits || 0);
       try {
         await transferFromHouseToUser(state.guildId, bet.userId, winnings, 'horse race win', null);
-        payouts.push({ userId: bet.userId, amount: winnings });
+        payouts.push({ userId: bet.userId, amount: winnings, fee: feePaid });
       } catch (err) {
         console.error('Failed to pay horse race winnings for', bet.userId, err);
       }
@@ -458,7 +459,10 @@ async function payoutRace(state, winners, client) {
   const creditsBurnedLine = totals.creditsBurned > 0
     ? `\n**${emoji('creditCard')} Credits Burned:** ${formatChips(totals.creditsBurned)} Credits`
     : '';
-  const resultsText = `**${emoji('medalGold')} Winners:** ${winnerLines}\n${payouts.length ? payouts.map(p => `<@${p.userId}> won **${formatChips(p.amount)}**`).join('\n') : 'No winners this time.'}${tieNote}${houseNetLine}${creditsBurnedLine}`;
+  const resultsText = `**${emoji('medalGold')} Winners:** ${winnerLines}\n${payouts.length ? payouts.map(p => {
+    const feeNote = p.fee > 0 ? `, -${formatChips(p.fee)} Bet change fee` : '';
+    return `<@${p.userId}> won **${formatChips(p.amount)}**${feeNote}`;
+  }).join('\n') : 'No winners this time.'}${tieNote}${houseNetLine}${creditsBurnedLine}`;
   state.lastResultsText = resultsText;
   state.status = 'finished';
   await editRaceMessage(state, client, {
