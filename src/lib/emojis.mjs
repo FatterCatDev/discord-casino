@@ -2,7 +2,7 @@ export const EMOJI = {
   // Core gameplay
   horseRace: '<:horse_race:1427057361176105100>',
   trophy: '🏆',
-  finishFlag: '🏁',
+  finishFlag: '<:finish_flag:1427072391074418689>',
   videoGame: '<:a_button:1427057287645630497>',
   kittenFace: '<:smirk_cat:1427057437009117284>',
   target: '<:target:1427057448564424744>',
