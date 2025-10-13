@@ -12,6 +12,7 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const ROOT = path.resolve(__dirname, '..');
 const UPDATE_PATH = path.join(ROOT, 'UPDATE.md');
+const README_PATH = path.join(ROOT, 'README.md');
 
 function parseUpdateFile(text) {
   const lines = text.split(/\r?\n/);
@@ -62,6 +63,31 @@ function appendInstallLink(content) {
   if (!content || content.includes(INSTALL_LINK)) return content;
   const separator = content.endsWith('\n') ? '' : '\n\n';
   return `${content}${separator}${emoji('link')} Invite the bot: ${INSTALL_LINK}`;
+}
+
+async function recordLastUpdateVersion(version) {
+  try {
+    const readme = await fs.readFile(README_PATH, 'utf8');
+    const marker = /^Last update:\s*.*$/m;
+    let updated;
+    if (marker.test(readme)) {
+      updated = readme.replace(marker, `Last update: ${version}`);
+    } else {
+      const lines = readme.split(/\r?\n/);
+      const titleIndex = lines.findIndex(line => line.startsWith('# '));
+      if (titleIndex !== -1) {
+        lines.splice(titleIndex + 1, 0, `Last update: ${version}`, '');
+      } else {
+        lines.unshift(`Last update: ${version}`, '');
+      }
+      updated = lines.join('\n');
+    }
+    if (updated !== readme) {
+      await fs.writeFile(README_PATH, updated, 'utf8');
+    }
+  } catch (err) {
+    console.warn('Could not write last update version to README:', err?.message || err);
+  }
 }
 
 function bumpPatch(version) {
@@ -147,6 +173,8 @@ async function main() {
   if (failures.length) {
     console.warn('Some guilds did not receive the announcement. Resolve the errors above and re-run updatepush if needed.');
   }
+
+  await recordLastUpdateVersion(currentVersion);
 
   const nextVersion = bumpPatch(currentVersion);
 
