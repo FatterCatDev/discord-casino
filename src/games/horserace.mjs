@@ -121,7 +121,7 @@ function buildHorseLine(state, index, progress) {
   const blockColor = HORSE_BLOCK_EMOJIS[index] ?? '■';
   const labelName = `${blockColor} ${HORSE_ICON_BLOCK} ${getHorseLabel(state, index)}`.padEnd(18);
   const track = `│${renderTrack(progress)}│`;
-  const progressText = `${progress}/${TRACK_LENGTH}`;
+  const progressText = `${progress}`;
   const spaces = ' '.repeat(Math.max(1, TRACK_LINE_WIDTH - labelName.length - track.length - progressText.length - 1));
   return `${labelName}${spaces}${track} ${progressText}`;
 }
