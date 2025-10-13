@@ -39,7 +39,7 @@ const HORSE_NAME_POOL = [
   'Thundered',
   'Butter Cup'
 ];
-const HORSE_EMOJIS = HORSE_COLOR_EMOJIS;
+const HORSE_EMOJIS = ['🟥', '🟩', '🟨', '🟦', '🟪'];
 const HORSE_BLOCK_EMOJIS = ['🟥', '🟩', '🟨', '🟦', '🟪'];
 const HORSE_ICON_BLOCK = '🐎';
 const HORSE_COUNT = HORSE_EMOJIS.length;
