@@ -145,6 +145,8 @@ export default async function handleHelp(interaction, ctx) {
       sections.push({
         id: 'moderator',
         label: `${emoji('shield')} Moderator`,
+        menuLabel: 'Moderator',
+        menuEmoji: '🛡',
         groups: [
           { label: `${emoji('requestEnvelope')} Requests`, items: [ { emoji: emoji('timer'), cmd: '/requesttimer seconds:<int>', desc: 'Set cooldown between /request submissions.' } ] },
           { label: `${emoji('vault')} House & Chips`, items: [
@@ -190,7 +192,7 @@ export default async function handleHelp(interaction, ctx) {
           ]}
         ]
       });
-      sections.push({ id: 'owner', label: `${emoji('proprietor')} Owner`, groups: [ { label: `${emoji('broom')} Maintenance`, items: [ { emoji: emoji('recycle'), cmd: '/resetallbalance', desc: 'Reset all balances to defaults. (Owner only)' } ] } ] });
+      sections.push({ id: 'owner', label: `${emoji('proprietor')} Owner`, menuLabel: 'Owner', menuEmoji: '👑', groups: [ { label: `${emoji('broom')} Maintenance`, items: [ { emoji: emoji('recycle'), cmd: '/resetallbalance', desc: 'Reset all balances to defaults. (Owner only)' } ] } ] });
     }
   }
 
