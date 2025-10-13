@@ -111,7 +111,7 @@ export async function playDiceWar(interaction, ctx, bet) {
   // Play again button
   const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = await import('discord.js');
   const again = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`dice|again|${bet}|${interaction.user.id}`).setLabel(say('Play Again, Kitten', 'Play Again')).setEmoji(emoji('dice')).setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId(`dice|again|${bet}|${interaction.user.id}`).setLabel(say('Play Again, Kitten', 'Play Again')).setEmoji('🎲').setStyle(ButtonStyle.Secondary)
   );
 
   return ctx.sendGameMessage(interaction, { embeds: [e], components: [again] });
