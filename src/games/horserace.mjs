@@ -615,7 +615,7 @@ async function advanceStage(state, client) {
     let firstFinisher = null;
     for (let i = 0; i < state.progress.length; i += 1) {
       const advance = 5 + Math.floor(Math.random() * 11); // 5-15
-      state.progress[i] = Math.min(TRACK_LENGTH, state.progress[i] + advance);
+      state.progress[i] += advance;
       if (firstFinisher === null && state.progress[i] >= TRACK_LENGTH) {
         firstFinisher = i;
       }
