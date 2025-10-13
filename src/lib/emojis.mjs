@@ -73,6 +73,8 @@ export const EMOJI = {
   policeLight: '🚨',
   noEntry: '🚫',
   hourglass: '⌛',
+  hourglassFlow: '⏳',
+  alarmClock: '⏰',
 
   // Controls & setup
   gear: '<:gear:1427057335053979700>',
@@ -133,6 +135,16 @@ export const EMOJI = {
   seedling: '🌱',
   wheat: '🌾',
   bug: '<:bug:1427057298177658890>',
+
+  // Symbols & keycaps
+  letterA: '🅰️',
+  chessPawn: '♟️',
+  keycap3: '3️⃣',
+  keycap4: '4️⃣',
+  keycap5: '5️⃣',
+  keycap9: '9️⃣',
+  keycap10: '🔟',
+  squareButton: '🔲',
 
   // Horse race markers
   squareRed: '🟥',
