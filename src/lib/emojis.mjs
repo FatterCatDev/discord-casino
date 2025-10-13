@@ -139,9 +139,12 @@ export const EMOJI = {
   // Symbols & keycaps
   letterA: '🅰️',
   chessPawn: '♟️',
+  keycap1: '1️⃣',
+  keycap2: '2️⃣',
   keycap3: '3️⃣',
   keycap4: '4️⃣',
   keycap5: '5️⃣',
+  keycap6: '6️⃣',
   keycap9: '9️⃣',
   keycap10: '🔟',
   squareButton: '🔲',
