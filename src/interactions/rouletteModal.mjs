@@ -1,4 +1,5 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { emoji } from '../lib/emojis.mjs';
 
 export default async function onRouletteModal(interaction, ctx) {
   const key = ctx.keyFor(interaction);
@@ -6,7 +7,7 @@ export default async function onRouletteModal(interaction, ctx) {
   if (!state) return interaction.reply({ content: '❌ No active roulette session.', ephemeral: true });
   if (ctx.hasActiveExpired(interaction.guild.id, interaction.user.id, 'roulette') || !ctx.getActiveSession(interaction.guild.id, interaction.user.id)) {
     ctx.rouletteSessions.delete(key);
-    return interaction.reply({ content: '⌛ Your roulette session expired. Use `/roulette` to start a new one.', ephemeral: true });
+    return interaction.reply({ content: `${emoji('hourglass')} Your roulette session expired. Use `/roulette` to start a new one.`, ephemeral: true });
   }
   ctx.touchActiveSession(interaction.guild.id, interaction.user.id, 'roulette');
   const type = state.pendingType;
