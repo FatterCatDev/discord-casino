@@ -1,4 +1,5 @@
 import { playDiceWar } from '../commands/dicewar.mjs';
+import { emoji } from '../lib/emojis.mjs';
 
 export default async function handleDiceWarButtons(interaction, ctx) {
   const [prefix, action, betStr, userId] = interaction.customId.split('|');
@@ -10,7 +11,7 @@ export default async function handleDiceWarButtons(interaction, ctx) {
       !ctx.getActiveSession(interaction.guild.id, interaction.user.id)
     ) {
       try { await ctx.endActiveSessionForUser(interaction, 'expired_button'); } catch {}
-      return interaction.reply({ content: '⌛ Your Dice War session expired. Use `/dicewar` to start a new one.', ephemeral: true });
+      return interaction.reply({ content: `${emoji('hourglass')} Your Dice War session expired. Use `/dicewar` to start a new one.`, ephemeral: true });
     }
     const bet = Number(betStr);
     if (!Number.isInteger(bet) || bet <= 0) {
