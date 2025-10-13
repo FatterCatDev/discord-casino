@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { getUserBalances, getHouseBalance, takeFromUserToHouse, transferFromHouseToUser, burnCredits } from '../db/db.auto.mjs';
 import { chipsAmount } from './format.mjs';
 import { sessionLineFor, setActiveSession, recordSessionGame, buildTimeoutField, sendGameMessage } from './session.mjs';
+import { EMOJI, emoji } from '../lib/emojis.mjs';
 
 // Symbols & pays (per 3/4/5 on a payline)
 export const SLOTS_SYMBOLS = {
