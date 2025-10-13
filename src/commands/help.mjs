@@ -93,6 +93,8 @@ export default async function handleHelp(interaction, ctx) {
       sections.push({
         id: 'moderator',
         label: `${emoji('shield')} House Kittens`,
+        menuLabel: 'House Kittens',
+        menuEmoji: '🛡',
         groups: [
           { label: `${emoji('requestEnvelope')} Requests`, items: [ { emoji: emoji('timer'), cmd: '/requesttimer seconds:<int>', desc: 'Set how long eager Kittens wait between /request pleas.' } ] },
           { label: `${emoji('vault')} House & Chips`, items: [
@@ -161,6 +163,8 @@ export default async function handleHelp(interaction, ctx) {
       sections.push({
         id: 'admin',
         label: `${emoji('gear')} Admin`,
+        menuLabel: 'Admin',
+        menuEmoji: '⚙️',
         groups: [
           { label: `${emoji('construction')} Setup & Channels`, items: [
             { emoji: emoji('folder'), cmd: '/setcasinocategory category:<#Category>', desc: 'Set the casino category. (Admin only)' },
