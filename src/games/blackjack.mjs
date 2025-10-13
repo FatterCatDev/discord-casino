@@ -55,7 +55,7 @@ export async function bjEmbed(state, opts = {}) {
 
 export function bjPlayAgainRow(table, bet, userId) {
   return new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`bj|again|${table}|${bet}|${userId}`).setLabel(`Play Again (${formatChips(bet)})`).setEmoji(emoji('repeat')).setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder().setCustomId(`bj|again|${table}|${bet}|${userId}`).setLabel(`Play Again (${formatChips(bet)})`).setEmoji('🔁').setStyle(ButtonStyle.Secondary)
   );
 }
 
@@ -115,7 +115,10 @@ export async function startBlackjack(interaction, table, bet) {
     } catch { return interaction.reply({ content: '⚠️ Settle failed.', ephemeral: true }); }
   }
   const firstDecision = state.player.length === 2;
-  const actions = [ { id: 'bj|hit', label: 'Hit', style: ButtonStyle.Primary, emoji: emoji('plus') }, { id: 'bj|stand', label: 'Stand', style: ButtonStyle.Secondary, emoji: emoji('handUp') } ];
+  const actions = [
+    { id: 'bj|hit', label: 'Hit', style: ButtonStyle.Primary, emoji: '➕' },
+    { id: 'bj|stand', label: 'Stand', style: ButtonStyle.Secondary, emoji: '✋' }
+  ];
 // Game: Blackjack — stateful hand play, settlement, and UI (Credits-first).
   if (firstDecision && await canAffordExtra(state.guildId, state.userId, state.bet)) actions.push({ id: 'bj|double', label: 'Double', style: ButtonStyle.Success, emoji: emoji('doubleArrow') });
   if (firstDecision) {
