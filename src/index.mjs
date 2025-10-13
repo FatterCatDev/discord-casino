@@ -47,6 +47,7 @@ import { emoji } from './lib/emojis.mjs';
 
 // Slash command handlers (modularized)
 import cmdPing from './commands/ping.mjs';
+import cmdStatus from './commands/status.mjs';
 import cmdBalance from './commands/balance.mjs';
 import cmdHouseBalance from './commands/housebalance.mjs';
 import cmdHouseAdd from './commands/houseadd.mjs';
@@ -437,6 +438,7 @@ function buildCommandContext(interaction, extras = {}) {
 
 const commandHandlers = {
   ping: cmdPing,
+  status: cmdStatus,
   balance: cmdBalance,
   housebalance: cmdHouseBalance,
   houseadd: cmdHouseAdd,
