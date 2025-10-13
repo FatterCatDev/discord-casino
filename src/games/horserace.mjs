@@ -143,7 +143,8 @@ function summarizeBets(state) {
 function getBetChangeFee(state, bet) {
   if (!bet) return 0;
   if (state.status !== 'running') return 0;
-  return Math.ceil(bet.originalAmount * Math.max(1, state.stage / 2));
+  const feeMultiplier = Math.max(0, state.stage / 3);
+  return Math.ceil(bet.originalAmount * feeMultiplier);
 }
 
 function calculateHouseTotals(state, payouts = []) {
