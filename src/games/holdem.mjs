@@ -1261,7 +1261,7 @@ export async function leaveTable(interaction, ctx) {
     state.resultLabel = null;
     state.countdownSec = null;
     if (state.seats.length === 1) state.hostId = state.seats[0].userId;
-    const payload = buildTablePayload(state, '🪑 Waiting for players…');
+    const payload = buildTablePayload(state, `${emoji('chair')} Waiting for players…`);
     if (state.seats.length === 0) { try { scheduleEmptyClose(interaction.client, state); } catch {} }
     else { try { scheduleLobbyClose(interaction.client, state); } catch {} }
     const fmt = new Intl.NumberFormat('en-US');
