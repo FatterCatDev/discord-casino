@@ -460,7 +460,7 @@ async function payoutRace(state, winners, client) {
     ? `\n**${emoji('creditCard')} Credits Burned:** ${formatChips(totals.creditsBurned)} Credits`
     : '';
   const resultsText = `**${emoji('medalGold')} Winners:** ${winnerLines}\n${payouts.length ? payouts.map(p => {
-    const feeNote = p.fee > 0 ? `, -${formatChips(p.fee)} Bet change fee` : '';
+    const feeNote = p.fee > 0 ? `, -${formatChips(p.fee)} Bet Change fee.` : '';
     return `<@${p.userId}> won **${formatChips(p.amount)}**${feeNote}`;
   }).join('\n') : 'No winners this time.'}${tieNote}${houseNetLine}${creditsBurnedLine}`;
   state.lastResultsText = resultsText;
