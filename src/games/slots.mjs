@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { getUserBalances, getHouseBalance, takeFromUserToHouse, transferFromHouseToUser, burnCredits } from '../db/db.auto.mjs';
 import { chipsAmount } from './format.mjs';
 import { sessionLineFor, setActiveSession, recordSessionGame, buildTimeoutField, sendGameMessage } from './session.mjs';
+import { emoji } from '../lib/emojis.mjs';
 
 // Symbols & pays (per 3/4/5 on a payline)
 export const SLOTS_SYMBOLS = {
@@ -185,7 +186,7 @@ export async function runSlotsSpin(interaction, bet, key) {
     footer = 'No win.';
   }
   const e = new EmbedBuilder()
-    .setTitle('🎰 Slots')
+    .setTitle(`${emoji('slots')} Slots`)
     .setColor(win > 0 ? 0x57F287 : 0xED4245)
     .addFields({ name: 'Bet', value: `**${chipsAmount(bet)}** (${lines} lines)`, inline: true }, { name: 'Win', value: `**${chipsAmount(win)}**`, inline: true })
     .setDescription('```' + '\n' + renderSlotsGrid(grid) + '\n' + '```')
