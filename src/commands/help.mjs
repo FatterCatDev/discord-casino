@@ -13,6 +13,8 @@ export default async function handleHelp(interaction, ctx) {
   sections.push({
     id: 'player',
     label: kittenMode ? `${emoji('kittenFace')} Kitten’s Playground` : `${emoji('videoGame')} Player`,
+    menuLabel: kittenMode ? 'Kitten’s Playground' : 'Player',
+    menuEmoji: kittenMode ? '😼' : '🎮',
     groups: [
       { label: kittenMode ? `${emoji('kiss')} Essentials` : `${emoji('star')} Classics`, items: [
         { emoji: emoji('wave'), cmd: 'Getting Started', desc: kittenMode
