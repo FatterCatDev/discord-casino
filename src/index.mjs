@@ -43,6 +43,7 @@ import { holdemTables } from './games/holdem.mjs';
 import { bjHandValue as bjHandValueMod, cardValueForSplit as cardValueForSplitMod, canAffordExtra as canAffordExtraMod } from './games/blackjack.mjs';
 import { kittenizeTextContent, kittenizeReplyArg } from './services/persona.mjs';
 import { BOT_VERSION, pushUpdateAnnouncement } from './services/updates.mjs';
+import { emoji } from './lib/emojis.mjs';
 
 // Slash command handlers (modularized)
 import cmdPing from './commands/ping.mjs';
