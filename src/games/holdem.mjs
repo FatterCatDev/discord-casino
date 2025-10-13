@@ -262,7 +262,7 @@ async function kickHostForInactivity(client, state) {
       // If no players left, go to lobby and schedule empty close
       if (state.seats.length === 0) {
         state.phase = 'LOBBY'; state.board = []; state.pot = 0; state.toAct = null;
-        await updateTableCard(client, state, buildTablePayload(state, '🪑 Waiting for players…'));
+        await updateTableCard(client, state, buildTablePayload(state, `${emoji('chair')} Waiting for players…`));
         scheduleEmptyClose(client, state);
       } else {
         try { armActionTimer(client, state, 30000); } catch {}
