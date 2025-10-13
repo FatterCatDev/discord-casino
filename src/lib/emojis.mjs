@@ -57,7 +57,7 @@ export const EMOJI = {
   question: '❓',
   radioButton: '🔘',
   chair: '🪑',
-  boardBanner: '🎴'
+  boardBanner: '🎴',
 
   // Status & alerts
   check: '✅',
