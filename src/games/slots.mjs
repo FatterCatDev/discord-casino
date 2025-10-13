@@ -3,7 +3,6 @@ import crypto from 'node:crypto';
 import { getUserBalances, getHouseBalance, takeFromUserToHouse, transferFromHouseToUser, burnCredits } from '../db/db.auto.mjs';
 import { chipsAmount } from './format.mjs';
 import { sessionLineFor, setActiveSession, recordSessionGame, buildTimeoutField, sendGameMessage } from './session.mjs';
-import { EMOJI, emoji } from '../lib/emojis.mjs';
 
 // Symbols & pays (per 3/4/5 on a payline)
 export const SLOTS_SYMBOLS = {
@@ -43,17 +42,17 @@ export const SLOTS_LINES = [
 ];
 
 export const SLOT_EMOJI = {
-  W: EMOJI.chipJoker,
-  S: EMOJI.star,
-  H1: EMOJI.gem,
-  H2: EMOJI.bell,
-  A: EMOJI.letterA,
-  K: EMOJI.crown,
-  Q: EMOJI.princess,
-  J: EMOJI.chessPawn,
-  T: EMOJI.keycap10,
-  N: EMOJI.keycap9,
-  X: EMOJI.squareButton
+  W: '🃏',
+  S: '⭐',
+  H1: '💎',
+  H2: '🔔',
+  A: '🅰️',
+  K: '👑',
+  Q: '👸',
+  J: '♟️',
+  T: '🔟',
+  N: '9️⃣',
+  X: '🔲'
 };
 const SLOT_FILL_SYMBOLS = ['A','K','Q','J','T','N'];
 
@@ -68,20 +67,20 @@ export function renderSlotsGrid(grid) {
 
 // UI: Pay table (ephemeral)
 export function buildSlotsPaytableEmbed() {
-  const keycap3 = emoji('keycap3');
-  const keycap4 = emoji('keycap4');
-  const keycap5 = emoji('keycap5');
-  const e = new EmbedBuilder().setTitle(`${emoji('scroll')} Slots Pay Table`).setColor(0x5865F2);
+  const keycap3 = '3️⃣';
+  const keycap4 = '4️⃣';
+  const keycap5 = '5️⃣';
+  const e = new EmbedBuilder().setTitle('📜 Slots Pay Table').setColor(0x5865F2);
   const lineItems = [
-    { k: 'H1', name: `High 1 ${emoji('gem')}` },
-    { k: 'H2', name: `High 2 ${emoji('bell')}` },
-    { k: 'A', name: `A ${emoji('letterA')}` },
-    { k: 'K', name: `K ${emoji('crown')}` },
-    { k: 'Q', name: `Q ${emoji('princess')}` },
-    { k: 'J', name: `J ${emoji('chessPawn')}` },
-    { k: 'T', name: `10 ${emoji('keycap10')}` },
-    { k: 'N', name: `9 ${emoji('keycap9')}` },
-    { k: 'W', name: `Wild ${emoji('chipJoker')} (also substitutes)` }
+    { k: 'H1', name: 'High 1 💎' },
+    { k: 'H2', name: 'High 2 🔔' },
+    { k: 'A', name: 'A 🅰️' },
+    { k: 'K', name: 'K 👑' },
+    { k: 'Q', name: 'Q 👸' },
+    { k: 'J', name: 'J ♟️' },
+    { k: 'T', name: '10 🔟' },
+    { k: 'N', name: '9 9️⃣' },
+    { k: 'W', name: 'Wild 🃏 (also substitutes)' }
   ];
   for (const it of lineItems) {
     const sym = SLOTS_SYMBOLS[it.k];
@@ -89,10 +88,10 @@ export function buildSlotsPaytableEmbed() {
     e.addFields({ name: it.name, value: `${keycap3} ${pays[0]} • ${keycap4} ${pays[1]} • ${keycap5} ${pays[2]}` });
   }
   const scat = SLOTS_SYMBOLS.S.scatterPay;
-  e.addFields({ name: `Scatter ${emoji('star')} (anywhere)`, value: `${keycap3} ${scat[3]} • ${keycap4} ${scat[4]} • ${keycap5} ${scat[5]}` });
+  e.addFields({ name: 'Scatter ⭐ (anywhere)', value: `${keycap3} ${scat[3]} • ${keycap4} ${scat[4]} • ${keycap5} ${scat[5]}` });
   const lines = SLOTS_LINES.length;
-  const wildIcon = emoji('chipJoker');
-  const scatterIcon = emoji('star');
+  const wildIcon = '🃏';
+  const scatterIcon = '⭐';
   e.addFields({ name: 'Rules', value: [
     `• ${lines} fixed lines; pays left→right on 3+ matching symbols.`,
     `• Wild ${wildIcon} substitutes for regular symbols.`,
@@ -186,7 +185,7 @@ export async function runSlotsSpin(interaction, bet, key) {
     footer = 'No win.';
   }
   const e = new EmbedBuilder()
-    .setTitle(`${emoji('slots')} Slots`)
+    .setTitle('🎰 Slots')
     .setColor(win > 0 ? 0x57F287 : 0xED4245)
     .addFields({ name: 'Bet', value: `**${chipsAmount(bet)}** (${lines} lines)`, inline: true }, { name: 'Win', value: `**${chipsAmount(win)}**`, inline: true })
     .setDescription('```' + '\n' + renderSlotsGrid(grid) + '\n' + '```')
