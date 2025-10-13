@@ -1,6 +1,7 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder } from 'discord.js';
 import { chipsAmount } from './format.mjs';
 import { buildPlayerBalanceField, keyFor, setActiveSession, buildTimeoutField, sendGameMessage } from './session.mjs';
+import { emoji, HORSE_COLOR_EMOJIS } from '../lib/emojis.mjs';
 
 export const rouletteSessions = new Map();
 export const ROULETTE_RED = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
