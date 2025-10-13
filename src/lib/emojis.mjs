@@ -145,6 +145,7 @@ export const EMOJI = {
   keycap9: '9️⃣',
   keycap10: '🔟',
   squareButton: '🔲',
+  squareBlack: '⬛',
 
   // Horse race markers
   squareRed: '🟥',
