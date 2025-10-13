@@ -215,7 +215,7 @@ function createRaceEmbed(state, options = {}) {
     .setTitle(title)
     .setDescription(description)
     .addFields(
-      { name: `${emoji('moneyBag')} Pot`, value: `${formatChips(state.totalPot)} chips`, inline: true },
+      { name: `${emoji('chips')} Pot`, value: `${formatChips(state.totalPot)} chips`, inline: true },
       { name: `${emoji('target')} Exposure`, value: `${formatChips(state.totalExposure)} chips`, inline: true },
       { name: `${emoji('finishFlag')} Bets`, value: summarizeBets(state) }
     )
