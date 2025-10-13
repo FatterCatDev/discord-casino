@@ -23,6 +23,9 @@ export default async function handleHelp(interaction, ctx) {
         { emoji: emoji('slots'), cmd: 'Play Games', desc: kittenMode
           ? 'Try `/ridebus`, `/blackjack`, `/slots`, `/roulette`, `/dicewar`, `/holdem`, and `/horserace` — each with its own stakes.'
           : 'Jump into `/ridebus`, `/blackjack`, `/slots`, `/roulette`, `/dicewar`, `/holdem`, or `/horserace` to spend Credits and win chips.' },
+        { emoji: emoji('robot'), cmd: '/status', desc: kittenMode
+          ? 'Peek at my current build, my connection purr, and how many kittens and lounges I pamper across Discord.'
+          : 'Check the bot version, gateway status, and global player/server counts across every install.' },
         { emoji: emoji('map'), cmd: 'Command Map', desc: kittenMode
           ? 'Use `/stafflist` to see who runs things; the menu (below) lists every command by role.'
           : 'Run `/stafflist` to see the team. Browse this menu to find role-specific commands.' }
