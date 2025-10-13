@@ -91,10 +91,12 @@ export function buildSlotsPaytableEmbed() {
   const scat = SLOTS_SYMBOLS.S.scatterPay;
   e.addFields({ name: `Scatter ${emoji('star')} (anywhere)`, value: `${keycap3} ${scat[3]} • ${keycap4} ${scat[4]} • ${keycap5} ${scat[5]}` });
   const lines = SLOTS_LINES.length;
+  const wildIcon = emoji('chipJoker');
+  const scatterIcon = emoji('star');
   e.addFields({ name: 'Rules', value: [
     `• ${lines} fixed lines; pays left→right on 3+ matching symbols.`,
-    '• Wild 🃏 substitutes for regular symbols.',
-    '• Scatter ⭐ pays anywhere and adds to line wins.',
+    `• Wild ${wildIcon} substitutes for regular symbols.`,
+    `• Scatter ${scatterIcon} pays anywhere and adds to line wins.`,
     `• Line bet = total bet / ${lines}; each win is floored to whole credits.`
   ].join('\n') });
   return e;
