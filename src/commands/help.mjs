@@ -57,6 +57,8 @@ export default async function handleHelp(interaction, ctx) {
         label: `${emoji('hammerWrench')} Setup`,
         menuLabel: 'Setup',
         menuEmoji: '🛠',
+        menuLabel: 'Setup',
+        menuEmoji: '🛠',
         groups: [
           { label: 'Step-by-step', items: [
             { emoji: emoji('keycap1'), cmd: '/setcasinocategory category:<#Category>', desc: 'Give me a dedicated home where I can host tables without interruption.' },
