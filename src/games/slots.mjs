@@ -42,7 +42,19 @@ export const SLOTS_LINES = [
   [0,2,2,2,0], [2,0,0,0,2]
 ];
 
-export const SLOT_EMOJI = { W:'🃏', S:'⭐', H1:'💎', H2:'🔔', A:'🅰️', K:'👑', Q:'👸', J:'♟️', T:'🔟', N:'9️⃣', X:'🔲' };
+export const SLOT_EMOJI = {
+  W: EMOJI.chipJoker,
+  S: EMOJI.star,
+  H1: EMOJI.gem,
+  H2: EMOJI.bell,
+  A: EMOJI.letterA,
+  K: EMOJI.crown,
+  Q: EMOJI.princess,
+  J: EMOJI.chessPawn,
+  T: EMOJI.keycap10,
+  N: EMOJI.keycap9,
+  X: EMOJI.squareButton
+};
 const SLOT_FILL_SYMBOLS = ['A','K','Q','J','T','N'];
 
 // RNG helper
