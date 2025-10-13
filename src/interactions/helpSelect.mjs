@@ -55,12 +55,12 @@ export default async function handleHelpSelect(interaction, ctx) {
       label: `${emoji('hammerWrench')} Setup`,
       groups: [
         { label: kittenMode ? 'Step-by-step' : 'Checklist', items: [
-          { emoji: '1️⃣', cmd: '/setcasinocategory category:<#Category>', desc: kittenMode ? 'Give me a dedicated home where I can host tables.' : 'Select the category that will contain casino channels.' },
-          { emoji: '2️⃣', cmd: '/setgamelogchannel channel:<#channel>', desc: kittenMode ? 'Tell me where to chronicle every thrilling game.' : 'Choose the channel for automated game logs.' },
-          { emoji: '3️⃣', cmd: '/setcashlog channel:<#channel>', desc: kittenMode ? 'Pick where buy-ins, cash-outs, and chip grants are whispered.' : 'Set a channel for chip and credit transactions.' },
-          { emoji: '4️⃣', cmd: '/setrequestchannel channel:<#channel>', desc: kittenMode ? 'Guide requests to the lounge your staff watches.' : 'Route /request submissions to a staffed channel.' },
-          { emoji: '5️⃣', cmd: '/setupdatech channel:<#channel>', desc: kittenMode ? 'Let me purr updates in a channel of your choice.' : 'Optional channel to broadcast bot update announcements.' },
-          { emoji: '6️⃣', cmd: '/addadmin user:<@User>', desc: kittenMode ? 'Crown your inner circle, then add house Kittens with /addmod.' : 'Seed your admin roster; add moderators via /addmod.' }
+          { emoji: emoji('keycap1'), cmd: '/setcasinocategory category:<#Category>', desc: kittenMode ? 'Give me a dedicated home where I can host tables.' : 'Select the category that will contain casino channels.' },
+          { emoji: emoji('keycap2'), cmd: '/setgamelogchannel channel:<#channel>', desc: kittenMode ? 'Tell me where to chronicle every thrilling game.' : 'Choose the channel for automated game logs.' },
+          { emoji: emoji('keycap3'), cmd: '/setcashlog channel:<#channel>', desc: kittenMode ? 'Pick where buy-ins, cash-outs, and chip grants are whispered.' : 'Set a channel for chip and credit transactions.' },
+          { emoji: emoji('keycap4'), cmd: '/setrequestchannel channel:<#channel>', desc: kittenMode ? 'Guide requests to the lounge your staff watches.' : 'Route /request submissions to a staffed channel.' },
+          { emoji: emoji('keycap5'), cmd: '/setupdatech channel:<#channel>', desc: kittenMode ? 'Let me purr updates in a channel of your choice.' : 'Optional channel to broadcast bot update announcements.' },
+          { emoji: emoji('keycap6'), cmd: '/addadmin user:<@User>', desc: kittenMode ? 'Crown your inner circle, then add house Kittens with /addmod.' : 'Seed your admin roster; add moderators via /addmod.' }
         ]}
       ]
     });
