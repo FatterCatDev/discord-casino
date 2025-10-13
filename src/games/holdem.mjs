@@ -96,7 +96,7 @@ export function buildTableEmbed(state) {
   try {
     if (state.phase === 'LOBBY' && state.closeDeadline) {
       const ts = Math.floor(state.closeDeadline / 1000);
-      e.addFields({ name: '⏳ Table Timeout', value: `<t:${ts}:R>` });
+      e.addFields({ name: `${emoji('hourglassFlow')} Table Timeout`, value: `<t:${ts}:R>` });
     }
   } catch {}
   e.setFooter({ text: 'Note: Escrow/payouts not yet wired to chips.' });
@@ -505,8 +505,8 @@ function armActionTimer(client, state, ms = 30000) {
   (async () => {
     try {
       const ts = Math.floor(state.actionDeadline / 1000);
-      await postOrEditNotice(client, state, `⏰ <@${state.actionUserId}>, it's your turn to act • <t:${ts}:R>`);
-      // await postOrEditNotice(client, state, `⏰ Glide forward, Kitten <@${state.actionUserId}> — it's your turn • <t:${ts}:R>`);
+      await postOrEditNotice(client, state, `${emoji('alarmClock')} <@${state.actionUserId}>, it's your turn to act • <t:${ts}:R>`);
+      // await postOrEditNotice(client, state, `${emoji('alarmClock')} Glide forward, Kitten <@${state.actionUserId}> — it's your turn • <t:${ts}:R>`);
     } catch {}
   })();
   // Schedule 10-second warning
@@ -517,8 +517,8 @@ function armActionTimer(client, state, ms = 30000) {
       const cur = state.seats[state.toAct];
       if (!cur || cur.userId !== state.actionUserId) return;
       const ts = Math.floor(state.actionDeadline / 1000);
-      await postOrEditNotice(client, state, `⏳ <@${state.actionUserId}> 10 seconds left to act • <t:${ts}:R>`);
-      // await postOrEditNotice(client, state, `⏳ Only ten seconds remain, precious Kitten <@${state.actionUserId}> • <t:${ts}:R>`);
+      await postOrEditNotice(client, state, `${emoji('hourglassFlow')} <@${state.actionUserId}> 10 seconds left to act • <t:${ts}:R>`);
+      // await postOrEditNotice(client, state, `${emoji('hourglassFlow')} Only ten seconds remain, precious Kitten <@${state.actionUserId}> • <t:${ts}:R>`);
     } catch {}
   }, Math.max(0, ms - 10000));
   state.actionTimer = setTimeout(async () => {
