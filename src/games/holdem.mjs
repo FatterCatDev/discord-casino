@@ -87,7 +87,7 @@ export function buildTableEmbed(state) {
     e.addFields({ name: 'Hand', value: `#${state.handNo} • Pot: **${state.pot || 0}**` });
     try {
       const lines = state.seats.map((s,i)=>`${emoji('chair')} Seat ${i+1}${state.buttonIndex===i?` ${emoji('radioButton')}`:''}: <@${s.userId}> — Stack **${s.stack}** • Bet **${s.betRound||0}**${s.folded?' (folded)':''}${s.allIn?' (all-in)':''}`);
-      // const lines = state.seats.map((s,i)=>`Seat ${i+1}${state.buttonIndex===i?' 🔘':''}: My velvet Kitten <@${s.userId}> — Stack **${s.stack}** • Bet **${s.betRound||0}**${s.folded?' (folded)':''}${s.allIn?' (all-in)':''}`);
+      // const lines = state.seats.map((s,i)=>`Seat ${i+1}${state.buttonIndex===i?' (button)':''}: My velvet Kitten <@${s.userId}> — Stack **${s.stack}** • Bet **${s.betRound||0}**${s.folded?' (folded)':''}${s.allIn?' (all-in)':''}`);
       e.addFields({ name: 'Bets', value: lines.join('\n') });
     } catch {}
     // Action/Timer details are posted as a separate notice message, not in the embed
