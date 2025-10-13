@@ -9,8 +9,8 @@ export const ridebusGames = new Map(); // key = `${guildId}:${userId}` -> state
 
 const PAYOUT = { 1: 2, 2: 3, 3: 4, 4: 10 };
 const wagerAt = (state, s) => state.bet * PAYOUT[s];
-const RED_SUITS = `${emoji('pokerHeart')}${emoji('pokerDiamond')}`;
-const BLACK_SUITS = `${emoji('pokerSpade')}${emoji('pokerClub')}`;
+const RED_SUITS = '♥♦';
+{ BLACK_SUITS = '♠♣'; }*** End Patch
 
 // Format a list of cards
 export function cardList(cards) { return (!cards?.length) ? '—' : cards.map(show).join('  '); }
