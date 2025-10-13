@@ -1,13 +1,13 @@
-🎉 **Casino Bot v1.0.5 Is Live!**  
+<:party:1427057404838809734> **Casino Bot v1.0.5 Is Live!**  
 Your favorite house of chance just leveled up, and the tables are hotter than ever. From fresh horse lineups every race to richer game summaries and smarter logging, this release makes every spin, roll, and wager feel electric.
 
-## 🎯 Highlights You’ll Feel Right Away
-- 🏇 **Dynamic Horse Race** – Five racers pull from a 20-name stable every round, with live swap fees, house-backed payouts, and previous winners displayed the moment a new betting phase opens.  
+## <:target:1427057448564424744> Highlights You’ll Feel Right Away
+- <:horse_race:1427057361176105100> **Dynamic Horse Race** – Five racers pull from a 20-name stable every round, with live swap fees, house-backed payouts, and previous winners displayed the moment a new betting phase opens.  
 - ⏱️ **Sleek Stage Flow** – Every stage now ticks at 2.5 seconds, and the embed keeps the countdown text honest so you always know when to switch or stay.  
-- 🏦 **Crystal-Clear Payouts** – Results embeds call out total winnings, house net, and any burned credits so you know exactly how the chips moved.  
+- <:bank:1427057291491938546> **Crystal-Clear Payouts** – Results embeds call out total winnings, house net, and any burned credits so you know exactly how the chips moved.  
 - 🔔 **Smarter Updates** – Admins get hands-free announcements straight into the casino update channel, version bump included.
 
-## 🕹️ Jump In and Play
+## <:joystick:1427057372060450927> Jump In and Play
 - `/horserace` – Wager across staged sprints, swap mounts between legs (stage-based swap fee once the race is running), and watch the real-time track.  
 - `/ridebus bet:<int>` – Climb from Q1 to Q4, cash out early, or take the full 10× plunge.  
 - `/blackjack table:<High|Low> bet:<int>` – Pick your table, burn Credits first, and chase chip-rich blackjacks.  
@@ -17,7 +17,7 @@ Your favorite house of chance just leveled up, and the tables are hotter than ev
 - `/holdem` – Spawn a private Texas Hold’em lounge; hole cards DM’d, rake customizable.
 
 ## 💡 Tips for Every Player
-- 💰 **Stack Those Chips Fast** – Hit `/dailyspin` every 24 hours, vote with `/vote` for instant chip credits, and use `/request type:Buy In amount:<int>` when staff-approved bankrolls make sense.  
+- <:chips:1427057303865266246> **Stack Those Chips Fast** – Hit `/dailyspin` every 24 hours, vote with `/vote` for instant chip credits, and use `/request type:Buy In amount:<int>` when staff-approved bankrolls make sense.  
 - 🧾 **Credits Burn First** – Every chip-paying game uses Credits before dipping into your chip stack; wins fling chips from the house straight into your pocket.  
 - 🔁 **Session Tracking** – Stay active (actions every 2 minutes) to keep your session alive; if it times out, the bot logs the end and refunds what’s owed.  
 - 📣 **Update Alerts** – `/setupdatech` keeps staff in the loop with announcements the moment a new version drops.
