@@ -40,14 +40,8 @@ const HORSE_NAME_POOL = [
   'Butter Cup'
 ];
 const HORSE_EMOJIS = HORSE_COLOR_EMOJIS;
-const HORSE_BLOCK_EMOJIS = [
-  EMOJI.squareRed,
-  EMOJI.squareGreen,
-  EMOJI.squareYellow,
-  EMOJI.squareBlue,
-  EMOJI.squarePurple
-];
-const HORSE_ICON_BLOCK = EMOJI.horse;
+const HORSE_BLOCK_EMOJIS = ['🟥', '🟩', '🟨', '🟦', '🟪'];
+const HORSE_ICON_BLOCK = '🐎';
 const HORSE_COUNT = HORSE_EMOJIS.length;
 const INITIAL_FOOTER_TEXT = 'Place your bets! Host must press Start to begin the countdown.';
 const DEFAULT_STAGE_FOOTER_TEXT = 'Place or change bets within 2.5 seconds of each stage.';
