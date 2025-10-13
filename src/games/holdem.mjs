@@ -1535,7 +1535,7 @@ export async function onHoldemButton(interaction, ctx) {
     }
     const c1 = formatCard(seat.hole[0]);
     const c2 = formatCard(seat.hole[1]);
-    const e = new EmbedBuilder().setTitle('🃏 Your Hand').setColor(0x2b2d31)
+    const e = new EmbedBuilder().setTitle(`${emoji('chipJoker')} Your Hand`).setColor(0x2b2d31)
       .setDescription(`**${c1} ${c2}**`);
     if (state.board && state.board.length) {
       const board = state.board.map(formatCard).join(' ');
