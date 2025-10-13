@@ -31,7 +31,7 @@ export function buildVoteResponse({ ctx, kittenMode, summary, sites }) {
           }
         }
         const suffix = rewardBits.length ? ` — ${rewardBits.join(' · ')}` : '';
-        return `${site.emoji || emoji('link')} [${site.label}](${site.url})${suffix}`;
+        return `${site.emoji || '🔗'} [${site.label}](${site.url})${suffix}`;
       })
     : [say('No vote link is configured yet. Ask an admin to set TOPGG_VOTE_URL.', 'No vote links are configured yet. Set TOPGG_VOTE_URL to share your voting link.')];
 
