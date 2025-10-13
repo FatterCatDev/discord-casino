@@ -138,7 +138,7 @@ export default async function handleHelp(interaction, ctx) {
           ]}
         ]
       });
-      sections.push({ id: 'owner', label: `${emoji('proprietor')} Proprietor`, groups: [ { label: `${emoji('broom')} Maintenance`, items: [ { emoji: emoji('recycle'), cmd: '/resetallbalance', desc: 'Wipe every balance clean when you crave a fresh start. (Owner only)' } ] } ] });
+      sections.push({ id: 'owner', label: `${emoji('proprietor')} Proprietor`, menuLabel: 'Proprietor', menuEmoji: '👑', groups: [ { label: `${emoji('broom')} Maintenance`, items: [ { emoji: emoji('recycle'), cmd: '/resetallbalance', desc: 'Wipe every balance clean when you crave a fresh start. (Owner only)' } ] } ] });
     } else {
       sections.push({
         id: 'moderator',
