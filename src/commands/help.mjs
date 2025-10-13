@@ -55,12 +55,12 @@ export default async function handleHelp(interaction, ctx) {
         label: `${emoji('hammerWrench')} Setup`,
         groups: [
           { label: 'Step-by-step', items: [
-            { emoji: '1️⃣', cmd: '/setcasinocategory category:<#Category>', desc: 'Give me a dedicated home where I can host tables without interruption.' },
-            { emoji: '2️⃣', cmd: '/setgamelogchannel channel:<#channel>', desc: 'Tell me where to chronicle wins, losses, and session wraps.' },
-            { emoji: '3️⃣', cmd: '/setcashlog channel:<#channel>', desc: 'Pick the ledger room for buy-ins, cash-outs, and chip grants.' },
-            { emoji: '4️⃣', cmd: '/setrequestchannel channel:<#channel>', desc: 'Route /request pleas to a staffed channel so your Kittens get answers.' },
-            { emoji: '5️⃣', cmd: '/setupdatech channel:<#channel>', desc: 'Optional: choose where I purr about new updates and releases.' },
-            { emoji: '6️⃣', cmd: '/addadmin user:<@User>', desc: 'Crown your inner circle, then add moderators with /addmod user:<@User>.' }
+            { emoji: emoji('keycap1'), cmd: '/setcasinocategory category:<#Category>', desc: 'Give me a dedicated home where I can host tables without interruption.' },
+            { emoji: emoji('keycap2'), cmd: '/setgamelogchannel channel:<#channel>', desc: 'Tell me where to chronicle wins, losses, and session wraps.' },
+            { emoji: emoji('keycap3'), cmd: '/setcashlog channel:<#channel>', desc: 'Pick the ledger room for buy-ins, cash-outs, and chip grants.' },
+            { emoji: emoji('keycap4'), cmd: '/setrequestchannel channel:<#channel>', desc: 'Route /request pleas to a staffed channel so your Kittens get answers.' },
+            { emoji: emoji('keycap5'), cmd: '/setupdatech channel:<#channel>', desc: 'Optional: choose where I purr about new updates and releases.' },
+            { emoji: emoji('keycap6'), cmd: '/addadmin user:<@User>', desc: 'Crown your inner circle, then add moderators with /addmod user:<@User>.' }
           ]}
         ]
       });
@@ -72,12 +72,12 @@ export default async function handleHelp(interaction, ctx) {
         label: `${emoji('hammerWrench')} Setup`,
         groups: [
           { label: 'Checklist', items: [
-            { emoji: '1️⃣', cmd: '/setcasinocategory category:<#Category>', desc: 'Select a category for casino channels so games stay organized.' },
-            { emoji: '2️⃣', cmd: '/setgamelogchannel channel:<#channel>', desc: 'Set the channel where automated game logs should post.' },
-            { emoji: '3️⃣', cmd: '/setcashlog channel:<#channel>', desc: 'Log buy-ins, cash-outs, and chip adjustments in a staff channel.' },
-            { emoji: '4️⃣', cmd: '/setrequestchannel channel:<#channel>', desc: 'Choose where /request tickets land for review.' },
-            { emoji: '5️⃣', cmd: '/setupdatech channel:<#channel>', desc: 'Optional broadcast spot for bot update announcements.' },
-            { emoji: '6️⃣', cmd: '/addadmin user:<@User>', desc: 'Seed your admin list, then add moderators via /addmod user:<@User>.' }
+            { emoji: emoji('keycap1'), cmd: '/setcasinocategory category:<#Category>', desc: 'Select a category for casino channels so games stay organized.' },
+            { emoji: emoji('keycap2'), cmd: '/setgamelogchannel channel:<#channel>', desc: 'Set the channel where automated game logs should post.' },
+            { emoji: emoji('keycap3'), cmd: '/setcashlog channel:<#channel>', desc: 'Log buy-ins, cash-outs, and chip adjustments in a staff channel.' },
+            { emoji: emoji('keycap4'), cmd: '/setrequestchannel channel:<#channel>', desc: 'Choose where /request tickets land for review.' },
+            { emoji: emoji('keycap5'), cmd: '/setupdatech channel:<#channel>', desc: 'Optional broadcast spot for bot update announcements.' },
+            { emoji: emoji('keycap6'), cmd: '/addadmin user:<@User>', desc: 'Seed your admin list, then add moderators via /addmod user:<@User>.' }
           ]}
         ]
       });
