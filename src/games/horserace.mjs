@@ -369,7 +369,7 @@ async function handleRaceTimeout(state, client) {
   state.noticeText = null;
   state.lastResultsText = null;
   state.previousResults = null;
-  const timeoutDescription = '⌛ This horse race timed out after 2 minutes of inactivity. All stakes have been refunded.\nUse `/horserace` to start a new game.';
+  const timeoutDescription = `${emoji('hourglass')} This horse race timed out after 2 minutes of inactivity. All stakes have been refunded.\nUse \`/horserace\` to start a new game.`;
 
   // Refund all stakes and fees
   for (const bet of state.bets.values()) {
