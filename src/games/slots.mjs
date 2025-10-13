@@ -214,8 +214,8 @@ export async function runSlotsSpin(interaction, bet, key) {
 // Game: Slots — spin, evaluate lines, settle payouts (Credits-first), and render result UI.
   } catch {}
   const again = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`slots|again|${bet}|${interaction.user.id}`).setLabel('Spin Again').setEmoji(emoji('repeat')).setStyle(ButtonStyle.Secondary),
-    new ButtonBuilder().setCustomId(`slots|paytable|${interaction.user.id}`).setLabel('Pay Table').setEmoji(emoji('scroll')).setStyle(ButtonStyle.Primary)
+    new ButtonBuilder().setCustomId(`slots|again|${bet}|${interaction.user.id}`).setLabel('Spin Again').setEmoji('🔁').setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder().setCustomId(`slots|paytable|${interaction.user.id}`).setLabel('Pay Table').setEmoji('📜').setStyle(ButtonStyle.Primary)
   );
   const response = { embeds: [e], components: [again] };
   // Ensure we track the message reference for session finalization on expiry
