@@ -9,7 +9,7 @@ import {
   grantCredits
 } from '../db/db.auto.mjs';
 import { formatChips, chipsAmountSigned } from './format.mjs';
-import { EMOJI, HORSE_COLOR_EMOJIS, emoji } from '../lib/emojis.mjs';
+import { emoji } from '../lib/emojis.mjs';
 import { postGameSessionEnd, postGameSessionEndByIds } from './logging.mjs';
 
 const TRACK_LENGTH = 100;
