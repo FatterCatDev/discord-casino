@@ -28,7 +28,7 @@ export const EMOJI = {
   medalBronze: '🥉',
 
   // Economy
-  moneyBag: '<:chips:1427057303865266246>',
+  chips: '<:chips:1427057303865266246>',
   currencyExchange: '<:currency_exchange:1427057324362825920>',
   creditCard: '<:credit_card:1427057314472661102>',
   cashStack: '<:dollar_bills:1427057330721390682>',
