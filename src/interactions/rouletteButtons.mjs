@@ -9,7 +9,7 @@ export default async function onRouletteButtons(interaction, ctx) {
   if (action !== 'again') {
     if (ctx.hasActiveExpired(interaction.guild.id, interaction.user.id, 'roulette') || !ctx.getActiveSession(interaction.guild.id, interaction.user.id)) {
       ctx.rouletteSessions.delete(key);
-      return interaction.update({ content: '⌛ This roulette session expired. Use `/roulette` to start a new one.', embeds: [], components: [] });
+      return interaction.update({ content: `${emoji('hourglass')} This roulette session expired. Use `/roulette` to start a new one.`, embeds: [], components: [] });
     }
     ctx.touchActiveSession(interaction.guild.id, interaction.user.id, 'roulette');
   }
@@ -35,7 +35,7 @@ export default async function onRouletteButtons(interaction, ctx) {
     const colorEmoji = spin.color === 'RED'
       ? emoji('squareRed')
       : spin.color === 'BLACK'
-        ? '⬛'
+        ? emoji('squareBlack')
         : emoji('squareGreen');
     const pocketLabel = spin.label;
     let winnings = 0;
