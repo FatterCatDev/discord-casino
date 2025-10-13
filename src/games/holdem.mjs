@@ -1163,7 +1163,7 @@ export async function hostTable(interaction, ctx, { sb, bb, min, max, cap, rakeB
     const pct = ((state.rakeBps || 0) / 100).toFixed(2);
     const capTxt = Number(state.rakeCap) > 0 ? ` (cap ${fmt.format(state.rakeCap)})` : '';
     const sum = new EmbedBuilder()
-      .setTitle('♠♥♦♣ Hold’em Table Created')
+      .setTitle(`${emoji('pokerSpade')}${emoji('pokerHeart')}${emoji('pokerDiamond')}${emoji('pokerClub')} Hold’em Table Created`)
       .setColor(0x57F287)
       .setDescription(`Host: <@${interaction.user.id}>\nChannel: <#${tableChannel.id}>`)
       // .setDescription(`Host: Enchanting Kitten <@${interaction.user.id}>\nChannel: <#${tableChannel.id}>`)
@@ -1633,7 +1633,7 @@ export async function onHoldemCustomModal(interaction, ctx) {
       const pct = ((state.rakeBps || 0) / 100).toFixed(2);
       const capTxt = Number(state.rakeCap) > 0 ? ` (cap ${fmt.format(state.rakeCap)})` : '';
       const sum = new EmbedBuilder()
-        .setTitle('♠♥♦♣ Hold’em Table Created')
+        .setTitle(`${emoji('pokerSpade')}${emoji('pokerHeart')}${emoji('pokerDiamond')}${emoji('pokerClub')} Hold’em Table Created`)
         .setColor(0x57F287)
         .setDescription(`Host: <@${interaction.user.id}>\nChannel: <#${state.msgChannelId || state.channelId}>`)
         .addFields(
