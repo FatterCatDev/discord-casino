@@ -9,6 +9,8 @@ export const ridebusGames = new Map(); // key = `${guildId}:${userId}` -> state
 
 const PAYOUT = { 1: 2, 2: 3, 3: 4, 4: 10 };
 const wagerAt = (state, s) => state.bet * PAYOUT[s];
+const RED_SUITS = `${emoji('pokerHeart')}${emoji('pokerDiamond')}`;
+const BLACK_SUITS = `${emoji('pokerSpade')}${emoji('pokerClub')}`;
 
 // Format a list of cards
 export function cardList(cards) { return (!cards?.length) ? '—' : cards.map(show).join('  '); }
@@ -16,7 +18,7 @@ export function cardList(cards) { return (!cards?.length) ? '—' : cards.map(sh
 // Build the main game embed for current state
 export async function embedForState(state, opts = {}) {
   const kittenMode = !!(opts.kittenMode ?? state?.kittenMode);
-  const baseTitle = kittenMode ? '😼 Ride the Bus' : '🎴 Ride the Bus';
+  const baseTitle = kittenMode ? `${emoji('winkCat')} Ride the Bus` : `${emoji('boardBanner')} Ride the Bus`;
   const { title = baseTitle, description = '', color: clr = kittenMode ? 0xEB459E : 0x5865F2 } = opts;
   const playerField = kittenMode ? `Kitten <@${state.userId}>` : `<@${state.userId}>`;
   const wagerLabel = kittenMode ? 'Wager' : 'Bet';
