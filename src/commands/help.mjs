@@ -221,7 +221,13 @@ export default async function handleHelp(interaction, ctx) {
   const menu = new StringSelectMenuBuilder()
     .setCustomId('help|section')
     .setPlaceholder(kittenMode ? 'Choose your tease, Kitten' : 'Choose a help section')
-    .addOptions(sections.map(s => ({ label: s.label, value: s.id })));
+    .addOptions(sections.map((s) => {
+      const plainLabel = s.menuLabel
+        || s.label.replace(/^<a?:\w+:\d+>\s*/i, '').trim();
+      const option = { label: plainLabel || s.id, value: s.id };
+      if (s.menuEmoji) option.emoji = s.menuEmoji;
+      return option;
+    }));
   const row = new ActionRowBuilder().addComponents(menu);
   return interaction.reply({ embeds: [makeEmbed(sections[0].id)], components: [row], ephemeral: true });
 }
