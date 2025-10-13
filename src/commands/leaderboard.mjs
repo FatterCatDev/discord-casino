@@ -9,7 +9,7 @@ export default async function handleLeaderboard(interaction, ctx) {
   if (!rows.length) {
     return interaction.reply({
       content: say(`${emoji('chartDown')} No Kittens have claimed any chips yet. Be the first to indulge!`, `${emoji('chartDown')} No players with chips yet. Be the first to earn some!`),
-      ephemeral: true
+      ephemeral: false
     });
   }
   const medals = [emoji('medalGold'), emoji('medalSilver'), emoji('medalBronze')];
@@ -47,6 +47,6 @@ export default async function handleLeaderboard(interaction, ctx) {
   const title = say(`${emoji('trophy')} Global Chip Leaderboard — My Top ${rows.length} Kittens`, `${emoji('trophy')} Global Chip Leaderboard (Top ${rows.length})`);
   return interaction.reply({
     content: `**${title}**\n${lines.join('\n')}`,
-    ephemeral: true
+    ephemeral: false
   });
 }
