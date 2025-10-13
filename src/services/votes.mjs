@@ -85,11 +85,11 @@ function normalizeSite(entry) {
   const url = String(entry.url || '').trim();
   if (!label || !url) return null;
   const id = String(entry.id || slugify(label));
-  const emoji = entry.emoji || emoji('link');
+  const icon = entry.emoji || emoji('link');
   const supportsReward = Boolean(entry.supportsReward);
   const baseReward = supportsReward ? toPositiveInt(entry.baseReward, 0) : 0;
   const weekendMultiplier = supportsReward ? toPositiveNumber(entry.weekendMultiplier, 1) : 1;
-  return { id, label, url, emoji, supportsReward, baseReward, weekendMultiplier };
+  return { id, label, url, emoji: icon, supportsReward, baseReward, weekendMultiplier };
 }
 
 function buildVoteSites() {
