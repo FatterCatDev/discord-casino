@@ -371,6 +371,11 @@ export async function getCasinoNetworth(guildId) {
   return house + Number(row?.total || 0);
 }
 
+export async function getGlobalPlayerCount() {
+  const row = await q1('SELECT COUNT(DISTINCT discord_id) AS n FROM users');
+  return Number(row?.n || 0);
+}
+
 export async function addToHouse(guildId, amount, reason, adminId) {
   const gid = resolveGuildId(guildId);
   const amt = Number(amount);
