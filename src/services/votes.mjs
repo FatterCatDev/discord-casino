@@ -85,7 +85,7 @@ function normalizeSite(entry) {
   const url = String(entry.url || '').trim();
   if (!label || !url) return null;
   const id = String(entry.id || slugify(label));
-  const icon = entry.emoji || emoji('link');
+  const icon = entry.emoji || '🔗';
   const supportsReward = Boolean(entry.supportsReward);
   const baseReward = supportsReward ? toPositiveInt(entry.baseReward, 0) : 0;
   const weekendMultiplier = supportsReward ? toPositiveNumber(entry.weekendMultiplier, 1) : 1;
@@ -98,7 +98,7 @@ function buildVoteSites() {
     sites.push({
       id: 'topgg',
       label: 'Top.gg',
-      emoji: emoji('ballot'),
+      emoji: '🗳️',
       url: TOPGG_VOTE_URL,
       supportsReward: true,
       baseReward: TOPGG_BASE_REWARD,
@@ -109,7 +109,7 @@ function buildVoteSites() {
     sites.push({
       id: 'dbl',
       label: 'DiscordBotList.com',
-      emoji: emoji('bell'),
+      emoji: '🔔',
       url: DBL_VOTE_URL,
       supportsReward: false,
       baseReward: 0,
