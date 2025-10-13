@@ -1,10 +1,12 @@
+import { emoji } from '../lib/emojis.mjs';
+
 export default async function onBlackjackButtons(interaction, ctx) {
   const parts = interaction.customId.split('|');
   let action = parts[1];
   const k = ctx.keyFor(interaction);
   const state = ctx.blackjackGames.get(k);
   if (action !== 'again') {
-    if (!state) return interaction.update({ content: '⌛ This session expired. Use `/blackjack` to start a new one.', components: [] });
+    if (!state) return interaction.update({ content: `${emoji('hourglass')} This session expired. Use `/blackjack` to start a new one.`, components: [] });
     if (interaction.user.id !== state.userId) return interaction.reply({ content: '❌ Only the original player can use these buttons.', ephemeral: true });
     if (state.finished) return interaction.reply({ content: '❌ Hand already finished.', ephemeral: true });
   }
@@ -20,7 +22,7 @@ export default async function onBlackjackButtons(interaction, ctx) {
       await ctx.postGameSessionEnd(interaction, { game: 'Blackjack', userId: state.userId, houseNet: net });
       ctx.clearActiveSession(interaction.guild.id, interaction.user.id);
     }
-    return interaction.update({ content: '⌛ This session expired. Use `/blackjack` to start a new one.', components: [] });
+    return interaction.update({ content: `${emoji('hourglass')} This session expired. Use `/blackjack` to start a new one.`, components: [] });
   }
   ctx.touchActiveSession(interaction.guild.id, interaction.user.id, 'blackjack');
   const draw = () => state.deck.pop();
