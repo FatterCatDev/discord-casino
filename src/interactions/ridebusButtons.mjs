@@ -23,7 +23,9 @@ export default async function onRideBusButtons(interaction, ctx) {
   const k = ctx.keyFor(interaction);
   const state = ctx.ridebusGames.get(k);
   if (!state) {
-    const msg = ctx.kittenizeText ? ctx.kittenizeText('⌛ This session cooled off. Use `/ridebus` to tempt fate again, Kitten.') : '⌛ This session expired. Use `/ridebus` to start a new one.';
+    const expiredKitten = `${emoji('hourglass')} This session cooled off. Use `/ridebus` to tempt fate again, Kitten.`;
+    const expiredNormal = `${emoji('hourglass')} This session expired. Use `/ridebus` to start a new one.`;
+    const msg = ctx.kittenizeText ? ctx.kittenizeText(expiredKitten) : expiredNormal;
     return interaction.update({ content: msg, components: [] });
   }
 
@@ -58,7 +60,10 @@ export default async function onRideBusButtons(interaction, ctx) {
       await ctx.postGameSessionEnd(interaction, { game: 'Ride the Bus', userId: state.userId, houseNet: net });
     } catch {}
     ctx.clearActiveSession(interaction.guild.id, interaction.user.id);
-    const msg = speak('⌛ Our little ride fizzled out, Kitten. Use `/ridebus` when you crave another rush.', '⌛ This session expired. Use `/ridebus` to start a new one.');
+    const msg = speak(
+      `${emoji('hourglass')} Our little ride fizzled out, Kitten. Use `/ridebus` when you crave another rush.`,
+      `${emoji('hourglass')} This session expired. Use `/ridebus` to start a new one.`
+    );
     return interaction.update({ content: msg, components: [] });
   }
 
