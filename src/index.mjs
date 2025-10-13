@@ -265,7 +265,7 @@ client.once(Events.ClientReady, c => {
           const amount = formatChips(entry.claimedTotal || 0);
           const breakdownText = describeBreakdown(entry.breakdown || []);
           const sources = breakdownText || 'your recent votes';
-          const message = `🎉 Thanks for voting (${sources})! I just credited **${amount}** to your chips.`;
+          const message = `${emoji('partyPopper')} Thanks for voting (${sources})! I just credited **${amount}** to your chips.`;
           await user.send(message);
         } catch (err) {
           console.error('Failed to DM vote reward notice', entry.userId, err);
