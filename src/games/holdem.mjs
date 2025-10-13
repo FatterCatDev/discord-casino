@@ -947,7 +947,7 @@ async function startHandAuto(client, state) {
   state.currentBet = state.bb; state.minRaise = state.bb; state.needAction = state.seats.map((_,i)=>i).filter(i=>state.seats[i].inHand && !state.seats[i].folded);
   try { armActionTimer(client, state, 30000); } catch {}
   const toPing = state.seats[state.toAct]?.userId;
-    const payload = buildTablePayload(state, `▶️ Hand #${state.handNo} started. ${postLines.join(' • ')}. <@${toPing}> to act.\n• Use "Peek Hand" to view your cards (ephemeral).`);
+    const payload = buildTablePayload(state, `${emoji('playButton')} Hand #${state.handNo} started. ${postLines.join(' • ')}. <@${toPing}> to act.\n• Use "Peek Hand" to view your cards (ephemeral).`);
     await updateTableCard(client, state, payload);
   } catch (e) { /* noop */ }
 }
@@ -1404,7 +1404,7 @@ export async function startHand(interaction, ctx) {
   // Arm action timer
   try { armActionTimer(interaction.client, state, 30000); } catch {}
   const toPing = state.seats[state.toAct]?.userId;
-  const payload = buildTablePayload(state, `▶️ Hand #${state.handNo} started. ${postLines.join(' • ')}. <@${toPing}> to act.\n• Use "Peek Hand" to view your cards (ephemeral).`);
+  const payload = buildTablePayload(state, `${emoji('playButton')} Hand #${state.handNo} started. ${postLines.join(' • ')}. <@${toPing}> to act.\n• Use "Peek Hand" to view your cards (ephemeral).`);
   if (interaction.isButton && interaction.isButton()) {
     if (interaction.deferred || interaction.replied) {
       try { return await interaction.editReply(payload); } catch {}
@@ -1418,7 +1418,7 @@ export async function startHand(interaction, ctx) {
   }
   // Slash command path: edit main table card, then ack ephemerally
   await updateTableCard(interaction.client, state, payload);
-  return interaction.reply({ content: '▶️ Hand started.', ephemeral: true });
+  return interaction.reply({ content: `${emoji('playButton')} Hand started.`, ephemeral: true });
 }
 
 // Button + modal handlers (wired via index):
@@ -1478,14 +1478,14 @@ export async function onHoldemButton(interaction, ctx) {
     if (!seat) return interaction.reply({ content: '❌ You are not seated.', ephemeral: true });
     seat.sitOut = true; seat.waitForBB = true; seat.missedBlinds = seat.missedBlinds || 0;
     try { await updateTableCard(interaction.client, state); } catch {}
-    return interaction.reply({ content: '⏸️ You will sit out starting next hand. Use Sit-in to return (wait for BB).', ephemeral: true });
+    return interaction.reply({ content: `${emoji('pauseButton')} You will sit out starting next hand. Use Sit-in to return (wait for BB).`, ephemeral: true });
   }
   if (action === 'sitin') {
     const seat = state.seats.find(s => s.userId === interaction.user.id);
     if (!seat) return interaction.reply({ content: '❌ You are not seated.', ephemeral: true });
     seat.sitOut = false; seat.waitForBB = true; seat.missedBlinds = 0;
     try { await updateTableCard(interaction.client, state); } catch {}
-    return interaction.reply({ content: '▶️ You will sit in (will be dealt after your BB).', ephemeral: true });
+    return interaction.reply({ content: `${emoji('playButton')} You will sit in (will be dealt after your BB).`, ephemeral: true });
   }
   if (action === 'leave') {
     try { if (state.hostId && interaction.user.id === state.hostId) touchHostActivity(interaction.client, state); } catch {}
