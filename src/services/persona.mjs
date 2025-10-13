@@ -1,4 +1,7 @@
 import { EmbedBuilder } from 'discord.js';
+import { emoji } from '../lib/emojis.mjs';
+
+const KISS_PREFIX = emoji('kiss');
 
 export function kittenizeTextContent(text, opts = {}) {
   const { addPrefix = true, addSuffix = true } = opts;
@@ -53,8 +56,8 @@ export function kittenizeTextContent(text, opts = {}) {
   for (const tweak of personaTweaks) {
     result = result.replace(tweak.regex, tweak.replace);
   }
-  if (addPrefix && !result.trim().startsWith('💋')) {
-    result = `💋 ${result}`;
+  if (addPrefix && !result.trim().startsWith(KISS_PREFIX)) {
+    result = `${KISS_PREFIX} ${result}`;
   }
   const trimmed = result.trim();
   if (addSuffix && !trimmed.includes('\n')) {
