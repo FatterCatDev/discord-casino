@@ -80,13 +80,15 @@ export async function startRideBus(interaction, bet, persona = {}) {
   ridebusGames.set(`${interaction.guild.id}:${interaction.user.id}`, state);
   setActiveSession(interaction.guild.id, interaction.user.id, 'ridebus', state.kittenMode ? 'Ride the Bus (Kitten)' : 'Ride the Bus');
 
+  const redLabel = `Red ${RED_SUITS}${state.kittenMode ? ' (allure)' : ''}`;
+  const blackLabel = `Black ${BLACK_SUITS}${state.kittenMode ? ' (mystery)' : ''}`;
   const q1Row = rowButtons([
-    { id: `rb|q1|red`, label: state.kittenMode ? 'Red ♥♦ (allure)' : 'Red ♥♦', style: ButtonStyle.Danger },
-    { id: `rb|q1|black`, label: state.kittenMode ? 'Black ♠♣ (mystery)' : 'Black ♠♣', style: ButtonStyle.Primary }
+    { id: `rb|q1|red`, label: redLabel, style: ButtonStyle.Danger },
+    { id: `rb|q1|black`, label: blackLabel, style: ButtonStyle.Primary }
   ], { kittenMode: state.kittenMode });
   const desc = state.kittenMode
-    ? `**Q1 (2×):** Indulge me, Kitten — choose **Red (♥♦)** or **Black (♠♣)**.\n_Miss a guess and the ride ends; clear all four steps to claim **${chipsAmount(maxPayout)}**._`
-    : `**Q1 (2×):** Pick a color — **Red (♥♦)** or **Black (♠♣)**.\n_Wrong at any step ends the hand. Clear all 4 to win **${chipsAmount(maxPayout)}**._`;
+    ? `**Q1 (2×):** Indulge me, Kitten — choose **Red (${RED_SUITS})** or **Black (${BLACK_SUITS})**.\n_Miss a guess and the ride ends; clear all four steps to claim **${chipsAmount(maxPayout)}**._`
+    : `**Q1 (2×):** Pick a color — **Red (${RED_SUITS})** or **Black (${BLACK_SUITS})**.\n_Wrong at any step ends the hand. Clear all 4 to win **${chipsAmount(maxPayout)}**._`;
   const embed = await embedForState(state, { description: desc, kittenMode: state.kittenMode });
   const payload = { embeds: [embed], components: [q1Row] };
   return sendGameMessage(interaction, persona.kittenizePayload ? persona.kittenizePayload(payload) : payload);
