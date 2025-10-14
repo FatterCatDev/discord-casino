@@ -139,8 +139,7 @@ function describeGuest(guest, index) {
     `Guest ${index + 1}: ${guest.name}`,
     `• DOB: ${formatDob(guest.dob)}`,
     `• Dress: ${guest.dress.label}`,
-    `• Wristband: ${guest.wristband.emoji} ${guest.wristband.label}`,
-    `• On Guest List: ${guest.onGuestList ? 'Yes' : 'No'}`
+    `• Wristband: ${guest.wristband.emoji} ${guest.wristband.label}`
   ].join('\n');
 }
 
