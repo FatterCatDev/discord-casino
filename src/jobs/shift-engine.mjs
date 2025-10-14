@@ -135,8 +135,7 @@ function createStageState(session, stage) {
       ...base,
       picks: [blank, blank, blank, blank],
       technique: null,
-      lastFeedback: null,
-      lastSegmentStart: Date.now()
+      lastFeedback: null
     };
   }
   return base;
