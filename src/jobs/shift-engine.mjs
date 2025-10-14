@@ -1062,7 +1062,6 @@ async function handleIncorrect(interaction, session, stage, stageState) {
     content: session.kittenMode
       ? `${emoji('warning')} Not quite, Kitten. Try another button.`
       : `${emoji('warning')} Not quite. Take another shot.`,
-    ephemeral: true
   });
 }
 
