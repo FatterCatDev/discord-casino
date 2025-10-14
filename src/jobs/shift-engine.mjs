@@ -892,6 +892,7 @@ async function handleIncorrect(interaction, session, stage, stageState) {
 }
 
 export async function handleJobShiftButton(interaction, ctx) {
+  const isSelectMenu = typeof interaction.isStringSelectMenu === 'function' && interaction.isStringSelectMenu();
   const [prefix, sessionId, action, payload] = interaction.customId.split('|');
   if (prefix !== 'jobshift') return false;
   const session = sessionsById.get(sessionId);
@@ -905,6 +906,82 @@ export async function handleJobShiftButton(interaction, ctx) {
   }
   if (session.status !== 'ACTIVE') {
     await interaction.reply({ content: `${emoji('warning')} This shift is already wrapped.`, ephemeral: true });
+    return true;
+  }
+
+  const stage = session.stages[session.stageIndex];
+  if (!stage) {
+    await interaction.reply({ content: `${emoji('warning')} Stage not found for this shift.`, ephemeral: true });
+    return true;
+  }
+  const stageState = ensureStageState(session, stage);
+
+  if (isSelectMenu) {
+    if (!isBartenderStage(stage, session) || action !== 'slot') {
+      return false;
+    }
+    const slotIndex = Number(payload);
+    const blank = getBlankValue(session);
+    const value = interaction.values?.[0] ?? blank;
+    if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex > 3) {
+      await interaction.reply({ content: `${emoji('warning')} Invalid ingredient slot.`, ephemeral: true });
+      return true;
+    }
+    stageState.picks[slotIndex] = value || blank;
+    stageState.lastFeedback = null;
+    const embed = buildStageEmbed(session, stage, session.kittenMode);
+    const components = buildStageComponents(session, stage);
+    return interaction.update({ embeds: [embed], components });
+  }
+
+  if (action === 'technique' && isBartenderStage(stage, session)) {
+    if (payload !== 'shake' && payload !== 'stir') {
+      await interaction.reply({ content: `${emoji('warning')} Unknown technique option.`, ephemeral: true });
+      return true;
+    }
+    stageState.technique = payload;
+    stageState.lastFeedback = null;
+    const embed = buildStageEmbed(session, stage, session.kittenMode);
+    const components = buildStageComponents(session, stage);
+    return interaction.update({ embeds: [embed], components });
+  }
+
+  if (action === 'submit' && isBartenderStage(stage, session)) {
+    stageState.attempts += 1;
+    const result = evaluateBartenderSubmission(session, stage);
+    const blank = getBlankValue(session);
+    const picksSummary = stageState.picks
+      .map((value, idx) => {
+        if (!value || value === blank) return idx < stage.drink.ingredients.length ? '—' : '•';
+        return value;
+      })
+      .slice(0, 4)
+      .join(' → ');
+    stageState.attemptsLog.push({
+      optionId: `${picksSummary} | ${stageState.technique ? stageState.technique.toUpperCase() : '?'}`,
+      correct: result.success,
+      at: Date.now()
+    });
+
+    if (result.success) {
+      stageState.lastFeedback = null;
+      return handleCorrect(interaction, ctx, session, stage, stageState);
+    }
+
+    stageState.lastFeedback = result.message || `${emoji('warning')} That build isn’t right yet.`;
+
+    if (stageState.attempts >= 3) {
+      await handleIncorrect(interaction, session, stage, stageState);
+      if (result.message) {
+        await interaction.followUp({ content: result.message, ephemeral: true });
+      }
+      return true;
+    }
+
+    await interaction.reply({ content: result.message || `${emoji('warning')} Not quite right.`, ephemeral: true });
+    const embed = buildStageEmbed(session, stage, session.kittenMode);
+    const components = buildStageComponents(session, stage);
+    await interaction.message.edit({ embeds: [embed], components });
     return true;
   }
 
@@ -941,21 +1018,12 @@ export async function handleJobShiftButton(interaction, ctx) {
   }
 
   if (action === 'answer') {
-    const stage = session.stages[session.stageIndex];
-    if (!stage) {
-      await interaction.reply({ content: `${emoji('warning')} No stage found for this shift.`, ephemeral: true });
-      return true;
-    }
     const optionId = payload;
-    const stageState = ensureStageState(session);
     stageState.attempts += 1;
     stageState.attemptsLog.push({ optionId, correct: optionId === stage.correct, at: Date.now() });
 
     if (optionId === stage.correct) {
       return handleCorrect(interaction, ctx, session, stage, stageState);
-    }
-    if (stageState.attempts >= 3) {
-      return handleIncorrect(interaction, session, stage, stageState);
     }
     return handleIncorrect(interaction, session, stage, stageState);
   }
