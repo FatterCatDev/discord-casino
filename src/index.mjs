@@ -512,6 +512,11 @@ client.on(Events.InteractionCreate, async interaction => {
 
       }
     // ========== BUTTONS ==========
+    else if (interaction.isButton() && interaction.customId.startsWith('jobshift|')) {
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      const mod = await import('./interactions/jobs/shiftButtons.mjs');
+      return mod.default(interaction, ctx);
+    }
     else if (interaction.isButton() && interaction.customId.startsWith('rb|')) {
       const ctx = buildCommandContext(interaction, ctxExtras);
       const mod = await import('./interactions/ridebusButtons.mjs');
