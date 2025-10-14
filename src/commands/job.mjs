@@ -36,9 +36,14 @@ function formatDuration(totalSeconds) {
   return parts.length ? parts.join(' ') : '0s';
 }
 
+function jobDisplayIcon(job) {
+  return job?.emojiKey ? emoji(job.emojiKey) : job?.icon || '';
+}
+
 function summarizeActiveJob(status, say) {
   if (status?.hasActiveJob && status.jobDefinition) {
-    return `${status.jobDefinition.icon} **${status.jobDefinition.displayName}**`;
+    const icon = jobDisplayIcon(status.jobDefinition);
+    return `${icon} **${status.jobDefinition.displayName}**`;
   }
   return say('No job selected yet.', 'No active job selected.');
 }
@@ -115,8 +120,9 @@ function buildOverviewEmbed(kittenMode, status, profiles, nowSeconds) {
 
   for (const job of listJobs()) {
     const profile = profiles.get(job.id);
+    const icon = jobDisplayIcon(job);
     embed.addFields({
-      name: `${job.icon} ${job.displayName}`,
+      name: `${icon} ${job.displayName}`,
       value: `${say(job.tagline.kitten, job.tagline.normal)}
 ${job.fantasy}
 ${profileSummaryLines(job, profile, say)}`
@@ -134,7 +140,8 @@ function buildTransferResponse(result, kittenMode, nowSeconds) {
   const cooldownRemaining = Math.max(0, status.job_switch_available_at - nowSeconds);
   const lines = [];
   if (job) {
-    lines.push(`${emoji('check')} ${say(`You’re clocked in as ${job.displayName}, Kitten.`, `Active job set to ${job.displayName}.`)} ${job.icon}`.trim());
+        const icon = jobDisplayIcon(job);
+        lines.push(`${emoji('check')} ${say(`You’re clocked in as ${job.displayName}, Kitten.`, `Active job set to ${job.displayName}.`)} ${icon}`.trim());
   } else {
     lines.push(`${emoji('check')} ${say('Shift rotation cleared — you’re off-duty for now, Kitten.', 'Shift rotation cleared — you’re off-duty for now.')}`);
   }
@@ -171,8 +178,9 @@ function buildStatsEmbed(kittenMode, status, profiles, recentShifts, nowSeconds)
 
   for (const job of listJobs()) {
     const profile = profiles.get(job.id);
+    const icon = jobDisplayIcon(job);
     embed.addFields({
-      name: `${job.icon} ${job.displayName}`,
+      name: `${icon} ${job.displayName}`,
       value: profileSummaryLines(job, profile, say)
     });
   }
@@ -180,7 +188,8 @@ function buildStatsEmbed(kittenMode, status, profiles, recentShifts, nowSeconds)
   if (recentShifts.length) {
     const lines = recentShifts.map(shift => {
       const job = getJobById(shift.jobId || shift.job_id);
-      const label = job ? `${job.icon} ${job.displayName}` : shift.jobId;
+      const icon = jobDisplayIcon(job);
+      const label = job ? `${icon} ${job.displayName}` : shift.jobId;
       const performance = shift.performanceScore ?? shift.performance_score ?? 0;
       const total = shift.totalPayout ?? shift.total_payout ?? 0;
       const result = (shift.resultState || shift.result_state || 'PENDING').toUpperCase();
