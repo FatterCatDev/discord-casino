@@ -487,6 +487,9 @@ function scheduleSessionTimeout(session) {
     session.timeout = null;
   }
   if (!SHIFT_SESSION_TIMEOUT_SECONDS) return;
+  if (!Number.isFinite(session.expiresAt)) {
+    session.expiresAt = nowSeconds() + SHIFT_SESSION_TIMEOUT_SECONDS;
+  }
   const delayMs = Math.max(0, (session.expiresAt * 1000) - Date.now());
   session.timeout = setTimeout(() => {
     expireSession(session.sessionId).catch(err => {
