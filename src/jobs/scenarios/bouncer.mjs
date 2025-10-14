@@ -2,7 +2,15 @@ import crypto from 'node:crypto';
 
 const GUEST_NAMES = [
   'Alex', 'Jordan', 'Maya', 'Quinn', 'Reese', 'Taylor', 'Sasha', 'Morgan', 'Dev', 'Lena',
-  'Riley', 'Harper', 'Nico', 'Avery', 'Skye', 'Elliot', 'Rowan', 'Parker', 'Blair', 'Zoe'
+  'Riley', 'Harper', 'Nico', 'Avery', 'Skye', 'Elliot', 'Rowan', 'Parker', 'Blair',
+  'Zoe', 'Cameron', 'Hayden', 'Sydney', 'Jules', 'Dakota', 'Phoenix', 'Marley', 'Kendall', 'Casey',
+  'Addison', 'Bailey', 'Brinley', 'Carson', 'Dorian', 'Emerson', 'Finley', 'Gray', 'Harlow', 'Indigo',
+  'Jaime', 'Kai', 'Logan', 'Micah', 'Noel', 'Oakley', 'Payton', 'River', 'Sage', 'Tatum',
+  'Uma', 'Vale', 'Winter', 'Xen', 'Yael', 'Zion', 'Callum', 'Drew', 'Ember', 'Flynn',
+  'Gia', 'Hudson', 'Isla', 'Juno', 'Keaton', 'Luca', 'Maddox', 'Nova', 'Orion', 'Piper',
+  'Rhett', 'Sloane', 'Teagan', 'Ursa', 'Vera', 'West', 'Xanthe', 'Yara', 'Zara', 'Bryn',
+  'Cleo', 'Dax', 'Elio', 'Fia', 'Gage', 'Haven', 'Iris', 'Jax', 'Koda', 'Lyra',
+  'Mira', 'Nash', 'Opal', 'Pierce', 'Quest', 'Riven', 'Sable', 'Thorne', 'Vida', 'Wren'
 ];
 
 const DRESS_CODES = [
