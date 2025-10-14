@@ -1001,6 +1001,25 @@ export async function handleJobShiftButton(interaction, ctx) {
     await interaction.reply({ content: `${emoji('warning')} Stage not found for this shift.`, ephemeral: true });
     return true;
   }
+
+  if (action === 'start') {
+    if (!session.awaitingStart) {
+      await interaction.reply({ content: `${emoji('info')} Shift already underway.`, ephemeral: true });
+      return true;
+    }
+    session.awaitingStart = false;
+    session.stageState = createStageState(session, stage);
+    refreshSessionTimeout(session);
+    const embed = buildStageEmbed(session, stage, session.kittenMode);
+    const components = buildStageComponents(session, stage);
+    return interaction.update({ embeds: [embed], components });
+  }
+
+  if (session.awaitingStart) {
+    await interaction.reply({ content: `${emoji('info')} Press “Open Queue” to begin this shift.`, ephemeral: true });
+    return true;
+  }
+
   refreshSessionTimeout(session);
   const stageState = ensureStageState(session, stage);
 
