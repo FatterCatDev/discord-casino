@@ -73,6 +73,10 @@ export const burnCredits = pick('burnCredits');
 export const gameLoseWithCredits = pick('gameLoseWithCredits');
 export const gameWinWithCredits = pick('gameWinWithCredits');
 
+// Jobs
+export const getJobStatus = pick('getJobStatus');
+export const setJobStatus = pick('setJobStatus');
+
 // Hold'em escrow and hands
 export const ensureHoldemTable = pick('ensureHoldemTable');
 export const createHoldemHand = pick('createHoldemHand');
