@@ -509,6 +509,27 @@ const updateActiveReqStatusStmt = db.prepare(`
 `);
 const clearActiveReqStmt = db.prepare('DELETE FROM active_requests WHERE guild_id = ? AND user_id = ?');
 
+const ensureJobProfileStmt = db.prepare(`
+  INSERT OR IGNORE INTO job_profiles (guild_id, user_id, job_id, rank, total_xp, xp_to_next, last_shift_at, created_at, updated_at)
+  VALUES (?, ?, ?, 1, 0, 100, NULL, strftime('%s','now'), strftime('%s','now'))
+`);
+const selectJobProfileStmt = db.prepare(`
+  SELECT guild_id, user_id, job_id, rank, total_xp, xp_to_next, last_shift_at, created_at, updated_at
+  FROM job_profiles
+  WHERE guild_id = ? AND user_id = ? AND job_id = ?
+`);
+const selectJobProfilesForUserStmt = db.prepare(`
+  SELECT guild_id, user_id, job_id, rank, total_xp, xp_to_next, last_shift_at, created_at, updated_at
+  FROM job_profiles
+  WHERE guild_id = ? AND user_id = ?
+  ORDER BY job_id ASC
+`);
+const updateJobProfileStmt = db.prepare(`
+  UPDATE job_profiles
+  SET rank = ?, total_xp = ?, xp_to_next = ?, last_shift_at = ?, updated_at = ?
+  WHERE guild_id = ? AND user_id = ? AND job_id = ?
+`);
+
 const ensureJobStatusStmt = db.prepare(`
   INSERT OR IGNORE INTO job_status (guild_id, user_id, active_job, job_switch_available_at, cooldown_reason, daily_earning_cap, earned_today, cap_reset_at, updated_at)
   VALUES (?, ?, 'none', 0, NULL, NULL, 0, NULL, strftime('%s','now'))
@@ -522,6 +543,23 @@ const updateJobStatusStmt = db.prepare(`
   UPDATE job_status
   SET active_job = ?, job_switch_available_at = ?, cooldown_reason = ?, daily_earning_cap = ?, earned_today = ?, cap_reset_at = ?, updated_at = ?
   WHERE guild_id = ? AND user_id = ?
+`);
+
+const insertJobShiftStmt = db.prepare(`
+  INSERT INTO job_shifts (id, guild_id, user_id, job_id, started_at, completed_at, performance_score, base_pay, tip_percent, tip_amount, total_payout, result_state, metadata_json)
+  VALUES (?, ?, ?, ?, ?, NULL, 0, 0, 0, 0, 0, 'PENDING', ?)
+`);
+const updateJobShiftCompletionStmt = db.prepare(`
+  UPDATE job_shifts
+  SET completed_at = ?, performance_score = ?, base_pay = ?, tip_percent = ?, tip_amount = ?, total_payout = ?, result_state = ?, metadata_json = ?
+  WHERE id = ?
+`);
+const selectRecentJobShiftsStmt = db.prepare(`
+  SELECT id, guild_id, user_id, job_id, started_at, completed_at, performance_score, base_pay, tip_percent, tip_amount, total_payout, result_state, metadata_json
+  FROM job_shifts
+  WHERE guild_id = ? AND user_id = ?
+  ORDER BY started_at DESC
+  LIMIT COALESCE(?, 20)
 `);
 
 function canonicalGuildId(guildId) {
