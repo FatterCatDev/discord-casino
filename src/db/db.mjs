@@ -1135,8 +1135,10 @@ export function completeJobShift(shiftId, updates = {}) {
   const basePay = updates.basePay !== undefined ? toInt(updates.basePay, existing.base_pay || 0) : toInt(existing.base_pay, 0);
   const tipPercent = updates.tipPercent !== undefined ? toInt(updates.tipPercent, existing.tip_percent || 0) : toInt(existing.tip_percent, 0);
   const tipAmount = updates.tipAmount !== undefined ? toInt(updates.tipAmount, existing.tip_amount || 0) : toInt(existing.tip_amount, 0);
-  const totalPayout = updates.totalPayout !== undefined ? toInt(updates.totalPayout, existing.total_payout || 0) : toInt(existing.total_payout, 0);
-  const resultState = updates.resultState || existing.result_state || 'PENDING';
+  const totalPayout = updates.totalPayout !== undefined
+    ? toInt(updates.totalPayout, existing.total_payout || 0)
+    : (basePay + tipAmount);
+  const resultState = (updates.resultState || existing.result_state || 'PENDING').toUpperCase();
   const metadataObj = updates.metadata !== undefined ? updates.metadata : safeParseJson(existing.metadata_json) || {};
   const metadataJson = JSON.stringify(metadataObj || {});
   updateJobShiftCompletionStmt.run(
