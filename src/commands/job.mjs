@@ -280,6 +280,34 @@ export default async function handleJob(interaction, ctx) {
     return startJobShift(interaction, ctx);
   }
 
+  if (subcommand === 'reset') {
+    if (!(await ctx.isAdmin(interaction))) {
+      return interaction.reply({
+        content: `${emoji('warning')} ${say('Only my headliners can use this reset lever, Kitten.', 'Only administrators can run this reset.')}`,
+        ephemeral: true
+      });
+    }
+
+    const profiles = await fetchProfiles(guildId, userId);
+    await setJobStatus(guildId, userId, {
+      job_switch_available_at: 0,
+      cooldown_reason: null,
+      earned_today: 0,
+      cap_reset_at: null
+    });
+
+    const updates = [];
+    for (const [jobId] of profiles.entries()) {
+      updates.push(updateJobProfile(guildId, userId, jobId, { lastShiftAt: null }));
+    }
+    await Promise.all(updates);
+
+    return interaction.reply({
+      content: `${emoji('hammerWrench')} ${say('Cooldowns scrubbed clean. You can swap roles and start shifts immediately, Kitten.', 'Cooldowns cleared. You can transfer jobs and start shifts immediately.')}`,
+      ephemeral: true
+    });
+  }
+
   if (subcommand === 'stats') {
     const profiles = await fetchProfiles(guildId, userId);
     const shifts = await listJobShiftsForUser(guildId, userId, 6);
