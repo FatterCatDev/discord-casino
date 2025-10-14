@@ -61,6 +61,7 @@ export async function recordShiftCompletion(guildId, userId, { now = Date.now() 
   const cooldownActive = cooldownExpiresAt > nowSeconds;
   let streakCount = normalizeNumber(current.shift_streak_count, 0);
   let updates = {};
+  const wasShiftCooldown = (current.cooldown_reason || '').toUpperCase().startsWith('SHIFT_STREAK');
 
   if (!cooldownActive && cooldownExpiresAt > 0) {
     updates.shift_cooldown_expires_at = 0;
@@ -78,9 +79,11 @@ export async function recordShiftCompletion(guildId, userId, { now = Date.now() 
     } else {
       updates = {
         ...updates,
-        shift_streak_count: streakCount,
-        cooldown_reason: null
+        shift_streak_count: streakCount
       };
+      if (wasShiftCooldown) {
+        updates.cooldown_reason = null;
+      }
     }
   } else {
     // Should not normally happen, but keep streak count capped.
