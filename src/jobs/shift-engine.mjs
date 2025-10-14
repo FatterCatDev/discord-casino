@@ -1283,14 +1283,13 @@ export async function startJobShift(interaction, ctx, jobInput) {
       session.messageId = message.id;
       session.channelId = message.channelId ?? session.channelId;
     }
-    return message;
+    return !!message;
   };
 
   if (session.awaitingStart) {
     const introEmbed = buildBouncerIntroEmbed(session, kittenMode);
     const introComponents = buildBouncerIntroComponents(session);
-    await respond({ embeds: [introEmbed], components: introComponents });
-    return true;
+    return await respond({ embeds: [introEmbed], components: introComponents });
   }
 
   const currentStage = stages[0];
@@ -1298,9 +1297,7 @@ export async function startJobShift(interaction, ctx, jobInput) {
   const embed = buildStageEmbed(session, currentStage, kittenMode);
   const components = buildStageComponents(session, currentStage);
 
-  await respond({ embeds: [embed], components });
-
-  return true;
+  return await respond({ embeds: [embed], components });
 }
 
 export async function cancelActiveShiftForUser(guildId, userId) {
