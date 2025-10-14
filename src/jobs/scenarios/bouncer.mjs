@@ -146,6 +146,16 @@ function describeGuest(guest, index) {
   ].join('\n');
 }
 
+function formatGuestList(names = []) {
+  if (!names.length) return ['  • (empty)'];
+  const sorted = names.slice().sort((a, b) => a.localeCompare(b));
+  const lines = [];
+  for (let i = 0; i < sorted.length; i += 5) {
+    lines.push(`  • ${sorted.slice(i, i + 5).join(', ')}`);
+  }
+  return lines;
+}
+
 function describeChecklist(checklist) {
   return [
     'Checklist:',
