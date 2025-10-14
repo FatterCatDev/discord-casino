@@ -184,11 +184,19 @@ async function ensureJobTables() {
       daily_earning_cap BIGINT,
       earned_today BIGINT NOT NULL DEFAULT 0,
       cap_reset_at BIGINT,
+      shift_streak_count BIGINT NOT NULL DEFAULT 0,
+      shift_cooldown_expires_at BIGINT NOT NULL DEFAULT 0,
       updated_at BIGINT NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::BIGINT,
       PRIMARY KEY (guild_id, user_id)
     )
   `);
   await q('CREATE INDEX IF NOT EXISTS idx_job_status_guild_switch ON job_status (guild_id, job_switch_available_at)');
+  if (!(await tableHasColumn('job_status', 'shift_streak_count'))) {
+    await q('ALTER TABLE job_status ADD COLUMN shift_streak_count BIGINT NOT NULL DEFAULT 0');
+  }
+  if (!(await tableHasColumn('job_status', 'shift_cooldown_expires_at'))) {
+    await q('ALTER TABLE job_status ADD COLUMN shift_cooldown_expires_at BIGINT NOT NULL DEFAULT 0');
+  }
 
   await q(`
     CREATE TABLE IF NOT EXISTS job_shifts (
