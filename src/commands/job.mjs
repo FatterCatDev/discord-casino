@@ -40,40 +40,34 @@ function jobDisplayIcon(job) {
   return job?.emojiKey ? emoji(job.emojiKey) : job?.icon || '';
 }
 
-function summarizeActiveJob(status, say) {
-  if (status?.hasActiveJob && status.jobDefinition) {
-    const icon = jobDisplayIcon(status.jobDefinition);
-    return `${icon} **${status.jobDefinition.displayName}**`;
+function formatShiftsRemaining(status, say) {
+  if (!status) return say('Tracker warming up.', 'Shift tracker warming up.');
+  if (status.onShiftCooldown) {
+    return say('None — cooldown in effect.', 'On cooldown — 0 shifts available.');
   }
-  return say('No job selected yet.', 'No active job selected.');
-}
-
-function formatTransferStatus(status, nowSeconds, say) {
-  const readyAt = Number(status?.job_switch_available_at || 0);
-  const remaining = Math.max(0, readyAt - nowSeconds);
-  if (remaining <= 0) {
-    return say(
-      `Transfer window open — swapping starts a ${formatDuration(JOB_SWITCH_COOLDOWN_SECONDS)} cooldown.`,
-      `Transfer window open — swapping starts a ${formatDuration(JOB_SWITCH_COOLDOWN_SECONDS)} cooldown.`
-    );
-  }
+  const limit = JOB_SHIFT_STREAK_LIMIT;
+  const streak = Number(status.shiftStreakCount ?? status.shift_streak_count ?? 0);
+  const remaining = Number(status.shiftsRemaining ?? Math.max(0, limit - streak));
+  const word = remaining === 1 ? say('shift', 'shift') : say('shifts', 'shifts');
   return say(
-    `Cooldown active — ready <t:${readyAt}:R> (${formatDuration(remaining)}).`,
-    `Cooldown active — ready <t:${readyAt}:R> (${formatDuration(remaining)}).`
+    `**${remaining}** ${word} left (streak ${streak}/${limit}).`,
+    `**${remaining}** ${word} left (streak ${streak}/${limit}).`
   );
 }
 
-function formatShiftCooldown(profile, nowSeconds, say) {
-  const last = Number(profile?.lastShiftAt ?? profile?.last_shift_at ?? 0);
-  if (!last) return say('Ready to clock in. No cooldown.', 'Ready to clock in.');
-  const availableAt = last + JOB_SHIFT_COOLDOWN_SECONDS;
-  const remaining = Math.max(0, availableAt - nowSeconds);
-  if (remaining <= 0) {
-    return say('Clock is clear — you can start a shift now.', 'Cooldown expired — start a shift anytime.');
+function formatCooldownStatus(status, nowSeconds, say) {
+  const limit = JOB_SHIFT_STREAK_LIMIT;
+  const expiresAt = Number(status?.shiftCooldownExpiresAt ?? status?.shift_cooldown_expires_at ?? 0);
+  const remaining = Math.max(0, expiresAt - nowSeconds);
+  if (!status?.onShiftCooldown || remaining <= 0) {
+    return say(
+      `Rest triggers after ${limit} shifts — cooldown lasts ${formatDuration(JOB_SHIFT_STREAK_COOLDOWN_SECONDS)}.`,
+      `Rest triggers after ${limit} shifts — cooldown lasts ${formatDuration(JOB_SHIFT_STREAK_COOLDOWN_SECONDS)}.`
+    );
   }
   return say(
-    `Shift cooldown: free in <t:${availableAt}:R> (${formatDuration(remaining)}).`,
-    `Shift cooldown: available <t:${availableAt}:R> (${formatDuration(remaining)}).`
+    `Back on the floor <t:${expiresAt}:R> (${formatDuration(remaining)}).`,
+    `Next shift window <t:${expiresAt}:R> (${formatDuration(remaining)}).`
   );
 }
 
