@@ -435,6 +435,37 @@ function buildStageEmbed(session, stage, kittenMode) {
   return embed;
 }
 
+function buildBouncerIntroEmbed(session, kittenMode) {
+  const say = (kitten, normal) => (kittenMode ? kitten : normal);
+  const job = session.job;
+  const jobIcon = jobDisplayIcon(job);
+  const embed = new EmbedBuilder()
+    .setColor(COLORS[job.id] || COLORS.default)
+    .setTitle(`${jobIcon} ${job.displayName} Shift — Briefing`)
+    .setDescription([
+      say('Ready, Kitten? Tonight’s velvet rope needs your call.', 'Review the rules before opening the rope.'),
+      `${emoji('clipboard')} ${say('Checklist updates each guest. Age, attire, wristband.', 'Each wave has a fresh checklist: age, attire, wristband.')}`,
+      `${emoji('door')} ${say('Tap “Open Queue” to see the first group.', 'Press “Open Queue” to begin evaluating the lineup.')}`
+    ].join('\n'));
+  return embed;
+}
+
+function buildBouncerIntroComponents(session) {
+  return [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`jobshift|${session.sessionId}|start`)
+        .setLabel('Open Queue')
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId(`jobshift|${session.sessionId}|cancel`)
+        .setLabel('End Shift')
+        .setEmoji('🛑')
+        .setStyle(ButtonStyle.Secondary)
+    )
+  ];
+}
+
 function buildCancelRow(sessionId) {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
