@@ -254,46 +254,9 @@ export default async function handleJob(interaction, ctx) {
     return interaction.reply({ embeds: [embed], ephemeral: true });
   }
 
-  if (subcommand === 'transfer') {
-    const jobId = interaction.options.getString('job', true);
-    try {
-      const result = await transferJob(guildId, userId, jobId);
-      const text = buildTransferResponse(result, kittenMode, now);
-      return interaction.reply({ content: text, ephemeral: true });
-    } catch (err) {
-      if (err?.code === 'JOB_SWITCH_COOLDOWN') {
-        const remaining = Math.max(0, Number(err.remainingSeconds || 0));
-        const availableAt = Number(err.availableAt || 0);
-        return interaction.reply({
-          content: [
-            `${emoji('hourglassFlow')} ${say('Not so fast, Kitten—the transfer cooldown is still ticking.', 'Hold up—the transfer cooldown is still ticking.')}`,
-            `${emoji('timer')} ${say(`Ready <t:${availableAt}:R> (${formatDuration(remaining)}).`, `Ready <t:${availableAt}:R> (${formatDuration(remaining)}).`)}`
-          ].join('\n'),
-          ephemeral: true
-        });
-      }
-      if (err?.code === 'JOB_UNCHANGED') {
-        return interaction.reply({
-          content: `${emoji('info')} ${say('You’re already on that shift, Kitten.', 'You already have that job active.')}`,
-          ephemeral: true
-        });
-      }
-      if (err?.code === 'JOB_UNKNOWN') {
-        return interaction.reply({ content: `${emoji('question')} ${say('I don’t recognize that job badge yet.', 'Unknown job option.')}`, ephemeral: true });
-      }
-      console.error('job transfer failed:', err);
-      return interaction.reply({ content: `${emoji('warning')} ${say('Something went sideways updating your job.', 'Something went wrong updating your job.')}`, ephemeral: true });
-    }
-  }
-
   if (subcommand === 'start') {
-    if (!status.hasActiveJob || !status.jobDefinition) {
-      return interaction.reply({
-        content: `${emoji('info')} ${say('Pick a job with `/job transfer` before clocking in, Kitten.', 'Pick a job with `/job transfer` before starting a shift.')}`,
-        ephemeral: true
-      });
-    }
-    return startJobShift(interaction, ctx);
+    const jobId = interaction.options.getString('job', true);
+    return startJobShift(interaction, ctx, jobId);
   }
 
   if (subcommand === 'reset') {
