@@ -554,6 +554,11 @@ const updateJobShiftCompletionStmt = db.prepare(`
   SET completed_at = ?, performance_score = ?, base_pay = ?, tip_percent = ?, tip_amount = ?, total_payout = ?, result_state = ?, metadata_json = ?
   WHERE id = ?
 `);
+const selectJobShiftByIdStmt = db.prepare(`
+  SELECT id, guild_id, user_id, job_id, started_at, completed_at, performance_score, base_pay, tip_percent, tip_amount, total_payout, result_state, metadata_json
+  FROM job_shifts
+  WHERE id = ?
+`);
 const selectRecentJobShiftsStmt = db.prepare(`
   SELECT id, guild_id, user_id, job_id, started_at, completed_at, performance_score, base_pay, tip_percent, tip_amount, total_payout, result_state, metadata_json
   FROM job_shifts
