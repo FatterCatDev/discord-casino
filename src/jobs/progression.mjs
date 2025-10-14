@@ -1,6 +1,5 @@
 import crypto from 'node:crypto';
 
-export const JOB_SHIFT_COOLDOWN_SECONDS = 8 * 60 * 60; // 8 hours
 export const JOB_SHIFT_STAGE_COUNT = 5;
 
 // XP thresholds to reach the next rank (Rank 1 -> 2 etc.)
@@ -127,12 +126,4 @@ export function calculateTipAmount(basePay, tipPercent) {
   if (!Number.isFinite(basePay) || basePay <= 0) return 0;
   const pct = Math.max(0, Math.min(100, Math.floor(Number(tipPercent) || 0)));
   return Math.floor(Math.max(0, Math.floor(basePay)) * pct / 100);
-}
-
-export function isShiftOnCooldown(profile, referenceTime = Date.now() / 1000) {
-  if (!profile) return false;
-  const last = Number(profile.lastShiftAt ?? profile.last_shift_at);
-  if (!Number.isFinite(last) || last <= 0) return false;
-  const nowSeconds = Math.floor(referenceTime);
-  return (nowSeconds - last) < JOB_SHIFT_COOLDOWN_SECONDS;
 }
