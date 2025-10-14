@@ -802,6 +802,10 @@ function ensureStageState(session, stage) {
   if (!session.stageState) {
     session.stageState = createStageState(session, stage);
   }
+  if (isBartenderStage(stage, session) && session.stageState.targetScore == null) {
+    const timerSeconds = Number(stage.timerSeconds ?? (stage.drink?.ingredients?.length ?? 0) + 23);
+    session.stageState.targetScore = Math.min(20, Math.max(0, Math.floor(timerSeconds)));
+  }
   return session.stageState;
 }
 
