@@ -1268,6 +1268,7 @@ export async function startJobShift(interaction, ctx, jobInput) {
   refreshSessionTimeout(session);
 
   const respond = async payload => {
+    let success = true;
     let message = null;
     try {
       if (interaction.deferred || interaction.replied) {
@@ -1283,12 +1284,13 @@ export async function startJobShift(interaction, ctx, jobInput) {
       }
     } catch (err) {
       console.error('job shift initial response failed', err);
+       success = false;
     }
     if (message) {
       session.messageId = message.id;
       session.channelId = message.channelId ?? session.channelId;
     }
-    return true;
+    return success;
   };
 
   if (session.awaitingStart) {
