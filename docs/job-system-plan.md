@@ -91,11 +91,10 @@
 - Write migration scripts for both SQLite (`db.mjs`) and Postgres (`db.pg.mjs`), including forward/backward compatibility guards and default values.
 
 ## 5. Command Surface & UX
-- Detail `/jobs` response layout: active job summary, ranks per job, shift cooldown timers, transfer cooldown status, flavor text.
-- Define `/job start` parameters, validation (active job, shift cooldown not elapsed, house balance check), and ephemeral vs. public responses.
-- Outline `/job transfer` flow: present confirmation embed summarizing effects (24h cooldown, XP buffer reset for chosen job, retained rank) with buttons for confirm/cancel.
+- Detail `/jobs` response layout: surface shift streak status (shifts remaining before rest, cooldown timer), ranks per job, and flavor text per role.
+- Define `/job start` parameters, validation (job choice, streak limit/cooldown checks, house balance), and ephemeral vs. public responses.
 - Document `/job stats` output (lifetime shifts, total earnings, top performance, recent tips) and developer-mode diagnostics.
-- List updates required for `/help` (new Job section, mention single-job restriction, cooldowns) plus kitten-mode narrative adjustments.
+- List updates required for `/help` (new Job section, explain five-shift burst rule and 6h rest timer) plus kitten-mode narrative adjustments.
 
 ## 6. Interaction Architecture
 - Extend (or introduce) a `buildCommandContext` helper with job utilities: `loadJobProfile`, `saveJobProfile`, `grantJobPayout`, `recordJobShift`, `canStartShift`, `timeUntilNextShift`, `timeUntilTransfer`.
