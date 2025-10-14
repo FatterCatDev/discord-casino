@@ -288,8 +288,8 @@ export default async function handleJob(interaction, ctx) {
       });
     }
 
-    const targetUser = interaction.options.getUser('user') ?? interaction.user;
-    const targetId = targetUser.id;
+    const targetOption = interaction.options.getUser('user');
+    const targetId = (targetOption ?? interaction.user).id;
     const targetMention = `<@${targetId}>`;
     const forSelf = targetId === userId;
 
@@ -323,8 +323,8 @@ export default async function handleJob(interaction, ctx) {
       });
     }
 
-    const targetUser = interaction.options.getUser('user') ?? interaction.user;
-    const targetId = targetUser.id;
+    const targetOption = interaction.options.getUser('user');
+    const targetId = (targetOption ?? interaction.user).id;
     const targetMention = `<@${targetId}>`;
     const forSelf = targetId === userId;
 
