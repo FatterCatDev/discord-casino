@@ -122,6 +122,7 @@ function ensureAtLeastOnePasses(guests, checklist) {
   chosen.age = age;
   chosen.dress = checklist.dress;
   chosen.wristband = checklist.wristband;
+  chosen.onGuestList = true;
   chosen.meets = true;
   return guests;
 }
