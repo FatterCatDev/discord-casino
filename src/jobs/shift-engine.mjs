@@ -848,13 +848,16 @@ function ensureStageState(session, stage) {
 async function handleCorrect(interaction, ctx, session, stage, stageState) {
   const attempts = stageState.attempts;
   const elapsedMs = Date.now() - stageState.startedAtMs;
+  const bartenderStage = isBartenderStage(stage, session);
   let totalScore;
-  if (isBartenderStage(stage, session)) {
-    const target = Number(stageState.targetScore ?? 20);
-    const elapsedSeconds = elapsedMs / 1000;
-    const remaining = Math.max(0, target - elapsedSeconds);
-    totalScore = Math.min(20, Math.floor(remaining));
-    stageState.targetScore = target;
+  let recordDetails = stage.details || null;
+  let recordBase = 0;
+  let recordBonus = 0;
+  if (bartenderStage) {
+    const penalties = Math.max(0, Math.floor(stageState.penalties || 0));
+    totalScore = Math.max(0, 20 - penalties);
+    recordBase = totalScore;
+    recordDetails = `Time penalties: -${penalties} pts`;
   } else {
     let baseScore = attempts === 1 ? 18 : attempts === 2 ? 9 : 0;
     let bonus = 0;
@@ -863,6 +866,8 @@ async function handleCorrect(interaction, ctx, session, stage, stageState) {
       else if (elapsedMs <= 10000) bonus = 1;
     }
     totalScore = Math.min(20, baseScore + bonus);
+    recordBase = baseScore;
+    recordBonus = bonus;
   }
   session.totalScore = clampScore(session.totalScore + totalScore);
   const lastAttempt = stageState.attemptsLog.at(-1);
@@ -872,14 +877,17 @@ async function handleCorrect(interaction, ctx, session, stage, stageState) {
     title: stage.title,
     status: totalScore > 0 ? 'success' : 'fail',
     attempts,
-    baseScore: totalScore,
-    bonus: 0,
+    baseScore: recordBase,
+    bonus: recordBonus,
     totalScore,
     correct: stage.correct,
     finalAnswer: lastAttempt?.optionId ?? stage.correct,
     elapsedMs,
-    details: stage.details || null
+    details: recordDetails
   };
+  if (bartenderStage) {
+    record.penalties = Math.max(0, Math.floor(stageState.penalties || 0));
+  }
   appendHistory(session, record);
   session.stageState = null;
   session.stageIndex += 1;
