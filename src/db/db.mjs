@@ -351,6 +351,9 @@ db.prepare('INSERT OR IGNORE INTO guild_house (guild_id, chips) VALUES (?, 0)').
 db.exec('CREATE INDEX IF NOT EXISTS idx_users_guild_discord ON users (guild_id, discord_id)');
 db.exec('CREATE INDEX IF NOT EXISTS idx_transactions_guild_created ON transactions (guild_id, created_at)');
 db.exec('CREATE INDEX IF NOT EXISTS idx_vote_rewards_user_claimed ON vote_rewards (discord_user_id, claimed_at)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_job_profiles_user ON job_profiles (guild_id, user_id)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_job_profiles_job ON job_profiles (job_id, guild_id)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_job_shifts_user_started ON job_shifts (guild_id, user_id, started_at)');
 db.exec('CREATE INDEX IF NOT EXISTS idx_job_status_guild_switch ON job_status (guild_id, job_switch_available_at)');
 db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_vote_rewards_source_external ON vote_rewards (source, external_id)');
 
