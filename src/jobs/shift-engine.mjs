@@ -872,6 +872,51 @@ function stageTimeoutSeconds(attempts) {
   return attempts >= 3 ? 0 : 25;
 }
 
+async function cancelSession(session, { editOriginal = false } = {}) {
+  const say = (kitten, normal) => (session.kittenMode ? kitten : normal);
+
+  clearSession(session);
+  await completeJobShift(session.shiftId, {
+    resultState: 'CANCELLED',
+    metadata: buildMetadata(session, {
+      performanceScore: session.totalScore,
+      xpEarned: 0,
+      rankBefore: session.profileBefore.rank,
+      rankAfter: session.profileBefore.rank,
+      xpToNext: session.profileBefore.xpToNext,
+      basePay: 0,
+      tipPercent: 0,
+      tipAmount: 0,
+      totalPayout: 0,
+      payoutStatus: 'CANCELLED'
+    })
+  });
+  await updateJobProfile(session.guildId, session.userId, session.jobId, {
+    lastShiftAt: session.previousLastShiftAt ?? null,
+    rank: session.profileBefore.rank,
+    totalXp: session.profileBefore.totalXp,
+    xpToNext: session.profileBefore.xpToNext
+  });
+
+  const message = `${emoji('warning')} ${say('Shift cancelled — no penalties applied.', 'Shift cancelled. No XP or chips were awarded.')}`;
+
+  if (editOriginal && session.client && session.channelId && session.messageId) {
+    try {
+      const channel = await session.client.channels.fetch(session.channelId);
+      if (channel && channel.isTextBased()) {
+        const msg = await channel.messages.fetch(session.messageId).catch(() => null);
+        if (msg) {
+          await msg.edit({ content: message, embeds: [], components: [] });
+        }
+      }
+    } catch (err) {
+      console.error('job shift cancel message update failed', err);
+    }
+  }
+
+  return message;
+}
+
 function ensureStageState(session, stage) {
   if (!session.stageState) {
     session.stageState = createStageState(session, stage);
