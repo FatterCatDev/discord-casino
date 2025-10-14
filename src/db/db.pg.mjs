@@ -957,6 +957,8 @@ function normalizeJobStatusRow(guildId, userId, row = {}) {
     daily_earning_cap: nullableInt(row?.daily_earning_cap),
     earned_today: intValue(row?.earned_today, 0),
     cap_reset_at: nullableInt(row?.cap_reset_at),
+    shift_streak_count: intValue(row?.shift_streak_count, 0),
+    shift_cooldown_expires_at: intValue(row?.shift_cooldown_expires_at, 0),
     updated_at: intValue(row?.updated_at, 0)
   };
 }
@@ -967,7 +969,7 @@ export async function getJobStatus(guildId, userId) {
   if (!uid) throw new Error('JOB_STATUS_USER_REQUIRED');
   await ensureJobStatusRow(gid, uid);
   const row = await q1(
-    'SELECT active_job, job_switch_available_at, cooldown_reason, daily_earning_cap, earned_today, cap_reset_at, updated_at FROM job_status WHERE guild_id = $1 AND user_id = $2',
+    'SELECT active_job, job_switch_available_at, cooldown_reason, daily_earning_cap, earned_today, cap_reset_at, shift_streak_count, shift_cooldown_expires_at, updated_at FROM job_status WHERE guild_id = $1 AND user_id = $2',
     [gid, uid]
   );
   return normalizeJobStatusRow(gid, uid, row || {});
@@ -979,7 +981,7 @@ export async function setJobStatus(guildId, userId, patch = {}) {
   if (!uid) throw new Error('JOB_STATUS_USER_REQUIRED');
   await ensureJobStatusRow(gid, uid);
   const current = await q1(
-    'SELECT active_job, job_switch_available_at, cooldown_reason, daily_earning_cap, earned_today, cap_reset_at FROM job_status WHERE guild_id = $1 AND user_id = $2',
+    'SELECT active_job, job_switch_available_at, cooldown_reason, daily_earning_cap, earned_today, cap_reset_at, shift_streak_count, shift_cooldown_expires_at FROM job_status WHERE guild_id = $1 AND user_id = $2',
     [gid, uid]
   ) || {};
   const now = Math.floor(Date.now() / 1000);
@@ -989,7 +991,9 @@ export async function setJobStatus(guildId, userId, patch = {}) {
     cooldown_reason: patch.cooldown_reason === undefined ? (current.cooldown_reason ?? null) : patch.cooldown_reason,
     daily_earning_cap: patch.daily_earning_cap === undefined ? (current.daily_earning_cap ?? null) : patch.daily_earning_cap,
     earned_today: intValue(patch.earned_today ?? current.earned_today, 0),
-    cap_reset_at: patch.cap_reset_at === undefined ? (current.cap_reset_at ?? null) : patch.cap_reset_at
+    cap_reset_at: patch.cap_reset_at === undefined ? (current.cap_reset_at ?? null) : patch.cap_reset_at,
+    shift_streak_count: intValue(patch.shift_streak_count ?? current.shift_streak_count, 0),
+    shift_cooldown_expires_at: intValue(patch.shift_cooldown_expires_at ?? current.shift_cooldown_expires_at, 0)
   };
   await q(
     `UPDATE job_status
@@ -999,8 +1003,10 @@ export async function setJobStatus(guildId, userId, patch = {}) {
          daily_earning_cap = $4,
          earned_today = $5,
          cap_reset_at = $6,
-         updated_at = $7
-     WHERE guild_id = $8 AND user_id = $9`,
+         shift_streak_count = $7,
+         shift_cooldown_expires_at = $8,
+         updated_at = $9
+     WHERE guild_id = $10 AND user_id = $11`,
     [
       next.active_job,
       intValue(next.job_switch_available_at, 0),
@@ -1008,6 +1014,8 @@ export async function setJobStatus(guildId, userId, patch = {}) {
       nullableInt(next.daily_earning_cap),
       intValue(next.earned_today, 0),
       nullableInt(next.cap_reset_at),
+      intValue(next.shift_streak_count, 0),
+      intValue(next.shift_cooldown_expires_at, 0),
       now,
       gid,
       uid
