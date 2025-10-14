@@ -1020,6 +1020,156 @@ export function clearActiveRequest(guildId, userId) {
   return true;
 }
 
+function nowSeconds() {
+  return Math.floor(Date.now() / 1000);
+}
+
+function normalizeJobProfileRow(guildId, userId, jobId, row = null) {
+  return {
+    guildId,
+    userId,
+    jobId,
+    rank: row ? Math.max(1, toInt(row.rank, 1)) : 1,
+    totalXp: row ? Math.max(0, toInt(row.total_xp, 0)) : 0,
+    xpToNext: row ? Math.max(0, toInt(row.xp_to_next, 100)) : 100,
+    lastShiftAt: row && row.last_shift_at !== null && row.last_shift_at !== undefined ? toInt(row.last_shift_at, null) : null,
+    createdAt: row ? toInt(row.created_at, 0) : 0,
+    updatedAt: row ? toInt(row.updated_at, 0) : 0
+  };
+}
+
+function normalizeJobShiftRow(row = null) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    guildId: row.guild_id,
+    userId: row.user_id,
+    jobId: row.job_id,
+    startedAt: toInt(row.started_at, 0),
+    completedAt: row.completed_at !== null && row.completed_at !== undefined ? toInt(row.completed_at, null) : null,
+    performanceScore: toInt(row.performance_score, 0),
+    basePay: toInt(row.base_pay, 0),
+    tipPercent: toInt(row.tip_percent, 0),
+    tipAmount: toInt(row.tip_amount, 0),
+    totalPayout: toInt(row.total_payout, 0),
+    resultState: row.result_state || 'PENDING',
+    metadata: safeParseJson(row.metadata_json) || {}
+  };
+}
+
+export function ensureJobProfile(guildId, userId, jobId) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  const jid = String(jobId || '').trim();
+  if (!uid) throw new Error('JOB_PROFILE_USER_REQUIRED');
+  if (!jid) throw new Error('JOB_PROFILE_JOB_REQUIRED');
+  ensureJobProfileStmt.run(gid, uid, jid);
+  const row = selectJobProfileStmt.get(gid, uid, jid);
+  return normalizeJobProfileRow(gid, uid, jid, row);
+}
+
+export function getJobProfile(guildId, userId, jobId) {
+  return ensureJobProfile(guildId, userId, jobId);
+}
+
+export function listJobProfilesForUser(guildId, userId) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) throw new Error('JOB_PROFILE_USER_REQUIRED');
+  const rows = selectJobProfilesForUserStmt.all(gid, uid) || [];
+  return rows.map(row => normalizeJobProfileRow(gid, uid, row.job_id, row));
+}
+
+export function updateJobProfile(guildId, userId, jobId, patch = {}) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  const jid = String(jobId || '').trim();
+  if (!uid) throw new Error('JOB_PROFILE_USER_REQUIRED');
+  if (!jid) throw new Error('JOB_PROFILE_JOB_REQUIRED');
+  ensureJobProfileStmt.run(gid, uid, jid);
+  const current = selectJobProfileStmt.get(gid, uid, jid) || {};
+  const nextRank = patch.rank !== undefined ? Math.max(1, toInt(patch.rank, current.rank || 1)) : Math.max(1, toInt(current.rank, 1));
+  const nextTotal = patch.totalXp !== undefined ? Math.max(0, toInt(patch.totalXp, current.total_xp || 0)) : Math.max(0, toInt(current.total_xp, 0));
+  const nextXpToNext = patch.xpToNext !== undefined ? Math.max(0, toInt(patch.xpToNext, current.xp_to_next || 0)) : Math.max(0, toInt(current.xp_to_next, 0));
+  const nextLastShift = patch.lastShiftAt === undefined
+    ? (current.last_shift_at !== undefined ? current.last_shift_at : null)
+    : (patch.lastShiftAt === null ? null : toInt(patch.lastShiftAt, null));
+  const updatedAt = patch.updatedAt !== undefined ? toInt(patch.updatedAt, nowSeconds()) : nowSeconds();
+  updateJobProfileStmt.run(
+    nextRank,
+    nextTotal,
+    nextXpToNext,
+    nextLastShift,
+    updatedAt,
+    gid,
+    uid,
+    jid
+  );
+  const row = selectJobProfileStmt.get(gid, uid, jid);
+  return normalizeJobProfileRow(gid, uid, jid, row);
+}
+
+export function createJobShift(guildId, userId, jobId, options = {}) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  const jid = String(jobId || '').trim();
+  if (!uid) throw new Error('JOB_SHIFT_USER_REQUIRED');
+  if (!jid) throw new Error('JOB_SHIFT_JOB_REQUIRED');
+  ensureJobProfileStmt.run(gid, uid, jid);
+  const id = options.shiftId ? String(options.shiftId) : crypto.randomUUID();
+  const startedAt = options.startedAt !== undefined ? toInt(options.startedAt, nowSeconds()) : nowSeconds();
+  const metadata = options.metadata !== undefined ? options.metadata : {};
+  const metadataJson = JSON.stringify(metadata || {});
+  insertJobShiftStmt.run(id, gid, uid, jid, startedAt, metadataJson);
+  const row = selectJobShiftByIdStmt.get(id);
+  return normalizeJobShiftRow(row);
+}
+
+export function completeJobShift(shiftId, updates = {}) {
+  const id = String(shiftId || '').trim();
+  if (!id) throw new Error('JOB_SHIFT_ID_REQUIRED');
+  const existing = selectJobShiftByIdStmt.get(id);
+  if (!existing) throw new Error('JOB_SHIFT_NOT_FOUND');
+  const completedAt = updates.completedAt !== undefined ? toInt(updates.completedAt, nowSeconds()) : nowSeconds();
+  const performance = updates.performanceScore !== undefined ? toInt(updates.performanceScore, existing.performance_score || 0) : toInt(existing.performance_score, 0);
+  const basePay = updates.basePay !== undefined ? toInt(updates.basePay, existing.base_pay || 0) : toInt(existing.base_pay, 0);
+  const tipPercent = updates.tipPercent !== undefined ? toInt(updates.tipPercent, existing.tip_percent || 0) : toInt(existing.tip_percent, 0);
+  const tipAmount = updates.tipAmount !== undefined ? toInt(updates.tipAmount, existing.tip_amount || 0) : toInt(existing.tip_amount, 0);
+  const totalPayout = updates.totalPayout !== undefined ? toInt(updates.totalPayout, existing.total_payout || 0) : toInt(existing.total_payout, 0);
+  const resultState = updates.resultState || existing.result_state || 'PENDING';
+  const metadataObj = updates.metadata !== undefined ? updates.metadata : safeParseJson(existing.metadata_json) || {};
+  const metadataJson = JSON.stringify(metadataObj || {});
+  updateJobShiftCompletionStmt.run(
+    completedAt,
+    performance,
+    basePay,
+    tipPercent,
+    tipAmount,
+    totalPayout,
+    resultState,
+    metadataJson,
+    id
+  );
+  const row = selectJobShiftByIdStmt.get(id);
+  return normalizeJobShiftRow(row);
+}
+
+export function getJobShiftById(shiftId) {
+  const id = String(shiftId || '').trim();
+  if (!id) throw new Error('JOB_SHIFT_ID_REQUIRED');
+  const row = selectJobShiftByIdStmt.get(id);
+  return normalizeJobShiftRow(row);
+}
+
+export function listJobShiftsForUser(guildId, userId, limit = 20) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) throw new Error('JOB_SHIFT_USER_REQUIRED');
+  const lim = Math.max(1, Math.min(100, Number(limit) || 20));
+  const rows = selectRecentJobShiftsStmt.all(gid, uid, lim) || [];
+  return rows.map(normalizeJobShiftRow);
+}
+
 function toInt(value, fallback = 0) {
   const num = Number(value);
   if (!Number.isFinite(num)) return fallback;
