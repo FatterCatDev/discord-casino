@@ -5,7 +5,9 @@ import { getJobStatusForUser, transferJob, JOB_SWITCH_COOLDOWN_SECONDS } from '.
 import {
   ensureJobProfile,
   listJobProfilesForUser,
-  listJobShiftsForUser
+  listJobShiftsForUser,
+  updateJobProfile,
+  setJobStatus
 } from '../db/db.auto.mjs';
 import { rankTitle } from '../jobs/ranks.mjs';
 import { JOB_SHIFT_COOLDOWN_SECONDS } from '../jobs/progression.mjs';
