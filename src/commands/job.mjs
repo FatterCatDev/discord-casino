@@ -71,6 +71,19 @@ function formatCooldownStatus(status, nowSeconds, say) {
   );
 }
 
+function buildShiftStatusLines(status, say, nowSeconds) {
+  if (status?.onShiftCooldown) {
+    return [
+      `${emoji('hourglassFlow')} ${say('Cooldown active — lounge for a bit, Kitten.', 'Cooldown active — take a breather.')}`,
+      `${emoji('timer')} ${formatCooldownStatus(status, nowSeconds, say)}`
+    ];
+  }
+  return [
+    `${emoji('clipboard')} ${say('Shifts before rest:', 'Shifts before rest:')} ${formatShiftsRemaining(status, say)}`,
+    `${emoji('timer')} ${formatCooldownStatus(status, nowSeconds, say)}`
+  ];
+}
+
 function profileSummaryLines(job, profile, say) {
   const rank = profile?.rank || 1;
   const totalXp = profile?.totalXp ?? profile?.total_xp ?? 0;
