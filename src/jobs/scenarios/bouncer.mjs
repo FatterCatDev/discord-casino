@@ -73,8 +73,17 @@ function generateChecklist() {
   return {
     ageRequirement: 21,
     dress: sample(DRESS_CODES),
-    wristband: sample(WRISTBANDS)
+    wristband: sample(WRISTBANDS),
+    guestList: sampleUniqueNames(10)
   };
+}
+
+function sampleUniqueNames(count) {
+  const set = new Set();
+  while (set.size < count) {
+    set.add(sample(GUEST_NAMES));
+  }
+  return Array.from(set);
 }
 
 function resolveDress(required) {
