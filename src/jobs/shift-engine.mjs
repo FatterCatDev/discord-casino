@@ -1124,6 +1124,25 @@ export async function handleJobShiftButton(interaction, ctx) {
     return interaction.update({ embeds: [embed], components });
   }
 
+  if (action === 'submit' && session.jobId === 'bouncer') {
+    const selected = Array.isArray(stageState.selectedNames) ? stageState.selectedNames : [];
+    const uniqueSelected = Array.from(new Set(selected));
+    stageState.attempts += 1;
+    stageState.attemptsLog.push({
+      optionId: uniqueSelected.join(',') || 'DENY ALL',
+      correct: false,
+      at: Date.now()
+    });
+
+    const correctNames = Array.isArray(stage.correctNames) ? stage.correctNames : [];
+    const success = compareNameSelections(uniqueSelected, correctNames);
+    if (success) {
+      stageState.attemptsLog[stageState.attemptsLog.length - 1].correct = true;
+      return handleCorrect(interaction, ctx, session, stage, stageState);
+    }
+    return handleIncorrect(interaction, session, stage, stageState);
+  }
+
   if (action === 'technique' && isBartenderStage(stage, session)) {
     if (payload !== 'shake' && payload !== 'stir') {
       await interaction.reply({ content: `${emoji('warning')} Unknown technique option.`, ephemeral: true });
