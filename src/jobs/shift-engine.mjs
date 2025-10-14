@@ -108,6 +108,245 @@ function buildHistoryLines(session) {
   }).join('\n');
 }
 
+function isBartenderStage(stage, session) {
+  return stage?.type === 'bartender' || session?.jobId === 'bartender';
+}
+
+function getBartenderData(session) {
+  return session?.bartender || null;
+}
+
+function getBlankValue(session) {
+  const data = getBartenderData(session);
+  return data?.blankValue ?? '__blank__';
+}
+
+function createStageState(session, stage) {
+  const base = {
+    startedAtMs: Date.now(),
+    attempts: 0,
+    attemptsLog: []
+  };
+  if (isBartenderStage(stage, session)) {
+    const blank = getBlankValue(session);
+    return {
+      ...base,
+      picks: [blank, blank, blank, blank],
+      technique: null,
+      lastFeedback: null
+    };
+  }
+  return base;
+}
+
+function bartenderMenuLines(menu) {
+  return menu.map((drink, idx) => {
+    const sequence = drink.ingredients.join(' → ');
+    const finish = drink.technique.toUpperCase();
+    return `${idx + 1}. ${drink.name} (${sequence}) • ${finish}`;
+  });
+}
+
+function chunkTextLines(lines, limit = 1024) {
+  const chunks = [];
+  let current = '';
+  for (const line of lines) {
+    const next = current ? `${current}\n${line}` : line;
+    if (next.length > limit) {
+      if (current) chunks.push(current);
+      if (line.length > limit) {
+        chunks.push(line.slice(0, limit));
+        current = line.slice(limit);
+      } else {
+        current = line;
+      }
+    } else {
+      current = next;
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks.length ? chunks : ['—'];
+}
+
+function formatBartenderBuild(stageState, blankValue) {
+  if (!stageState) return '1. —\n2. —\n3. —\n4. —\nTechnique: —';
+  const picks = stageState.picks || [];
+  const lines = picks.map((value, idx) => {
+    const display = !value || value === blankValue ? '—' : value;
+    return `${idx + 1}. ${display}`;
+  });
+  const technique = stageState.technique ? stageState.technique.toUpperCase() : '—';
+  lines.push(`Technique: ${technique}`);
+  return lines.join('\n');
+}
+
+function buildBartenderStageEmbed(session, stage, kittenMode) {
+  const say = (kitten, normal) => (kittenMode ? kitten : normal);
+  const job = session.job;
+  const jobIcon = jobDisplayIcon(job);
+  const stageNumber = session.stageIndex + 1;
+  const totalStages = session.stages.length;
+  const blank = getBlankValue(session);
+  const stageState = session.stageState || createStageState(session, stage);
+  const menu = getBartenderData(session)?.menu || [];
+  const menuChunks = chunkTextLines(bartenderMenuLines(menu));
+  const embed = new EmbedBuilder()
+    .setColor(COLORS[job.id] || COLORS.default)
+    .setTitle(`${jobIcon} ${job.displayName} Shift — Stage ${stageNumber}/${totalStages}`)
+    .setDescription([
+      stage.prompt,
+      '',
+      say('Select each ingredient in order, Kitten, then finish with the right move.', 'Pick each ingredient in order, then choose the correct finish.')
+    ].join('\n'))
+    .addFields(
+      {
+        name: say('Score So Far', 'Score So Far'),
+        value: `${session.totalScore} / 100`
+      },
+      {
+        name: say('Customer Order', 'Customer Order'),
+        value: `${stage.drink.ingredients.join(' → ')}\n${say('Finish with:', 'Finish with:')} **${stage.drink.technique.toUpperCase()}**`
+      },
+      {
+        name: say('Your Build', 'Your Build'),
+        value: formatBartenderBuild(stageState, blank)
+      },
+      {
+        name: say('Stage History', 'Stage History'),
+        value: buildHistoryLines(session)
+      }
+    );
+
+  if (stageState.lastFeedback) {
+    embed.addFields({
+      name: say('Last Feedback', 'Last Feedback'),
+      value: stageState.lastFeedback
+    });
+  }
+
+  menuChunks.forEach((chunk, idx) => {
+    embed.addFields({
+      name: idx === 0 ? say('Tonight’s Menu', 'Tonight’s Menu') : say('Menu (cont.)', 'Menu (cont.)'),
+      value: chunk
+    });
+  });
+
+  return embed;
+}
+
+function buildBartenderIngredientRow(session, slotIndex) {
+  const data = getBartenderData(session);
+  const blank = getBlankValue(session);
+  const stageState = session.stageState || createStageState(session, session.stages[session.stageIndex]);
+  const current = stageState.picks?.[slotIndex] ?? blank;
+  const options = [
+    {
+      label: 'Blank',
+      description: 'Leave this step empty',
+      value: blank,
+      default: current === blank
+    },
+    ...data.ingredients.slice().sort((a, b) => a.localeCompare(b)).map(ingredient => ({
+      label: ingredient,
+      value: ingredient,
+      default: current === ingredient
+    }))
+  ];
+  const select = new StringSelectMenuBuilder()
+    .setCustomId(`jobshift|${session.sessionId}|slot|${slotIndex}`)
+    .setPlaceholder(`Ingredient ${slotIndex + 1}`)
+    .setMinValues(1)
+    .setMaxValues(1)
+    .addOptions(options);
+  return new ActionRowBuilder().addComponents(select);
+}
+
+function canSubmitBartenderStage(session, stage) {
+  const blank = getBlankValue(session);
+  const state = session.stageState || createStageState(session, stage);
+  const picks = state.picks || [];
+  const required = stage.drink.ingredients.length;
+  for (let i = 0; i < required; i += 1) {
+    if (!picks[i] || picks[i] === blank) return false;
+  }
+  return !!state.technique;
+}
+
+function buildBartenderControlRow(session, stage) {
+  const stageState = session.stageState || createStageState(session, stage);
+  const technique = stageState.technique;
+  const serveDisabled = !canSubmitBartenderStage(session, stage);
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`jobshift|${session.sessionId}|technique|shake`)
+      .setLabel('Shake')
+      .setStyle(technique === 'shake' ? ButtonStyle.Success : ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(`jobshift|${session.sessionId}|technique|stir`)
+      .setLabel('Stir')
+      .setStyle(technique === 'stir' ? ButtonStyle.Success : ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(`jobshift|${session.sessionId}|submit`)
+      .setLabel('Serve Drink')
+      .setStyle(ButtonStyle.Primary)
+      .setDisabled(serveDisabled),
+    new ButtonBuilder()
+      .setCustomId(`jobshift|${session.sessionId}|cancel`)
+      .setLabel('End Shift')
+      .setEmoji('🛑')
+      .setStyle(ButtonStyle.Secondary)
+  );
+}
+
+function buildBartenderStageComponents(session, stage) {
+  return [
+    buildBartenderIngredientRow(session, 0),
+    buildBartenderIngredientRow(session, 1),
+    buildBartenderIngredientRow(session, 2),
+    buildBartenderIngredientRow(session, 3),
+    buildBartenderControlRow(session, stage)
+  ];
+}
+
+function buildBartenderStageComponentsForSession(session) {
+  const stage = session.stages[session.stageIndex];
+  return buildBartenderStageComponents(session, stage);
+}
+
+function evaluateBartenderSubmission(session, stage) {
+  const blank = getBlankValue(session);
+  const state = session.stageState || createStageState(session, stage);
+  const picks = state.picks || [];
+  const required = stage.drink.ingredients;
+  const errors = [];
+
+  for (let i = 0; i < required.length; i += 1) {
+    const expected = required[i];
+    const received = picks[i];
+    if (expected !== received) {
+      errors.push(`Ingredient ${i + 1} should be **${expected}**.`);
+    }
+  }
+
+  for (let i = required.length; i < picks.length; i += 1) {
+    const received = picks[i];
+    if (received && received !== blank) {
+      errors.push(`Ingredient slot ${i + 1} must remain blank.`);
+    }
+  }
+
+  if (!state.technique) {
+    errors.push('Select whether to shake or stir the drink.');
+  } else if (state.technique !== stage.drink.technique) {
+    errors.push(`Finish should be **${stage.drink.technique.toUpperCase()}**.`);
+  }
+
+  return {
+    success: errors.length === 0,
+    message: errors.join(' ')
+  };
+}
+
 function jobDisplayIcon(job) {
   return job?.emojiKey ? emoji(job.emojiKey) : job?.icon || '';
 }
