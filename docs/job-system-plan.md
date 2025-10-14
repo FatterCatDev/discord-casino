@@ -121,9 +121,9 @@
 
 ## 10. Testing Strategy
 - Unit tests:
-  - XP progression math (including XP reset on transfer).
+  - XP progression math under repeated shifts.
   - Payout calculation and tip weighting distribution (statistical sanity check).
-  - Cooldown enforcement for shifts and transfers.
+  - Streak counting and cooldown enforcement after the fifth shift.
   - Handling when house funds are insufficient.
 - Integration tests:
   - DB migrations up/down on SQLite and Postgres.
@@ -131,7 +131,7 @@
   - Session recovery after restart (simulate mid-shift reboot).
 - Manual QA checklist:
   - Run each job's minigame in both personas.
-  - Validate `/jobs`, `/job start`, `/job transfer`, `/job stats` outputs and security restrictions.
+  - Validate `/jobs`, `/job start`, `/job stats` outputs, streak remaining messaging, and security restrictions.
   - Confirm house balance deductions, transaction logs, and tip percentages in `/job stats`.
 
 ## 11. Deployment & Rollout
