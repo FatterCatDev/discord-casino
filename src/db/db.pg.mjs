@@ -879,8 +879,7 @@ export async function createJobShift(guildId, userId, jobId, options = {}) {
   const id = options.shiftId ? String(options.shiftId) : crypto.randomUUID();
   const startedAt = options.startedAt !== undefined ? intValue(options.startedAt, secondsNow()) : secondsNow();
   const metadata = options.metadata !== undefined ? options.metadata : {};
-  const metadataJson = JSON.stringify(metadata || {});
-  await q('INSERT INTO job_shifts (id, guild_id, user_id, job_id, started_at, metadata_json) VALUES ($1,$2,$3,$4,$5,$6)', [id, gid, uid, jid, startedAt, metadataJson]);
+  await q('INSERT INTO job_shifts (id, guild_id, user_id, job_id, started_at, metadata_json) VALUES ($1,$2,$3,$4,$5,$6)', [id, gid, uid, jid, startedAt, metadata]);
   const row = await q1('SELECT id, guild_id, user_id, job_id, started_at, completed_at, performance_score, base_pay, tip_percent, tip_amount, total_payout, result_state, metadata_json FROM job_shifts WHERE id = $1', [id]);
   return normalizeJobShiftRow(row);
 }
@@ -899,10 +898,9 @@ export async function completeJobShift(shiftId, updates = {}) {
   const totalPayout = intValue(totalPayoutRaw, basePay + tipAmount);
   const resultState = (updates.resultState || existing.result_state || 'PENDING').toUpperCase();
   const metadata = updates.metadata !== undefined ? updates.metadata : (existing.metadata_json || {});
-  const metadataJson = JSON.stringify(metadata || {});
   await q(
     'UPDATE job_shifts SET completed_at = $1, performance_score = $2, base_pay = $3, tip_percent = $4, tip_amount = $5, total_payout = $6, result_state = $7, metadata_json = $8 WHERE id = $9',
-    [completedAt, performance, basePay, tipPercent, tipAmount, totalPayout, resultState, metadataJson, id]
+    [completedAt, performance, basePay, tipPercent, tipAmount, totalPayout, resultState, metadata, id]
   );
   const row = await q1('SELECT id, guild_id, user_id, job_id, started_at, completed_at, performance_score, base_pay, tip_percent, tip_amount, total_payout, result_state, metadata_json FROM job_shifts WHERE id = $1', [id]);
   return normalizeJobShiftRow(row);
