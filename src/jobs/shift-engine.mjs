@@ -150,9 +150,9 @@ function applyBartenderTimingPenalty(stageState, elapsedMs) {
   if (!stageState) return { penalty: 0, seconds: 0 };
   const seconds = Math.max(0, elapsedMs / 1000);
   let penalty = 0;
-  if (seconds > 10) penalty = 5;
-  else if (seconds > 7) penalty = 2;
-  else if (seconds > 5) penalty = 1;
+  if (seconds > 7) penalty = 5;
+  else if (seconds > 5) penalty = 2;
+  else if (seconds > 3) penalty = 1;
   if (penalty > 0) {
     stageState.penalties = Math.max(0, (stageState.penalties || 0) + penalty);
     if (!Array.isArray(stageState.penaltyHistory)) stageState.penaltyHistory = [];
