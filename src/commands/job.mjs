@@ -326,7 +326,9 @@ export default async function handleJob(interaction, ctx) {
       cooldown_reason: null,
       daily_earning_cap: null,
       earned_today: 0,
-      cap_reset_at: null
+      cap_reset_at: null,
+      shift_streak_count: 0,
+      shift_cooldown_expires_at: 0
     });
 
     await Promise.all(updates);
@@ -334,8 +336,8 @@ export default async function handleJob(interaction, ctx) {
     const jobCount = profiles.size || listJobs().length;
     return interaction.reply({
       content: forSelf
-        ? `${emoji('sparkles')} ${say(`Fresh slate! Ranks and XP reset across ${jobCount} jobs.`, `Stats reset. Your ranks and XP across ${jobCount} jobs are back to defaults.`)}`
-        : `${emoji('sparkles')} ${say(`Reset ranks and XP for ${targetMention} across ${jobCount} jobs.`, `Stats reset for ${targetMention} across ${jobCount} jobs.`)}`,
+        ? `${emoji('sparkles')} ${say(`Fresh slate! Ranks, XP, and shift timers reset across ${jobCount} jobs.`, `Stats reset. Your ranks, XP, and shift counters across ${jobCount} jobs are back to defaults.`)}`
+        : `${emoji('sparkles')} ${say(`Reset ranks, XP, and shift timers for ${targetMention} across ${jobCount} jobs.`, `Stats reset for ${targetMention} across ${jobCount} jobs — shift timers included.`)}`,
       ephemeral: true
     });
   }
