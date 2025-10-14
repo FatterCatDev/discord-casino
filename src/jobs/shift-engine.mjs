@@ -1211,6 +1211,7 @@ export async function startJobShift(interaction, ctx, jobInput) {
     stageIndex: 0,
     stages,
     stageState: null,
+    awaitingStart: jobId === 'bouncer',
     history: [],
     status: 'ACTIVE',
     ctx,
@@ -1221,12 +1222,25 @@ export async function startJobShift(interaction, ctx, jobInput) {
     messageId: null
   };
 
-  session.stageState = createStageState(session, stages[0]);
-
   registerSession(session);
   refreshSessionTimeout(session);
 
+  if (session.awaitingStart) {
+    const introEmbed = buildBouncerIntroEmbed(session, kittenMode);
+    const introComponents = buildBouncerIntroComponents(session);
+    await interaction.reply({ embeds: [introEmbed], components: introComponents });
+    try {
+      const replyMessage = await interaction.fetchReply();
+      session.messageId = replyMessage?.id ?? null;
+      session.channelId = replyMessage?.channelId ?? session.channelId;
+    } catch (err) {
+      console.error('job shift start fetch reply failed', err);
+    }
+    return true;
+  }
+
   const currentStage = stages[0];
+  session.stageState = createStageState(session, currentStage);
   const embed = buildStageEmbed(session, currentStage, kittenMode);
   const components = buildStageComponents(session, currentStage);
 
