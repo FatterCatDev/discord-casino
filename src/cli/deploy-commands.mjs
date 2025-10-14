@@ -14,6 +14,16 @@ const commands = [
     ]
   },
   {
+    name: 'job',
+    description: 'Clock in for casino shifts and manage your role.',
+    options: [
+      { type: 1, name: 'overview', description: 'Preview available jobs and shift structure.' },
+      { type: 1, name: 'start', description: 'Start a shift for your active job.' },
+      { type: 1, name: 'transfer', description: 'Switch to a different job specialization.' },
+      { type: 1, name: 'stats', description: 'Review your job ranks, XP, and shift history.' }
+    ]
+  },
+  {
     name: 'dicewar',
     description: 'Dice War: 2d6 vs house; doubles double pot on win (ties house).',
     options: [
