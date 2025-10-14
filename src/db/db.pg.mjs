@@ -155,6 +155,24 @@ async function ensureAccessControlTables() {
   `);
 }
 
+async function ensureJobStatusTable() {
+  await q(`
+    CREATE TABLE IF NOT EXISTS job_status (
+      guild_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      active_job TEXT NOT NULL DEFAULT 'none',
+      job_switch_available_at BIGINT NOT NULL DEFAULT 0,
+      cooldown_reason TEXT,
+      daily_earning_cap BIGINT,
+      earned_today BIGINT NOT NULL DEFAULT 0,
+      cap_reset_at BIGINT,
+      updated_at BIGINT NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::BIGINT,
+      PRIMARY KEY (guild_id, user_id)
+    )
+  `);
+  await q('CREATE INDEX IF NOT EXISTS idx_job_status_guild_switch ON job_status (guild_id, job_switch_available_at)');
+}
+
 async function mergeEconomyToGlobalScope() {
   if (!USE_GLOBAL_ECONOMY) return;
   const gid = ECONOMY_GUILD_ID;
