@@ -273,17 +273,6 @@ function buildBartenderIngredientRow(session, slotIndex) {
   return new ActionRowBuilder().addComponents(select);
 }
 
-function canSubmitBartenderStage(session, stage) {
-  const blank = getBlankValue(session);
-  const state = session.stageState || createStageState(session, stage);
-  const picks = state.picks || [];
-  const required = stage.drink.ingredients.length;
-  for (let i = 0; i < required; i += 1) {
-    if (!picks[i] || picks[i] === blank) return false;
-  }
-  return !!state.technique;
-}
-
 function buildBartenderControlRow(session, stage) {
   const stageState = session.stageState || createStageState(session, stage);
   const technique = stageState.technique;
