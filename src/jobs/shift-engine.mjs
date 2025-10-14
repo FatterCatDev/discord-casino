@@ -1297,3 +1297,12 @@ export async function startJobShift(interaction, ctx, jobInput) {
 
   return true;
 }
+
+export async function cancelActiveShiftForUser(guildId, userId) {
+  const session = sessionsByUser.get(userKey(guildId, userId));
+  if (!session) {
+    return { cancelled: false, reason: 'NO_SESSION' };
+  }
+  const message = await cancelSession(session, { editOriginal: true });
+  return { cancelled: true, message };
+}
