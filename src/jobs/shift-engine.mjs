@@ -7,7 +7,7 @@ import {
   createJobShift,
   completeJobShift
 } from '../db/db.auto.mjs';
-import { getJobStatusForUser } from './status.mjs';
+import { getJobStatusForUser, recordShiftCompletion, JOB_SHIFT_STREAK_LIMIT, JOB_SHIFT_STREAK_COOLDOWN_SECONDS } from './status.mjs';
 import { getJobById } from './registry.mjs';
 import { generateStagesForJob } from './scenarios/index.mjs';
 import {
@@ -16,7 +16,6 @@ import {
   rollTipPercent,
   calculateTipAmount,
   clampPerformance,
-  JOB_SHIFT_COOLDOWN_SECONDS,
   JOB_SHIFT_STAGE_COUNT,
   maxPayForRank
 } from './progression.mjs';
