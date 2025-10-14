@@ -320,11 +320,6 @@ function buildBartenderStageComponents(session, stage) {
   ];
 }
 
-function buildBartenderStageComponentsForSession(session) {
-  const stage = session.stages[session.stageIndex];
-  return buildBartenderStageComponents(session, stage);
-}
-
 function evaluateBartenderSubmission(session, stage) {
   const blank = getBlankValue(session);
   const state = session.stageState || createStageState(session, stage);
