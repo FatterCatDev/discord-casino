@@ -127,7 +127,9 @@ function createStageState(session, stage) {
     attempts: 0,
     attemptsLog: [],
     penalties: 0,
-    lastSegmentStart: Date.now()
+    lastSegmentStart: Date.now(),
+    hasTimerStarted: false,
+    penaltyHistory: []
   };
   if (isBartenderStage(stage, session)) {
     const blank = getBlankValue(session);
