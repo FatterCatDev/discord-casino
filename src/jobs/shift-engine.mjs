@@ -287,21 +287,15 @@ function canSubmitBartenderStage(session, stage) {
 function buildBartenderControlRow(session, stage) {
   const stageState = session.stageState || createStageState(session, stage);
   const technique = stageState.technique;
-  const serveDisabled = !canSubmitBartenderStage(session, stage);
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(`jobshift|${session.sessionId}|technique|shake`)
       .setLabel('Shake')
-      .setStyle(technique === 'shake' ? ButtonStyle.Success : ButtonStyle.Secondary),
+      .setStyle(ButtonStyle.Primary),
     new ButtonBuilder()
       .setCustomId(`jobshift|${session.sessionId}|technique|stir`)
       .setLabel('Stir')
-      .setStyle(technique === 'stir' ? ButtonStyle.Success : ButtonStyle.Secondary),
-    new ButtonBuilder()
-      .setCustomId(`jobshift|${session.sessionId}|submit`)
-      .setLabel('Serve Drink')
-      .setStyle(ButtonStyle.Primary)
-      .setDisabled(serveDisabled),
+      .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
       .setCustomId(`jobshift|${session.sessionId}|cancel`)
       .setLabel('End Shift')
