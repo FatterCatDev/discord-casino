@@ -466,6 +466,33 @@ function buildBouncerIntroComponents(session) {
   ];
 }
 
+function buildBouncerStageComponents(session, stage) {
+  const select = new StringSelectMenuBuilder()
+    .setCustomId(`jobshift|${session.sessionId}|approve`)
+    .setPlaceholder('Select guests to admit')
+    .setMinValues(0)
+    .setMaxValues(Math.min(4, stage.options.length))
+    .addOptions(stage.options.map(opt => ({
+      label: opt.label,
+      value: opt.id
+    })));
+
+  return [
+    new ActionRowBuilder().addComponents(select),
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`jobshift|${session.sessionId}|submit`)
+        .setLabel('Confirm Selection')
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId(`jobshift|${session.sessionId}|cancel`)
+        .setLabel('End Shift')
+        .setEmoji('🛑')
+        .setStyle(ButtonStyle.Secondary)
+    )
+  ];
+}
+
 function buildCancelRow(sessionId) {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
