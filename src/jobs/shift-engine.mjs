@@ -424,6 +424,9 @@ function buildCancelRow(sessionId) {
 }
 
 function buildStageComponents(session, stage) {
+  if (isBartenderStage(stage, session)) {
+    return buildBartenderStageComponents(session, stage);
+  }
   const rows = chunkButtons(stage.options, session.sessionId);
   rows.push(buildCancelRow(session.sessionId));
   return rows;
