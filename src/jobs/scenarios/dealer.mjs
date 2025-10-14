@@ -91,7 +91,7 @@ const DEALER_STAGE_TEMPLATES = [
       ['T♣', 'T♦'],
       ['K♦', 'Q♦']
     ],
-    correct: 'A'
+    correct: 'C'
   },
   {
     id: 'dealer-flush-pressure',
