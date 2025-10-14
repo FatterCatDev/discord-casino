@@ -25,7 +25,20 @@ const commands = [
     options: [
       { type: 1, name: 'overview', description: 'Preview available jobs and shift structure.' },
       { type: 1, name: 'start', description: 'Start a shift for your active job.' },
-      { type: 1, name: 'transfer', description: 'Switch to a different job specialization.' },
+      {
+        type: 1,
+        name: 'transfer',
+        description: 'Switch to a different job specialization.',
+        options: [
+          {
+            name: 'job',
+            description: 'Choose which job to activate.',
+            type: 3,
+            required: true,
+            choices: jobTransferChoices
+          }
+        ]
+      },
       { type: 1, name: 'stats', description: 'Review your job ranks, XP, and shift history.' }
     ]
   },
