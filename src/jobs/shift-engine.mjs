@@ -969,6 +969,7 @@ export async function handleJobShiftButton(interaction, ctx) {
       await interaction.reply({ content: `${emoji('warning')} Invalid ingredient slot.`, ephemeral: true });
       return true;
     }
+    registerBartenderAction(stageState);
     stageState.picks[slotIndex] = value || blank;
     stageState.lastFeedback = null;
     const embed = buildStageEmbed(session, stage, session.kittenMode);
@@ -981,6 +982,7 @@ export async function handleJobShiftButton(interaction, ctx) {
       await interaction.reply({ content: `${emoji('warning')} Unknown technique option.`, ephemeral: true });
       return true;
     }
+    registerBartenderAction(stageState);
     stageState.technique = payload;
     stageState.attempts += 1;
     const result = evaluateBartenderSubmission(session, stage);
