@@ -97,7 +97,7 @@
 - List updates required for `/help` (new Job section, explain five-shift burst rule and 6h rest timer) plus kitten-mode narrative adjustments.
 
 ## 6. Interaction Architecture
-- Extend (or introduce) a `buildCommandContext` helper with job utilities: `loadJobProfile`, `saveJobProfile`, `grantJobPayout`, `recordJobShift`, `canStartShift`, `timeUntilNextShift`, `timeUntilTransfer`.
+- Extend (or introduce) a `buildCommandContext` helper with job utilities: `loadJobProfile`, `saveJobProfile`, `grantJobPayout`, `recordJobShift`, `canStartShift`, `shiftsRemaining`, `timeUntilNextShift`.
 - Introduce a central jobs registry (`src/jobs/registry.mjs`) describing each role's minigame steps, prompts, scoring weights, default cooldowns, and copy.
 - Create `src/interactions/jobs/` namespace housing per-job button/select handlers and shared utilities (state machine, timers, random event engine, localization, kitten-mode transformation).
 - Ensure compatibility with existing session tracking: define a new in-memory map keyed by guild/user storing current shift state, with expiration fallback.
