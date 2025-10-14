@@ -153,7 +153,7 @@ function describeChecklist(checklist) {
     `• Dress Code: ${checklist.dress.label}`,
     `• Wrist Band Color: ${checklist.wristband.emoji} ${checklist.wristband.label}`,
     '• Guest List:',
-    ...checklist.guestList.map(name => `  - ${name}`)
+    ...formatGuestList(checklist.guestList)
   ].join('\n');
 }
 
