@@ -1275,7 +1275,12 @@ export async function startJobShift(interaction, ctx, jobInput) {
       } else {
         await interaction.reply(payload);
       }
-      message = await interaction.fetchReply().catch(() => null);
+      try {
+        message = await interaction.fetchReply();
+      } catch (err) {
+        // Ephemeral messages cannot be fetched; that’s fine.
+        message = null;
+      }
     } catch (err) {
       console.error('job shift initial response failed', err);
     }
@@ -1283,7 +1288,7 @@ export async function startJobShift(interaction, ctx, jobInput) {
       session.messageId = message.id;
       session.channelId = message.channelId ?? session.channelId;
     }
-    return !!message;
+    return true;
   };
 
   if (session.awaitingStart) {
