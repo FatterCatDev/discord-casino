@@ -183,6 +183,27 @@ function buildActiveSessionError(interaction, kittenMode) {
   });
 }
 
+function buildShiftStatusField(session, status) {
+  if (!status) return null;
+  const say = (kitten, normal) => (session.kittenMode ? kitten : normal);
+  const limit = JOB_SHIFT_STREAK_LIMIT;
+  if (status.onShiftCooldown) {
+    const expiresAt = Number(status.shiftCooldownExpiresAt ?? status.shift_cooldown_expires_at ?? 0);
+    const remain = Math.max(0, status.shiftCooldownRemaining ?? (expiresAt - nowSeconds()));
+    return {
+      name: say('Rest Status', 'Rest Status'),
+      value: `${emoji('hourglassFlow')} ${say('Cooldown active — lounge until the timer clears.', 'Cooldown active until the timer clears.')} ${say('Back on duty', 'Next shift')} <t:${expiresAt}:R> (${formatDuration(remain)}).`
+    };
+  }
+  const streak = Number(status.shiftStreakCount ?? status.shift_streak_count ?? 0);
+  const remaining = Number(status.shiftsRemaining ?? Math.max(0, limit - streak));
+  const word = remaining === 1 ? say('shift', 'shift') : say('shifts', 'shifts');
+  return {
+    name: say('Rest Status', 'Rest Status'),
+    value: `${emoji('clipboard')} ${say('Shifts before rest:', 'Shifts before rest:')} **${remaining}** ${word} (${streak}/${limit} used).`
+  };
+}
+
 function appendHistory(session, record) {
   session.history.push(record);
   // Clamp history to stage count for safety
