@@ -811,24 +811,33 @@ function ensureStageState(session, stage) {
 
 async function handleCorrect(interaction, ctx, session, stage, stageState) {
   const attempts = stageState.attempts;
-  let baseScore = attempts === 1 ? 18 : attempts === 2 ? 9 : 0;
   const elapsedMs = Date.now() - stageState.startedAtMs;
-  let bonus = 0;
-  if (baseScore > 0) {
-    if (elapsedMs <= 6000) bonus = 2;
-    else if (elapsedMs <= 10000) bonus = 1;
+  let totalScore;
+  if (isBartenderStage(stage, session)) {
+    const target = Number(stageState.targetScore ?? 20);
+    const elapsedSeconds = elapsedMs / 1000;
+    const remaining = Math.max(0, target - elapsedSeconds);
+    totalScore = Math.min(20, Math.floor(remaining));
+    stageState.targetScore = target;
+  } else {
+    let baseScore = attempts === 1 ? 18 : attempts === 2 ? 9 : 0;
+    let bonus = 0;
+    if (baseScore > 0) {
+      if (elapsedMs <= 6000) bonus = 2;
+      else if (elapsedMs <= 10000) bonus = 1;
+    }
+    totalScore = Math.min(20, baseScore + bonus);
   }
-  const totalScore = Math.min(20, baseScore + bonus);
   session.totalScore = clampScore(session.totalScore + totalScore);
   const lastAttempt = stageState.attemptsLog.at(-1);
   const record = {
     stageId: stage.id,
     stageNumber: session.stageIndex + 1,
     title: stage.title,
-    status: baseScore > 0 ? 'success' : 'fail',
+    status: totalScore > 0 ? 'success' : 'fail',
     attempts,
-    baseScore,
-    bonus,
+    baseScore: totalScore,
+    bonus: 0,
     totalScore,
     correct: stage.correct,
     finalAnswer: lastAttempt?.optionId ?? stage.correct,
