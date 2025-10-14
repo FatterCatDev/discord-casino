@@ -825,6 +825,7 @@ async function handleCorrect(interaction, ctx, session, stage, stageState) {
   }
   const totalScore = Math.min(20, baseScore + bonus);
   session.totalScore = clampScore(session.totalScore + totalScore);
+  const lastAttempt = stageState.attemptsLog.at(-1);
   const record = {
     stageId: stage.id,
     stageNumber: session.stageIndex + 1,
@@ -835,7 +836,7 @@ async function handleCorrect(interaction, ctx, session, stage, stageState) {
     bonus,
     totalScore,
     correct: stage.correct,
-    finalAnswer: stage.correct,
+    finalAnswer: lastAttempt?.optionId ?? stage.correct,
     elapsedMs,
     details: stage.details || null
   };
