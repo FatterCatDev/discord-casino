@@ -143,6 +143,35 @@ function createStageState(session, stage) {
   return base;
 }
 
+function applyBartenderTimingPenalty(stageState, elapsedMs) {
+  if (!stageState) return { penalty: 0, seconds: 0 };
+  const seconds = Math.max(0, elapsedMs / 1000);
+  let penalty = 0;
+  if (seconds > 10) penalty = 5;
+  else if (seconds > 7) penalty = 2;
+  else if (seconds > 5) penalty = 1;
+  if (penalty > 0) {
+    stageState.penalties = Math.max(0, (stageState.penalties || 0) + penalty);
+    if (!Array.isArray(stageState.penaltyHistory)) stageState.penaltyHistory = [];
+    stageState.penaltyHistory.push({ seconds, penalty, at: Date.now() });
+  }
+  return { penalty, seconds };
+}
+
+function registerBartenderAction(stageState) {
+  if (!stageState) return { penalty: 0, seconds: 0 };
+  const now = Date.now();
+  let penaltyResult = { penalty: 0, seconds: 0 };
+  if (stageState.hasTimerStarted) {
+    const elapsed = now - (stageState.lastSegmentStart || now);
+    penaltyResult = applyBartenderTimingPenalty(stageState, elapsed);
+  } else {
+    stageState.hasTimerStarted = true;
+  }
+  stageState.lastSegmentStart = now;
+  return penaltyResult;
+}
+
 function bartenderMenuLines(menu) {
   return menu.map((drink, idx) => {
     const sequence = drink.ingredients.join(' → ');
