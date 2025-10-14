@@ -700,6 +700,6 @@ export async function startJobShift(interaction, ctx, jobInput) {
   const embed = buildStageEmbed(session, currentStage, kittenMode);
   const components = buildStageComponents(session, currentStage);
 
-  await interaction.reply({ embeds: [embed], components, ephemeral: true });
+  await interaction.reply({ embeds: [embed], components });
   return true;
 }
