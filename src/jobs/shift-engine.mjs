@@ -793,15 +793,29 @@ export async function startJobShift(interaction, ctx, jobInput) {
     stageState: { startedAtMs: Date.now(), attempts: 0, attemptsLog: [] },
     history: [],
     status: 'ACTIVE',
-    ctx
+    ctx,
+    expiresAt: now + SHIFT_SESSION_TIMEOUT_SECONDS,
+    timeout: null,
+    client: interaction.client,
+    channelId: interaction.channelId,
+    messageId: null
   };
 
   registerSession(session);
+  scheduleSessionTimeout(session);
 
   const currentStage = stages[0];
   const embed = buildStageEmbed(session, currentStage, kittenMode);
   const components = buildStageComponents(session, currentStage);
 
   await interaction.reply({ embeds: [embed], components });
+  try {
+    const replyMessage = await interaction.fetchReply();
+    session.messageId = replyMessage?.id ?? null;
+    session.channelId = replyMessage?.channelId ?? session.channelId;
+  } catch (err) {
+    console.error('job shift start fetch reply failed', err);
+  }
+
   return true;
 }
