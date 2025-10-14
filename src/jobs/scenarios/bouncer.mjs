@@ -150,7 +150,8 @@ function describeChecklist(checklist) {
     `• Age: over ${checklist.ageRequirement}`,
     `• Dress Code: ${checklist.dress.label}`,
     `• Wrist Band Color: ${checklist.wristband.emoji} ${checklist.wristband.label}`,
-    `• Guest List: ${checklist.guestList.join(', ')}`
+    '• Guest List:',
+    ...checklist.guestList.map(name => `  - ${name}`)
   ].join('\n');
 }
 
