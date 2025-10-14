@@ -262,6 +262,14 @@ function buildBartenderStageEmbed(session, stage, kittenMode) {
     )
   });
 
+  const penaltyTotal = Math.max(0, Math.floor(stageState.penalties || 0));
+  embed.addFields({
+    name: say('Time Penalties', 'Time Penalties'),
+    value: penaltyTotal
+      ? `${emoji('timer')} -${penaltyTotal} ${penaltyTotal === 1 ? say('point', 'point') : say('points', 'points')}`
+      : say('No penalties so far — keep the pace!', 'No penalties yet — keep moving!')
+  });
+
   if (stageState.lastFeedback) {
     embed.addFields({
       name: say('Last Feedback', 'Last Feedback'),
