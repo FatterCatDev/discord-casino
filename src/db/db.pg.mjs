@@ -782,6 +782,146 @@ export async function clearActiveRequest(guildId, userId) {
   return true;
 }
 
+function secondsNow() {
+  return Math.floor(Date.now() / 1000);
+}
+
+function normalizeJobProfileRow(guildId, userId, jobId, row = {}) {
+  return {
+    guildId,
+    userId,
+    jobId,
+    rank: Math.max(1, intValue(row?.rank, 1)),
+    totalXp: Math.max(0, intValue(row?.total_xp, 0)),
+    xpToNext: Math.max(0, intValue(row?.xp_to_next, 100)),
+    lastShiftAt: row?.last_shift_at !== null && row?.last_shift_at !== undefined ? intValue(row.last_shift_at, null) : null,
+    createdAt: intValue(row?.created_at, 0),
+    updatedAt: intValue(row?.updated_at, 0)
+  };
+}
+
+function normalizeJobShiftRow(row = null) {
+  if (!row) return null;
+  return {
+    id: row.id,
+    guildId: row.guild_id,
+    userId: row.user_id,
+    jobId: row.job_id,
+    startedAt: intValue(row.started_at, 0),
+    completedAt: row.completed_at !== null && row.completed_at !== undefined ? intValue(row.completed_at, null) : null,
+    performanceScore: intValue(row.performance_score, 0),
+    basePay: intValue(row.base_pay, 0),
+    tipPercent: intValue(row.tip_percent, 0),
+    tipAmount: intValue(row.tip_amount, 0),
+    totalPayout: intValue(row.total_payout, 0),
+    resultState: row.result_state || 'PENDING',
+    metadata: row.metadata_json ? row.metadata_json : {}
+  };
+}
+
+async function ensureJobProfileRow(guildId, userId, jobId) {
+  await q('INSERT INTO job_profiles (guild_id, user_id, job_id) VALUES ($1,$2,$3) ON CONFLICT (guild_id, user_id, job_id) DO NOTHING', [guildId, userId, jobId]);
+}
+
+export async function ensureJobProfile(guildId, userId, jobId) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  const jid = String(jobId || '').trim();
+  if (!uid) throw new Error('JOB_PROFILE_USER_REQUIRED');
+  if (!jid) throw new Error('JOB_PROFILE_JOB_REQUIRED');
+  await ensureJobProfileRow(gid, uid, jid);
+  const row = await q1('SELECT guild_id, user_id, job_id, rank, total_xp, xp_to_next, last_shift_at, created_at, updated_at FROM job_profiles WHERE guild_id = $1 AND user_id = $2 AND job_id = $3', [gid, uid, jid]);
+  return normalizeJobProfileRow(gid, uid, jid, row || {});
+}
+
+export async function getJobProfile(guildId, userId, jobId) {
+  return ensureJobProfile(guildId, userId, jobId);
+}
+
+export async function listJobProfilesForUser(guildId, userId) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) throw new Error('JOB_PROFILE_USER_REQUIRED');
+  const rows = await q('SELECT guild_id, user_id, job_id, rank, total_xp, xp_to_next, last_shift_at, created_at, updated_at FROM job_profiles WHERE guild_id = $1 AND user_id = $2 ORDER BY job_id ASC', [gid, uid]);
+  return rows.map(row => normalizeJobProfileRow(gid, uid, row.job_id, row));
+}
+
+export async function updateJobProfile(guildId, userId, jobId, patch = {}) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  const jid = String(jobId || '').trim();
+  if (!uid) throw new Error('JOB_PROFILE_USER_REQUIRED');
+  if (!jid) throw new Error('JOB_PROFILE_JOB_REQUIRED');
+  await ensureJobProfileRow(gid, uid, jid);
+  const current = await q1('SELECT rank, total_xp, xp_to_next, last_shift_at FROM job_profiles WHERE guild_id = $1 AND user_id = $2 AND job_id = $3', [gid, uid, jid]) || {};
+  const nextRank = patch.rank !== undefined ? Math.max(1, intValue(patch.rank, current.rank || 1)) : Math.max(1, intValue(current.rank, 1));
+  const nextTotal = patch.totalXp !== undefined ? Math.max(0, intValue(patch.totalXp, current.total_xp || 0)) : Math.max(0, intValue(current.total_xp, 0));
+  const nextXpToNext = patch.xpToNext !== undefined ? Math.max(0, intValue(patch.xpToNext, current.xp_to_next || 0)) : Math.max(0, intValue(current.xp_to_next, 0));
+  const nextLastShift = patch.lastShiftAt === undefined
+    ? (current.last_shift_at !== undefined ? current.last_shift_at : null)
+    : (patch.lastShiftAt === null ? null : intValue(patch.lastShiftAt, null));
+  const updatedAt = patch.updatedAt !== undefined ? intValue(patch.updatedAt, secondsNow()) : secondsNow();
+  await q(
+    'UPDATE job_profiles SET rank = $1, total_xp = $2, xp_to_next = $3, last_shift_at = $4, updated_at = $5 WHERE guild_id = $6 AND user_id = $7 AND job_id = $8',
+    [nextRank, nextTotal, nextXpToNext, nextLastShift, updatedAt, gid, uid, jid]
+  );
+  const row = await q1('SELECT guild_id, user_id, job_id, rank, total_xp, xp_to_next, last_shift_at, created_at, updated_at FROM job_profiles WHERE guild_id = $1 AND user_id = $2 AND job_id = $3', [gid, uid, jid]);
+  return normalizeJobProfileRow(gid, uid, jid, row || {});
+}
+
+export async function createJobShift(guildId, userId, jobId, options = {}) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  const jid = String(jobId || '').trim();
+  if (!uid) throw new Error('JOB_SHIFT_USER_REQUIRED');
+  if (!jid) throw new Error('JOB_SHIFT_JOB_REQUIRED');
+  await ensureJobProfileRow(gid, uid, jid);
+  const id = options.shiftId ? String(options.shiftId) : crypto.randomUUID();
+  const startedAt = options.startedAt !== undefined ? intValue(options.startedAt, secondsNow()) : secondsNow();
+  const metadata = options.metadata !== undefined ? options.metadata : {};
+  await q('INSERT INTO job_shifts (id, guild_id, user_id, job_id, started_at, metadata_json) VALUES ($1,$2,$3,$4,$5,$6)', [id, gid, uid, jid, startedAt, metadata]);
+  const row = await q1('SELECT id, guild_id, user_id, job_id, started_at, completed_at, performance_score, base_pay, tip_percent, tip_amount, total_payout, result_state, metadata_json FROM job_shifts WHERE id = $1', [id]);
+  return normalizeJobShiftRow(row);
+}
+
+export async function completeJobShift(shiftId, updates = {}) {
+  const id = String(shiftId || '').trim();
+  if (!id) throw new Error('JOB_SHIFT_ID_REQUIRED');
+  const existing = await q1('SELECT * FROM job_shifts WHERE id = $1', [id]);
+  if (!existing) throw new Error('JOB_SHIFT_NOT_FOUND');
+  const completedAt = updates.completedAt !== undefined ? intValue(updates.completedAt, secondsNow()) : secondsNow();
+  const performance = updates.performanceScore !== undefined ? intValue(updates.performanceScore, existing.performance_score || 0) : intValue(existing.performance_score, 0);
+  const basePay = updates.basePay !== undefined ? intValue(updates.basePay, existing.base_pay || 0) : intValue(existing.base_pay, 0);
+  const tipPercent = updates.tipPercent !== undefined ? intValue(updates.tipPercent, existing.tip_percent || 0) : intValue(existing.tip_percent, 0);
+  const tipAmount = updates.tipAmount !== undefined ? intValue(updates.tipAmount, existing.tip_amount || 0) : intValue(existing.tip_amount, 0);
+  const totalPayoutRaw = updates.totalPayout !== undefined ? intValue(updates.totalPayout, existing.total_payout || 0) : (basePay + tipAmount);
+  const totalPayout = intValue(totalPayoutRaw, basePay + tipAmount);
+  const resultState = (updates.resultState || existing.result_state || 'PENDING').toUpperCase();
+  const metadata = updates.metadata !== undefined ? updates.metadata : (existing.metadata_json || {});
+  await q(
+    'UPDATE job_shifts SET completed_at = $1, performance_score = $2, base_pay = $3, tip_percent = $4, tip_amount = $5, total_payout = $6, result_state = $7, metadata_json = $8 WHERE id = $9',
+    [completedAt, performance, basePay, tipPercent, tipAmount, totalPayout, resultState, metadata, id]
+  );
+  const row = await q1('SELECT id, guild_id, user_id, job_id, started_at, completed_at, performance_score, base_pay, tip_percent, tip_amount, total_payout, result_state, metadata_json FROM job_shifts WHERE id = $1', [id]);
+  return normalizeJobShiftRow(row);
+}
+
+export async function getJobShiftById(shiftId) {
+  const id = String(shiftId || '').trim();
+  if (!id) throw new Error('JOB_SHIFT_ID_REQUIRED');
+  const row = await q1('SELECT id, guild_id, user_id, job_id, started_at, completed_at, performance_score, base_pay, tip_percent, tip_amount, total_payout, result_state, metadata_json FROM job_shifts WHERE id = $1', [id]);
+  return normalizeJobShiftRow(row);
+}
+
+export async function listJobShiftsForUser(guildId, userId, limit = 20) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) throw new Error('JOB_SHIFT_USER_REQUIRED');
+  const lim = Math.max(1, Math.min(100, Number(limit) || 20));
+  const rows = await q('SELECT id, guild_id, user_id, job_id, started_at, completed_at, performance_score, base_pay, tip_percent, tip_amount, total_payout, result_state, metadata_json FROM job_shifts WHERE guild_id = $1 AND user_id = $2 ORDER BY started_at DESC LIMIT $3', [gid, uid, lim]);
+  return rows.map(normalizeJobShiftRow);
+}
+
 function intValue(value, fallback = 0) {
   const num = Number(value);
   if (!Number.isFinite(num)) return fallback;
