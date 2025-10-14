@@ -58,6 +58,7 @@ export const EMOJI = {
   radioButton: '🔘',
   chair: '🪑',
   boardBanner: '🎴',
+  doorOpen: '🚪',
 
   // Status & alerts
   check: '✅',
