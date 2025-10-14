@@ -745,6 +745,92 @@ export async function clearActiveRequest(guildId, userId) {
   return true;
 }
 
+function intValue(value, fallback = 0) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.trunc(num);
+}
+
+function nullableInt(value) {
+  if (value === null || value === undefined) return null;
+  const num = Number(value);
+  if (!Number.isFinite(num)) return null;
+  return Math.trunc(num);
+}
+
+async function ensureJobStatusRow(guildId, userId) {
+  await q('INSERT INTO job_status (guild_id, user_id) VALUES ($1, $2) ON CONFLICT (guild_id, user_id) DO NOTHING', [guildId, userId]);
+}
+
+function normalizeJobStatusRow(guildId, userId, row = {}) {
+  return {
+    guild_id: guildId,
+    user_id: userId,
+    active_job: row?.active_job || 'none',
+    job_switch_available_at: intValue(row?.job_switch_available_at, 0),
+    cooldown_reason: row?.cooldown_reason || null,
+    daily_earning_cap: nullableInt(row?.daily_earning_cap),
+    earned_today: intValue(row?.earned_today, 0),
+    cap_reset_at: nullableInt(row?.cap_reset_at),
+    updated_at: intValue(row?.updated_at, 0)
+  };
+}
+
+export async function getJobStatus(guildId, userId) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) throw new Error('JOB_STATUS_USER_REQUIRED');
+  await ensureJobStatusRow(gid, uid);
+  const row = await q1(
+    'SELECT active_job, job_switch_available_at, cooldown_reason, daily_earning_cap, earned_today, cap_reset_at, updated_at FROM job_status WHERE guild_id = $1 AND user_id = $2',
+    [gid, uid]
+  );
+  return normalizeJobStatusRow(gid, uid, row || {});
+}
+
+export async function setJobStatus(guildId, userId, patch = {}) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) throw new Error('JOB_STATUS_USER_REQUIRED');
+  await ensureJobStatusRow(gid, uid);
+  const current = await q1(
+    'SELECT active_job, job_switch_available_at, cooldown_reason, daily_earning_cap, earned_today, cap_reset_at FROM job_status WHERE guild_id = $1 AND user_id = $2',
+    [gid, uid]
+  ) || {};
+  const now = Math.floor(Date.now() / 1000);
+  const next = {
+    active_job: patch.active_job ?? current.active_job ?? 'none',
+    job_switch_available_at: intValue(patch.job_switch_available_at ?? current.job_switch_available_at, 0),
+    cooldown_reason: patch.cooldown_reason === undefined ? (current.cooldown_reason ?? null) : patch.cooldown_reason,
+    daily_earning_cap: patch.daily_earning_cap === undefined ? (current.daily_earning_cap ?? null) : patch.daily_earning_cap,
+    earned_today: intValue(patch.earned_today ?? current.earned_today, 0),
+    cap_reset_at: patch.cap_reset_at === undefined ? (current.cap_reset_at ?? null) : patch.cap_reset_at
+  };
+  await q(
+    `UPDATE job_status
+     SET active_job = $1,
+         job_switch_available_at = $2,
+         cooldown_reason = $3,
+         daily_earning_cap = $4,
+         earned_today = $5,
+         cap_reset_at = $6,
+         updated_at = $7
+     WHERE guild_id = $8 AND user_id = $9`,
+    [
+      next.active_job,
+      intValue(next.job_switch_available_at, 0),
+      next.cooldown_reason ?? null,
+      nullableInt(next.daily_earning_cap),
+      intValue(next.earned_today, 0),
+      nullableInt(next.cap_reset_at),
+      now,
+      gid,
+      uid
+    ]
+  );
+  return getJobStatus(gid, uid);
+}
+
 // --- Hold’em helpers ---
 async function guildForTable(tableId) {
   const row = await q1('SELECT guild_id FROM holdem_tables WHERE table_id = $1', [String(tableId)]);
