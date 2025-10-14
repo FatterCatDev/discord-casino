@@ -479,6 +479,21 @@ const updateActiveReqStatusStmt = db.prepare(`
 `);
 const clearActiveReqStmt = db.prepare('DELETE FROM active_requests WHERE guild_id = ? AND user_id = ?');
 
+const ensureJobStatusStmt = db.prepare(`
+  INSERT OR IGNORE INTO job_status (guild_id, user_id, active_job, job_switch_available_at, cooldown_reason, daily_earning_cap, earned_today, cap_reset_at, updated_at)
+  VALUES (?, ?, 'none', 0, NULL, NULL, 0, NULL, strftime('%s','now'))
+`);
+const selectJobStatusStmt = db.prepare(`
+  SELECT active_job, job_switch_available_at, cooldown_reason, daily_earning_cap, earned_today, cap_reset_at, updated_at
+  FROM job_status
+  WHERE guild_id = ? AND user_id = ?
+`);
+const updateJobStatusStmt = db.prepare(`
+  UPDATE job_status
+  SET active_job = ?, job_switch_available_at = ?, cooldown_reason = ?, daily_earning_cap = ?, earned_today = ?, cap_reset_at = ?, updated_at = ?
+  WHERE guild_id = ? AND user_id = ?
+`);
+
 function canonicalGuildId(guildId) {
   return guildId ? String(guildId) : DEFAULT_GUILD_ID;
 }
