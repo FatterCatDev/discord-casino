@@ -252,6 +252,9 @@ function buildPartyStage(index, checklist, guests) {
     guest.meets ? mask | (1 << idx) : mask
   ), 0);
   const correct = combinationId(guests, correctMask);
+  for (let idx = 0; idx < guests.length; idx += 1) {
+    if (correctMask & (1 << idx)) correctNames.push(guests[idx].name);
+  }
 
   const admittedNames = guests.filter(g => g.meets).map(g => g.name);
   const deniedNames = guests.filter(g => !g.meets).map(g => `${g.name} (${describeFailures(g, checklist)})`);
