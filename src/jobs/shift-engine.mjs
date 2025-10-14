@@ -1267,17 +1267,29 @@ export async function startJobShift(interaction, ctx, jobInput) {
   registerSession(session);
   refreshSessionTimeout(session);
 
+  const respond = async payload => {
+    let message = null;
+    try {
+      if (interaction.deferred || interaction.replied) {
+        await interaction.editReply(payload);
+      } else {
+        await interaction.reply(payload);
+      }
+      message = await interaction.fetchReply().catch(() => null);
+    } catch (err) {
+      console.error('job shift initial response failed', err);
+    }
+    if (message) {
+      session.messageId = message.id;
+      session.channelId = message.channelId ?? session.channelId;
+    }
+    return message;
+  };
+
   if (session.awaitingStart) {
     const introEmbed = buildBouncerIntroEmbed(session, kittenMode);
     const introComponents = buildBouncerIntroComponents(session);
-    await interaction.reply({ embeds: [introEmbed], components: introComponents });
-    try {
-      const replyMessage = await interaction.fetchReply();
-      session.messageId = replyMessage?.id ?? null;
-      session.channelId = replyMessage?.channelId ?? session.channelId;
-    } catch (err) {
-      console.error('job shift start fetch reply failed', err);
-    }
+    await respond({ embeds: [introEmbed], components: introComponents });
     return true;
   }
 
@@ -1286,14 +1298,7 @@ export async function startJobShift(interaction, ctx, jobInput) {
   const embed = buildStageEmbed(session, currentStage, kittenMode);
   const components = buildStageComponents(session, currentStage);
 
-  await interaction.reply({ embeds: [embed], components });
-  try {
-    const replyMessage = await interaction.fetchReply();
-    session.messageId = replyMessage?.id ?? null;
-    session.channelId = replyMessage?.channelId ?? session.channelId;
-  } catch (err) {
-    console.error('job shift start fetch reply failed', err);
-  }
+  await respond({ embeds: [embed], components });
 
   return true;
 }
