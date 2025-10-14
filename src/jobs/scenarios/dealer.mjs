@@ -4,12 +4,12 @@ const STAGES = [
   {
     id: 'board-straight-vs-pair',
     title: 'Warm-Up Table',
-    prompt: 'Board: 8♣ 9♦ T♠ J♥ 2♣
+    prompt: `Board: 8♣ 9♦ T♠ J♥ 2♣
 Hand A: Q♣ K♦
 Hand B: T♦ T♥
 Hand C: A♠ 4♠
 
-Who takes the pot?',
+Who takes the pot?`,
     options: [
       { id: 'A', label: 'Seat A' },
       { id: 'B', label: 'Seat B' },
@@ -23,12 +23,12 @@ Who takes the pot?',
   {
     id: 'board-full-house-split',
     title: 'Full House Showdown',
-    prompt: 'Board: 5♣ 5♦ K♠ K♥ 9♠
+    prompt: `Board: 5♣ 5♦ K♠ K♥ 9♠
 Hand A: A♣ 9♦
 Hand B: T♣ T♦
 Hand C: K♦ Q♦
 
-Who wins?',
+Who wins?`,
     options: [
       { id: 'A', label: 'Seat A' },
       { id: 'B', label: 'Seat B' },
@@ -44,12 +44,12 @@ Who wins?',
   {
     id: 'board-flush-beats-straight',
     title: 'Flush Pressure',
-    prompt: 'Board: 2♠ 7♠ T♠ J♠ K♦
+    prompt: `Board: 2♠ 7♠ T♠ J♠ K♦
 Hand A: Q♠ 9♣
 Hand B: K♣ K♥
 Hand C: A♣ Q♦
 
-Which outcome is correct?',
+Which outcome is correct?`,
     options: [
       { id: 'A', label: 'Seat A' },
       { id: 'B', label: 'Seat B' },
@@ -63,12 +63,12 @@ Which outcome is correct?',
   {
     id: 'board-wheel-sneak',
     title: 'Wheel Sneak Attack',
-    prompt: 'Board: A♦ 2♣ 3♥ 9♣ K♠
+    prompt: `Board: A♦ 2♣ 3♥ 9♣ K♠
 Hand A: 4♠ 5♠
 Hand B: Q♦ Q♣
 Hand C: A♣ 9♦
 
-Call the winner.',
+Call the winner.`,
     options: [
       { id: 'A', label: 'Seat A' },
       { id: 'B', label: 'Seat B' },
@@ -82,12 +82,12 @@ Call the winner.',
   {
     id: 'board-four-card-straight',
     title: 'Split Trap',
-    prompt: 'Board: 9♣ T♦ J♣ Q♥ K♣
+    prompt: `Board: 9♣ T♦ J♣ Q♥ K♣
 Hand A: A♠ 2♠
 Hand B: A♦ 9♦
 Hand C: 5♣ 5♦
 
-Who wins?',
+Who wins?`,
     options: [
       { id: 'A', label: 'Seat A' },
       { id: 'B', label: 'Seat B' },
@@ -103,12 +103,12 @@ Who wins?',
   {
     id: 'board-flush-vs-flush',
     title: 'Flush vs Flush',
-    prompt: 'Board: 4♥ 7♥ 9♥ Q♥ 2♣
+    prompt: `Board: 4♥ 7♥ 9♥ Q♥ 2♣
 Hand A: A♥ 5♣
 Hand B: K♥ T♥
 Hand C: Q♠ Q♣
 
-Decide the outcome.',
+Decide the outcome.`,
     options: [
       { id: 'A', label: 'Seat A' },
       { id: 'B', label: 'Seat B' },
@@ -124,12 +124,12 @@ Decide the outcome.',
   {
     id: 'board-boat-triple',
     title: 'Full Boat Finale',
-    prompt: 'Board: T♠ T♦ 6♣ 6♠ 6♦
+    prompt: `Board: T♠ T♦ 6♣ 6♠ 6♦
 Hand A: T♥ K♥
 Hand B: 6♥ 2♥
 Hand C: A♦ A♣
 
-Who takes the last pot?',
+Who takes the last pot?`,
     options: [
       { id: 'A', label: 'Seat A' },
       { id: 'B', label: 'Seat B' },
