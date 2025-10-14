@@ -411,25 +411,30 @@ function instantiateDealerStage(template) {
   }
 
   // Fallback to non-randomized representation if randomization fails
-  const fallbackBoard = template.board.map(token => {
-    const { rank, suit } = parseToken(token);
-    const suitInfo = SUIT_PERMUTATIONS[SUIT_TEMPLATES.indexOf(suit)];
-    return `${rank}${emoji(suitInfo.key)}`;
-  }).join(' ');
-  const fallbackHands = template.hands.map(hand => hand.map(token => {
-    const { rank, suit } = parseToken(token);
-    const suitInfo = SUIT_PERMUTATIONS[SUIT_TEMPLATES.indexOf(suit)];
-    return `${rank}${emoji(suitInfo.key)}`;
-  }).join(' '));
+  const identityRankMap = new Map();
+  const tokens = [...template.board, ...template.hands.flat()];
+  const uniqueRanks = Array.from(new Set(tokens.map(token => parseToken(token).rank)));
+  for (const rank of uniqueRanks) identityRankMap.set(rank, rank);
+  const identitySuitMap = new Map();
+  for (let i = 0; i < SUIT_TEMPLATES.length; i += 1) {
+    identitySuitMap.set(SUIT_TEMPLATES[i], SUIT_PERMUTATIONS[i]);
+  }
+
+  const fallbackBoardCards = template.board.map(token => mapCard(token, identityRankMap, identitySuitMap));
+  const fallbackHandCards = template.hands.map(hand => hand.map(token => mapCard(token, identityRankMap, identitySuitMap)));
+  const fallbackEvaluations = fallbackHandCards.map(hand => evaluateCombination(hand.concat(fallbackBoardCards)));
+  const fallbackWinners = determineWinners(fallbackEvaluations);
+  const fallbackBoardString = fallbackBoardCards.map(card => card.label).join(' ');
+  const fallbackHandStrings = fallbackHandCards.map(hand => hand.map(card => card.label).join(' '));
 
   return {
     id: template.id,
     title: template.title,
     difficulty: template.difficulty,
-    prompt: createPrompt(fallbackBoard, fallbackHands),
+    prompt: createPrompt(fallbackBoardString, fallbackHandStrings),
     options: DEALER_OPTIONS,
     correct: template.correct,
-    details: 'Seat outcomes follow the classic dealer script.'
+    details: buildDetails(fallbackWinners, fallbackEvaluations)
   };
 }
 
