@@ -1,7 +1,13 @@
 import { REST, Routes, PermissionFlagsBits } from 'discord.js';
 import 'dotenv/config';
+import { listJobs } from '../jobs/registry.mjs';
 
 const ADMIN_PERMS = String(PermissionFlagsBits.Administrator);
+
+const jobTransferChoices = [
+  ...listJobs().map(job => ({ name: job.displayName, value: job.id })),
+  { name: 'No Active Job', value: 'none' }
+];
 
 const commands = [
   { name: 'ping', description: 'Replies with Pong!' },
