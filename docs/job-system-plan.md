@@ -23,12 +23,12 @@
 ## 4. Data Model & Persistence
 - Draft SQL for new tables:
   - `job_profiles` (guild_id, user_id, job_id, rank, total_xp, xp_to_next, last_shift_at, created_at, updated_at).
-  - `job_status` (guild_id, user_id, active_job, job_switch_available_at, cooldown_reason, daily_earning_cap, earned_today, cap_reset_at, updated_at) or extend existing user metadata.
+- `job_status` (guild_id, user_id, active_job, job_switch_available_at, cooldown_reason, daily_earning_cap, earned_today, cap_reset_at, shift_streak_count, shift_cooldown_expires_at, updated_at) or extend existing user metadata.
   - `job_shifts` (id, guild_id, user_id, job_id, started_at, completed_at, performance_score, base_pay, tip_percent, tip_amount, total_payout, result_state, metadata JSON).
-- Clarify that `xp_to_next` stores the remaining XP required to reach the next rank; helpers should recompute it after each shift or transfer.
+- Clarify that `xp_to_next` stores the remaining XP required to reach the next rank; helpers should recompute it after each shift.
 - Set sensible defaults:
   - `job_profiles`: `rank` default 1, `total_xp` default 0, `xp_to_next` default 100 (Rank 1 -> 2 threshold), `last_shift_at` nullable (NULL indicates no history), timestamps default to current epoch.
-  - `job_status`: `active_job` default 'none', `job_switch_available_at` default 0 (immediate availability), `cooldown_reason` default NULL, `daily_earning_cap` NULL unless configured, `earned_today` default 0, `cap_reset_at` default NULL (application sets next UTC midnight when caps are enabled), `updated_at` auto timestamp.
+  - `job_status`: `active_job` default 'none' (kept for future specialization states), `job_switch_available_at` default 0, `cooldown_reason` default NULL, `daily_earning_cap` NULL unless configured, `earned_today` default 0, `cap_reset_at` default NULL, `shift_streak_count` default 0, `shift_cooldown_expires_at` default 0, `updated_at` auto timestamp.
   - `job_shifts`: `completed_at` NULL until the run ends, `performance_score` default 0, `base_pay` default 0, `tip_percent` default 0, `tip_amount` default 0, `total_payout` default 0, `result_state` default 'PENDING', `metadata_json` default '{}' (JSON object).
 - Capture the defaults in migrations. Example SQLite snippet (Postgres mirrors types and uses `NOW()` / `CURRENT_TIMESTAMP`, `JSONB`, and check constraints):
   ```sql
