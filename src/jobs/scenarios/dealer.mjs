@@ -158,10 +158,15 @@ function createSuitMap() {
 function createRankMap(template) {
   const tokens = [...template.board, ...template.hands.flat()];
   const uniqueRanks = Array.from(new Set(tokens.map(token => parseToken(token).rank)));
-  const shuffledRanks = shuffle(RANK_SEQUENCE.slice());
+  uniqueRanks.sort((a, b) => RANK_TO_VALUE[b] - RANK_TO_VALUE[a]);
+
+  const availableWindow = RANK_SEQUENCE.length - uniqueRanks.length;
+  const startIndex = availableWindow > 0 ? crypto.randomInt(0, availableWindow + 1) : 0;
+  const targetSlice = RANK_SEQUENCE.slice(startIndex, startIndex + uniqueRanks.length).reverse();
+
   const map = new Map();
   for (let i = 0; i < uniqueRanks.length; i += 1) {
-    map.set(uniqueRanks[i], shuffledRanks[i]);
+    map.set(uniqueRanks[i], targetSlice[i]);
   }
   return map;
 }
