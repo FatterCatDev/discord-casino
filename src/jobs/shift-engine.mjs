@@ -1101,6 +1101,11 @@ export async function handleJobShiftButton(interaction, ctx) {
   const stageState = ensureStageState(session, stage);
 
   if (isSelectMenu) {
+    if (session.jobId === 'bouncer' && action === 'approve') {
+      stageState.selectedNames = Array.isArray(interaction.values) ? interaction.values : [];
+      await interaction.deferUpdate();
+      return true;
+    }
     if (!isBartenderStage(stage, session) || action !== 'slot') {
       return false;
     }
