@@ -445,7 +445,7 @@ function buildBouncerIntroEmbed(session, kittenMode) {
     .setDescription([
       say('Ready, Kitten? Tonight’s velvet rope needs your call.', 'Review the rules before opening the rope.'),
       `${emoji('clipboard')} ${say('Checklist updates each guest. Age, attire, wristband.', 'Each wave has a fresh checklist: age, attire, wristband.')}`,
-      `${emoji('door')} ${say('Tap “Open Queue” to see the first group.', 'Press “Open Queue” to begin evaluating the lineup.')}`
+      `${emoji('doorway')} ${say('Tap “Open Queue” to see the first group.', 'Press “Open Queue” to begin evaluating the lineup.')}`
     ].join('\n'));
   return embed;
 }
