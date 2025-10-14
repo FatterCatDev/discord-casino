@@ -36,8 +36,29 @@ function sampleName(used) {
   return name;
 }
 
-function randomAge() {
-  return crypto.randomInt(19, 45);
+function ageFromDob(dob) {
+  const today = new Date();
+  let age = today.getFullYear() - dob.getFullYear();
+  const monthDiff = today.getMonth() - dob.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+    age -= 1;
+  }
+  return age;
+}
+
+function randomDob(minAge = 19, maxAge = 45) {
+  const today = new Date();
+  const latest = new Date(today);
+  latest.setFullYear(today.getFullYear() - minAge);
+  const earliest = new Date(today);
+  earliest.setFullYear(today.getFullYear() - maxAge);
+  const diff = Math.max(1, latest.getTime() - earliest.getTime());
+  const dob = new Date(earliest.getTime() + crypto.randomInt(0, diff));
+  return { dob, age: ageFromDob(dob) };
+}
+
+function dobForAge(age) {
+  return randomDob(age, age + 1);
 }
 
 function generateChecklist() {
@@ -67,27 +88,37 @@ function resolveWristband(required) {
 }
 
 function buildGuest(name, checklist) {
-  const age = randomAge();
+  const { dob, age } = randomDob();
   const dress = resolveDress(checklist.dress);
   const wristband = resolveWristband(checklist.wristband);
   const meets = age > checklist.ageRequirement && dress.id === checklist.dress.id && wristband.id === checklist.wristband.id;
-  return { name, age, dress, wristband, meets };
+  return { name, age, dob, dress, wristband, meets };
 }
 
 function ensureAtLeastOnePasses(guests, checklist) {
   if (guests.some(guest => guest.meets)) return guests;
   const chosen = guests[crypto.randomInt(0, guests.length)];
-  chosen.age = checklist.ageRequirement + crypto.randomInt(1, 10);
+  const targetAge = checklist.ageRequirement + crypto.randomInt(1, 11);
+  const { dob, age } = dobForAge(targetAge);
+  chosen.dob = dob;
+  chosen.age = age;
   chosen.dress = checklist.dress;
   chosen.wristband = checklist.wristband;
   chosen.meets = true;
   return guests;
 }
 
+function formatDob(date) {
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  const year = date.getFullYear();
+  return `${month}/${day}/${year}`;
+}
+
 function describeGuest(guest, index) {
   return [
     `Guest ${index + 1}: ${guest.name}`,
-    `• Age: ${guest.age}`,
+    `• DOB: ${formatDob(guest.dob)}`,
     `• Dress: ${guest.dress.label}`,
     `• Wristband: ${guest.wristband.emoji} ${guest.wristband.label}`
   ].join('\n');
