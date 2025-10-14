@@ -1155,7 +1155,7 @@ export async function handleJobShiftButton(interaction, ctx) {
 
   if (action === 'technique' && isBartenderStage(stage, session)) {
     if (payload !== 'shake' && payload !== 'stir') {
-      await interaction.reply({ content: `${emoji('warning')} Unknown technique option.`, ephemeral: true });
+      await interaction.reply({ content: `${emoji('warning')} Unknown technique option.` });
       return true;
     }
     registerBartenderAction(stageState);
