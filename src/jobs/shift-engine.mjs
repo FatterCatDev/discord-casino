@@ -162,8 +162,9 @@ function buildCooldownMessage(kittenMode, availableAt) {
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
   const remain = Math.max(0, availableAt - nowSeconds());
   return [
-    `${emoji('hourglassFlow')} ${say('Break time, Kitten — you clocked out recently.', 'Hold on — your last shift wrapped recently.')}`,
-    `${emoji('timer')} ${say('Next shift window opens', 'Next shift window opens')} <t:${availableAt}:R> (${formatDuration(remain)}).`
+    `${emoji('hourglassFlow')} ${say(`Cooldown triggered — ${JOB_SHIFT_STREAK_LIMIT} shifts back-to-back is the max, Kitten.`, `Cooldown triggered — ${JOB_SHIFT_STREAK_LIMIT} shifts back-to-back hits the limit.`)}`,
+    `${emoji('timer')} ${say('Next shift window opens', 'Next shift window opens')} <t:${availableAt}:R> (${formatDuration(remain)}).`,
+    `${emoji('repeat')} ${say(`Cooldown length: ${formatDuration(JOB_SHIFT_STREAK_COOLDOWN_SECONDS)}.`, `Cooldown lasts ${formatDuration(JOB_SHIFT_STREAK_COOLDOWN_SECONDS)}.`)}`
   ].join('\n');
 }
 
