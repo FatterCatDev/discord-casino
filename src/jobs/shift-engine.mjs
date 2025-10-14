@@ -1144,8 +1144,8 @@ export async function startJobShift(interaction, ctx, jobInput) {
 
   session.stageState = createStageState(session, stages[0]);
 
+  refreshSessionTimeout(session);
   registerSession(session);
-  scheduleSessionTimeout(session);
 
   const currentStage = stages[0];
   const embed = buildStageEmbed(session, currentStage, kittenMode);
