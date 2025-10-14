@@ -1103,7 +1103,7 @@ export async function handleJobShiftButton(interaction, ctx) {
   }
 
   if (session.awaitingStart) {
-    await interaction.reply({ content: `${emoji('info')} Press “Open Queue” to begin this shift.`, ephemeral: true });
+    await interaction.reply({ content: `${emoji('info')} Press “Open Queue” to begin this shift.` });
     return true;
   }
 
