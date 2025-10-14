@@ -36,7 +36,14 @@ const commands = [
         ]
       },
       { type: 1, name: 'cancel', description: 'Cancel your active job shift.' },
-      { type: 1, name: 'stats', description: 'Review your job ranks, XP, and shift history.' },
+      {
+        type: 1,
+        name: 'stats',
+        description: 'Review job ranks, XP, and shift history.',
+        options: [
+          { name: 'user', description: 'Target user to inspect', type: 6, required: false }
+        ]
+      },
       {
         type: 1,
         name: 'reset',
