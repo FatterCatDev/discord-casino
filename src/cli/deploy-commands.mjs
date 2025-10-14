@@ -39,7 +39,8 @@ const commands = [
           }
         ]
       },
-      { type: 1, name: 'stats', description: 'Review your job ranks, XP, and shift history.' }
+      { type: 1, name: 'stats', description: 'Review your job ranks, XP, and shift history.' },
+      { type: 1, name: 'reset', description: 'Admin only: reset your job cooldowns and shift timers.' }
     ]
   },
   {
