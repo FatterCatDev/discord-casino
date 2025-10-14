@@ -1,99 +1,228 @@
 import crypto from 'node:crypto';
 
-const STAGES = [
-  {
-    id: 'id-check-21',
-    title: 'Opening Queue',
-    prompt: 'Guest Mira shows an ID reading 02/18/2005. Tonight’s rule: strictly 21+. She is calm, dressed to code, and alone. What do you do?',
-    options: [
-      { id: 'ADMIT', label: 'Admit Mira' },
-      { id: 'DENY', label: 'Deny entry' },
-      { id: 'ESCALATE', label: 'Call for secondary check' }
-    ],
-    correct: 'DENY',
-    difficulty: 'easy',
-    details: 'The ID makes her 20 — below the 21+ cutoff. Deny with a polite explanation.'
-  },
-  {
-    id: 'vip-list',
-    title: 'VIP List Cross-Check',
-    prompt: 'A duo claims they are on the Gold Wristband list. Primary guest Owen flashes the correct wristband; plus-one Dana has none. Policy states only named guests may bring a plus-one if pre-registered. What is the call?',
-    options: [
-      { id: 'ADMIT', label: 'Admit both' },
-      { id: 'DENY', label: 'Deny both' },
-      { id: 'SPLIT', label: 'Admit Owen, deny Dana politely' },
-      { id: 'ESCALATE', label: 'Escalate to host desk' }
-    ],
-    correct: 'SPLIT',
-    difficulty: 'medium',
-    details: 'Owen is cleared; Dana needs to wait or register — let Owen in, deny the plus-one with instructions.'
-  },
-  {
-    id: 'fake-holo',
-    title: 'Fake Hologram',
-    prompt: 'Guest Leo hands you an ID with a mismatched hologram shimmer and a different font weight on the birth date. He is impatient and pushing to get inside. Best course?',
-    options: [
-      { id: 'ADMIT', label: 'Let him in — holograms vary' },
-      { id: 'DENY', label: 'Deny entry for suspected fake ID' },
-      { id: 'ESCALATE', label: 'Escalate for manager confirmation' }
-    ],
-    correct: 'DENY',
-    difficulty: 'medium',
-    details: 'Mismatch hologram plus attitude signals a fake. Deny, log the incident, and keep the line safe.'
-  },
-  {
-    id: 'capacity-cap',
-    title: 'Capacity Cap',
-    prompt: 'House manager radios: floor at capacity until 01:15. It’s 01:07. Guest Priya is a regular, compliant, and sober. No re-entry stamps available. What do you do?',
-    options: [
-      { id: 'ADMIT', label: 'Wave her in—she’s a regular' },
-      { id: 'DENY', label: 'Hold the line until capacity resets' },
-      { id: 'ESCALATE', label: 'Call for override from manager' }
-    ],
-    correct: 'DENY',
-    difficulty: 'hard',
-    details: 'Capacity orders override regular status. Deny for now, invite her to wait until the reset.'
-  },
-  {
-    id: 'rowdy-alert',
-    title: 'Rowdy Alert',
-    prompt: 'A previously removed patron, Sam, approaches in disguise with sunglasses and a cap. The ban list flagged him earlier for fights. He insists he is a twin. Response?',
-    options: [
-      { id: 'ADMIT', label: 'Admit; give a warning' },
-      { id: 'DENY', label: 'Deny immediately and note the attempt' },
-      { id: 'ESCALATE', label: 'Escalate to on-site security' }
-    ],
-    correct: 'ESCALATE',
-    difficulty: 'hard',
-    details: 'Banned patron returning needs escalation. Loop in security to document the violation.'
-  },
-  {
-    id: 'dress-code',
-    title: 'Dress Code Drift',
-    prompt: 'Theme night requires upscale cocktail attire. Guest Riley arrives in athletic joggers but polite and sober. What action best follows policy while offering a path forward?',
-    options: [
-      { id: 'ADMIT', label: 'Allow entry — shoes are clean' },
-      { id: 'DENY', label: 'Deny and note dress code breach' },
-      { id: 'ESCALATE', label: 'Escalate for manager exception' }
-    ],
-    correct: 'DENY',
-    difficulty: 'easy',
-    details: 'Dress code is explicit. Deny with a courteous explanation and suggest options.'
-  }
+const GUEST_NAMES = [
+  'Alex', 'Jordan', 'Maya', 'Quinn', 'Reese', 'Taylor', 'Sasha', 'Morgan', 'Dev', 'Lena',
+  'Riley', 'Harper', 'Nico', 'Avery', 'Skye', 'Elliot', 'Rowan', 'Parker', 'Blair', 'Zoe'
 ];
 
-function shuffle(array) {
-  const copy = array.slice();
-  for (let i = copy.length - 1; i > 0; i -= 1) {
-    const j = crypto.randomInt(0, i + 1);
-    [copy[i], copy[j]] = [copy[j], copy[i]];
+const DRESS_CODES = [
+  { id: 'fancy', label: 'Fancy' },
+  { id: 'cocktail', label: 'Cocktail' },
+  { id: 'urban-glam', label: 'Urban Glam' },
+  { id: 'black-tie', label: 'Black Tie' },
+  { id: 'modern-chic', label: 'Modern Chic' }
+];
+
+const WRISTBANDS = [
+  { id: 'crimson', label: 'Crimson', emoji: '🔴' },
+  { id: 'azure', label: 'Azure', emoji: '🔵' },
+  { id: 'gold', label: 'Gold', emoji: '🟡' },
+  { id: 'jade', label: 'Jade', emoji: '🟢' },
+  { id: 'violet', label: 'Violet', emoji: '🟣' }
+];
+
+function sample(array) {
+  return array[crypto.randomInt(0, array.length)];
+}
+
+function sampleName(used) {
+  let name;
+  let attempts = 0;
+  do {
+    name = sample(GUEST_NAMES);
+    attempts += 1;
+  } while (used.has(name) && attempts < 10);
+  used.add(name);
+  return name;
+}
+
+function randomAge() {
+  return crypto.randomInt(19, 45);
+}
+
+function generateChecklist() {
+  return {
+    ageRequirement: 21,
+    dress: sample(DRESS_CODES),
+    wristband: sample(WRISTBANDS)
+  };
+}
+
+function resolveDress(required) {
+  if (Math.random() < 0.6) return required;
+  let pick = sample(DRESS_CODES);
+  if (pick.id === required.id) {
+    pick = sample(DRESS_CODES.filter(code => code.id !== required.id));
   }
-  return copy;
+  return pick;
+}
+
+function resolveWristband(required) {
+  if (Math.random() < 0.6) return required;
+  let pick = sample(WRISTBANDS);
+  if (pick.id === required.id) {
+    pick = sample(WRISTBANDS.filter(band => band.id !== required.id));
+  }
+  return pick;
+}
+
+function buildGuest(name, checklist) {
+  const age = randomAge();
+  const dress = resolveDress(checklist.dress);
+  const wristband = resolveWristband(checklist.wristband);
+  const meets = age > checklist.ageRequirement && dress.id === checklist.dress.id && wristband.id === checklist.wristband.id;
+  return { name, age, dress, wristband, meets };
+}
+
+function ensureAtLeastOnePasses(guests, checklist) {
+  if (guests.some(guest => guest.meets)) return guests;
+  const chosen = guests[crypto.randomInt(0, guests.length)];
+  chosen.age = checklist.ageRequirement + crypto.randomInt(1, 10);
+  chosen.dress = checklist.dress;
+  chosen.wristband = checklist.wristband;
+  chosen.meets = true;
+  return guests;
+}
+
+function describeGuest(guest, index) {
+  return [
+    `Guest ${index + 1}: ${guest.name}`,
+    `• Age: ${guest.age}`,
+    `• Dress: ${guest.dress.label}`,
+    `• Wristband: ${guest.wristband.emoji} ${guest.wristband.label}`
+  ].join('\n');
+}
+
+function describeChecklist(checklist) {
+  return [
+    'Checklist:',
+    `• Age: over ${checklist.ageRequirement}`,
+    `• Dress Code: ${checklist.dress.label}`,
+    `• Wrist Band Color: ${checklist.wristband.emoji} ${checklist.wristband.label}`
+  ].join('\n');
+}
+
+function describeFailures(guest, checklist) {
+  const reasons = [];
+  if (!(guest.age > checklist.ageRequirement)) reasons.push('under-age');
+  if (guest.dress.id !== checklist.dress.id) reasons.push(`dress (${guest.dress.label})`);
+  if (guest.wristband.id !== checklist.wristband.id) reasons.push(`wristband (${guest.wristband.label})`);
+  return reasons.length ? reasons.join(', ') : 'meets all criteria';
+}
+
+function buildSingleStage(index, checklist, guest) {
+  const admitOptionId = `ADMIT:${guest.name}`;
+  const denyOptionId = `DENY:${guest.name}`;
+  const prompt = [
+    describeChecklist(checklist),
+    '',
+    'Lineup:',
+    describeGuest(guest, 0),
+    '',
+    'Who gets in?'
+  ].join('\n');
+  const correct = guest.meets ? admitOptionId : denyOptionId;
+  const details = guest.meets
+    ? `${guest.name} meets every requirement — age ${guest.age}, ${guest.wristband.emoji} band, ${guest.dress.label} attire.`
+    : `${guest.name} fails due to ${describeFailures(guest, checklist)}.`;
+  return {
+    id: `bouncer-${index + 1}`,
+    title: `Checkpoint ${index + 1}`,
+    prompt,
+    options: [
+      { id: admitOptionId, label: `Admit ${guest.name}` },
+      { id: denyOptionId, label: `Deny ${guest.name}` }
+    ],
+    correct,
+    difficulty: guest.meets ? 'easy' : 'medium',
+    details
+  };
+}
+
+function combinationLabel(guests, mask) {
+  const admitted = [];
+  const denied = [];
+  guests.forEach((guest, idx) => {
+    if (mask & (1 << idx)) admitted.push(guest.name);
+    else denied.push(guest.name);
+  });
+  if (admitted.length === guests.length) return 'Admit everyone';
+  if (admitted.length === 0) return 'Deny everyone';
+  return `Admit ${admitted.join(', ')}; deny ${denied.join(', ')}`;
+}
+
+function combinationId(guests, mask) {
+  const admitted = [];
+  guests.forEach((guest, idx) => {
+    if (mask & (1 << idx)) admitted.push(guest.name);
+  });
+  return `ADMIT:${admitted.sort().join(',') || 'NONE'}`;
+}
+
+function buildPartyStage(index, checklist, guests) {
+  ensureAtLeastOnePasses(guests, checklist);
+  const prompt = [
+    describeChecklist(checklist),
+    '',
+    'Lineup:',
+    guests.map((guest, idx) => describeGuest(guest, idx)).join('\n\n'),
+    '',
+    'Select the group outcome.'
+  ].join('\n');
+
+  const options = [];
+  const totalCombos = 1 << guests.length;
+  for (let mask = 0; mask < totalCombos; mask += 1) {
+    options.push({
+      id: combinationId(guests, mask),
+      label: combinationLabel(guests, mask)
+    });
+  }
+
+  const correctMask = guests.reduce((mask, guest, idx) => (
+    guest.meets ? mask | (1 << idx) : mask
+  ), 0);
+  const correct = combinationId(guests, correctMask);
+
+  const admittedNames = guests.filter(g => g.meets).map(g => g.name);
+  const deniedNames = guests.filter(g => !g.meets).map(g => `${g.name} (${describeFailures(g, checklist)})`);
+  const detailsPieces = [];
+  detailsPieces.push(admittedNames.length
+    ? `Admit: ${admittedNames.join(', ')}.`
+    : 'Admit: no one.');
+  detailsPieces.push(deniedNames.length
+    ? `Deny: ${deniedNames.join(', ')}.`
+    : 'Deny: no issues.');
+
+  return {
+    id: `bouncer-${index + 1}`,
+    title: `Checkpoint ${index + 1}`,
+    prompt,
+    options,
+    correct,
+    difficulty: guests.length === 2 ? 'medium' : 'hard',
+    details: detailsPieces.join(' ')
+  };
 }
 
 export function generateBouncerStages(count = 5) {
-  const pool = shuffle(STAGES);
-  return pool.slice(0, count);
+  const stages = [];
+  const usedNames = new Set();
+
+  for (let i = 0; i < count; i += 1) {
+    const checklist = generateChecklist();
+    if (i < 3) {
+      const guestName = sampleName(usedNames);
+      const guest = buildGuest(guestName, checklist);
+      stages.push(buildSingleStage(i, checklist, guest));
+    } else {
+      const size = crypto.randomInt(2, 4);
+      const guests = Array.from({ length: size }, () => buildGuest(sampleName(usedNames), checklist));
+      stages.push(buildPartyStage(i, checklist, guests));
+    }
+  }
+
+  return stages;
 }
 
 export default generateBouncerStages;
