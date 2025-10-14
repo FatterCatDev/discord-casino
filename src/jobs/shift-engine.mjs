@@ -138,7 +138,7 @@ function buildStageEmbed(session, stage, kittenMode) {
         )
       }
     )
-    .setFooter({ text: say('Cancel anytime with End Shift · 8h cooldown between shifts', 'Cancel anytime with End Shift · 8h cooldown between shifts') });
+    .setFooter({ text: say('Cancel anytime with End Shift - rest after five shifts (6h cooldown)', 'Cancel anytime with End Shift - rest after five shifts (6h cooldown)') });
   return embed;
 }
 
