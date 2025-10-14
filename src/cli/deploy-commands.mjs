@@ -4,10 +4,7 @@ import { listJobs } from '../jobs/registry.mjs';
 
 const ADMIN_PERMS = String(PermissionFlagsBits.Administrator);
 
-const jobTransferChoices = [
-  ...listJobs().map(job => ({ name: job.displayName, value: job.id })),
-  { name: 'No Active Job', value: 'none' }
-];
+const jobChoices = listJobs().map(job => ({ name: job.displayName, value: job.id }));
 
 const commands = [
   { name: 'ping', description: 'Replies with Pong!' },
@@ -24,18 +21,17 @@ const commands = [
     description: 'Clock in for casino shifts and manage your role.',
     options: [
       { type: 1, name: 'overview', description: 'Preview available jobs and shift structure.' },
-      { type: 1, name: 'start', description: 'Start a shift for your active job.' },
       {
         type: 1,
-        name: 'transfer',
-        description: 'Switch to a different job specialization.',
+        name: 'start',
+        description: 'Start a shift for a specific job.',
         options: [
           {
             name: 'job',
-            description: 'Choose which job to activate.',
+            description: 'Choose the job to run.',
             type: 3,
             required: true,
-            choices: jobTransferChoices
+            choices: jobChoices
           }
         ]
       },
