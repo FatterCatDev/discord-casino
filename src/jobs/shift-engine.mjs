@@ -480,6 +480,9 @@ function buildStageComponents(session, stage) {
   if (isBartenderStage(stage, session)) {
     return buildBartenderStageComponents(session, stage);
   }
+  if (session.jobId === 'bouncer') {
+    return buildBouncerStageComponents(session, stage);
+  }
   const rows = chunkButtons(stage.options, session.sessionId);
   rows.push(buildCancelRow(session.sessionId));
   return rows;
