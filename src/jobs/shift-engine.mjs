@@ -216,33 +216,37 @@ function buildCompletionEmbed(session, outcome) {
   const say = (kitten, normal) => (session.kittenMode ? kitten : normal);
   const job = session.job;
   const jobIcon = jobDisplayIcon(job);
+  const fields = [
+    {
+      name: say('Performance', 'Performance'),
+      value: `${outcome.performanceScore} / 100`
+    },
+    {
+      name: say('XP & Rank', 'XP & Rank'),
+      value: say(
+        `Gained **${outcome.xpEarned} XP**. Rank ${outcome.rankBefore} → ${outcome.rankAfter} (${outcome.xpToNext} XP to next).`,
+        `Earned **${outcome.xpEarned} XP**. Rank ${outcome.rankBefore} → ${outcome.rankAfter} (${outcome.xpToNext} XP to next rank).`
+      )
+    },
+    {
+      name: say('Payout', 'Payout'),
+      value: outcome.payoutText
+    }
+  ];
+  if (outcome.shiftStatusField) {
+    fields.push(outcome.shiftStatusField);
+  }
+  fields.push({
+    name: say('Stage Recap', 'Stage Recap'),
+    value: session.history.map(item => {
+      const icon = item.status === 'success' ? '✅' : '❌';
+      return `${icon} Stage ${item.stageNumber}: ${item.title} — ${item.totalScore} pts`;
+    }).join('\n') || say('No stages completed.', 'No stages completed.')
+  });
   const embed = new EmbedBuilder()
     .setColor(COLORS[job.id] || COLORS.default)
     .setTitle(`${jobIcon} ${job.displayName} Shift — ${outcome.status}`)
-    .addFields(
-      {
-        name: say('Performance', 'Performance'),
-        value: `${outcome.performanceScore} / 100`
-      },
-      {
-        name: say('XP & Rank', 'XP & Rank'),
-        value: say(
-          `Gained **${outcome.xpEarned} XP**. Rank ${outcome.rankBefore} → ${outcome.rankAfter} (${outcome.xpToNext} XP to next).`,
-          `Earned **${outcome.xpEarned} XP**. Rank ${outcome.rankBefore} → ${outcome.rankAfter} (${outcome.xpToNext} XP to next rank).`
-        )
-      },
-      {
-        name: say('Payout', 'Payout'),
-        value: outcome.payoutText
-      },
-      {
-        name: say('Stage Recap', 'Stage Recap'),
-        value: session.history.map(item => {
-          const icon = item.status === 'success' ? '✅' : '❌';
-          return `${icon} Stage ${item.stageNumber}: ${item.title} — ${item.totalScore} pts`;
-        }).join('\n') || say('No stages completed.', 'No stages completed.')
-      }
-    )
+    .addFields(fields)
     .setFooter({ text: say('Tip payouts use weighted randomness — 0-15% doubled weight.', 'Tip payouts use weighted randomness — 0-15% double weight.') });
 
   if (outcome.extraNotes?.length) {
