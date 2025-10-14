@@ -104,6 +104,9 @@ function buildHistoryLines(session) {
     } else {
       detail += ' (timed out)';
     }
+    if (item.penalties) {
+      detail += ` (penalties -${item.penalties})`;
+    }
     return detail;
   }).join('\n');
 }
