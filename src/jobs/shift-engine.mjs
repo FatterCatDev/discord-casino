@@ -205,7 +205,7 @@ function buildBartenderStageEmbed(session, stage, kittenMode) {
       },
       {
         name: say('Customer Order', 'Customer Order'),
-        value: `${stage.drink.ingredients.join(' → ')}\n${say('Finish with:', 'Finish with:')} **${stage.drink.technique.toUpperCase()}**`
+        value: `${stage.drink.name}`
       },
       {
         name: say('Your Build', 'Your Build'),
