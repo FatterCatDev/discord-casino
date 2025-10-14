@@ -919,6 +919,7 @@ export async function handleJobShiftButton(interaction, ctx) {
     await interaction.reply({ content: `${emoji('warning')} Stage not found for this shift.`, ephemeral: true });
     return true;
   }
+  refreshSessionTimeout(session);
   const stageState = ensureStageState(session, stage);
 
   if (isSelectMenu) {
