@@ -904,6 +904,7 @@ async function handleCorrect(interaction, ctx, session, stage, stageState) {
 
 async function handleIncorrect(interaction, session, stage, stageState) {
   if (stageState.attempts >= 3) {
+    const bartenderStage = isBartenderStage(stage, session);
     const record = {
       stageId: stage.id,
       stageNumber: session.stageIndex + 1,
@@ -916,8 +917,11 @@ async function handleIncorrect(interaction, session, stage, stageState) {
       correct: stage.correct,
       finalAnswer: stageState.attemptsLog.at(-1)?.optionId,
       elapsedMs: Date.now() - stageState.startedAtMs,
-      details: stage.details || null
+      details: bartenderStage ? `Time penalties: -${Math.max(0, Math.floor(stageState.penalties || 0))} pts` : stage.details || null
     };
+    if (bartenderStage) {
+      record.penalties = Math.max(0, Math.floor(stageState.penalties || 0));
+    }
     appendHistory(session, record);
     session.stageState = null;
     session.stageIndex += 1;
