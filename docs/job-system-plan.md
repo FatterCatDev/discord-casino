@@ -112,7 +112,7 @@
 - Define penalties for repeated failures or manual aborts in quick succession (e.g., temporary lockouts, reduced XP).
 - Decide how to score timeouts: treat as failure with minimal XP, still consume shift cooldown, and log for analytics.
 - Implement restart safety: on bot crash or restart, detect orphaned shift session entries and mark them failed; optionally grant partial pay or nothing but ensure state clears cleanly.
-- Add audit logging for every job switch (old job, new job, timestamp, cooldown ends), payout, and abnormal termination.
+- Add audit logging for streak resets (when cooldown triggers), payouts, and abnormal terminations.
 
 ## 9. Housekeeping & Documentation
 - Update `commands.json` and `deploy-commands.mjs` with new job commands and descriptions.
