@@ -73,6 +73,17 @@ function clearSession(session) {
   sessionsByUser.delete(userKey(session.guildId, session.userId));
 }
 
+function compareNameSelections(selectedNames = [], correctNames = []) {
+  if (selectedNames.length !== correctNames.length) return false;
+  const normalize = names => names.map(name => name.trim().toLowerCase()).sort();
+  const sel = normalize(selectedNames);
+  const exp = normalize(correctNames);
+  for (let i = 0; i < sel.length; i += 1) {
+    if (sel[i] !== exp[i]) return false;
+  }
+  return true;
+}
+
 function chunkButtons(options, sessionId) {
   const rows = [];
   let current = [];
