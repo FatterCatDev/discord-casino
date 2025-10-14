@@ -155,7 +155,24 @@ async function ensureAccessControlTables() {
   `);
 }
 
-async function ensureJobStatusTable() {
+async function ensureJobTables() {
+  await q(`
+    CREATE TABLE IF NOT EXISTS job_profiles (
+      guild_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      job_id TEXT NOT NULL,
+      rank INTEGER NOT NULL DEFAULT 1,
+      total_xp BIGINT NOT NULL DEFAULT 0,
+      xp_to_next BIGINT NOT NULL DEFAULT 100,
+      last_shift_at BIGINT,
+      created_at BIGINT NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::BIGINT,
+      updated_at BIGINT NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::BIGINT,
+      PRIMARY KEY (guild_id, user_id, job_id)
+    )
+  `);
+  await q('CREATE INDEX IF NOT EXISTS idx_job_profiles_user ON job_profiles (guild_id, user_id)');
+  await q('CREATE INDEX IF NOT EXISTS idx_job_profiles_job ON job_profiles (job_id, guild_id)');
+
   await q(`
     CREATE TABLE IF NOT EXISTS job_status (
       guild_id TEXT NOT NULL,
@@ -171,6 +188,25 @@ async function ensureJobStatusTable() {
     )
   `);
   await q('CREATE INDEX IF NOT EXISTS idx_job_status_guild_switch ON job_status (guild_id, job_switch_available_at)');
+
+  await q(`
+    CREATE TABLE IF NOT EXISTS job_shifts (
+      id TEXT PRIMARY KEY,
+      guild_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      job_id TEXT NOT NULL,
+      started_at BIGINT NOT NULL,
+      completed_at BIGINT,
+      performance_score INTEGER NOT NULL DEFAULT 0,
+      base_pay BIGINT NOT NULL DEFAULT 0,
+      tip_percent INTEGER NOT NULL DEFAULT 0,
+      tip_amount BIGINT NOT NULL DEFAULT 0,
+      total_payout BIGINT NOT NULL DEFAULT 0,
+      result_state TEXT NOT NULL DEFAULT 'PENDING',
+      metadata_json JSONB NOT NULL DEFAULT '{}'::JSONB
+    )
+  `);
+  await q('CREATE INDEX IF NOT EXISTS idx_job_shifts_user_started ON job_shifts (guild_id, user_id, started_at)');
 }
 
 async function mergeEconomyToGlobalScope() {
