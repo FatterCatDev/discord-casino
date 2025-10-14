@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } from 'discord.js';
 import {
   ensureJobProfile,
   updateJobProfile,
@@ -8,7 +8,7 @@ import {
 } from '../db/db.auto.mjs';
 import { getJobStatusForUser, recordShiftCompletion, JOB_SHIFT_STREAK_LIMIT, JOB_SHIFT_STREAK_COOLDOWN_SECONDS } from './status.mjs';
 import { getJobById } from './registry.mjs';
-import { generateStagesForJob } from './scenarios/index.mjs';
+import { generateStagesForJob, generateBartenderShift } from './scenarios/index.mjs';
 import {
   applyXpGain,
   performanceToBasePay,
