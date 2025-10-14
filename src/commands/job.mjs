@@ -336,10 +336,13 @@ export default async function handleJob(interaction, ctx) {
   }
 
   if (subcommand === 'stats') {
-    const profiles = await fetchProfiles(guildId, userId);
-    const shifts = await listJobShiftsForUser(guildId, userId, 6);
-    const embed = buildStatsEmbed(kittenMode, status, profiles, shifts, now);
-    return interaction.reply({ embeds: [embed], ephemeral: true });
+    const target = interaction.options.getUser('user') ?? interaction.user;
+    const targetId = target.id;
+    const targetStatus = await getJobStatusForUser(guildId, targetId);
+    const profiles = await fetchProfiles(guildId, targetId);
+    const shifts = await listJobShiftsForUser(guildId, targetId, 6);
+    const embed = buildStatsEmbed(kittenMode, targetStatus, profiles, shifts, now, target);
+    return interaction.reply({ embeds: [embed] });
   }
 
   return interaction.reply({
