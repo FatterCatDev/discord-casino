@@ -276,7 +276,9 @@ export default async function handleJob(interaction, ctx) {
       job_switch_available_at: 0,
       cooldown_reason: null,
       earned_today: 0,
-      cap_reset_at: null
+      cap_reset_at: null,
+      shift_streak_count: 0,
+      shift_cooldown_expires_at: 0
     });
 
     const updates = [];
@@ -287,8 +289,8 @@ export default async function handleJob(interaction, ctx) {
 
     return interaction.reply({
       content: forSelf
-        ? `${emoji('hammerWrench')} ${say('Cooldowns scrubbed clean. You can swap roles and start shifts immediately, Kitten.', 'Cooldowns cleared. You can transfer jobs and start shifts immediately.')}`
-        : `${emoji('hammerWrench')} ${say(`Cooldowns scrubbed for ${targetMention}. They can swap roles and start shifts right away.`, `Cooldowns cleared for ${targetMention}. They can transfer jobs and start shifts immediately.`)}`,
+        ? `${emoji('hammerWrench')} ${say('Shift timers scrubbed clean. You can run five back-to-back shifts right now, Kitten.', 'Shift cooldown reset. You can run five shifts before the next rest period.')}`
+        : `${emoji('hammerWrench')} ${say(`Shift timers wiped for ${targetMention}. They can run five fresh shifts in a row.`, `Shift cooldown cleared for ${targetMention}. They can run five shifts before the next rest.`)}`,
       ephemeral: true
     });
   }
