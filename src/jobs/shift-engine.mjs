@@ -995,6 +995,7 @@ export async function handleJobShiftButton(interaction, ctx) {
       return true;
     }
     registerBartenderAction(stageState);
+    stageState.hasTimerStarted = false;
     stageState.technique = payload;
     stageState.attempts += 1;
     const result = evaluateBartenderSubmission(session, stage);
