@@ -137,6 +137,18 @@ CREATE TABLE IF NOT EXISTS holdem_commits (
   amount INTEGER NOT NULL,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS job_status (
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  active_job TEXT NOT NULL DEFAULT 'none',
+  job_switch_available_at INTEGER NOT NULL DEFAULT 0,
+  cooldown_reason TEXT,
+  daily_earning_cap INTEGER,
+  earned_today INTEGER NOT NULL DEFAULT 0,
+  cap_reset_at INTEGER,
+  updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+  PRIMARY KEY (guild_id, user_id)
+);
 `);
 
 // Migration: add credits column if missing
