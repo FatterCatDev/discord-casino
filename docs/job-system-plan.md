@@ -102,12 +102,10 @@
 - Create `src/interactions/jobs/` namespace housing per-job button/select handlers and shared utilities (state machine, timers, random event engine, localization, kitten-mode transformation).
 - Ensure compatibility with existing session tracking: define a new in-memory map keyed by guild/user storing current shift state, with expiration fallback.
 
-## 7. Enforce Single-Job Rules & Cooldowns
-- Implement job switching logic:
-  - On `/job transfer`, check `job_switch_available_at`; if time remaining, return denial with countdown.
-  - On successful switch, set `active_job`, set `job_switch_available_at = now + 24h`, and reset `xp_to_next` for the selected job to the full requirement for the current rank while leaving rank untouched.
-- Update help text and confirmation prompts to stress the XP reset and cooldown.
-- For `/job start`, ensure only the active job can launch shifts; if the player attempts another role, respond with instructions to transfer and wait out cooldown.
+## 7. Enforce Shift Streak Limits & Cooldowns
+- Track per-user streaks across all jobs: increment on each completed shift, cap at five, and start a 6-hour cooldown when the limit is reached.
+- On `/job start`, block if `shift_cooldown_expires_at` is in the future and surface remaining cooldown time; otherwise, allow any job selection and surface remaining shifts in the burst.
+- Reset streak counters and cooldown reason when the timer expires or an admin runs the reset command.
 - Add optional daily earning cap per user (configurable) and integrate into `canStartShift`.
 
 ## 8. Anti-Abuse & Resilience
