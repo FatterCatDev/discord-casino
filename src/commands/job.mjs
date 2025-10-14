@@ -11,7 +11,7 @@ import {
 } from '../db/db.auto.mjs';
 import { rankTitle } from '../jobs/ranks.mjs';
 import { xpToNextForRank } from '../jobs/progression.mjs';
-import { startJobShift } from '../jobs/shift-engine.mjs';
+import { startJobShift, cancelActiveShiftForUser } from '../jobs/shift-engine.mjs';
 
 function buildSay(kittenMode) {
   return (kittenText, normalText) => (kittenMode ? kittenText : normalText);
