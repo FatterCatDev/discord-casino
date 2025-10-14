@@ -10,7 +10,7 @@ import {
   setJobStatus
 } from '../db/db.auto.mjs';
 import { rankTitle } from '../jobs/ranks.mjs';
-import { JOB_SHIFT_COOLDOWN_SECONDS } from '../jobs/progression.mjs';
+import { JOB_SHIFT_COOLDOWN_SECONDS, xpToNextForRank } from '../jobs/progression.mjs';
 import { startJobShift } from '../jobs/shift-engine.mjs';
 
 function buildSay(kittenMode) {
