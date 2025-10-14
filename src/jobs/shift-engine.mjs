@@ -568,18 +568,37 @@ export async function handleJobShiftButton(interaction, ctx) {
   return false;
 }
 
-export async function startJobShift(interaction, ctx) {
+export async function startJobShift(interaction, ctx, jobInput) {
   const guildId = interaction.guildId;
   const userId = interaction.user.id;
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
-  const status = await getJobStatusForUser(guildId, userId);
-  const jobId = status?.active_job || 'none';
-  if (jobId === 'none') {
-    const say = (kitten, normal) => (kittenMode ? kitten : normal);
+  const say = (kitten, normal) => (kittenMode ? kitten : normal);
+  const jobId = String(jobInput || '').trim().toLowerCase();
+  if (!jobId) {
     return interaction.reply({
-      content: `${emoji('info')} ${say('Pick a job with `/job transfer` before clocking in, Kitten.', 'Pick a job with `/job transfer` before starting a shift.')}`,
+      content: `${emoji('question')} ${say('Tell me which job you want, Kitten — try `/job start dealer`.', 'Choose a job with `/job start <job>` to begin.')}`,
       ephemeral: true
     });
+  }
+
+  const job = getJobById(jobId);
+  if (!job) {
+    return interaction.reply({
+      content: `${emoji('question')} ${say('I don’t recognize that job badge yet.', 'Unknown job option.')}`,
+      ephemeral: true
+    });
+  }
+
+  const status = await getJobStatusForUser(guildId, userId);
+  if (status?.onShiftCooldown) {
+    const availableAt = Number(status.shiftCooldownExpiresAt ?? status.shift_cooldown_expires_at ?? 0) || (nowSeconds() + JOB_SHIFT_STREAK_COOLDOWN_SECONDS);
+    return buildCooldownError(interaction, kittenMode, availableAt);
+  }
+
+  const remaining = Number(status?.shiftsRemaining ?? (JOB_SHIFT_STREAK_LIMIT - (status?.shiftStreakCount ?? 0)));
+  if (remaining <= 0) {
+    const availableAt = Number(status?.shiftCooldownExpiresAt ?? status?.shift_cooldown_expires_at ?? 0) || (nowSeconds() + JOB_SHIFT_STREAK_COOLDOWN_SECONDS);
+    return buildCooldownError(interaction, kittenMode, availableAt);
   }
 
   const existing = sessionsByUser.get(userKey(guildId, userId));
@@ -587,17 +606,8 @@ export async function startJobShift(interaction, ctx) {
     return buildActiveSessionError(interaction, kittenMode);
   }
 
-  const job = getJobById(jobId);
-  if (!job) {
-    return interaction.reply({ content: `${emoji('warning')} Unknown job configuration.`, ephemeral: true });
-  }
-
   const profile = await ensureJobProfile(guildId, userId, jobId);
   const now = nowSeconds();
-  const availableAt = profile.lastShiftAt ? profile.lastShiftAt + JOB_SHIFT_COOLDOWN_SECONDS : 0;
-  if (availableAt > now) {
-    return buildCooldownError(interaction, kittenMode, availableAt);
-  }
 
   const stages = generateStagesForJob(jobId, JOB_SHIFT_STAGE_COUNT).map(stage => ({
     ...stage,
@@ -631,6 +641,10 @@ export async function startJobShift(interaction, ctx) {
     lastShiftAt: now,
     openedAt: now,
     kittenMode,
+    shiftStatusBefore: {
+      shiftsRemaining: remaining,
+      streakCount: Number(status?.shiftStreakCount ?? status?.shift_streak_count ?? 0)
+    },
     totalScore: 0,
     stageIndex: 0,
     stages,
