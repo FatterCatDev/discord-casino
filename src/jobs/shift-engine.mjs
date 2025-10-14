@@ -807,13 +807,9 @@ function stageTimeoutSeconds(attempts) {
   return attempts >= 3 ? 0 : 25;
 }
 
-function ensureStageState(session) {
+function ensureStageState(session, stage) {
   if (!session.stageState) {
-    session.stageState = {
-      startedAtMs: Date.now(),
-      attempts: 0,
-      attemptsLog: []
-    };
+    session.stageState = createStageState(session, stage);
   }
   return session.stageState;
 }
