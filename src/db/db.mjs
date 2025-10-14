@@ -947,6 +947,71 @@ export function clearActiveRequest(guildId, userId) {
   return true;
 }
 
+function toInt(value, fallback = 0) {
+  const num = Number(value);
+  if (!Number.isFinite(num)) return fallback;
+  return Math.trunc(num);
+}
+
+function toNullableInt(value) {
+  if (value === null || value === undefined) return null;
+  const num = Number(value);
+  if (!Number.isFinite(num)) return null;
+  return Math.trunc(num);
+}
+
+function normalizeJobStatusRow(guildId, userId, row = null) {
+  return {
+    guild_id: guildId,
+    user_id: userId,
+    active_job: row?.active_job || 'none',
+    job_switch_available_at: toInt(row?.job_switch_available_at, 0),
+    cooldown_reason: row?.cooldown_reason || null,
+    daily_earning_cap: toNullableInt(row?.daily_earning_cap),
+    earned_today: toInt(row?.earned_today, 0),
+    cap_reset_at: toNullableInt(row?.cap_reset_at),
+    updated_at: toInt(row?.updated_at, 0)
+  };
+}
+
+export function getJobStatus(guildId, userId) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) throw new Error('JOB_STATUS_USER_REQUIRED');
+  ensureJobStatusStmt.run(gid, uid);
+  const row = selectJobStatusStmt.get(gid, uid) || null;
+  return normalizeJobStatusRow(gid, uid, row);
+}
+
+export function setJobStatus(guildId, userId, patch = {}) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) throw new Error('JOB_STATUS_USER_REQUIRED');
+  ensureJobStatusStmt.run(gid, uid);
+  const current = selectJobStatusStmt.get(gid, uid) || {};
+  const now = Math.floor(Date.now() / 1000);
+  const next = {
+    active_job: patch.active_job ?? current.active_job ?? 'none',
+    job_switch_available_at: toInt(patch.job_switch_available_at ?? current.job_switch_available_at, 0),
+    cooldown_reason: patch.cooldown_reason === undefined ? (current.cooldown_reason ?? null) : patch.cooldown_reason,
+    daily_earning_cap: patch.daily_earning_cap === undefined ? (current.daily_earning_cap ?? null) : patch.daily_earning_cap,
+    earned_today: toInt(patch.earned_today ?? current.earned_today, 0),
+    cap_reset_at: patch.cap_reset_at === undefined ? (current.cap_reset_at ?? null) : patch.cap_reset_at
+  };
+  updateJobStatusStmt.run(
+    next.active_job,
+    toInt(next.job_switch_available_at, 0),
+    next.cooldown_reason ?? null,
+    toNullableInt(next.daily_earning_cap),
+    toInt(next.earned_today, 0),
+    toNullableInt(next.cap_reset_at),
+    now,
+    gid,
+    uid
+  );
+  return getJobStatus(gid, uid);
+}
+
 export function resetAllBalances(guildId) {
   const gid = resolveGuildId(guildId);
   const run = db.transaction(() => {
