@@ -137,6 +137,18 @@ CREATE TABLE IF NOT EXISTS holdem_commits (
   amount INTEGER NOT NULL,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS job_profiles (
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  job_id TEXT NOT NULL,
+  rank INTEGER NOT NULL DEFAULT 1,
+  total_xp INTEGER NOT NULL DEFAULT 0,
+  xp_to_next INTEGER NOT NULL DEFAULT 100,
+  last_shift_at INTEGER,
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+  updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+  PRIMARY KEY (guild_id, user_id, job_id)
+);
 CREATE TABLE IF NOT EXISTS job_status (
   guild_id TEXT NOT NULL,
   user_id TEXT NOT NULL,
@@ -148,6 +160,21 @@ CREATE TABLE IF NOT EXISTS job_status (
   cap_reset_at INTEGER,
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
   PRIMARY KEY (guild_id, user_id)
+);
+CREATE TABLE IF NOT EXISTS job_shifts (
+  id TEXT PRIMARY KEY,
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  job_id TEXT NOT NULL,
+  started_at INTEGER NOT NULL,
+  completed_at INTEGER,
+  performance_score INTEGER NOT NULL DEFAULT 0,
+  base_pay INTEGER NOT NULL DEFAULT 0,
+  tip_percent INTEGER NOT NULL DEFAULT 0,
+  tip_amount INTEGER NOT NULL DEFAULT 0,
+  total_payout INTEGER NOT NULL DEFAULT 0,
+  result_state TEXT NOT NULL DEFAULT 'PENDING',
+  metadata_json TEXT NOT NULL DEFAULT '{}'
 );
 `);
 
