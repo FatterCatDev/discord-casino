@@ -18,6 +18,7 @@ const JOB_DEFINITIONS = [
     id: 'dealer',
     displayName: 'Card Dealer',
     icon: '🃏',
+    emojiKey: 'pokerSpade',
     tagline: {
       normal: 'Run five rapid-fire tables and call the best poker hand.',
       kitten: 'Flip the board and call those winners with flair, Kitten.'
