@@ -852,7 +852,7 @@ async function handleCorrect(interaction, ctx, session, stage, stageState) {
   }
 
   const nextStage = session.stages[session.stageIndex];
-  session.stageState = { startedAtMs: Date.now(), attempts: 0, attemptsLog: [] };
+  session.stageState = createStageState(session, nextStage);
   const embed = buildStageEmbed(session, nextStage, session.kittenMode);
   return interaction.update({ embeds: [embed], components: buildStageComponents(session, nextStage) });
 }
