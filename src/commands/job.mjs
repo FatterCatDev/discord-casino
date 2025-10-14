@@ -290,6 +290,7 @@ export default async function handleJob(interaction, ctx) {
 
     const targetUser = interaction.options.getUser('user') ?? interaction.user;
     const targetId = targetUser.id;
+    const targetMention = `<@${targetId}>`;
     const forSelf = targetId === userId;
 
     const profiles = await fetchProfiles(guildId, targetId);
@@ -309,7 +310,7 @@ export default async function handleJob(interaction, ctx) {
     return interaction.reply({
       content: forSelf
         ? `${emoji('hammerWrench')} ${say('Cooldowns scrubbed clean. You can swap roles and start shifts immediately, Kitten.', 'Cooldowns cleared. You can transfer jobs and start shifts immediately.')}`
-        : `${emoji('hammerWrench')} ${say(`Cooldowns scrubbed for ${targetUser}. They can swap roles and start shifts right away.`, `Cooldowns cleared for ${targetUser}. They can transfer jobs and start shifts immediately.`)}`,
+        : `${emoji('hammerWrench')} ${say(`Cooldowns scrubbed for ${targetMention}. They can swap roles and start shifts right away.`, `Cooldowns cleared for ${targetMention}. They can transfer jobs and start shifts immediately.`)}`,
       ephemeral: true
     });
   }
@@ -324,6 +325,7 @@ export default async function handleJob(interaction, ctx) {
 
     const targetUser = interaction.options.getUser('user') ?? interaction.user;
     const targetId = targetUser.id;
+    const targetMention = `<@${targetId}>`;
     const forSelf = targetId === userId;
 
     const profiles = await fetchProfiles(guildId, targetId);
@@ -354,7 +356,7 @@ export default async function handleJob(interaction, ctx) {
     return interaction.reply({
       content: forSelf
         ? `${emoji('sparkles')} ${say(`Fresh slate! Ranks and XP reset across ${jobCount} jobs.`, `Stats reset. Your ranks and XP across ${jobCount} jobs are back to defaults.`)}`
-        : `${emoji('sparkles')} ${say(`Reset ranks and XP for ${targetUser} across ${jobCount} jobs.`, `Stats reset for ${targetUser} across ${jobCount} jobs.`)}`,
+        : `${emoji('sparkles')} ${say(`Reset ranks and XP for ${targetMention} across ${jobCount} jobs.`, `Stats reset for ${targetMention} across ${jobCount} jobs.`)}`,
       ephemeral: true
     });
   }
