@@ -158,6 +158,8 @@ CREATE TABLE IF NOT EXISTS job_status (
   daily_earning_cap INTEGER,
   earned_today INTEGER NOT NULL DEFAULT 0,
   cap_reset_at INTEGER,
+  shift_streak_count INTEGER NOT NULL DEFAULT 0,
+  shift_cooldown_expires_at INTEGER NOT NULL DEFAULT 0,
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
   PRIMARY KEY (guild_id, user_id)
 );
@@ -531,17 +533,17 @@ const updateJobProfileStmt = db.prepare(`
 `);
 
 const ensureJobStatusStmt = db.prepare(`
-  INSERT OR IGNORE INTO job_status (guild_id, user_id, active_job, job_switch_available_at, cooldown_reason, daily_earning_cap, earned_today, cap_reset_at, updated_at)
-  VALUES (?, ?, 'none', 0, NULL, NULL, 0, NULL, strftime('%s','now'))
+  INSERT OR IGNORE INTO job_status (guild_id, user_id, active_job, job_switch_available_at, cooldown_reason, daily_earning_cap, earned_today, cap_reset_at, shift_streak_count, shift_cooldown_expires_at, updated_at)
+  VALUES (?, ?, 'none', 0, NULL, NULL, 0, NULL, 0, 0, strftime('%s','now'))
 `);
 const selectJobStatusStmt = db.prepare(`
-  SELECT active_job, job_switch_available_at, cooldown_reason, daily_earning_cap, earned_today, cap_reset_at, updated_at
+  SELECT active_job, job_switch_available_at, cooldown_reason, daily_earning_cap, earned_today, cap_reset_at, shift_streak_count, shift_cooldown_expires_at, updated_at
   FROM job_status
   WHERE guild_id = ? AND user_id = ?
 `);
 const updateJobStatusStmt = db.prepare(`
   UPDATE job_status
-  SET active_job = ?, job_switch_available_at = ?, cooldown_reason = ?, daily_earning_cap = ?, earned_today = ?, cap_reset_at = ?, updated_at = ?
+  SET active_job = ?, job_switch_available_at = ?, cooldown_reason = ?, daily_earning_cap = ?, earned_today = ?, cap_reset_at = ?, shift_streak_count = ?, shift_cooldown_expires_at = ?, updated_at = ?
   WHERE guild_id = ? AND user_id = ?
 `);
 
@@ -1196,6 +1198,8 @@ function normalizeJobStatusRow(guildId, userId, row = null) {
     daily_earning_cap: toNullableInt(row?.daily_earning_cap),
     earned_today: toInt(row?.earned_today, 0),
     cap_reset_at: toNullableInt(row?.cap_reset_at),
+    shift_streak_count: toInt(row?.shift_streak_count, 0),
+    shift_cooldown_expires_at: toInt(row?.shift_cooldown_expires_at, 0),
     updated_at: toInt(row?.updated_at, 0)
   };
 }
@@ -1222,7 +1226,9 @@ export function setJobStatus(guildId, userId, patch = {}) {
     cooldown_reason: patch.cooldown_reason === undefined ? (current.cooldown_reason ?? null) : patch.cooldown_reason,
     daily_earning_cap: patch.daily_earning_cap === undefined ? (current.daily_earning_cap ?? null) : patch.daily_earning_cap,
     earned_today: toInt(patch.earned_today ?? current.earned_today, 0),
-    cap_reset_at: patch.cap_reset_at === undefined ? (current.cap_reset_at ?? null) : patch.cap_reset_at
+    cap_reset_at: patch.cap_reset_at === undefined ? (current.cap_reset_at ?? null) : patch.cap_reset_at,
+    shift_streak_count: toInt(patch.shift_streak_count ?? current.shift_streak_count, 0),
+    shift_cooldown_expires_at: toInt(patch.shift_cooldown_expires_at ?? current.shift_cooldown_expires_at, 0)
   };
   updateJobStatusStmt.run(
     next.active_job,
@@ -1231,6 +1237,8 @@ export function setJobStatus(guildId, userId, patch = {}) {
     toNullableInt(next.daily_earning_cap),
     toInt(next.earned_today, 0),
     toNullableInt(next.cap_reset_at),
+    toInt(next.shift_streak_count, 0),
+    toInt(next.shift_cooldown_expires_at, 0),
     now,
     gid,
     uid
