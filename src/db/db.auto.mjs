@@ -74,8 +74,16 @@ export const gameLoseWithCredits = pick('gameLoseWithCredits');
 export const gameWinWithCredits = pick('gameWinWithCredits');
 
 // Jobs
+export const ensureJobProfile = pick('ensureJobProfile');
+export const getJobProfile = pick('getJobProfile');
+export const listJobProfilesForUser = pick('listJobProfilesForUser');
+export const updateJobProfile = pick('updateJobProfile');
 export const getJobStatus = pick('getJobStatus');
 export const setJobStatus = pick('setJobStatus');
+export const createJobShift = pick('createJobShift');
+export const completeJobShift = pick('completeJobShift');
+export const getJobShiftById = pick('getJobShiftById');
+export const listJobShiftsForUser = pick('listJobShiftsForUser');
 
 // Hold'em escrow and hands
 export const ensureHoldemTable = pick('ensureHoldemTable');
