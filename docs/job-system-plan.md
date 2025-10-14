@@ -85,7 +85,7 @@
   - `CREATE INDEX job_shifts_job_idx ON job_shifts (job_id, started_at DESC);`
 - Seed defaults in migrations:
   - Insert one `job_profiles` row per guild/user/job when a player first picks a job; avoid eager seeding for all combinations.
-  - Provide a migration helper that, for existing users, inserts a `job_status` row with `active_job = 'none'`, `job_switch_available_at = 0`, and `earned_today = 0`.
+  - Provide a migration helper that, for existing users, inserts a `job_status` row with `active_job = 'none'`, `job_switch_available_at = 0`, `earned_today = 0`, `shift_streak_count = 0`, and `shift_cooldown_expires_at = 0`.
 - Populate QA fixtures via runtime registries rather than static seed data: `src/jobs/registry.mjs` should register canonical bartender recipes, dealer boards, and bouncer scenarios. Add CLI tooling to load sample scenarios for test environments when needed.
 - Define retention: keep `job_shifts` forever by default; add a global scheduled task that purges rows older than 180 days if storage pressure arises (no per-guild override needed at launch).
 - Write migration scripts for both SQLite (`db.mjs`) and Postgres (`db.pg.mjs`), including forward/backward compatibility guards and default values.
