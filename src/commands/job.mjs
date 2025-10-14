@@ -228,6 +228,17 @@ export default async function handleJob(interaction, ctx) {
     return interaction.reply({ embeds: [embed], ephemeral: true });
   }
 
+  if (subcommand === 'cancel') {
+    const result = await cancelActiveShiftForUser(guildId, userId);
+    if (!result.cancelled) {
+      return interaction.reply({
+        content: `${emoji('info')} ${say('No active shifts to cancel right now, Kitten.', 'You have no active job shifts to cancel.')}`,
+        ephemeral: true
+      });
+    }
+    return interaction.reply({ content: result.message, ephemeral: true });
+  }
+
   if (subcommand === 'start') {
     const jobId = interaction.options.getString('job', true);
     return startJobShift(interaction, ctx, jobId);
