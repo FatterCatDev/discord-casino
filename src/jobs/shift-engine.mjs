@@ -482,6 +482,10 @@ function appendHistory(session, record) {
 }
 
 function scheduleSessionTimeout(session) {
+  if (session.timeout) {
+    clearTimeout(session.timeout);
+    session.timeout = null;
+  }
   if (!SHIFT_SESSION_TIMEOUT_SECONDS) return;
   const delayMs = Math.max(0, (session.expiresAt * 1000) - Date.now());
   session.timeout = setTimeout(() => {
@@ -492,6 +496,11 @@ function scheduleSessionTimeout(session) {
   if (typeof session.timeout?.unref === 'function') {
     session.timeout.unref();
   }
+}
+
+function refreshSessionTimeout(session) {
+  session.expiresAt = nowSeconds() + SHIFT_SESSION_TIMEOUT_SECONDS;
+  scheduleSessionTimeout(session);
 }
 
 async function expireSession(sessionId) {
