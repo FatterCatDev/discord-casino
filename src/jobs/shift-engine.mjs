@@ -1073,14 +1073,28 @@ export async function startJobShift(interaction, ctx, jobInput) {
   const profile = await ensureJobProfile(guildId, userId, jobId);
   const now = nowSeconds();
 
-  const stages = generateStagesForJob(jobId, JOB_SHIFT_STAGE_COUNT).map(stage => ({
-    ...stage,
-    options: stage.options.map(opt => ({
-      id: String(opt.id),
-      label: opt.label,
-      emoji: opt.emoji || null
-    }))
-  }));
+  let stages;
+  let bartenderData = null;
+
+  if (jobId === 'bartender') {
+    const plan = generateBartenderShift(JOB_SHIFT_STAGE_COUNT);
+    bartenderData = {
+      menu: plan.menu,
+      ingredients: plan.ingredients,
+      blankValue: plan.blankValue
+    };
+    stages = plan.stages;
+  } else {
+    stages = generateStagesForJob(jobId, JOB_SHIFT_STAGE_COUNT).map(stage => ({
+      ...stage,
+      options: stage.options.map(opt => ({
+        id: String(opt.id),
+        label: opt.label,
+        emoji: opt.emoji || null
+      })),
+      correct: String(stage.correct)
+    }));
+  }
 
   const shift = await createJobShift(guildId, userId, jobId, {
     metadata: { jobId, stageIds: stages.map(s => s.id) }
@@ -1100,6 +1114,7 @@ export async function startJobShift(interaction, ctx, jobInput) {
     userId,
     jobId,
     job,
+    bartender: bartenderData,
     profileBefore: profile,
     previousLastShiftAt: profile.lastShiftAt ?? null,
     lastShiftAt: now,
@@ -1112,7 +1127,7 @@ export async function startJobShift(interaction, ctx, jobInput) {
     totalScore: 0,
     stageIndex: 0,
     stages,
-    stageState: { startedAtMs: Date.now(), attempts: 0, attemptsLog: [] },
+    stageState: null,
     history: [],
     status: 'ACTIVE',
     ctx,
@@ -1122,6 +1137,8 @@ export async function startJobShift(interaction, ctx, jobInput) {
     channelId: interaction.channelId,
     messageId: null
   };
+
+  session.stageState = createStageState(session, stages[0]);
 
   registerSession(session);
   scheduleSessionTimeout(session);
