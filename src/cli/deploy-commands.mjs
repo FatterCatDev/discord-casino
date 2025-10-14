@@ -40,7 +40,22 @@ const commands = [
         ]
       },
       { type: 1, name: 'stats', description: 'Review your job ranks, XP, and shift history.' },
-      { type: 1, name: 'reset', description: 'Admin only: reset your job cooldowns and shift timers.' }
+      {
+        type: 1,
+        name: 'reset',
+        description: 'Admin only: reset job cooldowns and shift timers.',
+        options: [
+          { name: 'user', description: 'Target user (defaults to yourself)', type: 6, required: false }
+        ]
+      },
+      {
+        type: 1,
+        name: 'resetstats',
+        description: 'Admin only: reset job ranks & XP.',
+        options: [
+          { name: 'user', description: 'Target user (defaults to yourself)', type: 6, required: false }
+        ]
+      }
     ]
   },
   {
