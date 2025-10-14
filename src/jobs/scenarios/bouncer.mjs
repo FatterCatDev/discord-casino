@@ -108,8 +108,9 @@ function buildGuest(name, checklist) {
   const { dob, age } = randomDob();
   const dress = resolveDress(checklist.dress);
   const wristband = resolveWristband(checklist.wristband);
-  const meets = age > checklist.ageRequirement && dress.id === checklist.dress.id && wristband.id === checklist.wristband.id;
-  return { name, age, dob, dress, wristband, meets };
+  const onGuestList = checklist.guestList.includes(name);
+  const meets = onGuestList && age > checklist.ageRequirement && dress.id === checklist.dress.id && wristband.id === checklist.wristband.id;
+  return { name, age, dob, dress, wristband, meets, onGuestList };
 }
 
 function ensureAtLeastOnePasses(guests, checklist) {
