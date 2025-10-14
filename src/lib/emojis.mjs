@@ -26,11 +26,6 @@ export const EMOJI = {
   medalGold: '<:medalgold:1427118283999674408>',
   medalSilver: '<:medalsilver:1427118285811486764>',
   medalBronze: '<:medalbronze:1427118287313178806>',
-  pokerSpadeBlack: '<:poker_spade:1427057442075705476>',
-  pokerHeartRed: '<:poker_heart:1427057352477245581>',
-  pokerClubGreen: '<:poker_club:1427057306318798990>',
-  pokerDiamondRed: '<:poker_diamond:1427057327344980068>',
-  pokerCardBack: '<:card_back:1427057302518632499>',
 
   // Economy
   chips: '<:chips:1427057303865266246>',
