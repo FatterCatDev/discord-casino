@@ -112,6 +112,17 @@ function buildStageEmbed(session, stage, kittenMode) {
   const totalStages = session.stages.length;
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
   const jobIcon = jobDisplayIcon(job);
+  const limit = JOB_SHIFT_STREAK_LIMIT;
+  const beforeRemaining = Number(session.shiftStatusBefore?.shiftsRemaining ?? limit);
+  const afterRemaining = Math.max(0, beforeRemaining - 1);
+  const streakAfter = Math.min(limit, Number(session.shiftStatusBefore?.streakCount ?? 0) + 1);
+  const restField = {
+    name: say('Rest Tracker', 'Rest Tracker'),
+    value: say(
+      `After this run you’ll have **${afterRemaining}** ${afterRemaining === 1 ? 'shift' : 'shifts'} before cooldown.`,
+      `After this run you’ll have **${afterRemaining}** ${afterRemaining === 1 ? 'shift' : 'shifts'} before the ${formatDuration(JOB_SHIFT_STREAK_COOLDOWN_SECONDS)} rest (${streakAfter}/${limit} in this cycle).`
+    )
+  };
   const embed = new EmbedBuilder()
     .setColor(COLORS[job.id] || COLORS.default)
     .setTitle(`${jobIcon} ${job.displayName} Shift — Stage ${stageNumber}/${totalStages}`)
@@ -129,20 +140,7 @@ function buildStageEmbed(session, stage, kittenMode) {
         name: say('Stage History', 'Stage History'),
         value: buildHistoryLines(session)
       },
-      (() => {
-        const limit = JOB_SHIFT_STREAK_LIMIT;
-        const beforeRemaining = Number(session.shiftStatusBefore?.shiftsRemaining ?? limit);
-        const afterRemaining = Math.max(0, beforeRemaining - 1);
-        const streakAfter = Math.min(limit, Number(session.shiftStatusBefore?.streakCount ?? 0) + 1);
-        const word = afterRemaining === 1 ? say('shift', 'shift') : say('shifts', 'shifts');
-        return {
-          name: say('Rest Tracker', 'Rest Tracker'),
-          value: say(
-            `After this run you’ll have **${afterRemaining}** ${word} before cooldown.`,
-            `After this run you’ll have **${afterRemaining}** ${word} before the ${formatDuration(JOB_SHIFT_STREAK_COOLDOWN_SECONDS)} rest (${streakAfter}/${limit} in this cycle).`
-          )
-        };
-      })(),
+      restField,
       {
         name: say('Tips', 'Tips'),
         value: say(
