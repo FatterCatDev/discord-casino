@@ -139,32 +139,6 @@ ${profileSummaryLines(job, profile, say)}`
   return embed;
 }
 
-function buildTransferResponse(result, kittenMode, nowSeconds) {
-  const say = buildSay(kittenMode);
-  const status = result.status;
-  const job = status.jobDefinition;
-  const previous = result.previousJob;
-  const cooldownRemaining = Math.max(0, status.job_switch_available_at - nowSeconds);
-  const lines = [];
-  if (job) {
-        const icon = jobDisplayIcon(job);
-        lines.push(`${emoji('check')} ${say(`You’re clocked in as ${job.displayName}, Kitten.`, `Active job set to ${job.displayName}.`)} ${icon}`.trim());
-  } else {
-    lines.push(`${emoji('check')} ${say('Shift rotation cleared — you’re off-duty for now, Kitten.', 'Shift rotation cleared — you’re off-duty for now.')}`);
-  }
-  if (previous && job) {
-    lines.push(`${emoji('repeat')} ${say(`Swapped from ${previous.displayName}.`, `Swapped from ${previous.displayName}.`)}`);
-  } else if (previous && !job) {
-    lines.push(`${emoji('repeat')} ${say(`You stepped away from ${previous.displayName}.`, `You stepped away from ${previous.displayName}.`)}`);
-  }
-  if (cooldownRemaining > 0) {
-    lines.push(`${emoji('timer')} ${say('Next transfer available', 'Next transfer available')} <t:${status.job_switch_available_at}:R> (${formatDuration(cooldownRemaining)}).`);
-  } else {
-    lines.push(`${emoji('sparkles')} ${say('Transfer window is open if you change your mind.', 'Transfer window is open if you change your mind.')}`);
-  }
-  return lines.join('\n');
-}
-
 function buildStatsEmbed(kittenMode, status, profiles, recentShifts, nowSeconds) {
   const say = buildSay(kittenMode);
   const embed = new EmbedBuilder()
