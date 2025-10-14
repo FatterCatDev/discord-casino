@@ -242,12 +242,12 @@ export function generateBouncerStages(count = 5) {
 
   for (let i = 0; i < count; i += 1) {
     const checklist = generateChecklist();
-    if (i < 3) {
+    const size = i < 3 ? crypto.randomInt(1, 3) : crypto.randomInt(2, 4);
+    if (size <= 1) {
       const guestName = sampleName(usedNames);
       const guest = buildGuest(guestName, checklist);
       stages.push(buildSingleStage(i, checklist, guest));
     } else {
-      const size = crypto.randomInt(2, 4);
       const guests = Array.from({ length: size }, () => buildGuest(sampleName(usedNames), checklist));
       stages.push(buildPartyStage(i, checklist, guests));
     }
