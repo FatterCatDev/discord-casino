@@ -111,7 +111,7 @@ function buildStageEmbed(session, stage, kittenMode) {
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
   const embed = new EmbedBuilder()
     .setColor(COLORS[job.id] || COLORS.default)
-    .setTitle(`${job.icon} ${job.displayName} Shift — Stage ${stageNumber}/${totalStages}`)
+    .setTitle(`${emoji(job.emojiKey || 'pokerSpade')} ${job.displayName} Shift — Stage ${stageNumber}/${totalStages}`)
     .setDescription([
       `${stage.prompt}`,
       '',
