@@ -1335,14 +1335,13 @@ export async function startJobShift(interaction, ctx, jobInput) {
   refreshSessionTimeout(session);
 
   const respond = async payload => {
-    const finalPayload = { ephemeral: true, ...payload };
     let success = true;
     let message = null;
     try {
       if (interaction.deferred || interaction.replied) {
-        await interaction.editReply(finalPayload);
+        await interaction.editReply(payload);
       } else {
-        await interaction.reply(finalPayload);
+        await interaction.reply(payload);
       }
       try {
         message = await interaction.fetchReply();
