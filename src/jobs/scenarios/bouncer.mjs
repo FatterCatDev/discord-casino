@@ -122,6 +122,9 @@ function ensureAtLeastOnePasses(guests, checklist) {
   chosen.age = age;
   chosen.dress = checklist.dress;
   chosen.wristband = checklist.wristband;
+  if (!checklist.guestList.includes(chosen.name)) {
+    checklist.guestList.push(chosen.name);
+  }
   chosen.onGuestList = true;
   chosen.meets = true;
   return guests;
