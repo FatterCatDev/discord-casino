@@ -943,13 +943,6 @@ export async function handleJobShiftButton(interaction, ctx) {
       return true;
     }
     stageState.technique = payload;
-    stageState.lastFeedback = null;
-    const embed = buildStageEmbed(session, stage, session.kittenMode);
-    const components = buildStageComponents(session, stage);
-    return interaction.update({ embeds: [embed], components });
-  }
-
-  if (action === 'submit' && isBartenderStage(stage, session)) {
     stageState.attempts += 1;
     const result = evaluateBartenderSubmission(session, stage);
     const blank = getBlankValue(session);
