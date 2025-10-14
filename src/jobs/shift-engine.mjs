@@ -952,7 +952,7 @@ export async function handleJobShiftButton(interaction, ctx) {
     const blank = getBlankValue(session);
     const picksSummary = stageState.picks
       .map((value, idx) => {
-        if (!value || value === blank) return idx < stage.drink.ingredients.length ? '—' : '•';
+        if (!value || value === blank) return '—';
         return value;
       })
       .slice(0, 4)
