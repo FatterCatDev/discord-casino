@@ -2,7 +2,6 @@ import crypto from 'node:crypto';
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import {
   ensureJobProfile,
-  getJobProfile,
   updateJobProfile,
   createJobShift,
   completeJobShift
