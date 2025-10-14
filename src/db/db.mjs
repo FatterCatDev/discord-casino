@@ -511,6 +511,13 @@ const updateActiveReqStatusStmt = db.prepare(`
 `);
 const clearActiveReqStmt = db.prepare('DELETE FROM active_requests WHERE guild_id = ? AND user_id = ?');
 
+try { db.prepare(`SELECT shift_streak_count FROM job_status LIMIT 1`).get(); } catch {
+  db.exec(`ALTER TABLE job_status ADD COLUMN shift_streak_count INTEGER NOT NULL DEFAULT 0`);
+}
+try { db.prepare(`SELECT shift_cooldown_expires_at FROM job_status LIMIT 1`).get(); } catch {
+  db.exec(`ALTER TABLE job_status ADD COLUMN shift_cooldown_expires_at INTEGER NOT NULL DEFAULT 0`);
+}
+
 const ensureJobProfileStmt = db.prepare(`
   INSERT OR IGNORE INTO job_profiles (guild_id, user_id, job_id, rank, total_xp, xp_to_next, last_shift_at, created_at, updated_at)
   VALUES (?, ?, ?, 1, 0, 100, NULL, strftime('%s','now'), strftime('%s','now'))
