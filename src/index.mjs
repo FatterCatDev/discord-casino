@@ -49,6 +49,7 @@ import { emoji } from './lib/emojis.mjs';
 import cmdPing from './commands/ping.mjs';
 import cmdStatus from './commands/status.mjs';
 import cmdBalance from './commands/balance.mjs';
+import cmdJob from './commands/job.mjs';
 import cmdHouseBalance from './commands/housebalance.mjs';
 import cmdHouseAdd from './commands/houseadd.mjs';
 import cmdGiveChips from './commands/givechips.mjs';
