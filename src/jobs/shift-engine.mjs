@@ -23,6 +23,8 @@ import { emoji } from '../lib/emojis.mjs';
 const sessionsById = new Map();
 const sessionsByUser = new Map();
 
+const SHIFT_SESSION_TIMEOUT_SECONDS = 120;
+
 const COLORS = {
   bartender: 0xff9b54,
   dealer: 0x3498db,
@@ -63,6 +65,10 @@ function registerSession(session) {
 }
 
 function clearSession(session) {
+  if (session.timeout) {
+    clearTimeout(session.timeout);
+    session.timeout = null;
+  }
   sessionsById.delete(session.sessionId);
   sessionsByUser.delete(userKey(session.guildId, session.userId));
 }
@@ -220,6 +226,102 @@ function appendHistory(session, record) {
   // Clamp history to stage count for safety
   if (session.history.length > session.stages.length) {
     session.history = session.history.slice(-session.stages.length);
+  }
+}
+
+function scheduleSessionTimeout(session) {
+  if (!SHIFT_SESSION_TIMEOUT_SECONDS) return;
+  const delayMs = Math.max(0, (session.expiresAt * 1000) - Date.now());
+  session.timeout = setTimeout(() => {
+    expireSession(session.sessionId).catch(err => {
+      console.error('job shift expiry error', err);
+    });
+  }, delayMs);
+  if (typeof session.timeout?.unref === 'function') {
+    session.timeout.unref();
+  }
+}
+
+async function expireSession(sessionId) {
+  const session = sessionsById.get(sessionId);
+  if (!session) return;
+  if (session.status !== 'ACTIVE') return;
+  session.status = 'EXPIRED';
+  clearSession(session);
+
+  try {
+    const performanceScore = clampScore(session.totalScore);
+    const rankBefore = session.profileBefore.rank;
+    const xpToNext = session.profileBefore.xpToNext;
+
+    const metadata = buildMetadata(session, {
+      performanceScore,
+      xpEarned: 0,
+      rankBefore,
+      rankAfter: rankBefore,
+      xpToNext,
+      basePay: 0,
+      tipPercent: 0,
+      tipAmount: 0,
+      totalPayout: 0,
+      payoutStatus: 'EXPIRED'
+    });
+
+    await completeJobShift(session.shiftId, {
+      performanceScore,
+      basePay: 0,
+      tipPercent: 0,
+      tipAmount: 0,
+      totalPayout: 0,
+      resultState: 'EXPIRED',
+      metadata
+    });
+
+    const shiftStatus = await recordShiftCompletion(session.guildId, session.userId);
+    const shiftStatusField = buildShiftStatusField(session, shiftStatus);
+    const payoutText = formatPayoutText(session.ctx, session.kittenMode, {
+      performanceScore,
+      tipPercent: 0,
+      maxPay: maxPayForRank(rankBefore)
+    }, { status: 'NO_PAYOUT', basePaid: 0, tipPaid: 0 });
+
+    const say = (kitten, normal) => (session.kittenMode ? kitten : normal);
+    const embed = buildCompletionEmbed(session, {
+      status: say('Shift Expired, Kitten!', 'Shift Expired'),
+      performanceScore,
+      xpEarned: 0,
+      rankBefore,
+      rankAfter: rankBefore,
+      xpToNext,
+      basePay: 0,
+      tipPercent: 0,
+      tipAmount: 0,
+      totalPayout: 0,
+      payoutStatus: 'EXPIRED',
+      payoutText,
+      shiftStatusField,
+      extraNotes: [
+        session.kittenMode
+          ? `${emoji('warning')} Time’s up — the shift auto-closes after ${SHIFT_SESSION_TIMEOUT_SECONDS / 60} minutes.`
+          : `${emoji('warning')} Shift expired after ${SHIFT_SESSION_TIMEOUT_SECONDS / 60} minutes of inactivity.`
+      ]
+    });
+
+    if (session.client && session.channelId && session.messageId) {
+      try {
+        const channel = await session.client.channels.fetch(session.channelId);
+        if (channel && channel.isTextBased()) {
+          const message = await channel.messages.fetch(session.messageId).catch(() => null);
+          if (message) {
+            await message.edit({ embeds: [embed], components: [] });
+          }
+        }
+      } catch (err) {
+        console.error('job shift expiry update message failed', err);
+      }
+    }
+  } catch (err) {
+    console.error('job shift expiry finalization failed', err);
   }
 }
 
