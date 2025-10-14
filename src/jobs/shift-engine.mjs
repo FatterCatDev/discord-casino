@@ -104,14 +104,19 @@ function buildHistoryLines(session) {
   }).join('\n');
 }
 
+function jobDisplayIcon(job) {
+  return job?.emojiKey ? emoji(job.emojiKey) : job?.icon || '';
+}
+
 function buildStageEmbed(session, stage, kittenMode) {
   const job = session.job;
   const stageNumber = session.stageIndex + 1;
   const totalStages = session.stages.length;
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
+  const jobIcon = jobDisplayIcon(job);
   const embed = new EmbedBuilder()
     .setColor(COLORS[job.id] || COLORS.default)
-    .setTitle(`${emoji(job.emojiKey || 'pokerSpade')} ${job.displayName} Shift — Stage ${stageNumber}/${totalStages}`)
+    .setTitle(`${jobIcon} ${job.displayName} Shift — Stage ${stageNumber}/${totalStages}`)
     .setDescription([
       `${stage.prompt}`,
       '',
@@ -189,9 +194,10 @@ function appendHistory(session, record) {
 function buildCompletionEmbed(session, outcome) {
   const say = (kitten, normal) => (session.kittenMode ? kitten : normal);
   const job = session.job;
+  const jobIcon = jobDisplayIcon(job);
   const embed = new EmbedBuilder()
     .setColor(COLORS[job.id] || COLORS.default)
-    .setTitle(`${job.icon} ${job.displayName} Shift — ${outcome.status}`)
+    .setTitle(`${jobIcon} ${job.displayName} Shift — ${outcome.status}`)
     .addFields(
       {
         name: say('Performance', 'Performance'),
