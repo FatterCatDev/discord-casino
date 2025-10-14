@@ -241,10 +241,13 @@ export default async function handleJob(interaction, ctx) {
 
   if (subcommand === 'start') {
     const jobId = interaction.options.getString('job', true);
-    await interaction.deferReply({ ephemeral: true });
     const started = await startJobShift(interaction, ctx, jobId);
     if (!started) {
-      return interaction.editReply({ content: `${emoji('warning')} ${say('Something went wrong starting that shift.', 'Couldn’t start the shift. Try again shortly.')}` });
+      const payload = { content: `${emoji('warning')} ${say('Something went wrong starting that shift.', 'Couldn’t start the shift. Try again shortly.')}`, ephemeral: true };
+      if (interaction.replied || interaction.deferred) {
+        return interaction.editReply(payload);
+      }
+      return interaction.reply(payload);
     }
     return;
   }
