@@ -126,7 +126,8 @@ function createStageState(session, stage) {
     startedAtMs: Date.now(),
     attempts: 0,
     attemptsLog: [],
-    targetScore: null
+    segmentStart: Date.now(),
+    penalties: 0
   };
   if (isBartenderStage(stage, session)) {
     const blank = getBlankValue(session);
@@ -135,8 +136,7 @@ function createStageState(session, stage) {
       picks: [blank, blank, blank, blank],
       technique: null,
       lastFeedback: null,
-      segmentStart: Date.now(),
-      penalties: 0
+      lastSegmentStart: Date.now()
     };
   }
   return base;
