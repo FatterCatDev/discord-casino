@@ -217,6 +217,18 @@ function buildBartenderStageEmbed(session, stage, kittenMode) {
       }
     );
 
+  const limit = JOB_SHIFT_STREAK_LIMIT;
+  const beforeRemaining = Number(session.shiftStatusBefore?.shiftsRemaining ?? limit);
+  const afterRemaining = Math.max(0, beforeRemaining - 1);
+  const streakAfter = Math.min(limit, Number(session.shiftStatusBefore?.streakCount ?? 0) + 1);
+  embed.addFields({
+    name: say('Rest Tracker', 'Rest Tracker'),
+    value: say(
+      `After this run you’ll have **${afterRemaining}** ${afterRemaining === 1 ? 'shift' : 'shifts'} before cooldown.`,
+      `After this run you’ll have **${afterRemaining}** ${afterRemaining === 1 ? 'shift' : 'shifts'} before the ${formatDuration(JOB_SHIFT_STREAK_COOLDOWN_SECONDS)} rest (${streakAfter}/${limit} this burst).`
+    )
+  });
+
   if (stageState.lastFeedback) {
     embed.addFields({
       name: say('Last Feedback', 'Last Feedback'),
