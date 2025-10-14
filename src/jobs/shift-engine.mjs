@@ -472,10 +472,11 @@ function buildBouncerStageComponents(session, stage) {
     .setCustomId(`jobshift|${session.sessionId}|approve`)
     .setPlaceholder('Select guests to admit')
     .setMinValues(0)
-    .setMaxValues(Math.min(4, stage.options.length))
-    .addOptions(stage.options.map(opt => ({
-      label: opt.label,
-      value: opt.id
+    .setMaxValues(Math.min(4, stage.guests.length))
+    .addOptions(stage.guests.map((guest, idx) => ({
+      label: guest.name,
+      value: guest.name,
+      description: `Guest ${idx + 1}`
     })));
 
   return [
@@ -483,8 +484,8 @@ function buildBouncerStageComponents(session, stage) {
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setCustomId(`jobshift|${session.sessionId}|submit`)
-        .setLabel('Confirm Selection')
-        .setStyle(ButtonStyle.Success),
+        .setLabel('Continue')
+        .setStyle(ButtonStyle.Primary),
       new ButtonBuilder()
         .setCustomId(`jobshift|${session.sessionId}|cancel`)
         .setLabel('End Shift')
