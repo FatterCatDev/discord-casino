@@ -200,6 +200,8 @@ function buildSingleStage(index, checklist, guest) {
       { id: denyOptionId, label: `Deny ${guest.name}` }
     ],
     correct,
+    correctNames: guest.meets ? [guest.name] : [],
+    guests: [guest],
     difficulty: guest.meets ? 'easy' : 'medium',
     details
   };
@@ -266,6 +268,8 @@ function buildPartyStage(index, checklist, guests) {
     prompt,
     options,
     correct,
+    correctNames,
+    guests,
     difficulty: guests.length === 2 ? 'medium' : 'hard',
     details: detailsPieces.join(' ')
   };
