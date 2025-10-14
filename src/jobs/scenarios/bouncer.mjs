@@ -149,7 +149,8 @@ function describeChecklist(checklist) {
     'Checklist:',
     `• Age: over ${checklist.ageRequirement}`,
     `• Dress Code: ${checklist.dress.label}`,
-    `• Wrist Band Color: ${checklist.wristband.emoji} ${checklist.wristband.label}`
+    `• Wrist Band Color: ${checklist.wristband.emoji} ${checklist.wristband.label}`,
+    `• Guest List: ${checklist.guestList.join(', ')}`
   ].join('\n');
 }
 
