@@ -240,6 +240,7 @@ function buildPartyStage(index, checklist, guests) {
 
   const options = [];
   const totalCombos = 1 << guests.length;
+  const correctNames = [];
   for (let mask = 0; mask < totalCombos; mask += 1) {
     options.push({
       id: combinationId(guests, mask),
