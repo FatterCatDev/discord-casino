@@ -121,8 +121,8 @@ function buildOverviewEmbed(kittenMode, status, profiles, nowSeconds) {
     .setTitle(say('Kitten Career Board', 'Casino Job Board'))
     .setDescription([
       say('Each shift is a five-stage gauntlet with XP, rank, and chip payouts on the line.', 'Each shift runs five stages with XP, rank, and chip payouts on the line.'),
-      `${emoji('clipboard')} ${say('Active job:', 'Active job:')} ${summarizeActiveJob(status, say)}`,
-      `${emoji('hourglassFlow')} ${formatTransferStatus(status, nowSeconds, say)}`
+      `${emoji('sparkles')} ${say('Use `/job start <job>` to clock in anywhere.', 'Use `/job start <job>` to clock in for any role.')}`,
+      ...buildShiftStatusLines(status, say, nowSeconds)
     ].join('\n'));
 
   for (const job of listJobs()) {
