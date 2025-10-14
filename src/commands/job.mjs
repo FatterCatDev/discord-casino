@@ -1,7 +1,7 @@
 import { EmbedBuilder } from 'discord.js';
 import { listJobs, getJobById } from '../jobs/registry.mjs';
 import { emoji } from '../lib/emojis.mjs';
-import { getJobStatusForUser, transferJob, JOB_SWITCH_COOLDOWN_SECONDS } from '../jobs/status.mjs';
+import { getJobStatusForUser, JOB_SHIFT_STREAK_LIMIT, JOB_SHIFT_STREAK_COOLDOWN_SECONDS } from '../jobs/status.mjs';
 import {
   ensureJobProfile,
   listJobProfilesForUser,
@@ -10,7 +10,7 @@ import {
   setJobStatus
 } from '../db/db.auto.mjs';
 import { rankTitle } from '../jobs/ranks.mjs';
-import { JOB_SHIFT_COOLDOWN_SECONDS, xpToNextForRank } from '../jobs/progression.mjs';
+import { xpToNextForRank } from '../jobs/progression.mjs';
 import { startJobShift } from '../jobs/shift-engine.mjs';
 
 function buildSay(kittenMode) {
