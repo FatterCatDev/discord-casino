@@ -139,11 +139,12 @@ ${profileSummaryLines(job, profile, say)}`
   return embed;
 }
 
-function buildStatsEmbed(kittenMode, status, profiles, recentShifts, nowSeconds) {
+function buildStatsEmbed(kittenMode, status, profiles, recentShifts, nowSeconds, targetUser = null) {
   const say = buildSay(kittenMode);
   const embed = new EmbedBuilder()
     .setColor(0x9b59b6)
     .setTitle(say('Shift dossier', 'Shift dossier'))
+    .setDescription(targetUser ? `${emoji('busts')} Inspecting: <@${targetUser.id}>` : null)
     .addFields(
       {
         name: say('Shifts Before Rest', 'Shifts Before Rest'),
