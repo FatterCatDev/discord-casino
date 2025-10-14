@@ -54,6 +54,8 @@
     daily_earning_cap INTEGER,
     earned_today INTEGER NOT NULL DEFAULT 0,
     cap_reset_at INTEGER,
+    shift_streak_count INTEGER NOT NULL DEFAULT 0,
+    shift_cooldown_expires_at INTEGER NOT NULL DEFAULT 0,
     updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
     PRIMARY KEY (guild_id, user_id)
   );
