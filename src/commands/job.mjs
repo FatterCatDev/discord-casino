@@ -288,8 +288,12 @@ export default async function handleJob(interaction, ctx) {
       });
     }
 
-    const profiles = await fetchProfiles(guildId, userId);
-    await setJobStatus(guildId, userId, {
+    const targetUser = interaction.options.getUser('user') ?? interaction.user;
+    const targetId = targetUser.id;
+    const forSelf = targetId === userId;
+
+    const profiles = await fetchProfiles(guildId, targetId);
+    await setJobStatus(guildId, targetId, {
       job_switch_available_at: 0,
       cooldown_reason: null,
       earned_today: 0,
@@ -298,12 +302,59 @@ export default async function handleJob(interaction, ctx) {
 
     const updates = [];
     for (const [jobId] of profiles.entries()) {
-      updates.push(updateJobProfile(guildId, userId, jobId, { lastShiftAt: null }));
+      updates.push(updateJobProfile(guildId, targetId, jobId, { lastShiftAt: null }));
     }
     await Promise.all(updates);
 
     return interaction.reply({
-      content: `${emoji('hammerWrench')} ${say('Cooldowns scrubbed clean. You can swap roles and start shifts immediately, Kitten.', 'Cooldowns cleared. You can transfer jobs and start shifts immediately.')}`,
+      content: forSelf
+        ? `${emoji('hammerWrench')} ${say('Cooldowns scrubbed clean. You can swap roles and start shifts immediately, Kitten.', 'Cooldowns cleared. You can transfer jobs and start shifts immediately.')}`
+        : `${emoji('hammerWrench')} ${say(`Cooldowns scrubbed for ${targetUser}. They can swap roles and start shifts right away.`, `Cooldowns cleared for ${targetUser}. They can transfer jobs and start shifts immediately.`)}`,
+      ephemeral: true
+    });
+  }
+
+  if (subcommand === 'resetstats') {
+    if (!(await ctx.isAdmin(interaction))) {
+      return interaction.reply({
+        content: `${emoji('warning')} ${say('Only my headliners can reset stats, Kitten.', 'Only administrators can reset job stats.')}`,
+        ephemeral: true
+      });
+    }
+
+    const targetUser = interaction.options.getUser('user') ?? interaction.user;
+    const targetId = targetUser.id;
+    const forSelf = targetId === userId;
+
+    const profiles = await fetchProfiles(guildId, targetId);
+    const updates = [];
+    const baseXpToNext = xpToNextForRank(1);
+
+    for (const [jobId] of profiles.entries()) {
+      updates.push(updateJobProfile(guildId, targetId, jobId, {
+        rank: 1,
+        totalXp: 0,
+        xpToNext: baseXpToNext,
+        lastShiftAt: null
+      }));
+    }
+
+    await setJobStatus(guildId, targetId, {
+      active_job: 'none',
+      job_switch_available_at: 0,
+      cooldown_reason: null,
+      daily_earning_cap: null,
+      earned_today: 0,
+      cap_reset_at: null
+    });
+
+    await Promise.all(updates);
+
+    const jobCount = profiles.size || listJobs().length;
+    return interaction.reply({
+      content: forSelf
+        ? `${emoji('sparkles')} ${say(`Fresh slate! Ranks and XP reset across ${jobCount} jobs.`, `Stats reset. Your ranks and XP across ${jobCount} jobs are back to defaults.`)}`
+        : `${emoji('sparkles')} ${say(`Reset ranks and XP for ${targetUser} across ${jobCount} jobs.`, `Stats reset for ${targetUser} across ${jobCount} jobs.`)}`,
       ephemeral: true
     });
   }
