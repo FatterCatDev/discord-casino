@@ -172,13 +172,13 @@ function buildStatsEmbed(kittenMode, status, profiles, recentShifts, nowSeconds)
     .setTitle(say('Shift dossier', 'Shift dossier'))
     .addFields(
       {
-        name: say('Active Job', 'Active Job'),
-        value: summarizeActiveJob(status, say),
+        name: say('Shifts Before Rest', 'Shifts Before Rest'),
+        value: formatShiftsRemaining(status, say),
         inline: true
       },
       {
-        name: say('Transfer Cooldown', 'Transfer Cooldown'),
-        value: formatTransferStatus(status, nowSeconds, say),
+        name: say('Rest Status', 'Rest Status'),
+        value: formatCooldownStatus(status, nowSeconds, say),
         inline: true
       }
     );
@@ -211,7 +211,7 @@ function buildStatsEmbed(kittenMode, status, profiles, recentShifts, nowSeconds)
   } else {
     embed.addFields({
       name: say('Recent Shifts', 'Recent Shifts'),
-      value: say('No shifts recorded yet. Start one with `/job start`.', 'No shifts recorded yet. Use `/job start` to begin.')
+      value: say('No shifts recorded yet. Start one with `/job start <job>`.', 'No shifts recorded yet. Use `/job start <job>` to begin.')
     });
   }
 
