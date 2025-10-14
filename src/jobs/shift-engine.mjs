@@ -397,6 +397,9 @@ async function finalizeShift(interaction, ctx, session) {
     metadata
   });
 
+  const shiftStatus = await recordShiftCompletion(session.guildId, session.userId);
+  const shiftStatusField = buildShiftStatusField(session, shiftStatus);
+
   const payoutText = formatPayoutText(ctx, session.kittenMode, {
     performanceScore,
     tipPercent,
@@ -415,6 +418,7 @@ async function finalizeShift(interaction, ctx, session) {
     tipAmount: payoutResult.tipPaid,
     totalPayout: payoutResult.basePaid + payoutResult.tipPaid,
     payoutStatus: payoutResult.status,
+    shiftStatusField,
     payoutText,
     extraNotes: payoutResult.status === 'HOUSE_INSUFFICIENT'
       ? [
