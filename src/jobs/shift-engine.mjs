@@ -417,14 +417,16 @@ function buildStageEmbed(session, stage, kittenMode) {
       `After this run you’ll have **${afterRemaining}** ${afterRemaining === 1 ? 'shift' : 'shifts'} before the ${formatDuration(JOB_SHIFT_STREAK_COOLDOWN_SECONDS)} rest (${streakAfter}/${limit} in this cycle).`
     )
   };
+  const descriptionLines = [`${stage.prompt}`];
+  if (stage.options?.length && job.id !== 'dealer') {
+    descriptionLines.push('');
+    descriptionLines.push(...stage.options.map(opt => `**${opt.id}.** ${opt.label}`));
+  }
+
   const embed = new EmbedBuilder()
     .setColor(COLORS[job.id] || COLORS.default)
     .setTitle(`${jobIcon} ${job.displayName} Shift — Stage ${stageNumber}/${totalStages}`)
-    .setDescription([
-      `${stage.prompt}`,
-      '',
-      ...stage.options.map(opt => `**${opt.id}.** ${opt.label}`)
-    ].join('\n'))
+    .setDescription(descriptionLines.join('\n'))
     .addFields(
       {
         name: say('Score So Far', 'Score So Far'),
