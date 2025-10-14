@@ -1,13 +1,21 @@
 import crypto from 'node:crypto';
+import { emoji } from '../../lib/emojis.mjs';
+
+const SUITS = {
+  club: emoji('pokerClub'),
+  diamond: emoji('pokerDiamond'),
+  heart: emoji('pokerHeart'),
+  spade: emoji('pokerSpade')
+};
 
 const STAGES = [
   {
     id: 'board-straight-vs-pair',
     title: 'Warm-Up Table',
-    prompt: `Board: 8♣ 9♦ T♠ J♥ 2♣
-Hand A: Q♣ K♦
-Hand B: T♦ T♥
-Hand C: A♠ 4♠
+    prompt: `Board: 8${SUITS.club} 9${SUITS.diamond} T${SUITS.spade} J${SUITS.heart} 2${SUITS.club}
+Hand A: Q${SUITS.club} K${SUITS.diamond}
+Hand B: T${SUITS.diamond} T${SUITS.heart}
+Hand C: A${SUITS.spade} 4${SUITS.spade}
 
 Who takes the pot?`,
     options: [
@@ -23,10 +31,10 @@ Who takes the pot?`,
   {
     id: 'board-full-house-split',
     title: 'Full House Showdown',
-    prompt: `Board: 5♣ 5♦ K♠ K♥ 9♠
-Hand A: A♣ 9♦
-Hand B: T♣ T♦
-Hand C: K♦ Q♦
+    prompt: `Board: 5${SUITS.club} 5${SUITS.diamond} K${SUITS.spade} K${SUITS.heart} 9${SUITS.spade}
+Hand A: A${SUITS.club} 9${SUITS.diamond}
+Hand B: T${SUITS.club} T${SUITS.diamond}
+Hand C: K${SUITS.diamond} Q${SUITS.diamond}
 
 Who wins?`,
     options: [
@@ -44,10 +52,10 @@ Who wins?`,
   {
     id: 'board-flush-beats-straight',
     title: 'Flush Pressure',
-    prompt: `Board: 2♠ 7♠ T♠ J♠ K♦
-Hand A: Q♠ 9♣
-Hand B: K♣ K♥
-Hand C: A♣ Q♦
+    prompt: `Board: 2${SUITS.spade} 7${SUITS.spade} T${SUITS.spade} J${SUITS.spade} K${SUITS.diamond}
+Hand A: Q${SUITS.spade} 9${SUITS.club}
+Hand B: K${SUITS.club} K${SUITS.heart}
+Hand C: A${SUITS.club} Q${SUITS.diamond}
 
 Which outcome is correct?`,
     options: [
@@ -63,10 +71,10 @@ Which outcome is correct?`,
   {
     id: 'board-wheel-sneak',
     title: 'Wheel Sneak Attack',
-    prompt: `Board: A♦ 2♣ 3♥ 9♣ K♠
-Hand A: 4♠ 5♠
-Hand B: Q♦ Q♣
-Hand C: A♣ 9♦
+    prompt: `Board: A${SUITS.diamond} 2${SUITS.club} 3${SUITS.heart} 9${SUITS.club} K${SUITS.spade}
+Hand A: 4${SUITS.spade} 5${SUITS.spade}
+Hand B: Q${SUITS.diamond} Q${SUITS.club}
+Hand C: A${SUITS.club} 9${SUITS.diamond}
 
 Call the winner.`,
     options: [
@@ -82,10 +90,10 @@ Call the winner.`,
   {
     id: 'board-four-card-straight',
     title: 'Split Trap',
-    prompt: `Board: 9♣ T♦ J♣ Q♥ K♣
-Hand A: A♠ 2♠
-Hand B: A♦ 9♦
-Hand C: 5♣ 5♦
+    prompt: `Board: 9${SUITS.club} T${SUITS.diamond} J${SUITS.club} Q${SUITS.heart} K${SUITS.club}
+Hand A: A${SUITS.spade} 2${SUITS.spade}
+Hand B: A${SUITS.diamond} 9${SUITS.diamond}
+Hand C: 5${SUITS.club} 5${SUITS.diamond}
 
 Who wins?`,
     options: [
@@ -103,10 +111,10 @@ Who wins?`,
   {
     id: 'board-flush-vs-flush',
     title: 'Flush vs Flush',
-    prompt: `Board: 4♥ 7♥ 9♥ Q♥ 2♣
-Hand A: A♥ 5♣
-Hand B: K♥ T♥
-Hand C: Q♠ Q♣
+    prompt: `Board: 4${SUITS.heart} 7${SUITS.heart} 9${SUITS.heart} Q${SUITS.heart} 2${SUITS.club}
+Hand A: A${SUITS.heart} 5${SUITS.club}
+Hand B: K${SUITS.heart} T${SUITS.heart}
+Hand C: Q${SUITS.spade} Q${SUITS.club}
 
 Decide the outcome.`,
     options: [
@@ -124,10 +132,10 @@ Decide the outcome.`,
   {
     id: 'board-boat-triple',
     title: 'Full Boat Finale',
-    prompt: `Board: T♠ T♦ 6♣ 6♠ 6♦
-Hand A: T♥ K♥
-Hand B: 6♥ 2♥
-Hand C: A♦ A♣
+    prompt: `Board: T${SUITS.spade} T${SUITS.diamond} 6${SUITS.club} 6${SUITS.spade} 6${SUITS.diamond}
+Hand A: T${SUITS.heart} K${SUITS.heart}
+Hand B: 6${SUITS.heart} 2${SUITS.heart}
+Hand C: A${SUITS.diamond} A${SUITS.club}
 
 Who takes the last pot?`,
     options: [
