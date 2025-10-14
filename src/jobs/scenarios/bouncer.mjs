@@ -156,6 +156,7 @@ function describeChecklist(checklist) {
 
 function describeFailures(guest, checklist) {
   const reasons = [];
+  if (!guest.onGuestList) reasons.push('guest list');
   if (!(guest.age > checklist.ageRequirement)) reasons.push('under-age');
   if (guest.dress.id !== checklist.dress.id) reasons.push(`dress (${guest.dress.label})`);
   if (guest.wristband.id !== checklist.wristband.id) reasons.push(`wristband (${guest.wristband.label})`);
