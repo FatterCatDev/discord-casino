@@ -120,7 +120,6 @@ export function generateBartenderShift(stageCount = 5) {
       prompt: `A new ticket drops! Build the **${drink.name}** in order, then finish it the way the guest requested.`,
       drinkId: drink.id,
       drink,
-      timerSeconds: drink.ingredients.length + 23,
       correct: `${drink.ingredients.join(' → ')} · ${drink.technique.toUpperCase()}`,
       details: `Recipe: ${drink.ingredients.join(' → ')} · Finish: ${drink.technique.toUpperCase()}`,
       blankValue: BLANK_VALUE
