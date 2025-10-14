@@ -441,6 +441,7 @@ const commandHandlers = {
   ping: cmdPing,
   status: cmdStatus,
   balance: cmdBalance,
+  job: cmdJob,
   housebalance: cmdHouseBalance,
   houseadd: cmdHouseAdd,
   givechips: cmdGiveChips,
