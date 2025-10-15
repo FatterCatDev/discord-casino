@@ -146,6 +146,7 @@ Tip: Dice War “Play Again” is only available to the original player and only
 3. Register slash commands globally: `npm run deploy`
 4. Start the bot: `npm start`
 5. As an admin, set the casino category: `/setcasinocategory category:<#Category>` and ensure the bot has the permissions above in that category.
+6. Remind moderators that all balances and job progress are shared globally—coordinate big payouts or resets across every server using the bot.
 
 ## Environment
 See `.env.example` for all variables.
