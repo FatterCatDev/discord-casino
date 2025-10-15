@@ -39,9 +39,10 @@ export default async function handleRequestRejectModal(interaction, ctx) {
           `❌ Your data erasure request was rejected by ${interaction.user.tag}. Reason: ${reason}`
         );
       } else {
+        const formattedAmount = ctx?.chipsAmount ? ctx.chipsAmount(amount) : amount.toLocaleString();
         message = say(
-          `❌ My sweet Kitten <@${interaction.user.id}> had to decline your request (${typeLabel} ${ctx.chipsAmount ? ctx.chipsAmount(amount) : amount.toLocaleString()} Chips). Reason: ${reason}`,
-          `❌ Your request (${typeLabel} ${ctx.chipsAmount ? ctx.chipsAmount(amount) : amount.toLocaleString()} Chips) was rejected by ${interaction.user.tag}. Reason: ${reason}`
+          `❌ My sweet Kitten <@${interaction.user.id}> had to decline your request (${typeLabel} ${formattedAmount} Chips). Reason: ${reason}`,
+          `❌ Your request (${typeLabel} ${formattedAmount} Chips) was rejected by ${interaction.user.tag}. Reason: ${reason}`
         );
       }
       await user.send(message);
