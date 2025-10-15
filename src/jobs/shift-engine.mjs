@@ -1224,6 +1224,30 @@ export async function handleJobShiftButton(interaction, ctx) {
     return handleIncorrect(interaction, session, stage, stageState);
   }
 
+  if (action === 'continue' && session.jobId === 'dealer') {
+    const selected = Array.isArray(stageState.selectedHands) ? stageState.selectedHands : [];
+    if (!selected.length) {
+      await interaction.reply({ content: `${emoji('warning')} Choose at least one hand before continuing.`, ephemeral: true });
+      return true;
+    }
+    const normalized = normalizeDealerSelection(selected);
+    if (!normalized) {
+      await interaction.reply({ content: `${emoji('warning')} Invalid hand selection. Try again.`, ephemeral: true });
+      return true;
+    }
+    const attemptLabel = renderDealerSelection(selected);
+    stageState.attempts += 1;
+    stageState.attemptsLog.push({
+      optionId: attemptLabel,
+      correct: normalized === stage.correct,
+      at: Date.now()
+    });
+    if (normalized === stage.correct) {
+      return handleCorrect(interaction, ctx, session, stage, stageState);
+    }
+    return handleIncorrect(interaction, session, stage, stageState);
+  }
+
   if (action === 'technique' && isBartenderStage(stage, session)) {
     if (payload !== 'shake' && payload !== 'stir') {
       await interaction.reply({ content: `${emoji('warning')} Unknown technique option.` });
