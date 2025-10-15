@@ -164,6 +164,96 @@ export function buildHelpSections({ kittenMode = false, isMod = false, isSetupAd
   };
   categories.push(games);
 
+  const jobs = {
+    id: 'jobs',
+    summary: say(
+      'Clock shifts for XP, chip bonuses, and kitten titles.',
+      'Clock shifts to earn XP, chip bonuses, and new ranks.'
+    ),
+    label: say(`${emoji('briefcase')} Kitten Careers`, `${emoji('briefcase')} Job System`),
+    menuLabel: say('Jobs', 'Jobs'),
+    menuEmoji: '💼',
+    color: DEFAULT_COLOR,
+    description: say(
+      'Each shift is a five-stage performance. Nail five in a row, then rest those paws for six hours.',
+      'Each shift runs five stages. Finish up to five per burst, then rest for six hours before the next cycle.'
+    ),
+    groups: [
+      {
+        label: say(`${emoji('sparkles')} Clock In`, `${emoji('sparkles')} Clock In`),
+        items: [
+          {
+            emoji: emoji('clipboard'),
+            cmd: '/job',
+            desc: say(
+              'Open the career board to preview roles, streak status, and available shifts.',
+              'Open the job board to preview roles, streak status, and available shifts.'
+            )
+          },
+          {
+            emoji: emoji('sparkles'),
+            cmd: '/job start job:<id>',
+            desc: say(
+              'Pick a role and sprint through a five-stage shift for XP, streak rewards, and chip payouts.',
+              'Pick a role and run a five-stage shift for XP, streak rewards, and chip payouts.'
+            )
+          },
+          {
+            emoji: emoji('stopSign'),
+            cmd: '/job cancel',
+            desc: say(
+              'Bail out of your active shift before the finale if something comes up.',
+              'Cancel an active shift early if you need to step away.'
+            )
+          }
+        ]
+      },
+      {
+        label: say(`${emoji('books')} Progress & Reports`, `${emoji('books')} Progress & Reports`),
+        items: [
+          {
+            emoji: emoji('chartUp'),
+            cmd: '/job stats [user]',
+            desc: say(
+              'See XP, ranks, cooldown timers, and recent shift logs for yourself or a tagged kitten.',
+              'Review XP, ranks, cooldown timers, and recent shift logs for yourself or another player.'
+            )
+          },
+          {
+            emoji: emoji('gift'),
+            cmd: say('Shift Rewards', 'Shift Rewards'),
+            desc: say(
+              'Performance payouts scale with rank tiers — higher streaks mean sweeter chip bonuses.',
+              'Performance payouts scale with rank tiers — streaks boost the chip bonuses you take home.'
+            )
+          }
+        ]
+      },
+      {
+        label: say(`${emoji('hourglassFlow')} Shift Rules`, `${emoji('hourglassFlow')} Shift Rules`),
+        items: [
+          {
+            emoji: emoji('timer'),
+            cmd: say('Burst Limit', 'Burst Limit'),
+            desc: say(
+              'Run up to five shifts in a burst; afterwards I tuck you into a six-hour cooldown.',
+              'Complete up to five shifts in a burst, then a six-hour cooldown applies.'
+            )
+          },
+          {
+            emoji: emoji('map'),
+            cmd: say('Stage Flow', 'Stage Flow'),
+            desc: say(
+              'Each shift has five interactive stages; missing the timer flops the run and ends the streak.',
+              'Each shift has five interactive stages; timing out ends the run and breaks the streak.'
+            )
+          }
+        ]
+      }
+    ]
+  };
+  categories.push(jobs);
+
   if (isSetupAdmin) {
     categories.push({
       id: 'setup',
@@ -464,6 +554,27 @@ export function buildHelpSections({ kittenMode = false, isMod = false, isSetupAd
           ]
         },
         {
+          label: say(`${emoji('books')} Job Controls`, `${emoji('books')} Job Controls`),
+          items: [
+            {
+              emoji: emoji('timer'),
+              cmd: '/job reset user:<@User>',
+              desc: say(
+                'Clear a kitten’s shift cooldown so they can sprint another burst. (Admin only)',
+                'Clear a player’s shift cooldown so they can run a fresh burst. (Admin only)'
+              )
+            },
+            {
+              emoji: emoji('sparkles'),
+              cmd: '/job resetstats user:<@User>',
+              desc: say(
+                'Reset a kitten’s ranks, XP, and streaks across every role. (Admin only)',
+                'Reset ranks, XP, and streaks across every job. (Admin only)'
+              )
+            }
+          ]
+        },
+        {
           label: say(`${emoji('chartUp')} Limits`, `${emoji('chartUp')} Limits`),
           items: [
             {
@@ -559,4 +670,3 @@ export function buildHelpSections({ kittenMode = false, isMod = false, isSetupAd
   sections.push(overview, ...categories);
   return sections;
 }
-
