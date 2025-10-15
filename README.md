@@ -66,6 +66,22 @@ All games except Texas Hold’em use Credits‑first staking: your bet draws fro
 - Betting UI nuance: preflop, players who did not post a blind see “Bet”; SB/BB (and all post‑flop streets) show “Raise”.
 - Chips-only buy-ins use per-table escrow; hand commits move escrow to the pot; payouts and rake settle to players and the house.
 
+## Job System
+
+Run `/job` inside a guild to open the career board. Shifts, XP, ranks, and cooldowns are tracked per guild so each community can progress independently.
+
+- **Shift flow:** every shift is a five-stage interactive sequence. Completing each prompt on time advances the run; timing out or cancelling ends the attempt and breaks the streak.
+- **Burst limits:** players can clear up to five shifts in a burst. After the fifth shift a six-hour rest timer starts before another burst can begin.
+- **Rewards:** performance grades award Chips and XP. XP promotes you through job ranks and increases the chip bonus earned at the end of a successful shift.
+- **Player commands:**
+  - `/job` (or `/job overview`) – review the job roster, current streak, and cooldown timer.
+  - `/job start job:<id>` – pick a job and begin a shift.
+  - `/job cancel` – leave an active shift early if needed.
+  - `/job stats [user]` – inspect XP, ranks, cooldowns, and recent shifts for yourself or a tagged user.
+- **Admin commands:**
+  - `/job reset user:<@User>` – clear a player’s shift cooldown so they can immediately start another burst.
+  - `/job resetstats user:<@User>` – reset ranks, XP, and streak data across every job for a player.
+
 ## Requests & Logging
 
 - Requests: users can submit `/request type:<Buy In|Cash Out> amount:<int>`; posts to a configured channel with admin buttons to Take/Complete/Reject. Optional cooldown via `/requesttimer seconds:<int>`.
