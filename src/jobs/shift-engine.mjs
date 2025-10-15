@@ -322,7 +322,7 @@ function formatBartenderBuild(stageState, blankValue) {
   return lines.join('\n');
 }
 
-function buildBartenderStageEmbed(session, stage, kittenMode) {
+function buildBartenderStageEmbeds(session, stage, kittenMode) {
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
   const job = session.job;
   const jobIcon = jobDisplayIcon(job);
@@ -332,6 +332,27 @@ function buildBartenderStageEmbed(session, stage, kittenMode) {
   const stageState = session.stageState || createStageState(session, stage);
   const menu = getBartenderData(session)?.menu || [];
   const menuChunks = chunkTextLines(bartenderMenuLines(menu));
+  const drink = stage.drink ?? {};
+  const ingredientLines = Array.isArray(drink.ingredients)
+    ? drink.ingredients.map((item, idx) => `${idx + 1}. ${item}`)
+    : [];
+  const techniqueLabel = (drink.technique || '').toUpperCase();
+
+  const orderLines = [
+    `**${drink.name || say('Mystery Order', 'Unknown Order')}**`,
+    ''
+  ];
+  if (ingredientLines.length) {
+    orderLines.push(...ingredientLines);
+    orderLines.push('');
+  }
+  orderLines.push(`${say('Finish', 'Finish')}: **${techniqueLabel || '—'}**`);
+
+  const orderEmbed = new EmbedBuilder()
+    .setColor(COLORS[job.id] || COLORS.default)
+    .setTitle(`${emoji('clipboard')} ${say('Order Ticket', 'Order Ticket')}`)
+    .setDescription(orderLines.join('\n'));
+
   const embed = new EmbedBuilder()
     .setColor(COLORS[job.id] || COLORS.default)
     .setTitle(`${jobIcon} ${job.displayName} Shift — Stage ${stageNumber}/${totalStages}`)
@@ -344,10 +365,6 @@ function buildBartenderStageEmbed(session, stage, kittenMode) {
       {
         name: say('Score So Far', 'Score So Far'),
         value: `${session.totalScore} / 100`
-      },
-      {
-        name: say('Customer Order', 'Customer Order'),
-        value: `${stage.drink.name}`
       },
       {
         name: say('Your Build', 'Your Build'),
@@ -393,7 +410,7 @@ function buildBartenderStageEmbed(session, stage, kittenMode) {
     });
   });
 
-  return embed;
+  return [orderEmbed, embed];
 }
 
 function buildBartenderIngredientRow(session, slotIndex) {
