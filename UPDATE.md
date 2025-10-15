@@ -14,3 +14,6 @@ version: 1.0.9
 - Dealer mini game shifts now surface the community board in a dedicated pre-stage embed for faster visual parsing during each table.
 - Bartender shifts feature a stripped down order ticket plus a full nightly menu listing, keeping recipe details in one place while tightening the main gameplay embed.
 - Bouncer checkpoints present the guest lineup in its own embed while keeping the checklist in the core stage embed, eliminating redundant rest/cooldown copy and focusing players on admission decisions.
+- Horse race flow now renders the track in its own embed with a bar-style progress display (no code blocks) stacked above the primary game embed.
+- Swapped every remaining horse race unicode icon for the bot’s custom emoji inventory, including button labels, notices, and slash replies.
+- Horse race progress counters report their actual totals, allowing distances beyond 100 to surface during late-stage ties.
