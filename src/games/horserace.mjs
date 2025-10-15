@@ -163,6 +163,12 @@ function calculateHouseTotals(state, payouts = []) {
   };
 }
 
+function createRaceTrackEmbed(state) {
+  const trackLines = Array.from({ length: HORSE_COUNT }, (_, idx) => buildHorseLine(state, idx, state.progress[idx]));
+  const description = '```\n' + trackLines.join('\n') + '\n```';
+  return new EmbedBuilder().setDescription(description);
+}
+
 function createRaceEmbed(state, options = {}) {
   let title;
   const raceTitleBase = `${emoji('horseRace')} Horse Race`;
@@ -180,8 +186,6 @@ function createRaceEmbed(state, options = {}) {
     title = `${raceTitleBase} — Betting Stage`;
   }
 
-  const trackLines = Array.from({ length: HORSE_COUNT }, (_, idx) => buildHorseLine(state, idx, state.progress[idx]));
-  let description = '```\n' + trackLines.join('\n') + '\n```';
   let baseExtra;
   if (options.extraDescription !== undefined) {
     baseExtra = options.extraDescription;
@@ -190,32 +194,39 @@ function createRaceEmbed(state, options = {}) {
   } else if (state.lastResultsText) {
     baseExtra = state.lastResultsText;
   }
-  if (baseExtra) {
-    description += `\n${baseExtra}`;
-  }
 
+  const descriptionParts = [];
+  if (baseExtra) {
+    descriptionParts.push(baseExtra);
+  }
   if (state.status === 'betting' && state.previousResults) {
-    description += `\n**Last Race Results:**\n${state.previousResults}`;
+    descriptionParts.push(`**Last Race Results:**\n${state.previousResults}`);
   }
 
   const includeNotice = options.includeNotice ?? true;
   if (includeNotice && state.noticeText) {
     const notice = state.noticeText.trim();
     if (notice && (!baseExtra || !baseExtra.includes(notice))) {
-      description += `\n${notice}`;
+      descriptionParts.push(notice);
     }
   }
 
   const embed = new EmbedBuilder()
     .setTitle(title)
-    .setDescription(description)
     .addFields(
       { name: `${emoji('chips')} Pot`, value: `${formatChips(state.totalPot)} chips`, inline: true },
       { name: `${emoji('target')} Exposure`, value: `${formatChips(state.totalExposure)} chips`, inline: true },
       { name: `${emoji('finishFlag')} Bets`, value: summarizeBets(state) }
     )
     .setFooter({ text: options.footerText ?? state.footerText ?? DEFAULT_STAGE_FOOTER_TEXT });
+  if (descriptionParts.length) {
+    embed.setDescription(descriptionParts.join('\n'));
+  }
   return embed;
+}
+
+function createRaceEmbeds(state, options = {}) {
+  return [createRaceTrackEmbed(state), createRaceEmbed(state, options)];
 }
 
 function buildComponents(state) {
