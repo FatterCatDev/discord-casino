@@ -562,7 +562,7 @@ function jobDisplayIcon(job) {
 
 function buildStageEmbeds(session, stage, kittenMode) {
   if (isBartenderStage(stage, session)) {
-    return [buildBartenderStageEmbed(session, stage, kittenMode)];
+    return buildBartenderStageEmbeds(session, stage, kittenMode);
   }
   const job = session.job;
   const stageNumber = session.stageIndex + 1;
