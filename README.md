@@ -93,7 +93,7 @@ Run `/job` inside any guild to open the career board. Shifts, XP, ranks, and coo
 
 ## Requests & Logging
 
-- Requests: users can submit `/request type:<Buy In|Cash Out|Erase Account Data> …`; buy-in/cash-out posts include the stake, while erasure requests route to the primary guild’s request channel and require `notes:` describing the request. Optional cooldown via `/requesttimer seconds:<int>`.
+- Requests: users can submit `/request type:<Buy In|Cash Out|Erase Account Data> ...`; buy-in/cash-out posts include the stake, while erasure requests route to the primary guild’s request channel and require `notes:` describing the request. Optional cooldown via `/requesttimer seconds:<int>`.
 - Log channels:
   - Game logs (e.g., session end) via `/setgamelogchannel channel:<#>`.
   - Cash logs (admin and request settlements) via `/setcashlog channel:<#>`.
