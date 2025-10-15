@@ -719,8 +719,8 @@ function buildDealerIntroEmbed(session, kittenMode) {
         'Press “Start Dealing” to open Stage 1. The timer starts right away, so scan fast.'
       )}`,
       `${emoji('target')} ${say(
-        'Use the dropdown to mark every winning seat. Submit within 10 seconds for full payout — after 30s the bank skims a point per second.',
-        'Select every winning seat from the dropdown. Finishing under 10s pays 20 points; after 30s the table bleeds one point per second.'
+        'Use the dropdown to mark every winning seat. Submit within 15 seconds for full payout — under 30s still pays 18 pts, under 40s pays 15 pts, then the bank skims a point per second.',
+        'Select every winning seat from the dropdown. Finishing under 15s pays 20 points, under 30s pays 18, under 40s pays 15, and afterwards the table bleeds one point per second.'
       )}`,
       `${emoji('doorOpen')} ${say(
         'Press Continue to lock in your seats. You can revisit the dropdown until you submit.',
@@ -743,8 +743,8 @@ function buildDealerIntroEmbed(session, kittenMode) {
       {
         name: say('Scoring Tiers', 'Scoring Tiers'),
         value: [
-          '- <10s: 20 pts | <20s: 18 pts | <30s: 15 pts.',
-          '- After 30s, lose 1 point per second (minimum 0).',
+          '- <15s: 20 pts | <30s: 18 pts | <40s: 15 pts.',
+          '- 40s+: lose 1 point per second (hits 0 by ~45s).',
           '- Three incorrect submissions bust the table.'
         ].join('\n')
       }
