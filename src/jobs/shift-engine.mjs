@@ -1126,8 +1126,8 @@ async function handleIncorrect(interaction, session, stage, stageState) {
 
   return interaction.reply({
     content: session.kittenMode
-      ? `${emoji('warning')} Not quite, Kitten. Try another button.`
-      : `${emoji('warning')} Not quite. Take another shot.`,
+      ? `${emoji('warning')} Not quite, Kitten. Try another pick.`
+      : `${emoji('warning')} Not quite. Try another pick.`,
   });
 }
 
