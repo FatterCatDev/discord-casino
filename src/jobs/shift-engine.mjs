@@ -603,14 +603,25 @@ function buildBartenderIntroEmbed(session, kittenMode) {
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
   const job = session.job;
   const jobIcon = jobDisplayIcon(job);
+  const menu = session?.bartender?.menu ?? [];
+  const firstFeature = menu.length ? menu[0]?.name : say('the feature menu', 'tonight’s feature menu');
   const embed = new EmbedBuilder()
     .setColor(COLORS[job.id] || COLORS.default)
     .setTitle(`${jobIcon} ${job.displayName} Shift — Prep Brief`)
     .setDescription([
       say('Kitten, let’s warm up the shakers.', 'Time to prep the station.'),
-      `${emoji('clipboard')} ${say('Review the menu, nail ingredients, then pick the right finish.', 'Check the menu: ingredients plus shake vs stir.')}`,
-      `${emoji('timer')} ${say('Tap “Open Bar” when you’re ready — speed counts.', 'Press “Open Bar” when ready; quick builds earn bonuses.')}`,
-      `${emoji('warning')} ${say('Three attempts per drink — miss thrice and the table busts.', 'Only three attempts per drink, so focus.')}`
+      `${emoji('clipboard')} ${say(
+        `Guests will order from ${firstFeature}. Lock in each ingredient exactly as listed — blanks stay blank.`,
+        `Guests order from ${firstFeature}. Match every ingredient slot exactly; leave unused slots blank.`
+      )}`,
+      `${emoji('timer')} ${say(
+        'Tap “Open Bar” when you’re ready. Each pour starts the clock — slow builds add penalties.',
+        'Press “Open Bar” to begin. Every action starts the timer and time penalties add up.'
+      )}`,
+      `${emoji('warning')} ${say(
+        'Shake or stir to finish the drink. You only have three attempts before the guest walks.',
+        'Select Shake or Stir to finish. Three attempts max before the order is lost.'
+      )}`
     ].join('\n'));
   return embed;
 }
@@ -623,9 +634,19 @@ function buildBouncerIntroEmbed(session, kittenMode) {
     .setColor(COLORS[job.id] || COLORS.default)
     .setTitle(`${jobIcon} ${job.displayName} Shift — Briefing`)
     .setDescription([
-      say('Ready, Kitten? Tonight’s velvet rope needs your call.', 'Review the rules before opening the rope.'),
-      `${emoji('clipboard')} ${say('Checklist updates each guest. Age, attire, wristband.', 'Each wave has a fresh checklist: age, attire, wristband.')}`,
-      `${emoji('doorOpen')} ${say('Tap “Open Queue” to see the first group.', 'Press “Open Queue” to begin evaluating the lineup.')}`
+      say('Ready, Kitten? Tonight’s velvet rope needs your call.', 'Suit up — you’re on door duty.'),
+      `${emoji('clipboard')} ${say(
+        'Each wave shows a checklist. Verify age, outfit, and wristband before approving anyone.',
+        'Every group comes with a checklist. Confirm age, attire, and wristband before letting guests in.'
+      )}`,
+      `${emoji('magnifyingGlass')} ${say(
+        'Open the queue to review guests in order. Deny troublemakers, approve matches, and keep the line moving.',
+        'Open the queue to inspect guests sequentially. Approve those who match the checklist and leave the rest outside.'
+      )}`,
+      `${emoji('warning')} ${say(
+        'You get three chances per wave — wrong calls cost you the stage.',
+        'Only three mistakes per wave before the stage fails, so double-check your picks.'
+      )}`
     ].join('\n'));
   return embed;
 }
@@ -639,9 +660,22 @@ function buildDealerIntroEmbed(session, kittenMode) {
     .setTitle(`${jobIcon} ${job.displayName} Shift — Briefing`)
     .setDescription([
       say('Ready to deal, Kitten?', 'Ready to deal today?'),
-      say('Tap “Start Dealing” to reveal the first table.', 'Press “Start Dealing” to reveal Stage 1.'),
-      say('Pick every winning seat from the dropdown once cards are live.', 'Use the dropdown to choose every winning seat once the cards are shown.'),
-      say('You get three tries per table — make them count!', 'You have three attempts per table, so choose carefully.')
+      `${emoji('boardBanner')} ${say(
+        'Each table reveals a board plus three seats. Identify the seat(s) with the best poker hand.',
+        'Every stage shows community cards and three players. Figure out which seat(s) hold the top hand.'
+      )}`,
+      `${emoji('timer')} ${say(
+        'Tap “Start Dealing” to reveal Stage 1 — your timer starts immediately.',
+        'Press “Start Dealing” to open Stage 1. The timer starts right away, so scan fast.'
+      )}`,
+      `${emoji('target')} ${say(
+        'Use the dropdown to mark every winning seat. Submit within 10 seconds for full payout — after 30s the bank skims a point per second.',
+        'Select every winning seat from the dropdown. Finishing under 10s pays 20 points; after 30s the table bleeds one point per second.'
+      )}`,
+      `${emoji('warning')} ${say(
+        'You still only get three attempts — bust the table and you lose the pot.',
+        'You have three attempts per table. Blow them all and the table busts.'
+      )}`
     ].join('\n'));
   return embed;
 }
