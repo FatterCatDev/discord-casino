@@ -83,7 +83,7 @@ export function performanceToBasePay(rank, performanceScore) {
   const maxPay = maxPayForRank(rank);
   if (maxPay <= 0) return 0;
   const perf = clampPerformance(performanceScore);
-  return Math.floor(maxPay * (perf / 100));
+  return Math.floor(maxPay * (perf / 100) / 5);
 }
 
 const TIP_OPTIONS = Array.from({ length: 21 }, (_, percent) => ({
