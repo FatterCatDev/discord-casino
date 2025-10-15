@@ -183,6 +183,19 @@ function renderDealerAnswer(code, stage) {
   return unique.map(ch => seatMap.get(ch) ?? `Seat ${ch}`).join(', ');
 }
 
+function formatSeconds(seconds) {
+  return seconds.toFixed(seconds < 10 ? 2 : 1);
+}
+
+function calculateDealerScore(elapsedMs) {
+  const seconds = Math.floor(elapsedMs / 1000);
+  if (seconds < 10) return 20;
+  if (seconds < 20) return 18;
+  if (seconds < 30) return 15;
+  const penalty = Math.max(0, seconds - 30);
+  return Math.max(0, 15 - penalty);
+}
+
 function buildHistoryLines(session) {
   if (!session.history.length) return 'No stages completed yet.';
   return session.history.map(item => {
