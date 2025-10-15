@@ -705,6 +705,9 @@ function buildCancelRow(sessionId) {
 
 function buildStageComponents(session, stage) {
   if (isBartenderStage(stage, session)) {
+    if (session.awaitingStart) {
+      return buildBartenderIntroComponents(session);
+    }
     return buildBartenderStageComponents(session, stage);
   }
   if (session.jobId === 'bouncer') {
