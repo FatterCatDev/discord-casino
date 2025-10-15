@@ -150,8 +150,8 @@ Required
 Optional
 - `DB_PATH` – SQLite file path (default `./casino.db`)
 - `OWNER_USER_IDS` – Comma‑separated user IDs with OWNER override for maintenance commands
-- `ECONOMY_SCOPE` – `global` (default) to share balances across guilds, or `guild` for isolated ledgers
-- `GLOBAL_ECONOMY_ID` – Override the stored guild id used for the shared economy when `ECONOMY_SCOPE=global`
+- `ECONOMY_SCOPE` – Leave set to `global` (the economy is unified across every guild)
+- `GLOBAL_ECONOMY_ID` – Override the stored guild id used for the shared global economy (defaults to `GUILD_ID`)
 - `TOPGG_WEBHOOK_AUTH` – Shared secret for the Top.gg webhook endpoint (enables vote rewards)
 - `TOPGG_VOTE_URL` – Override the vote link shown in `/vote` (defaults to `https://top.gg/bot/<CLIENT_ID>/vote`)
 - `TOPGG_BOT_ID` – Bot ID for building the default Top.gg vote link (falls back to `CLIENT_ID`)
@@ -164,7 +164,7 @@ Optional
 - `VOTE_REWARD_TOPGG_WEEKEND_MULTIPLIER` – Weekend multiplier for Top.gg votes (number, default 2)
 - `TOPGG_ALLOW_TEST_VOTES` – Set to `true` to reward Top.gg “test” webhook deliveries when debugging
 - `VOTE_EXTRA_LINKS` – JSON or comma `Label|https://url` list of additional vote buttons to display in `/vote`
-- `VOTE_REWARD_AUTO_GUILD_ID` – Guild ID to credit vote rewards against (defaults to `PRIMARY_GUILD_ID`/`GUILD_ID`)
+- `VOTE_REWARD_AUTO_GUILD_ID` – Guild ID tied to the shared global ledger for vote rewards (defaults to `PRIMARY_GUILD_ID`/`GUILD_ID`)
 - `VOTE_REWARD_AUTO_INTERVAL_MS` – Interval for the bot to sweep pending vote rewards (default 15000)
 - `VOTE_REWARD_AUTO_BATCH_LIMIT` – Max distinct users processed per sweep (default 25)
 - `VOTE_REWARD_REASON` – Custom ledger reason when minting vote rewards (default `vote reward`)
