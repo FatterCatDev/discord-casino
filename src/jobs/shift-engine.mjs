@@ -104,14 +104,13 @@ function chunkButtons(options, sessionId) {
 }
 
 function ensureEphemeralPayload(payload) {
-  if (typeof payload === 'string') {
-    return { content: payload, ephemeral: true };
-  }
-  if (!payload || typeof payload !== 'object') {
-    return { ephemeral: true };
-  }
-  if (payload.ephemeral === true) return payload;
-  return { ...payload, ephemeral: true };
+  const body = typeof payload === 'string'
+    ? { content: payload }
+    : { ...(payload || {}) };
+  body.ephemeral = true;
+  const existingFlags = typeof body.flags === 'number' ? body.flags : 0;
+  body.flags = existingFlags | MessageFlags.Ephemeral;
+  return body;
 }
 
 function replyEphemeral(interaction, payload) {
