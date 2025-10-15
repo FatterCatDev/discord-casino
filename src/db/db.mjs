@@ -1489,6 +1489,34 @@ export function listUsersWithPendingVoteRewards(limit = 50) {
   return listPendingVoteUsersStmt.all(n).map(row => row.discord_user_id);
 }
 
+export function eraseUserData(discordId) {
+  const userId = String(discordId || '').trim();
+  if (!userId) throw new Error('ERASE_USER_ID_REQUIRED');
+  const result = db.transaction(() => {
+    const deleted = {
+      users: deleteUsersAllStmt.run(userId).changes,
+      transactions: deleteTransactionsByAccountStmt.run(userId).changes,
+      dailySpin: deleteDailySpinEntriesStmt.run(userId).changes,
+      requestLast: deleteRequestLastEntriesStmt.run(userId).changes,
+      voteRewards: deleteVoteRewardsStmt.run(userId).changes,
+      jobProfiles: deleteJobProfilesStmt.run(userId).changes,
+      jobStatus: deleteJobStatusStmt.run(userId).changes,
+      jobShifts: deleteJobShiftsStmt.run(userId).changes,
+      activeRequests: deleteActiveReqAllStmt.run(userId).changes,
+      holdemEscrow: deleteHoldemEscrowStmt.run(userId).changes,
+      holdemCommits: deleteHoldemCommitsStmt.run(userId).changes,
+      modAssignments: deleteModUserAllStmt.run(userId).changes,
+      adminAssignments: deleteAdminUserAllStmt.run(userId).changes
+    };
+    const updated = {
+      transactionsAdmin: clearTransactionsAdminStmt.run(userId).changes,
+      holdemTablesHost: clearHoldemHostStmt.run(userId).changes
+    };
+    return { userId, deleted, updated };
+  });
+  return result;
+}
+
 export function takeFromUserToHouse(guildId, discordId, amount, reason, adminId) {
   const gid = resolveGuildId(guildId);
   if (!Number.isInteger(amount) || amount <= 0) throw new Error('Amount must be a positive integer.');
