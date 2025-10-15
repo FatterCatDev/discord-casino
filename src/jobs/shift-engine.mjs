@@ -563,7 +563,60 @@ function buildStageEmbed(session, stage, kittenMode) {
       `After this run you’ll have **${afterRemaining}** ${afterRemaining === 1 ? 'shift' : 'shifts'} before the ${formatDuration(JOB_SHIFT_STREAK_COOLDOWN_SECONDS)} rest (${streakAfter}/${limit} in this cycle).`
     )
   };
-  const descriptionLines = [`${stage.prompt}`];
+  const descriptionLines = [];
+  let boardField = null;
+
+  if (job.id === 'dealer') {
+    const promptLines = String(stage.prompt ?? '').split('\n');
+    const seatSections = [];
+    const additional = [];
+    let questionLine = null;
+    let boardCards = '';
+
+    for (const rawLine of promptLines) {
+      const line = (rawLine || '').trim();
+      if (!line) continue;
+      if (/^board:/i.test(line)) {
+        boardCards = line.slice(line.indexOf(':') + 1).trim();
+        continue;
+      }
+      const seatMatch = line.match(/^Seat ([ABC]):\s*(.*)$/i);
+      if (seatMatch) {
+        const seatLetter = seatMatch[1].toUpperCase();
+        const seatText = seatMatch[2] || '';
+        seatSections.push(`**Seat ${seatLetter}:** ${seatText}`);
+        continue;
+      }
+      if (/^who wins\??$/i.test(line)) {
+        questionLine = line;
+        continue;
+      }
+      additional.push(line);
+    }
+
+    if (additional.length) {
+      descriptionLines.push(...additional);
+    }
+    if (seatSections.length) {
+      if (descriptionLines.length) descriptionLines.push('');
+      descriptionLines.push(seatSections.join('\n'));
+    }
+    if (questionLine) {
+      descriptionLines.push('');
+      descriptionLines.push(`**${questionLine}**`);
+    }
+
+    if (boardCards) {
+      const boardTitle = say('Main Board', 'Board');
+      boardField = {
+        name: `${emoji('boardBanner')} ${boardTitle}`,
+        value: `\`\`\`md\n${boardCards}\n\`\`\``
+      };
+    }
+  } else if (stage.prompt) {
+    descriptionLines.push(`${stage.prompt}`);
+  }
+
   if (stage.options?.length && job.id !== 'dealer') {
     descriptionLines.push('');
     descriptionLines.push(...stage.options.map(opt => `**${opt.id}.** ${opt.label}`));
@@ -578,30 +631,34 @@ function buildStageEmbed(session, stage, kittenMode) {
     .setColor(COLORS[job.id] || COLORS.default)
     .setTitle(`${jobIcon} ${job.displayName} Shift — Stage ${stageNumber}/${totalStages}`)
     .setDescription(descriptionLines.join('\n'))
-    .addFields(
-      {
-        name: say('Score So Far', 'Score So Far'),
-        value: `${session.totalScore} / 100`
-      },
-      {
-        name: say('Stage History', 'Stage History'),
-        value: buildHistoryLines(session)
-      },
-      restField,
-      {
-        name: say('Tips', 'Tips'),
-        value: job.id === 'dealer'
-          ? say(
-            'Pick every winning seat fast: <15s pays 20 pts, <30s pays 18 pts, <40s pays 15 pts — beyond that you earn 45 - time (40s = 5 pts). Three attempts max.',
-            'Select every winning seat quickly: under 15s is 20 pts, under 30s is 18 pts, under 40s is 15 pts, then the payout becomes 45 minus your time (floor 0). Only three submissions per table.'
-          )
-          : say(
-            'First-try clears pay 18 base points (+2 under 6s, +1 under 10s). You get three attempts before the stage busts.',
-            'First-try answers earn 18 base points (+2 under 6 seconds, +1 under 10 seconds). Three attempts total before the stage fails.'
-          )
-      }
-    )
     .setFooter({ text: say('Cancel anytime with End Shift - rest after five shifts (6h cooldown)', 'Cancel anytime with End Shift - rest after five shifts (6h cooldown)') });
+
+  const fields = [
+    boardField,
+    {
+      name: say('Score So Far', 'Score So Far'),
+      value: `${session.totalScore} / 100`
+    },
+    {
+      name: say('Stage History', 'Stage History'),
+      value: buildHistoryLines(session)
+    },
+    restField,
+    {
+      name: say('Tips', 'Tips'),
+      value: job.id === 'dealer'
+        ? say(
+          'Pick every winning seat fast: <15s pays 20 pts, <30s pays 18 pts, <40s pays 15 pts — beyond that you earn 45 - time (40s = 5 pts). Three attempts max.',
+          'Select every winning seat quickly: under 15s is 20 pts, under 30s is 18 pts, under 40s is 15 pts, then the payout becomes 45 minus your time (floor 0). Only three submissions per table.'
+        )
+        : say(
+          'First-try clears pay 18 base points (+2 under 6s, +1 under 10s). You get three attempts before the stage busts.',
+          'First-try answers earn 18 base points (+2 under 6 seconds, +1 under 10 seconds). Three attempts total before the stage fails.'
+        )
+    }
+  ].filter(Boolean);
+
+  embed.addFields(fields);
   return embed;
 }
 
