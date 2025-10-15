@@ -32,7 +32,7 @@ const JOB_DEFINITIONS = [
   {
     id: 'bouncer',
     displayName: 'Bouncer',
-    emojiKey: 'passportControl',
+    emojiKey: 'bouncer',
     tagline: {
       normal: 'Guard the velvet rope and keep the queue under control.',
       kitten: 'Spot those fakes and protect the den, Kitten.'
