@@ -775,10 +775,12 @@ export async function getActiveRequest(guildId, userId) {
 }
 export async function createActiveRequest(guildId, userId, messageId, type, amount) {
   if (!guildId || !userId || !messageId) throw new Error('ACTIVE_REQ_PARAMS');
-  const amt = Number(amount);
-  if (!Number.isInteger(amt) || amt <= 0) throw new Error('ACTIVE_REQ_AMOUNT');
+  const normalizedType = String(type || 'unknown');
+  let normalizedAmount = Number.isInteger(Number(amount)) ? Number(amount) : 0;
+  if (normalizedType !== 'erase' && (!Number.isInteger(normalizedAmount) || normalizedAmount <= 0)) throw new Error('ACTIVE_REQ_AMOUNT');
+  if (normalizedType === 'erase') normalizedAmount = 0;
   if (await getActiveRequest(guildId, userId)) throw new Error('ACTIVE_REQ_EXISTS');
-  await q('INSERT INTO active_requests (guild_id, user_id, message_id, type, amount, status) VALUES ($1,$2,$3,$4,$5,$6)', [guildId, userId, messageId, String(type || 'unknown'), amt, 'PENDING']);
+  await q('INSERT INTO active_requests (guild_id, user_id, message_id, type, amount, status) VALUES ($1,$2,$3,$4,$5,$6)', [guildId, userId, messageId, normalizedType, normalizedAmount, 'PENDING']);
   return getActiveRequest(guildId, userId);
 }
 export async function updateActiveRequestStatus(guildId, userId, status) {
