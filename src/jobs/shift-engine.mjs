@@ -543,7 +543,7 @@ function buildStageEmbed(session, stage, kittenMode) {
   }
   if (job.id === 'dealer') {
     descriptionLines.push('');
-    descriptionLines.push('Select all winning hands from the dropdown, then press Continue.');
+    descriptionLines.push('Select all winning seat(s) from the dropdown, then press Continue.');
   }
 
   const embed = new EmbedBuilder()
