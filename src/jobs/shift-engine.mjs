@@ -331,7 +331,6 @@ function buildBartenderStageEmbeds(session, stage, kittenMode) {
   const blank = getBlankValue(session);
   const stageState = session.stageState || createStageState(session, stage);
   const menu = getBartenderData(session)?.menu || [];
-  const menuChunks = chunkTextLines(bartenderMenuLines(menu));
   const drink = stage.drink ?? {};
   const techniqueLabel = (drink.technique || '').toUpperCase();
 
