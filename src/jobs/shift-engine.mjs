@@ -1307,7 +1307,7 @@ export async function handleJobShiftButton(interaction, ctx) {
       await replyEphemeral(interaction, { content: `${emoji('warning')} Choose at least one hand before continuing.` });
       return true;
     }
-    const normalized = normalizeDealerSelection(selected);
+    const normalized = normalizeDealerSelection(selected, stage);
     if (!normalized) {
       await replyEphemeral(interaction, { content: `${emoji('warning')} Invalid hand selection. Try again.` });
       return true;
