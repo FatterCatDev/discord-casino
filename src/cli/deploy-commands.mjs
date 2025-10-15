@@ -81,13 +81,15 @@ const commands = [
   },
   {
     name: 'request',
-    description: 'Request a buy-in or cash-out from admins.',
+    description: 'Request a buy-in, cash-out, or data erasure from admins.',
     options: [
       { name: 'type', description: 'Request type', type: 3, required: true, choices: [
         { name: 'Buy In', value: 'buyin' },
-        { name: 'Cash Out', value: 'cashout' }
+        { name: 'Cash Out', value: 'cashout' },
+        { name: 'Erase Account Data', value: 'erase' }
       ]},
-      { name: 'amount', description: 'Amount of chips', type: 4, required: true, min_value: 1 }
+      { name: 'amount', description: 'Amount of chips (required for buy-in/cash-out)', type: 4, required: false, min_value: 1 },
+      { name: 'notes', description: 'Context for staff (required for erase requests)', type: 3, required: false }
     ]
   },
   {
