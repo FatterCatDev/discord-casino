@@ -1,5 +1,3 @@
-import generateBouncerStages from "../jobs/scenarios/bouncer.mjs";
-
 export const EMOJI = {
   // Core gameplay
   horseRace: '<:horse_race:1427921045188509767>',
