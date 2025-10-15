@@ -498,8 +498,11 @@ client.on(Events.InteractionCreate, async interaction => {
 
     // ========== SLASH COMMANDS ==========
       if (interaction.isChatInputCommand()) {
-      // End any existing active game session when a new command is run
-      await endActiveSessionForUser(interaction, 'new_command');
+      // End any existing active game session when a new command is run.
+      // Don't await this cleanup so the slash command can acknowledge within Discord's 3s window.
+      endActiveSessionForUser(interaction, 'new_command').catch(err => {
+        console.error('endActiveSessionForUser (command) error:', err);
+      });
 
       // Modular command dispatch
       const handler = commandHandlers[interaction.commandName];
