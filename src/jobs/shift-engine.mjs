@@ -590,10 +590,15 @@ function buildStageEmbed(session, stage, kittenMode) {
       restField,
       {
         name: say('Tips', 'Tips'),
-        value: say(
-          'Perfect first taps earn 18 base points (+2 speed bonus under 6s). You have three tries before the stage busts.',
-          'First-try answers earn 18 base points (+2 speed bonus under 6s). Three attempts max before the stage busts.'
-        )
+        value: job.id === 'dealer'
+          ? say(
+            'Pick every winning seat fast: <10s pays 20 pts, <20s pays 18 pts, <30s pays 15 pts — after that you lose 1 pt per second. Three attempts max.',
+            'Select every winning seat quickly: under 10s is 20 pts, under 20s is 18 pts, under 30s is 15 pts, then -1 pt per second. Only three submissions per table.'
+          )
+          : say(
+            'First-try clears pay 18 base points (+2 under 6s, +1 under 10s). You get three attempts before the stage busts.',
+            'First-try answers earn 18 base points (+2 under 6 seconds, +1 under 10 seconds). Three attempts total before the stage fails.'
+          )
       }
     )
     .setFooter({ text: say('Cancel anytime with End Shift - rest after five shifts (6h cooldown)', 'Cancel anytime with End Shift - rest after five shifts (6h cooldown)') });
@@ -633,16 +638,16 @@ function buildBartenderIntroEmbed(session, kittenMode) {
         name: say('Shift Flow', 'Shift Flow'),
         value: [
           say('- Guests call their drink from the lounge menu.', '- Guests order directly from the lounge menu.'),
-          '- Set each ingredient slot using the dropdowns before selecting the finish.',
-          '- Confirm once every slot matches the recipe — you can adjust before finalizing.'
+          '- Use the ingredient dropdowns in order until every slot matches the recipe.',
+          '- Hit Shake or Stir to serve once the build looks right — adjust ingredients before you finish.'
         ].join('\n')
       },
       {
         name: say('Scoring & Penalties', 'Scoring & Penalties'),
         value: [
           say('- Perfect pours start at 20 points; time penalties shave points away.', '- Perfect builds start at 20 points; time penalties reduce the payout.'),
-          '- Each mistake adds to the penalty track, so keep a smooth but accurate pace.',
-          '- Three failed attempts bust the drink and end the stage.'
+          '- Slow segments add time penalties — incorrect builds simply consume attempts.',
+          '- You only have three attempts before the drink is lost.'
         ].join('\n')
       }
     );
