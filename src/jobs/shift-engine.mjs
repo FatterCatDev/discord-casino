@@ -1272,7 +1272,12 @@ export async function handleJobShiftButton(interaction, ctx) {
   }
 
   if (session.awaitingStart) {
-    await replyEphemeral(interaction, { content: `${emoji('info')} Press “Open Queue” to begin this shift.` });
+    const startPrompt = session.jobId === 'bouncer'
+      ? 'Press “Open Queue” to begin this shift.'
+      : session.jobId === 'dealer'
+        ? 'Press “Start Dealing” to begin this shift.'
+        : 'Press “Start” to begin this shift.';
+    await replyEphemeral(interaction, { content: `${emoji('info')} ${startPrompt}` });
     return true;
   }
 
