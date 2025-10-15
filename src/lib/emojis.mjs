@@ -40,6 +40,7 @@ export const EMOJI = {
   coinStack: '<:chips:1427920821179121776>',
   plus: '➕',
   minus: '➖',
+  cocktail: '🍸',
 
   // Rewards & events
   gift: '<:gift:1427921007137525863>',
@@ -107,6 +108,7 @@ export const EMOJI = {
   princess: '<:princess:1427921269176668221>',
   man: '<:man:1427921114541326366>',
   proprietor: '<:crown:1427920869619138590>',
+  passportControl: '🛂',
   winkCat: '<:smirk_cat:1427921329780428850>',
   smile: '<:smile:1427921319005261897>',
   sad: '<:cry:1427920877152108554>',
