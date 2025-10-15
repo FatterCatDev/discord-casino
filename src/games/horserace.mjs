@@ -9,7 +9,7 @@ import {
   grantCredits
 } from '../db/db.auto.mjs';
 import { formatChips, chipsAmountSigned } from './format.mjs';
-import { emoji } from '../lib/emojis.mjs';
+import { emoji, HORSE_COLOR_EMOJIS } from '../lib/emojis.mjs';
 import { postGameSessionEnd, postGameSessionEndByIds } from './logging.mjs';
 
 const TRACK_LENGTH = 100;
@@ -39,9 +39,9 @@ const HORSE_NAME_POOL = [
   'Thundered',
   'Butter Cup'
 ];
-const HORSE_EMOJIS = ['🟥', '🟩', '🟨', '🟦', '🟪'];
-const HORSE_BLOCK_EMOJIS = ['🟥', '🟩', '🟨', '🟦', '🟪'];
-const HORSE_ICON_BLOCK = '🐎';
+const HORSE_EMOJIS = [...HORSE_COLOR_EMOJIS];
+const HORSE_BLOCK_EMOJIS = [...HORSE_COLOR_EMOJIS];
+const HORSE_ICON_BLOCK = emoji('horse');
 const HORSE_COUNT = HORSE_EMOJIS.length;
 const INITIAL_FOOTER_TEXT = 'Place your bets! Host must press Start to begin the countdown.';
 const DEFAULT_STAGE_FOOTER_TEXT = 'Place or change bets within 2.5 seconds of each stage.';
