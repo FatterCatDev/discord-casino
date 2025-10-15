@@ -11,3 +11,6 @@ version: 1.0.9
 - Introduced paginated `/leaderboard` output (10 pages × 10 players) with interactive navigation buttons backed by a session cache.
 - Defers leaderboard replies and ignores expired interaction errors to eliminate recurring Discord `10062` Unknown interaction logs.
 - Published `docs/tos.md` and `docs/privacy-policy.md`, and wired `/request` erasure tickets through the global review flow with a one-click purge for moderators.
+- Dealer mini game shifts now surface the community board in a dedicated pre-stage embed for faster visual parsing during each table.
+- Bartender shifts feature a stripped down order ticket plus a full nightly menu listing, keeping recipe details in one place while tightening the main gameplay embed.
+- Bouncer checkpoints present the guest lineup in its own embed while keeping the checklist in the core stage embed, eliminating redundant rest/cooldown copy and focusing players on admission decisions.
