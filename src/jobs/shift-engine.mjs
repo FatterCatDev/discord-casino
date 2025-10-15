@@ -627,7 +627,25 @@ function buildBartenderIntroEmbed(session, kittenMode) {
         'Use the ingredient pickers from left to right — blanks are valid if the recipe leaves a slot empty.',
         'Set each ingredient dropdown in order. Choose the blank option when the recipe skips a slot.'
       )}`
-    ].join('\n'));
+    ].join('\n'))
+    .addFields(
+      {
+        name: say('Shift Flow', 'Shift Flow'),
+        value: [
+          say('- Guests call their drink from the lounge menu.', '- Guests order directly from the lounge menu.'),
+          '- Set each ingredient slot using the dropdowns before selecting the finish.',
+          '- Confirm once every slot matches the recipe — you can adjust before finalizing.'
+        ].join('\n')
+      },
+      {
+        name: say('Scoring & Penalties', 'Scoring & Penalties'),
+        value: [
+          say('- Perfect pours start at 20 points; time penalties shave points away.', '- Perfect builds start at 20 points; time penalties reduce the payout.'),
+          '- Each mistake adds to the penalty track, so keep a smooth but accurate pace.',
+          '- Three failed attempts bust the drink and end the stage.'
+        ].join('\n')
+      }
+    );
   return embed;
 }
 
@@ -656,7 +674,25 @@ function buildBouncerIntroEmbed(session, kittenMode) {
         'Use the select menu to tag approved guests, then hit Continue to lock the lineup.',
         'Select every guest you plan to admit, then press Continue to confirm the wave.'
       )}`
-    ].join('\n'));
+    ].join('\n'))
+    .addFields(
+      {
+        name: say('How The Rope Works', 'How The Rope Works'),
+        value: [
+          say('- Opening the queue shows a fresh group of guests.', '- Opening the queue reveals a new wave of guests.'),
+          '- Compare each guest against the age, attire, and wristband checklist.',
+          '- Approve only the guests who match every requirement.'
+        ].join('\n')
+      },
+      {
+        name: say('Mistakes & Pace', 'Mistakes & Pace'),
+        value: [
+          '- Three bad calls bust the stage — deny uncertain guests if you are not sure.',
+          '- Keep the line moving; quick decisions keep your streak alive.',
+          '- You can revisit the select menu before pressing Continue to adjust choices.'
+        ].join('\n')
+      }
+    );
   return embed;
 }
 
@@ -684,12 +720,30 @@ function buildDealerIntroEmbed(session, kittenMode) {
       `${emoji('doorOpen')} ${say(
         'Press Continue to lock in your seats. You can revisit the dropdown until you submit.',
         'Confirm your picks with Continue — you may reopen the dropdown until you submit.'
-      )}`
+      )}`,
       `${emoji('warning')} ${say(
         'You still only get three attempts — bust the table and you lose the pot.',
         'You have three attempts per table. Blow them all and the table busts.'
       )}`
-    ].join('\n'));
+    ].join('\n'))
+    .addFields(
+      {
+        name: say('How To Deal', 'How To Deal'),
+        value: [
+          '- Study the community board and each seat’s hole cards.',
+          '- Determine the best poker hand, considering splits and kickers.',
+          '- Select every seat sharing the top hand before you press Continue.'
+        ].join('\n')
+      },
+      {
+        name: say('Scoring Tiers', 'Scoring Tiers'),
+        value: [
+          '- <10s: 20 pts | <20s: 18 pts | <30s: 15 pts.',
+          '- After 30s, lose 1 point per second (minimum 0).',
+          '- Three incorrect submissions bust the table.'
+        ].join('\n')
+      }
+    );
   return embed;
 }
 
