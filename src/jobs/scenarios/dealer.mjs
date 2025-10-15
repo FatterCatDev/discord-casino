@@ -1,7 +1,7 @@
 import crypto from 'node:crypto';
 import { emoji } from '../../lib/emojis.mjs';
 
-const SUIT_TEMPLATES = ['♠', '♥', '♦', '♣'];
+const SUIT_TEMPLATES = ['S', 'H', 'D', 'C'];
 const SUIT_PERMUTATIONS = [
   { char: 'S', key: 'pokerSpade' },
   { char: 'H', key: 'pokerHeart' },
