@@ -1,3 +1,5 @@
+import generateBouncerStages from "../jobs/scenarios/bouncer.mjs";
+
 export const EMOJI = {
   // Core gameplay
   horseRace: '<:horse_race:1427921045188509767>',
@@ -108,7 +110,7 @@ export const EMOJI = {
   princess: '<:princess:1427921269176668221>',
   man: '<:man:1427921114541326366>',
   proprietor: '<:crown:1427920869619138590>',
-  passportControl: '🛂',
+  bouncer: '<:bouncer:1427937283817996298>',
   winkCat: '<:smirk_cat:1427921329780428850>',
   smile: '<:smile:1427921319005261897>',
   sad: '<:cry:1427920877152108554>',
