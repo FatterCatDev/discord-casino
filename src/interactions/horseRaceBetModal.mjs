@@ -1,4 +1,5 @@
 import { getRaceById, handleHorseBet, showRaceNotice, acknowledgeInteraction } from '../games/horserace.mjs';
+import { emoji } from '../lib/emojis.mjs';
 
 export default async function handleHorseRaceBetModal(interaction) {
   const parts = interaction.customId.split('|');
@@ -17,7 +18,7 @@ export default async function handleHorseRaceBetModal(interaction) {
 
   if (!Number.isInteger(horseIndex) || horseIndex < 0 || horseIndex >= 5) {
     await acknowledgeInteraction(interaction);
-    await showRaceNotice(state, interaction.client, '⚠ Invalid horse selection.');
+    await showRaceNotice(state, interaction.client, `${emoji('warning')} Invalid horse selection.`);
     return;
   }
 
