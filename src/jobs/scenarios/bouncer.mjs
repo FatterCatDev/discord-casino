@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { emoji } from '../../lib/emojis.mjs';
 
 const GUEST_NAMES = [
   'Alex', 'Jordan', 'Maya', 'Quinn', 'Reese', 'Taylor', 'Sasha', 'Morgan', 'Dev', 'Lena',
@@ -22,11 +23,11 @@ const DRESS_CODES = [
 ];
 
 const WRISTBANDS = [
-  { id: 'crimson', label: 'Crimson', emoji: '🔴' },
-  { id: 'azure', label: 'Azure', emoji: '🔵' },
-  { id: 'gold', label: 'Gold', emoji: '🟡' },
-  { id: 'jade', label: 'Jade', emoji: '🟢' },
-  { id: 'violet', label: 'Violet', emoji: '🟣' }
+  { id: 'crimson', label: 'Crimson', emoji: emoji('squareRed') },
+  { id: 'azure', label: 'Azure', emoji: emoji('squareBlue') },
+  { id: 'gold', label: 'Gold', emoji: emoji('squareYellow') },
+  { id: 'jade', label: 'Jade', emoji: emoji('squareGreen') },
+  { id: 'violet', label: 'Violet', emoji: emoji('squarePurple') }
 ];
 
 function sample(array) {
