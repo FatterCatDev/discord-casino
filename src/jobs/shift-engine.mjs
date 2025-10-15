@@ -1641,9 +1641,9 @@ export async function handleJobShiftButton(interaction, ctx) {
     }
 
     await replyEphemeral(interaction, { content: result.message || `${emoji('warning')} Not quite right.` });
-    const embed = buildStageEmbed(session, stage, session.kittenMode);
+    const embeds = buildStageEmbeds(session, stage, session.kittenMode);
     const components = buildStageComponents(session, stage);
-    await interaction.message.edit({ embeds: [embed], components });
+    await interaction.message.edit({ embeds, components });
     return true;
   }
 
