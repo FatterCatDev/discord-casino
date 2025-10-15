@@ -23,6 +23,7 @@ Includes slash commands for balances, leaderboards, admin operations, cash/reque
 - Vote rewards, buy-ins, and game payouts all settle against that same ledger—there is no per-server opt-out.
 - If you previously ran isolated ledgers, keep `ECONOMY_SCOPE=global` and use `GLOBAL_ECONOMY_ID` only when you need to migrate the canonical guild id.
 - Moderators can use `/housebalance` to spot-check the shared vault before approving big withdrawals or resets.
+- Ledger updates replicate instantly across shards, so economy commands reflect the latest balances no matter which guild or shard triggers them.
 
 ## Games
 
