@@ -68,7 +68,7 @@ All games except Texas Hold’em use Credits‑first staking: your bet draws fro
 
 ## Job System
 
-Run `/job` inside a guild to open the career board. Shifts, XP, ranks, and cooldowns are tracked per guild so each community can progress independently.
+Run `/job` inside any guild to open the career board. Shifts, XP, ranks, and cooldowns now follow you globally, so progress carries across every server where you play.
 
 - **Shift flow:** every shift is a five-stage interactive sequence. Completing each prompt on time advances the run; timing out or cancelling ends the attempt and breaks the streak.
 - **Burst limits:** players can clear up to five shifts in a burst. After the fifth shift a six-hour rest timer starts before another burst can begin.
