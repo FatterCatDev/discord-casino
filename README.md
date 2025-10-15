@@ -110,7 +110,7 @@ Player
 ### Earning Chips
 - `/dailyspin` – free chips every 24 hours.
 - `/vote` – vote on Top.gg; rewards credit automatically and the bot DMs the amount.
-- `/request type:<Buy In|Cash Out>` – work with staff for manual chip grants or withdrawals.
+- `/request type:<Buy In|Cash Out|Erase Account Data>` – work with staff for manual chip grants/withdrawals, or submit a data-erasure ticket (requires notes and routes to the primary guild’s request channel).
 - Chip-paying games (Ride the Bus, Blackjack, Slots, Roulette, Dice War, Horse Race, Hold’em) — Credits stake first, and any win pays out in Chips from the house.
 
 Moderator (granted via `/addmod`, admins via `/addadmin`)
