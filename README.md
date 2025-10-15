@@ -95,6 +95,7 @@ Run `/job` inside a guild to open the career board. Shifts, XP, ranks, and coold
 Player
 - `/help`, `/ping`, `/balance [user]`, `/leaderboard [limit]`, `/dailyspin`, `/vote`
 - `/stafflist`
+- `/job`, `/job start job:<id>`, `/job cancel`, `/job stats [user]`
 - `/ridebus bet:<int>`, `/blackjack table:<High|Low> bet:<int>`, `/slots bet:<int>`, `/roulette`, `/holdem`, `/horserace`
 
 ### Earning Chips
@@ -110,6 +111,7 @@ Moderator (granted via `/addmod`, admins via `/addadmin`)
 - Requests: `/setrequestchannel`, `/requesttimer`
 - Game limits: `/setmaxbet game:<Ride the Bus> amount:<int>`
 - Roles: `/addmod user:<@User>`, `/removemod user:<@User>`, `/addadmin user:<@User>`, `/removeadmin user:<@User>`
+- Job tools (admin): `/job reset user:<@User>`, `/job resetstats user:<@User>`
 - Maintenance (OWNER): `/resetallbalance`
 - Hold’em table (admin): `/setrake percent:<number> [cap:<int>]`
  - Setup: `/setcasinocategory category:<#Category>`
