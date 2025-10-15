@@ -511,6 +511,22 @@ const updateActiveReqStatusStmt = db.prepare(`
 `);
 const clearActiveReqStmt = db.prepare('DELETE FROM active_requests WHERE guild_id = ? AND user_id = ?');
 
+const deleteUsersAllStmt = db.prepare('DELETE FROM users WHERE discord_id = ?');
+const deleteTransactionsByAccountStmt = db.prepare('DELETE FROM transactions WHERE account = ?');
+const clearTransactionsAdminStmt = db.prepare('UPDATE transactions SET admin_id = NULL WHERE admin_id = ?');
+const deleteDailySpinEntriesStmt = db.prepare('DELETE FROM daily_spin_last WHERE user_id = ?');
+const deleteRequestLastEntriesStmt = db.prepare('DELETE FROM request_last WHERE user_id = ?');
+const deleteVoteRewardsStmt = db.prepare('DELETE FROM vote_rewards WHERE discord_user_id = ?');
+const deleteJobProfilesStmt = db.prepare('DELETE FROM job_profiles WHERE user_id = ?');
+const deleteJobStatusStmt = db.prepare('DELETE FROM job_status WHERE user_id = ?');
+const deleteJobShiftsStmt = db.prepare('DELETE FROM job_shifts WHERE user_id = ?');
+const deleteActiveReqAllStmt = db.prepare('DELETE FROM active_requests WHERE user_id = ?');
+const deleteHoldemEscrowStmt = db.prepare('DELETE FROM holdem_escrow WHERE user_id = ?');
+const deleteHoldemCommitsStmt = db.prepare('DELETE FROM holdem_commits WHERE user_id = ?');
+const clearHoldemHostStmt = db.prepare('UPDATE holdem_tables SET host_id = NULL WHERE host_id = ?');
+const deleteModUserAllStmt = db.prepare('DELETE FROM mod_users WHERE user_id = ?');
+const deleteAdminUserAllStmt = db.prepare('DELETE FROM admin_users WHERE user_id = ?');
+
 try { db.prepare(`SELECT shift_streak_count FROM job_status LIMIT 1`).get(); } catch {
   db.exec(`ALTER TABLE job_status ADD COLUMN shift_streak_count INTEGER NOT NULL DEFAULT 0`);
 }
