@@ -417,20 +417,30 @@ function buildBartenderStageComponents(session, stage) {
 
 function buildDealerSelectRow(session, stage) {
   const stageState = session.stageState || (session.stageState = createStageState(session, stage));
-  const selected = Array.isArray(stageState.selectedHands) ? new Set(stageState.selectedHands) : new Set();
+  const seatSummaries = Array.isArray(stage.seatSummaries) && stage.seatSummaries.length
+    ? stage.seatSummaries
+    : [
+        { id: 'A', text: 'Seat A' },
+        { id: 'B', text: 'Seat B' },
+        { id: 'C', text: 'Seat C' }
+      ];
+  const seatOrder = seatSummaries.map(summary => String(summary.id).toUpperCase());
+  const selected = Array.isArray(stageState.selectedHands)
+    ? new Set(stageState.selectedHands.map(value => String(value).toUpperCase()).filter(value => seatOrder.includes(value)))
+    : new Set();
   const select = new StringSelectMenuBuilder()
     .setCustomId(`jobshift|${session.sessionId}|select`)
-    .setPlaceholder('Pick winning hand(s)')
+    .setPlaceholder('Select winning seat(s)')
     .setMinValues(1)
-    .setMaxValues(3);
-  for (let i = 0; i < 3; i += 1) {
-    const value = `hand-${i + 1}`;
+    .setMaxValues(seatSummaries.length);
+  seatSummaries.forEach(summary => {
+    const value = String(summary.id).toUpperCase();
     select.addOptions({
-      label: `Hand ${i + 1}`,
+      label: summary.text,
       value,
       default: selected.has(value)
     });
-  }
+  });
   return new ActionRowBuilder().addComponents(select);
 }
 
