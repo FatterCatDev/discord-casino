@@ -1825,10 +1825,10 @@ export async function startJobShift(interaction, ctx, jobInput) {
 
   const currentStage = stages[0];
   session.stageState = createStageState(session, currentStage);
-  const embed = buildStageEmbed(session, currentStage, kittenMode);
+  const embeds = buildStageEmbeds(session, currentStage, kittenMode);
   const components = buildStageComponents(session, currentStage);
 
-  return await respond({ embeds: [embed], components });
+  return await respond({ embeds, components });
 }
 
 export async function cancelActiveShiftForUser(guildId, userId) {
