@@ -571,7 +571,7 @@ function buildStageEmbed(session, stage, kittenMode) {
   if (job.id === 'dealer') {
     descriptionLines.push('');
     descriptionLines.push('Select all winning seat(s) from the dropdown, then press Continue.');
-    descriptionLines.push('Finish under 10s for 20 pts — after 30s the stage loses 1 pt per second.');
+    descriptionLines.push('Finish under 15s for 20 pts, under 30s for 18 pts, under 40s for 15 pts. After that the table sheds 1 pt each second.');
   }
 
   const embed = new EmbedBuilder()
@@ -592,8 +592,8 @@ function buildStageEmbed(session, stage, kittenMode) {
         name: say('Tips', 'Tips'),
         value: job.id === 'dealer'
           ? say(
-            'Pick every winning seat fast: <10s pays 20 pts, <20s pays 18 pts, <30s pays 15 pts — after that you lose 1 pt per second. Three attempts max.',
-            'Select every winning seat quickly: under 10s is 20 pts, under 20s is 18 pts, under 30s is 15 pts, then -1 pt per second. Only three submissions per table.'
+            'Pick every winning seat fast: <15s pays 20 pts, <30s pays 18 pts, <40s pays 15 pts — after that you lose 1 pt per second. Three attempts max.',
+            'Select every winning seat quickly: under 15s is 20 pts, under 30s is 18 pts, under 40s is 15 pts, then -1 pt per second. Only three submissions per table.'
           )
           : say(
             'First-try clears pay 18 base points (+2 under 6s, +1 under 10s). You get three attempts before the stage busts.',
