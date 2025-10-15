@@ -1563,9 +1563,16 @@ export async function startJobShift(interaction, ctx, jobInput) {
   };
 
   if (session.awaitingStart) {
-    const introEmbed = buildBouncerIntroEmbed(session, kittenMode);
-    const introComponents = buildBouncerIntroComponents(session);
-    return await respond({ embeds: [introEmbed], components: introComponents });
+    if (session.jobId === 'bouncer') {
+      const introEmbed = buildBouncerIntroEmbed(session, kittenMode);
+      const introComponents = buildBouncerIntroComponents(session);
+      return await respond({ embeds: [introEmbed], components: introComponents });
+    }
+    if (session.jobId === 'dealer') {
+      const introEmbed = buildDealerIntroEmbed(session, kittenMode);
+      const introComponents = [buildDealerIntroRow(session.sessionId)];
+      return await respond({ embeds: [introEmbed], components: introComponents });
+    }
   }
 
   const currentStage = stages[0];
