@@ -554,6 +554,13 @@ function buildStageComponents(session, stage) {
   if (session.jobId === 'bouncer') {
     return buildBouncerStageComponents(session, stage);
   }
+  if (session.jobId === 'dealer') {
+    return [
+      buildDealerSelectRow(session, stage),
+      buildDealerActionRow(session.sessionId),
+      buildCancelRow(session.sessionId)
+    ];
+  }
   const rows = chunkButtons(stage.options, session.sessionId);
   rows.push(buildCancelRow(session.sessionId));
   return rows;
