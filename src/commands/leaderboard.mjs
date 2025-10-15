@@ -1,11 +1,13 @@
 import { getTopUsers } from '../db/db.auto.mjs';
 import { emoji } from '../lib/emojis.mjs';
+import { createLeaderboardSession, renderLeaderboardPage } from '../lib/leaderboardSessions.mjs';
 
 export default async function handleLeaderboard(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
-  const limit = interaction.options.getInteger('limit') ?? 10;
-  const rows = await getTopUsers(interaction.guild?.id, limit);
+  const pageSize = 10;
+  const maxEntries = pageSize * 10;
+  const rows = await getTopUsers(interaction.guild?.id, maxEntries);
   if (!rows.length) {
     return interaction.reply({
       content: say(`${emoji('chartDown')} No Kittens have claimed any chips yet. Be the first to indulge!`, `${emoji('chartDown')} No players with chips yet. Be the first to earn some!`),
@@ -44,9 +46,19 @@ export default async function handleLeaderboard(interaction, ctx) {
       `${rank} **${name}** — **${fmt.format(Number(r.chips || 0))}**`
     );
   }));
-  const title = say(`${emoji('trophy')} Global Chip Leaderboard — My Top ${rows.length} Kittens`, `${emoji('trophy')} Global Chip Leaderboard (Top ${rows.length})`);
-  return interaction.reply({
-    content: `**${title}**\n${lines.join('\n')}`,
-    ephemeral: false
-  });
+  const topCount = Math.min(rows.length, maxEntries);
+  const title = say(
+    `${emoji('trophy')} Global Chip Leaderboard — Top ${topCount} Kittens`,
+    `${emoji('trophy')} Global Chip Leaderboard (Top ${topCount})`
+  );
+
+  const sessionId = createLeaderboardSession({ title, lines });
+  const payload = renderLeaderboardPage(sessionId, 0);
+  if (!payload) {
+    return interaction.reply({
+      content: say('❌ I could not open the leaderboard right now, Kitten.', '❌ Failed to build the leaderboard. Try again in a moment.'),
+      ephemeral: true
+    });
+  }
+  return interaction.reply({ ...payload, ephemeral: false });
 }
