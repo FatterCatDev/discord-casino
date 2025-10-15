@@ -1,5 +1,7 @@
 import crypto from 'node:crypto';
 
+const JOB_PAYOUT_DIVISOR = 5;
+
 export const JOB_SHIFT_STAGE_COUNT = 5;
 
 // XP thresholds to reach the next rank (Rank 1 -> 2 etc.)
@@ -83,7 +85,7 @@ export function performanceToBasePay(rank, performanceScore) {
   const maxPay = maxPayForRank(rank);
   if (maxPay <= 0) return 0;
   const perf = clampPerformance(performanceScore);
-  return Math.floor(maxPay * (perf / 100) / 5);
+  return Math.floor(maxPay * (perf / 100) / JOB_PAYOUT_DIVISOR);
 }
 
 const TIP_OPTIONS = Array.from({ length: 21 }, (_, percent) => ({
