@@ -622,6 +622,10 @@ function buildBartenderIntroEmbed(session, kittenMode) {
       `${emoji('warning')} ${say(
         'Shake or stir to finish the drink. You only have three attempts before the guest walks.',
         'Select Shake or Stir to finish. Three attempts max before the order is lost.'
+      )}`,
+      `${emoji('target')} ${say(
+        'Use the ingredient pickers from left to right — blanks are valid if the recipe leaves a slot empty.',
+        'Set each ingredient dropdown in order. Choose the blank option when the recipe skips a slot.'
       )}`
     ].join('\n'));
   return embed;
@@ -647,6 +651,10 @@ function buildBouncerIntroEmbed(session, kittenMode) {
       `${emoji('warning')} ${say(
         'You get three chances per wave — wrong calls cost you the stage.',
         'Only three mistakes per wave before the stage fails, so double-check your picks.'
+      )}`,
+      `${emoji('doorOpen')} ${say(
+        'Use the select menu to tag approved guests, then hit Continue to lock the lineup.',
+        'Select every guest you plan to admit, then press Continue to confirm the wave.'
       )}`
     ].join('\n'));
   return embed;
@@ -673,6 +681,10 @@ function buildDealerIntroEmbed(session, kittenMode) {
         'Use the dropdown to mark every winning seat. Submit within 10 seconds for full payout — after 30s the bank skims a point per second.',
         'Select every winning seat from the dropdown. Finishing under 10s pays 20 points; after 30s the table bleeds one point per second.'
       )}`,
+      `${emoji('doorOpen')} ${say(
+        'Press Continue to lock in your seats. You can revisit the dropdown until you submit.',
+        'Confirm your picks with Continue — you may reopen the dropdown until you submit.'
+      )}`
       `${emoji('warning')} ${say(
         'You still only get three attempts — bust the table and you lose the pot.',
         'You have three attempts per table. Blow them all and the table busts.'
