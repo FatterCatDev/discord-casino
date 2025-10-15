@@ -475,6 +475,10 @@ function buildStageEmbed(session, stage, kittenMode) {
     descriptionLines.push('');
     descriptionLines.push(...stage.options.map(opt => `**${opt.id}.** ${opt.label}`));
   }
+  if (job.id === 'dealer') {
+    descriptionLines.push('');
+    descriptionLines.push('Select all winning hands from the dropdown, then press Continue.');
+  }
 
   const embed = new EmbedBuilder()
     .setColor(COLORS[job.id] || COLORS.default)
