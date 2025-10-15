@@ -571,6 +571,7 @@ function buildStageEmbed(session, stage, kittenMode) {
   if (job.id === 'dealer') {
     descriptionLines.push('');
     descriptionLines.push('Select all winning seat(s) from the dropdown, then press Continue.');
+    descriptionLines.push('Finish under 10s for 20 pts — after 30s the stage loses 1 pt per second.');
   }
 
   const embed = new EmbedBuilder()
