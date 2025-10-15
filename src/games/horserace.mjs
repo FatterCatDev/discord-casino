@@ -95,7 +95,8 @@ async function acknowledgeInteraction(interaction) {
 }
 
 const DISPLAY_TRACK_LENGTH = 20;
-const TRACK_LINE_WIDTH = 70;
+const TRACK_FILLED_CHAR = '▰';
+const TRACK_EMPTY_CHAR = '▱';
 
 function pickHorseNames() {
   const pool = [...HORSE_NAME_POOL];
@@ -110,7 +111,7 @@ function renderTrack(progress) {
   const ratio = progress / TRACK_LENGTH;
   const filledTicks = Math.min(DISPLAY_TRACK_LENGTH, Math.max(0, Math.round(DISPLAY_TRACK_LENGTH * ratio)));
   const emptyTicks = DISPLAY_TRACK_LENGTH - filledTicks;
-  return `${'■'.repeat(filledTicks)}${'░'.repeat(emptyTicks)}`;
+  return `${TRACK_FILLED_CHAR.repeat(filledTicks)}${TRACK_EMPTY_CHAR.repeat(emptyTicks)}`;
 }
 
 function getHorseLabel(state, index) {
@@ -119,11 +120,10 @@ function getHorseLabel(state, index) {
 
 function buildHorseLine(state, index, progress) {
   const blockColor = HORSE_BLOCK_EMOJIS[index] ?? '■';
-  const labelName = `${blockColor} ${HORSE_ICON_BLOCK} ${getHorseLabel(state, index)}`.padEnd(18);
-  const track = `│${renderTrack(progress)}│`;
-  const progressText = `${progress}`;
-  const spaces = ' '.repeat(Math.max(1, TRACK_LINE_WIDTH - labelName.length - track.length - progressText.length - 1));
-  return `${labelName}${spaces}${track} ${progressText}`;
+  const labelName = getHorseLabel(state, index);
+  const track = renderTrack(progress);
+  const clampedProgress = Math.max(0, Math.min(progress, TRACK_LENGTH));
+  return `${blockColor} ${HORSE_ICON_BLOCK} **${labelName}**\n${track} ${clampedProgress}/${TRACK_LENGTH}`;
 }
 
 function summarizeBets(state) {
