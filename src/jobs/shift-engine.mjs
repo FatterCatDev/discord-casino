@@ -333,19 +333,12 @@ function buildBartenderStageEmbeds(session, stage, kittenMode) {
   const stageState = session.stageState || createStageState(session, stage);
   const menu = getBartenderData(session)?.menu || [];
   const drink = stage.drink ?? {};
-  const techniqueLabel = (drink.technique || '').toUpperCase();
-
-  const orderLines = [
-    `**${drink.name || say('Mystery Order', 'Unknown Order')}**`,
-    say('Check the lounge menu for the exact build.', 'Check the lounge menu for the full recipe.'),
-    '',
-    `${say('Finish', 'Finish')}: **${techniqueLabel || '—'}**`
-  ];
+  const orderName = drink.name || say('Mystery Order', 'Unknown Order');
 
   const orderEmbed = new EmbedBuilder()
     .setColor(COLORS[job.id] || COLORS.default)
     .setTitle(`${emoji('clipboard')} ${say('Order Ticket', 'Order Ticket')}`)
-    .setDescription(orderLines.join('\n'));
+    .setDescription(`**${orderName}**`);
 
   const embed = new EmbedBuilder()
     .setColor(COLORS[job.id] || COLORS.default)
@@ -378,13 +371,13 @@ function buildBartenderStageEmbeds(session, stage, kittenMode) {
   }
 
   const recipeLines = bartenderMenuLines(menu);
-  const recipeEntry = recipeLines.find(line => line.includes(drink.name)) ?? recipeLines[0];
-  if (recipeEntry) {
+  const menuChunks = chunkTextLines(recipeLines);
+  menuChunks.forEach((chunk, idx) => {
     embed.addFields({
-      name: say('Tonight’s Menu', 'Tonight’s Menu'),
-      value: recipeEntry
+      name: idx === 0 ? say('Tonight’s Menu', 'Tonight’s Menu') : say('Menu (cont.)', 'Menu (cont.)'),
+      value: chunk
     });
-  }
+  });
 
   if (Array.isArray(session.history) && session.history.length) {
     embed.addFields({
