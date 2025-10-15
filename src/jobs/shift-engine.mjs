@@ -640,7 +640,7 @@ function buildBouncerIntroEmbed(session, kittenMode) {
         'Each wave shows a checklist. Verify age, outfit, and wristband before approving anyone.',
         'Every group comes with a checklist. Confirm age, attire, and wristband before letting guests in.'
       )}`,
-      `${emoji('magnifyingGlass')} ${say(
+      `${emoji('target')} ${say(
         'Open the queue to review guests in order. Deny troublemakers, approve matches, and keep the line moving.',
         'Open the queue to inspect guests sequentially. Approve those who match the checklist and leave the rest outside.'
       )}`,
