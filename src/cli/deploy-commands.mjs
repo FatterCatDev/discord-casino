@@ -226,9 +226,6 @@ const commands = [
   {
     name: 'leaderboard',
     description: 'Show the top chip balances.',
-    options: [
-      { name: 'limit', description: 'How many to show (max 25)', type: 4, required: false, min_value: 1, max_value: 25 }
-    ]
   },
   {
     name: 'givecredits',
