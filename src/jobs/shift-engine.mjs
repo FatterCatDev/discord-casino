@@ -103,6 +103,30 @@ function chunkButtons(options, sessionId) {
   return rows;
 }
 
+function normalizeDealerSelection(selection) {
+  if (!Array.isArray(selection) || !selection.length) return '';
+  const seatLetters = ['A', 'B', 'C'];
+  const allowed = ['hand-1', 'hand-2', 'hand-3'];
+  const indices = selection
+    .map(value => allowed.indexOf(value))
+    .filter(index => index >= 0 && index < seatLetters.length);
+  if (!indices.length) return '';
+  const unique = Array.from(new Set(indices)).sort((a, b) => a - b);
+  return unique.map(index => seatLetters[index]).join('');
+}
+
+function renderDealerSelection(selection) {
+  if (!Array.isArray(selection) || !selection.length) return 'No selection';
+  const allowed = ['hand-1', 'hand-2', 'hand-3'];
+  const labels = ['Hand 1', 'Hand 2', 'Hand 3'];
+  const indices = selection
+    .map(value => allowed.indexOf(value))
+    .filter(index => index >= 0 && index < labels.length);
+  if (!indices.length) return 'No selection';
+  const unique = Array.from(new Set(indices)).sort((a, b) => a - b);
+  return unique.map(index => labels[index]).join(', ');
+}
+
 function buildHistoryLines(session) {
   if (!session.history.length) return 'No stages completed yet.';
   return session.history.map(item => {
