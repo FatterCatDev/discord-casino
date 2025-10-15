@@ -1502,9 +1502,9 @@ export async function handleJobShiftButton(interaction, ctx) {
     session.awaitingStart = false;
     session.stageState = createStageState(session, stage);
     refreshSessionTimeout(session);
-    const embed = buildStageEmbed(session, stage, session.kittenMode);
+    const embeds = buildStageEmbeds(session, stage, session.kittenMode);
     const components = buildStageComponents(session, stage);
-    return interaction.update({ embeds: [embed], components });
+    return interaction.update({ embeds, components });
   }
 
   if (session.awaitingStart) {
@@ -1553,9 +1553,9 @@ export async function handleJobShiftButton(interaction, ctx) {
     registerBartenderAction(stageState);
     stageState.picks[slotIndex] = value || blank;
     stageState.lastFeedback = null;
-    const embed = buildStageEmbed(session, stage, session.kittenMode);
+    const embeds = buildStageEmbeds(session, stage, session.kittenMode);
     const components = buildStageComponents(session, stage);
-    return interaction.update({ embeds: [embed], components });
+    return interaction.update({ embeds, components });
   }
 
   if (action === 'submit' && session.jobId === 'bouncer') {
