@@ -1323,7 +1323,7 @@ export async function handleJobShiftButton(interaction, ctx) {
       return true;
     }
 
-    await interaction.reply({ content: result.message || `${emoji('warning')} Not quite right.`, ephemeral: true });
+    await replyEphemeral(interaction, { content: result.message || `${emoji('warning')} Not quite right.` });
     const embed = buildStageEmbed(session, stage, session.kittenMode);
     const components = buildStageComponents(session, stage);
     await interaction.message.edit({ embeds: [embed], components });
