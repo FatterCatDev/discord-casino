@@ -1613,6 +1613,11 @@ export async function startJobShift(interaction, ctx, jobInput) {
       const introComponents = [buildDealerIntroRow(session.sessionId)];
       return await respond({ embeds: [introEmbed], components: introComponents });
     }
+    if (session.jobId === 'bartender') {
+      const introEmbed = buildBartenderIntroEmbed(session, kittenMode);
+      const introComponents = buildBartenderIntroComponents(session);
+      return await respond({ embeds: [introEmbed], components: introComponents });
+    }
   }
 
   const currentStage = stages[0];
