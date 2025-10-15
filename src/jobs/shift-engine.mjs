@@ -413,17 +413,12 @@ function buildBouncerStageEmbeds(session, stage, kittenMode) {
   const lineupLines = normalizeBlock(lineupIndex >= 0 ? promptLines.slice(lineupIndex, splitIdx) : []);
   const tailLines = normalizeBlock(promptLines.slice(splitIdx));
 
-  const lineupSections = [];
-  if (checklistLines.length) lineupSections.push(checklistLines.join('\n'));
-  if (lineupLines.length) {
-    if (lineupSections.length) lineupSections.push('');
-    lineupSections.push(lineupLines.join('\n'));
-  }
-  const lineupText = lineupSections.join('\n');
+  const lineupText = lineupLines.join('\n').trim();
+  const checklistText = checklistLines.join('\n').trim();
   const lineupEmbed = new EmbedBuilder()
     .setColor(COLORS[job.id] || COLORS.default)
     .setTitle(`${emoji('doorOpen')} ${say('Velvet Rope Lineup', 'Velvet Rope Lineup')}`)
-    .setDescription(lineupText.trim().length ? lineupText : say('Lineup details unavailable.', 'Lineup details unavailable.'));
+    .setDescription(lineupText.length ? lineupText : say('Lineup details unavailable.', 'Lineup details unavailable.'));
 
   const descriptionLines = [];
   if (tailLines.length) {
@@ -444,6 +439,10 @@ function buildBouncerStageEmbeds(session, stage, kittenMode) {
     .setDescription(descriptionLines.join('\n\n'));
 
   const fields = [
+    {
+      name: say('Checkpoint Checklist', 'Checkpoint Checklist'),
+      value: checklistText.length ? checklistText : say('Checklist unavailable.', 'Checklist unavailable.')
+    },
     {
       name: say('Score So Far', 'Score So Far'),
       value: `${session.totalScore} / 100`
