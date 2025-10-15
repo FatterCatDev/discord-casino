@@ -1304,12 +1304,12 @@ export async function handleJobShiftButton(interaction, ctx) {
   if (action === 'continue' && session.jobId === 'dealer') {
     const selected = Array.isArray(stageState.selectedHands) ? stageState.selectedHands : [];
     if (!selected.length) {
-      await replyEphemeral(interaction, { content: `${emoji('warning')} Choose at least one hand before continuing.` });
+      await replyEphemeral(interaction, { content: `${emoji('warning')} Choose at least one seat before continuing.` });
       return true;
     }
     const normalized = normalizeDealerSelection(selected, stage);
     if (!normalized) {
-      await replyEphemeral(interaction, { content: `${emoji('warning')} Invalid hand selection. Try again.` });
+      await replyEphemeral(interaction, { content: `${emoji('warning')} Invalid seat selection. Try again.` });
       return true;
     }
     const attemptLabel = renderDealerSelection(selected, stage);
