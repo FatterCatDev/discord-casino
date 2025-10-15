@@ -1459,8 +1459,8 @@ async function handleIncorrect(interaction, session, stage, stageState) {
 
     const nextStage = session.stages[session.stageIndex];
     session.stageState = createStageState(session, nextStage);
-    const embed = buildStageEmbed(session, nextStage, session.kittenMode);
-    return interaction.update({ embeds: [embed], components: buildStageComponents(session, nextStage) });
+    const embeds = buildStageEmbeds(session, nextStage, session.kittenMode);
+    return interaction.update({ embeds, components: buildStageComponents(session, nextStage) });
   }
 
   return replyEphemeral(interaction, {
