@@ -360,6 +360,34 @@ function buildBartenderStageComponents(session, stage) {
   ];
 }
 
+function buildDealerSelectRow(session, stage) {
+  const stageState = session.stageState || createStageState(session, stage);
+  const selected = Array.isArray(stageState.selectedHands) ? new Set(stageState.selectedHands) : new Set();
+  const select = new StringSelectMenuBuilder()
+    .setCustomId(`jobshift|${session.sessionId}|select`)
+    .setPlaceholder('Pick winning hand(s)')
+    .setMinValues(1)
+    .setMaxValues(3);
+  for (let i = 0; i < 3; i += 1) {
+    const value = `hand-${i + 1}`;
+    select.addOptions({
+      label: `Hand ${i + 1}`,
+      value,
+      default: selected.has(value)
+    });
+  }
+  return new ActionRowBuilder().addComponents(select);
+}
+
+function buildDealerActionRow(sessionId) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`jobshift|${sessionId}|continue`)
+      .setLabel('Continue')
+      .setStyle(ButtonStyle.Primary)
+  );
+}
+
 function evaluateBartenderSubmission(session, stage) {
   const blank = getBlankValue(session);
   const state = session.stageState || createStageState(session, stage);
