@@ -350,7 +350,13 @@ function createRandomDealerStage(index) {
   const seatIds = ['A', 'B', 'C'];
   const seatSummaries = handStrings.map((hand, idx) => ({
     id: seatIds[idx],
-    text: `Seat ${seatIds[idx]}: ${hand}`
+    text: `Seat ${seatIds[idx]}: ${handCards[idx]
+      .map(card => {
+        const rankName = RANK_NAMES[card.value] || card.rank;
+        const suitName = SUIT_SUMMARY_NAMES[card.suitKey] || card.suitKey.replace(/^poker/i, '');
+        return `${rankName} of ${suitName}`;
+      })
+      .join(', ')}`
   }));
 
   const bestEvaluation = evaluations[winners[0]];
