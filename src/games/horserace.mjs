@@ -165,8 +165,9 @@ function calculateHouseTotals(state, payouts = []) {
 
 function createRaceTrackEmbed(state) {
   const trackLines = Array.from({ length: HORSE_COUNT }, (_, idx) => buildHorseLine(state, idx, state.progress[idx]));
-  const description = '```\n' + trackLines.join('\n') + '\n```';
-  return new EmbedBuilder().setDescription(description);
+  return new EmbedBuilder()
+    .setTitle(`${emoji('horseRace')} Track`)
+    .setDescription(trackLines.join('\n\n'));
 }
 
 function createRaceEmbed(state, options = {}) {
