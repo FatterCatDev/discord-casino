@@ -1169,27 +1169,27 @@ export async function handleJobShiftButton(interaction, ctx) {
   if (prefix !== 'jobshift') return false;
   const session = sessionsById.get(sessionId);
   if (!session) {
-    await interaction.reply({ content: `${emoji('warning')} Shift session expired.`, ephemeral: true });
+    await replyEphemeral(interaction, { content: `${emoji('warning')} Shift session expired.` });
     return true;
   }
   if (interaction.user.id !== session.userId) {
-    await interaction.reply({ content: `${emoji('warning')} Only the assigned staff member can respond to this shift.`, ephemeral: true });
+    await replyEphemeral(interaction, { content: `${emoji('warning')} Only the assigned staff member can respond to this shift.` });
     return true;
   }
   if (session.status !== 'ACTIVE') {
-    await interaction.reply({ content: `${emoji('warning')} This shift is already wrapped.`, ephemeral: true });
+    await replyEphemeral(interaction, { content: `${emoji('warning')} This shift is already wrapped.` });
     return true;
   }
 
   const stage = session.stages[session.stageIndex];
   if (!stage) {
-    await interaction.reply({ content: `${emoji('warning')} Stage not found for this shift.`, ephemeral: true });
+    await replyEphemeral(interaction, { content: `${emoji('warning')} Stage not found for this shift.` });
     return true;
   }
 
   if (action === 'start') {
     if (!session.awaitingStart) {
-      await interaction.reply({ content: `${emoji('info')} Shift already underway.`, ephemeral: true });
+      await replyEphemeral(interaction, { content: `${emoji('info')} Shift already underway.` });
       return true;
     }
     session.awaitingStart = false;
@@ -1201,7 +1201,7 @@ export async function handleJobShiftButton(interaction, ctx) {
   }
 
   if (session.awaitingStart) {
-    await interaction.reply({ content: `${emoji('info')} Press “Open Queue” to begin this shift.`, ephemeral: true });
+    await replyEphemeral(interaction, { content: `${emoji('info')} Press “Open Queue” to begin this shift.` });
     return true;
   }
 
@@ -1230,7 +1230,7 @@ export async function handleJobShiftButton(interaction, ctx) {
     const blank = getBlankValue(session);
     const value = interaction.values?.[0] ?? blank;
     if (!Number.isInteger(slotIndex) || slotIndex < 0 || slotIndex > 3) {
-      await interaction.reply({ content: `${emoji('warning')} Invalid ingredient slot.`, ephemeral: true });
+      await replyEphemeral(interaction, { content: `${emoji('warning')} Invalid ingredient slot.` });
       return true;
     }
     registerBartenderAction(stageState);
@@ -1263,12 +1263,12 @@ export async function handleJobShiftButton(interaction, ctx) {
   if (action === 'continue' && session.jobId === 'dealer') {
     const selected = Array.isArray(stageState.selectedHands) ? stageState.selectedHands : [];
     if (!selected.length) {
-      await interaction.reply({ content: `${emoji('warning')} Choose at least one hand before continuing.`, ephemeral: true });
+      await replyEphemeral(interaction, { content: `${emoji('warning')} Choose at least one hand before continuing.` });
       return true;
     }
     const normalized = normalizeDealerSelection(selected);
     if (!normalized) {
-      await interaction.reply({ content: `${emoji('warning')} Invalid hand selection. Try again.`, ephemeral: true });
+      await replyEphemeral(interaction, { content: `${emoji('warning')} Invalid hand selection. Try again.` });
       return true;
     }
     const attemptLabel = renderDealerSelection(selected);
@@ -1286,7 +1286,7 @@ export async function handleJobShiftButton(interaction, ctx) {
 
   if (action === 'technique' && isBartenderStage(stage, session)) {
     if (payload !== 'shake' && payload !== 'stir') {
-      await interaction.reply({ content: `${emoji('warning')} Unknown technique option.`, ephemeral: true });
+      await replyEphemeral(interaction, { content: `${emoji('warning')} Unknown technique option.` });
       return true;
     }
     registerBartenderAction(stageState);
