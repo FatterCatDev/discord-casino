@@ -1141,7 +1141,7 @@ async function handleCorrect(interaction, ctx, session, stage, stageState) {
     record.penalties = Math.max(0, Math.floor(stageState.penalties || 0));
   }
   if (session.jobId === 'dealer') {
-    record.correct = renderDealerAnswer(stage.correct);
+    record.correct = renderDealerAnswer(stage.correct, stage);
   }
   appendHistory(session, record);
   session.stageState = null;
