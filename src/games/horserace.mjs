@@ -122,8 +122,8 @@ function buildHorseLine(state, index, progress) {
   const blockColor = HORSE_BLOCK_EMOJIS[index] ?? HORSE_COLOR_EMOJIS[0];
   const labelName = getHorseLabel(state, index);
   const track = renderTrack(progress);
-  const clampedProgress = Math.max(0, Math.min(progress, TRACK_LENGTH));
-  return `${blockColor} ${HORSE_ICON_BLOCK} **${labelName}**\n${track} ${clampedProgress}/${TRACK_LENGTH}`;
+  const progressDisplay = Math.max(0, Math.round(progress));
+  return `${blockColor} ${HORSE_ICON_BLOCK} **${labelName}**\n${track} ${progressDisplay}/${TRACK_LENGTH}`;
 }
 
 function summarizeBets(state) {
