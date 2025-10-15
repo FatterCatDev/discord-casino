@@ -1522,7 +1522,7 @@ export async function startJobShift(interaction, ctx, jobInput) {
     stageIndex: 0,
     stages,
     stageState: null,
-    awaitingStart: jobId === 'bouncer',
+    awaitingStart: jobId === 'bouncer' || jobId === 'dealer',
     history: [],
     status: 'ACTIVE',
     ctx,
