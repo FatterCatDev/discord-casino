@@ -199,7 +199,7 @@ function calculateDealerScore(elapsedMs) {
 function buildHistoryLines(session) {
   if (!session.history.length) return 'No stages completed yet.';
   return session.history.map(item => {
-    const icon = item.status === 'success' ? '✅' : '❌';
+    const icon = item.status === 'success' ? emoji('check') : emoji('cross');
     let detail = `${icon} Stage ${item.stageNumber}: ${item.title} — ${item.totalScore} pts`;
     if (item.status === 'success') {
       const attemptText = item.attempts === 1 ? 'first try' : item.attempts === 2 ? 'second try' : 'final try';
@@ -438,7 +438,7 @@ function buildBartenderControlRow(session, stage) {
     new ButtonBuilder()
       .setCustomId(`jobshift|${session.sessionId}|cancel`)
       .setLabel('End Shift')
-      .setEmoji('🛑')
+      .setEmoji(emoji('stopSign'))
       .setStyle(ButtonStyle.Secondary)
   );
 }
@@ -491,7 +491,7 @@ function buildDealerIntroRow(sessionId) {
     new ButtonBuilder()
       .setCustomId(`jobshift|${sessionId}|cancel`)
       .setLabel('End Shift')
-      .setEmoji('🛑')
+      .setEmoji(emoji('stopSign'))
       .setStyle(ButtonStyle.Secondary)
   );
 }
@@ -762,7 +762,7 @@ function buildBouncerIntroComponents(session) {
       new ButtonBuilder()
         .setCustomId(`jobshift|${session.sessionId}|cancel`)
         .setLabel('End Shift')
-        .setEmoji('🛑')
+        .setEmoji(emoji('stopSign'))
         .setStyle(ButtonStyle.Secondary)
     )
   ];
@@ -778,7 +778,7 @@ function buildBartenderIntroComponents(session) {
       new ButtonBuilder()
         .setCustomId(`jobshift|${session.sessionId}|cancel`)
         .setLabel('End Shift')
-        .setEmoji('🛑')
+        .setEmoji(emoji('stopSign'))
         .setStyle(ButtonStyle.Secondary)
     )
   ];
@@ -806,7 +806,7 @@ function buildBouncerStageComponents(session, stage) {
       new ButtonBuilder()
         .setCustomId(`jobshift|${session.sessionId}|cancel`)
         .setLabel('End Shift')
-        .setEmoji('🛑')
+        .setEmoji(emoji('stopSign'))
         .setStyle(ButtonStyle.Secondary)
     )
   ];
@@ -817,7 +817,7 @@ function buildCancelRow(sessionId) {
     new ButtonBuilder()
       .setCustomId(`jobshift|${sessionId}|cancel`)
       .setLabel('End Shift')
-      .setEmoji('🛑')
+      .setEmoji(emoji('stopSign'))
       .setStyle(ButtonStyle.Secondary)
   );
 }
@@ -1037,7 +1037,7 @@ function buildCompletionEmbed(session, outcome) {
   fields.push({
     name: say('Stage Recap', 'Stage Recap'),
     value: session.history.map(item => {
-      const icon = item.status === 'success' ? '✅' : '❌';
+      const icon = item.status === 'success' ? emoji('check') : emoji('cross');
       return `${icon} Stage ${item.stageNumber}: ${item.title} — ${item.totalScore} pts`;
     }).join('\n') || say('No stages completed.', 'No stages completed.')
   });
