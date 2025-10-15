@@ -389,6 +389,85 @@ function buildBartenderStageEmbeds(session, stage, kittenMode) {
   return [orderEmbed, embed];
 }
 
+function buildBouncerStageEmbeds(session, stage, kittenMode) {
+  const say = (kitten, normal) => (kittenMode ? kitten : normal);
+  const job = session.job;
+  const jobIcon = jobDisplayIcon(job);
+  const stageNumber = session.stageIndex + 1;
+  const totalStages = session.stages.length;
+  const promptLines = String(stage.prompt ?? '').split('\n');
+  const normalizeBlock = (lines = []) => {
+    let start = 0;
+    let end = lines.length;
+    while (start < end && !String(lines[start]).trim()) start += 1;
+    while (end > start && !String(lines[end - 1]).trim()) end -= 1;
+    return lines.slice(start, end);
+  };
+  const lineupIndex = promptLines.findIndex(line => line.trim().toLowerCase() === 'lineup:');
+  const questionIndex = promptLines.findIndex(line => {
+    const trimmed = line.trim().toLowerCase();
+    return /^who gets in\??$/.test(trimmed) || trimmed.startsWith('select the group outcome');
+  });
+  const splitIdx = questionIndex === -1 ? promptLines.length : questionIndex;
+  const checklistLines = normalizeBlock(promptLines.slice(0, lineupIndex >= 0 ? lineupIndex : splitIdx));
+  const lineupLines = normalizeBlock(lineupIndex >= 0 ? promptLines.slice(lineupIndex, splitIdx) : []);
+  const tailLines = normalizeBlock(promptLines.slice(splitIdx));
+
+  const lineupSections = [];
+  if (checklistLines.length) lineupSections.push(checklistLines.join('\n'));
+  if (lineupLines.length) {
+    if (lineupSections.length) lineupSections.push('');
+    lineupSections.push(lineupLines.join('\n'));
+  }
+  const lineupText = lineupSections.join('\n');
+  const lineupEmbed = new EmbedBuilder()
+    .setColor(COLORS[job.id] || COLORS.default)
+    .setTitle(`${emoji('doorOpen')} ${say('Velvet Rope Lineup', 'Velvet Rope Lineup')}`)
+    .setDescription(lineupText.trim().length ? lineupText : say('Lineup details unavailable.', 'Lineup details unavailable.'));
+
+  const descriptionLines = [];
+  if (tailLines.length) {
+    descriptionLines.push(tailLines.join('\n'));
+  }
+  descriptionLines.push(say(
+    'Tag every approved guest in the dropdown, then press Continue.',
+    'Select the guests you’ll admit in the dropdown, then press Continue.'
+  ));
+  descriptionLines.push(say(
+    'Three mistakes end this checkpoint — deny anyone you’re unsure about.',
+    'Three mistakes end the checkpoint, so deny any uncertain guests.'
+  ));
+
+  const mainEmbed = new EmbedBuilder()
+    .setColor(COLORS[job.id] || COLORS.default)
+    .setTitle(`${jobIcon} ${job.displayName} Shift — Stage ${stageNumber}/${totalStages}`)
+    .setDescription(descriptionLines.join('\n\n'));
+
+  const fields = [
+    {
+      name: say('Score So Far', 'Score So Far'),
+      value: `${session.totalScore} / 100`
+    },
+    {
+      name: say('Tips', 'Tips'),
+      value: say(
+        'Verify age, wardrobe, wristband, and the guest list before you approve anyone.',
+        'Double-check age, outfit, wristband, and guest list status before admitting guests.'
+      )
+    }
+  ];
+
+  if (Array.isArray(session.history) && session.history.length) {
+    fields.push({
+      name: say('Stage History', 'Stage History'),
+      value: buildHistoryLines(session)
+    });
+  }
+
+  mainEmbed.addFields(fields);
+  return [lineupEmbed, mainEmbed];
+}
+
 function buildBartenderIngredientRow(session, slotIndex) {
   const data = getBartenderData(session);
   const blank = getBlankValue(session);
@@ -539,6 +618,9 @@ function jobDisplayIcon(job) {
 function buildStageEmbeds(session, stage, kittenMode) {
   if (isBartenderStage(stage, session)) {
     return buildBartenderStageEmbeds(session, stage, kittenMode);
+  }
+  if (session.jobId === 'bouncer') {
+    return buildBouncerStageEmbeds(session, stage, kittenMode);
   }
   const job = session.job;
   const stageNumber = session.stageIndex + 1;
