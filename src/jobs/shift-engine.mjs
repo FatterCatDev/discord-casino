@@ -394,7 +394,7 @@ function buildBartenderStageComponents(session, stage) {
 }
 
 function buildDealerSelectRow(session, stage) {
-  const stageState = session.stageState || createStageState(session, stage);
+  const stageState = session.stageState || (session.stageState = createStageState(session, stage));
   const selected = Array.isArray(stageState.selectedHands) ? new Set(stageState.selectedHands) : new Set();
   const select = new StringSelectMenuBuilder()
     .setCustomId(`jobshift|${session.sessionId}|select`)
