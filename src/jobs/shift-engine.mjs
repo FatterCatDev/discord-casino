@@ -1156,11 +1156,10 @@ async function handleIncorrect(interaction, session, stage, stageState) {
     return interaction.update({ embeds: [embed], components: buildStageComponents(session, nextStage) });
   }
 
-  return interaction.reply({
+  return replyEphemeral(interaction, {
     content: session.kittenMode
       ? `${emoji('warning')} Not quite, Kitten. Try another pick.`
       : `${emoji('warning')} Not quite. Try another pick.`,
-    ephemeral: true
   });
 }
 
