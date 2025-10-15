@@ -7,11 +7,11 @@ export default async function handleLeaderboard(interaction, ctx) {
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
   const pageSize = 10;
   const maxEntries = pageSize * 10;
+  await interaction.deferReply({ ephemeral: false });
   const rows = await getTopUsers(interaction.guild?.id, maxEntries);
   if (!rows.length) {
-    return interaction.reply({
+    return interaction.editReply({
       content: say(`${emoji('chartDown')} No Kittens have claimed any chips yet. Be the first to indulge!`, `${emoji('chartDown')} No players with chips yet. Be the first to earn some!`),
-      ephemeral: false
     });
   }
   const medals = [emoji('medalGold'), emoji('medalSilver'), emoji('medalBronze')];
@@ -55,10 +55,10 @@ export default async function handleLeaderboard(interaction, ctx) {
   const sessionId = createLeaderboardSession({ title, lines });
   const payload = renderLeaderboardPage(sessionId, 0);
   if (!payload) {
-    return interaction.reply({
+    return interaction.editReply({
       content: say('❌ I could not open the leaderboard right now, Kitten.', '❌ Failed to build the leaderboard. Try again in a moment.'),
-      ephemeral: true
+      components: []
     });
   }
-  return interaction.reply({ ...payload, ephemeral: false });
+  return interaction.editReply(payload);
 }
