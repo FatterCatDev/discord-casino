@@ -289,6 +289,28 @@ function bartenderMenuLines(menu) {
   });
 }
 
+function chunkTextLines(lines, limit = 1024) {
+  if (!Array.isArray(lines) || !lines.length) return ['—'];
+  const chunks = [];
+  let current = '';
+  for (const line of lines) {
+    const next = current ? `${current}\n${line}` : line;
+    if (next.length > limit) {
+      if (current) chunks.push(current);
+      if (line.length > limit) {
+        chunks.push(line.slice(0, limit));
+        current = line.slice(limit);
+      } else {
+        current = line;
+      }
+    } else {
+      current = next;
+    }
+  }
+  if (current) chunks.push(current);
+  return chunks.length ? chunks : ['—'];
+}
+
 function formatBartenderBuild(stageState, blankValue) {
   if (!stageState) return '1. —\n2. —\n3. —\n4. —\nTechnique: —';
   const picks = stageState.picks || [];
