@@ -633,17 +633,15 @@ function buildCooldownMessage(kittenMode, availableAt) {
 }
 
 function buildCooldownError(interaction, kittenMode, availableAt) {
-  return interaction.reply({
-    content: buildCooldownMessage(kittenMode, availableAt),
-    ephemeral: true
+  return replyEphemeral(interaction, {
+    content: buildCooldownMessage(kittenMode, availableAt)
   });
 }
 
 function buildActiveSessionError(interaction, kittenMode) {
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
-  return interaction.reply({
-    content: `${emoji('warning')} ${say('You already have a shift in progress, Kitten.', 'You already have an active shift in progress.')}`,
-    ephemeral: true
+  return replyEphemeral(interaction, {
+    content: `${emoji('warning')} ${say('You already have a shift in progress, Kitten.', 'You already have an active shift in progress.')}`
   });
 }
 
