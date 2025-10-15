@@ -4,7 +4,6 @@ version: 1.0.8
 
 ## Changes
 
-<!-- Add one bullet per noteworthy change below. Example: - Improved chip payout handling -->
 - Added detailed `/job` briefings for Bartender, Bouncer, and Dealer, including start gating and updated UI hints.
 - Refined job shift scoring: dealer stages use tiered timers (20 pts <15s, 18 pts <30s, 15 pts <40s, then 45 − seconds) plus updated tips/prompts.
 - Dealer mini-game UI now uses seat summaries for labels, multi-select dropdown, continue flow, and emoji-free text.
