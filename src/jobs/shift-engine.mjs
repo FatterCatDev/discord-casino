@@ -753,28 +753,19 @@ function buildCancelRow(sessionId) {
 function buildStageComponents(session, stage) {
   if (isBartenderStage(stage, session)) {
     if (session.awaitingStart) {
-      return [
-        ...buildBartenderIntroComponents(session),
-        buildCancelRow(session.sessionId)
-      ];
+      return buildBartenderIntroComponents(session);
     }
     return buildBartenderStageComponents(session, stage);
   }
   if (session.jobId === 'bouncer') {
     if (session.awaitingStart) {
-      return [
-        ...buildBouncerIntroComponents(session),
-        buildCancelRow(session.sessionId)
-      ];
+      return buildBouncerIntroComponents(session);
     }
     return buildBouncerStageComponents(session, stage);
   }
   if (session.jobId === 'dealer') {
     if (session.awaitingStart) {
-      return [
-        buildDealerIntroRow(session.sessionId),
-        buildCancelRow(session.sessionId)
-      ];
+      return [buildDealerIntroRow(session.sessionId)];
     }
     return [
       buildDealerSelectRow(session, stage),
