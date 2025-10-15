@@ -42,7 +42,7 @@ export const EMOJI = {
   coinStack: '<:chips:1427920821179121776>',
   plus: '➕',
   minus: '➖',
-  cocktail: '🍸',
+  cocktail: '<:cocktail:1427938221878149180>',
 
   // Rewards & events
   gift: '<:gift:1427921007137525863>',
