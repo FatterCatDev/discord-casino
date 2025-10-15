@@ -103,6 +103,25 @@ function chunkButtons(options, sessionId) {
   return rows;
 }
 
+function ensureEphemeralPayload(payload) {
+  if (typeof payload === 'string') {
+    return { content: payload, ephemeral: true };
+  }
+  if (!payload || typeof payload !== 'object') {
+    return { ephemeral: true };
+  }
+  if (payload.ephemeral === true) return payload;
+  return { ...payload, ephemeral: true };
+}
+
+function replyEphemeral(interaction, payload) {
+  return interaction.reply(ensureEphemeralPayload(payload));
+}
+
+function followUpEphemeral(interaction, payload) {
+  return interaction.followUp(ensureEphemeralPayload(payload));
+}
+
 function normalizeDealerSelection(selection) {
   if (!Array.isArray(selection) || !selection.length) return '';
   const seatLetters = ['A', 'B', 'C'];
