@@ -1318,7 +1318,7 @@ export async function handleJobShiftButton(interaction, ctx) {
     if (stageState.attempts >= 3) {
       await handleIncorrect(interaction, session, stage, stageState);
       if (result.message) {
-        await interaction.followUp({ content: result.message, ephemeral: true });
+        await followUpEphemeral(interaction, { content: result.message });
       }
       return true;
     }
