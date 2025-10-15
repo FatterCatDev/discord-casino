@@ -1151,7 +1151,9 @@ export async function handleJobShiftButton(interaction, ctx) {
   if (isSelectMenu) {
     if (session.jobId === 'dealer' && action === 'select') {
       const values = Array.isArray(interaction.values) ? interaction.values : [];
-      const unique = Array.from(new Set(values.filter(value => /^hand-[1-3]$/.test(value))));
+      const allowed = ['hand-1', 'hand-2', 'hand-3'];
+      const unique = Array.from(new Set(values.filter(value => allowed.includes(value))));
+      unique.sort((a, b) => allowed.indexOf(a) - allowed.indexOf(b));
       stageState.selectedHands = unique;
       await interaction.deferUpdate();
       return true;
