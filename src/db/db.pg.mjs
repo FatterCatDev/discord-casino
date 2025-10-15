@@ -665,6 +665,31 @@ export async function listUsersWithPendingVoteRewards(limit = 50) {
   return rows.map(row => row.discord_user_id);
 }
 
+export async function eraseUserData(discordId) {
+  const userId = String(discordId || '').trim();
+  if (!userId) throw new Error('ERASE_USER_ID_REQUIRED');
+  return tx(async c => {
+    const deleted = {};
+    deleted.users = (await c.query('DELETE FROM users WHERE discord_id = $1', [userId])).rowCount;
+    deleted.transactions = (await c.query('DELETE FROM transactions WHERE account = $1', [userId])).rowCount;
+    deleted.dailySpin = (await c.query('DELETE FROM daily_spin_last WHERE user_id = $1', [userId])).rowCount;
+    deleted.requestLast = (await c.query('DELETE FROM request_last WHERE user_id = $1', [userId])).rowCount;
+    deleted.voteRewards = (await c.query('DELETE FROM vote_rewards WHERE discord_user_id = $1', [userId])).rowCount;
+    deleted.jobProfiles = (await c.query('DELETE FROM job_profiles WHERE user_id = $1', [userId])).rowCount;
+    deleted.jobStatus = (await c.query('DELETE FROM job_status WHERE user_id = $1', [userId])).rowCount;
+    deleted.jobShifts = (await c.query('DELETE FROM job_shifts WHERE user_id = $1', [userId])).rowCount;
+    deleted.activeRequests = (await c.query('DELETE FROM active_requests WHERE user_id = $1', [userId])).rowCount;
+    deleted.holdemEscrow = (await c.query('DELETE FROM holdem_escrow WHERE user_id = $1', [userId])).rowCount;
+    deleted.holdemCommits = (await c.query('DELETE FROM holdem_commits WHERE user_id = $1', [userId])).rowCount;
+    deleted.modAssignments = (await c.query('DELETE FROM mod_users WHERE user_id = $1', [userId])).rowCount;
+    deleted.adminAssignments = (await c.query('DELETE FROM admin_users WHERE user_id = $1', [userId])).rowCount;
+    const updated = {};
+    updated.transactionsAdmin = (await c.query('UPDATE transactions SET admin_id = NULL WHERE admin_id = $1', [userId])).rowCount;
+    updated.holdemTablesHost = (await c.query('UPDATE holdem_tables SET host_id = NULL WHERE host_id = $1', [userId])).rowCount;
+    return { userId, deleted, updated };
+  });
+}
+
 export async function grantCredits(guildId, discordId, amount, reason, adminId) {
   const gid = resolveGuildId(guildId);
   const amt = Number(amount);
