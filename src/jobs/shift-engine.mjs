@@ -189,9 +189,9 @@ function formatSeconds(seconds) {
 
 function calculateDealerScore(elapsedMs) {
   const seconds = Math.floor(elapsedMs / 1000);
-  if (seconds < 10) return 20;
-  if (seconds < 20) return 18;
-  if (seconds < 30) return 15;
+  if (seconds < 15) return 20;
+  if (seconds < 30) return 18;
+  if (seconds < 40) return 15;
   const penalty = Math.max(0, seconds - 30);
   return Math.max(0, 15 - penalty);
 }
