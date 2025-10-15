@@ -341,6 +341,12 @@ function createRandomDealerStage(index) {
   const boardString = boardCards.map(card => card.label).join(' ');
   const handStrings = handCards.map(hand => hand.map(card => card.label).join(' '));
 
+  const seatIds = ['A', 'B', 'C'];
+  const seatSummaries = handStrings.map((hand, idx) => ({
+    id: seatIds[idx],
+    text: `Seat ${seatIds[idx]}: ${hand}`
+  }));
+
   const bestEvaluation = evaluations[winners[0]];
   const categoryName = CATEGORY_NAMES[bestEvaluation.category] || 'High Card';
   const difficulty = determineStageDifficulty(bestEvaluation);
@@ -352,7 +358,8 @@ function createRandomDealerStage(index) {
     prompt: createPrompt(boardString, handStrings),
     options: DEALER_OPTIONS,
     correct,
-    details: buildDetails(winners, evaluations)
+    details: buildDetails(winners, evaluations),
+    seatSummaries
   };
 }
 
