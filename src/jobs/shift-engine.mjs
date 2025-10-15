@@ -601,6 +601,22 @@ function buildBouncerIntroEmbed(session, kittenMode) {
   return embed;
 }
 
+function buildDealerIntroEmbed(session, kittenMode) {
+  const say = (kitten, normal) => (kittenMode ? kitten : normal);
+  const job = session.job;
+  const jobIcon = jobDisplayIcon(job);
+  const embed = new EmbedBuilder()
+    .setColor(COLORS[job.id] || COLORS.default)
+    .setTitle(`${jobIcon} ${job.displayName} Shift — Briefing`)
+    .setDescription([
+      say('Ready to deal, Kitten?', 'Ready to deal today?'),
+      say('Tap “Start Dealing” to reveal the first table.', 'Press “Start Dealing” to reveal Stage 1.'),
+      say('Pick every winning seat from the dropdown once cards are live.', 'Use the dropdown to choose every winning seat once the cards are shown.'),
+      say('You get three tries per table — make them count!', 'You have three attempts per table, so choose carefully.')
+    ].join('\n'));
+  return embed;
+}
+
 function buildBouncerIntroComponents(session) {
   return [
     new ActionRowBuilder().addComponents(
