@@ -1,5 +1,5 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
-import { updateActiveRequestStatus, clearActiveRequest, mintChips, burnFromUser } from '../db/db.auto.mjs';
+import { updateActiveRequestStatus, clearActiveRequest, mintChips, burnFromUser, eraseUserData } from '../db/db.auto.mjs';
 import { emoji } from '../lib/emojis.mjs';
 
 export default async function handleRequestButtons(interaction, ctx) {
@@ -7,7 +7,7 @@ export default async function handleRequestButtons(interaction, ctx) {
   const action = parts[1]; // 'take' | 'done' | 'reject'
   const targetId = parts[2];
   const type = parts[3]; // 'buyin' | 'cashout'
-  const amount = Number(parts[4]);
+  const amount = Number(parts[4]) || 0;
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
   if (!(await ctx.isModerator(interaction))) {
@@ -16,16 +16,21 @@ export default async function handleRequestButtons(interaction, ctx) {
   const msg = interaction.message;
   const orig = msg.embeds?.[0];
   const embed = orig ? EmbedBuilder.from(orig) : new EmbedBuilder();
+  const typeLabel = type === 'buyin' ? 'Buy In' : type === 'cashout' ? 'Cash Out' : 'Erase Account Data';
+  const completeLabel = type === 'erase' ? 'Erase User Data' : 'Request Complete';
 
   if (action === 'take') {
     const fields = Array.isArray(orig?.fields) ? orig.fields.map(f => ({ name: f.name, value: f.value, inline: f.inline })) : [];
     const idx = fields.findIndex(f => f.name === 'Status');
-    if (idx >= 0) fields[idx].value = say(`In Progress — Your sultry Kitten <@${interaction.user.id}> is on the case`, `In Progress — Taken by <@${interaction.user.id}>`);
-    else fields.push({ name: 'Status', value: say(`In Progress — Your sultry Kitten <@${interaction.user.id}> is on the case`, `In Progress — Taken by <@${interaction.user.id}>`) });
+    const takingText = type === 'erase'
+      ? say(`In Progress — Your vigilant Kitten <@${interaction.user.id}> is validating the erasure`, `In Progress — Data review by <@${interaction.user.id}>`)
+      : say(`In Progress — Your sultry Kitten <@${interaction.user.id}> is on the case`, `In Progress — Taken by <@${interaction.user.id}>`);
+    if (idx >= 0) fields[idx].value = takingText;
+    else fields.push({ name: 'Status', value: takingText });
     embed.setFields(fields);
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId(`req|take|${targetId}|${type}|${amount}`).setLabel('Take Request').setStyle(ButtonStyle.Primary).setDisabled(true),
-      new ButtonBuilder().setCustomId(`req|done|${targetId}|${type}|${amount}`).setLabel('Request Complete').setStyle(ButtonStyle.Success),
+      new ButtonBuilder().setCustomId(`req|done|${targetId}|${type}|${amount}`).setLabel(completeLabel).setStyle(ButtonStyle.Success),
       new ButtonBuilder().setCustomId(`req|reject|${targetId}|${type}|${amount}`).setLabel('Reject Request').setStyle(ButtonStyle.Danger)
     );
     try { await updateActiveRequestStatus(interaction.guild.id, targetId, 'TAKEN'); } catch {}
@@ -79,6 +84,48 @@ export default async function handleRequestButtons(interaction, ctx) {
           await user.send(dm);
         } catch {}
         // try { const user = await interaction.client.users.fetch(targetId); await user.send(`${emoji('moneyWings')} Cash Out: Easy now, Kitten <@${targetId}> — your balance bends to your desires.`); } catch {}
+      } else if (type === 'erase') {
+        const summary = await eraseUserData(targetId);
+        try {
+          const user = await interaction.client.users.fetch(targetId);
+          const dm = say(
+            `${emoji('warning')} Your whispers were heard, Kitten — all of your Semuta Casino data has been erased at the request you made. Processed by ${interaction.user.tag}.`,
+            `${emoji('warning')} Your Semuta Casino data has been erased. Processed by ${interaction.user.tag}.`
+          );
+          await user.send(dm);
+        } catch {}
+        const fields = Array.isArray(orig?.fields) ? orig.fields.map(f => ({ name: f.name, value: f.value, inline: f.inline })) : [];
+        const idx = fields.findIndex(f => f.name === 'Status');
+        const statusValue = say(`Complete — Data scrubbed by <@${interaction.user.id}>`, `Completed by <@${interaction.user.id}> — data erased`);
+        if (idx >= 0) fields[idx].value = statusValue;
+        else fields.push({ name: 'Status', value: statusValue });
+
+        const deleted = summary?.deleted || {};
+        const updated = summary?.updated || {};
+        const totalDeleted = Object.values(deleted).reduce((acc, val) => acc + (Number(val) || 0), 0);
+        const totalUpdated = Object.values(updated).reduce((acc, val) => acc + (Number(val) || 0), 0);
+        const details = [];
+        if (totalDeleted > 0) details.push(`Records purged: **${totalDeleted}**`);
+        if (totalUpdated > 0) details.push(`Records anonymized: **${totalUpdated}**`);
+        const trims = Object.entries(deleted)
+          .filter(([, count]) => count > 0)
+          .slice(0, 6)
+          .map(([key, count]) => `• ${key}: ${count}`);
+        if (trims.length) details.push(trims.join('\n'));
+        if (details.length) {
+          const summaryFieldIdx = fields.findIndex(f => f.name.toLowerCase() === 'erasure summary');
+          const value = details.join('\n');
+          if (summaryFieldIdx >= 0) fields[summaryFieldIdx].value = value;
+          else fields.push({ name: 'Erasure Summary', value });
+        }
+        embed.setFields(fields);
+        const row = new ActionRowBuilder().addComponents(
+          new ButtonBuilder().setCustomId(`req|take|${targetId}|${type}|${amount}`).setLabel('Take Request').setStyle(ButtonStyle.Primary).setDisabled(true),
+          new ButtonBuilder().setCustomId(`req|done|${targetId}|${type}|${amount}`).setLabel(completeLabel).setStyle(ButtonStyle.Success).setDisabled(true),
+          new ButtonBuilder().setCustomId(`req|reject|${targetId}|${type}|${amount}`).setLabel('Reject Request').setStyle(ButtonStyle.Danger).setDisabled(true)
+        );
+        try { await clearActiveRequest(interaction.guild.id, targetId); } catch {}
+        return interaction.update({ embeds: [embed], components: [row] });
       } else {
         return interaction.reply({ content: say('❌ I don’t recognize that request type, Kitten.', '❌ Unknown request type.'), ephemeral: true });
       }
@@ -90,7 +137,7 @@ export default async function handleRequestButtons(interaction, ctx) {
       embed.setFields(fields);
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`req|take|${targetId}|${type}|${amount}`).setLabel('Take Request').setStyle(ButtonStyle.Primary).setDisabled(true),
-        new ButtonBuilder().setCustomId(`req|done|${targetId}|${type}|${amount}`).setLabel('Request Complete').setStyle(ButtonStyle.Success).setDisabled(true),
+        new ButtonBuilder().setCustomId(`req|done|${targetId}|${type}|${amount}`).setLabel(completeLabel).setStyle(ButtonStyle.Success).setDisabled(true),
         new ButtonBuilder().setCustomId(`req|reject|${targetId}|${type}|${amount}`).setLabel('Reject Request').setStyle(ButtonStyle.Danger).setDisabled(true)
       );
       try { await clearActiveRequest(interaction.guild.id, targetId); } catch {}
