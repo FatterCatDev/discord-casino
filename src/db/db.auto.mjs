@@ -72,6 +72,7 @@ export const grantCredits = pick('grantCredits');
 export const burnCredits = pick('burnCredits');
 export const gameLoseWithCredits = pick('gameLoseWithCredits');
 export const gameWinWithCredits = pick('gameWinWithCredits');
+export const eraseUserData = pick('eraseUserData');
 
 // Jobs
 export const ensureJobProfile = pick('ensureJobProfile');
