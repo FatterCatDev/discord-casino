@@ -333,20 +333,14 @@ function buildBartenderStageEmbeds(session, stage, kittenMode) {
   const menu = getBartenderData(session)?.menu || [];
   const menuChunks = chunkTextLines(bartenderMenuLines(menu));
   const drink = stage.drink ?? {};
-  const ingredientLines = Array.isArray(drink.ingredients)
-    ? drink.ingredients.map((item, idx) => `${idx + 1}. ${item}`)
-    : [];
   const techniqueLabel = (drink.technique || '').toUpperCase();
 
   const orderLines = [
     `**${drink.name || say('Mystery Order', 'Unknown Order')}**`,
-    ''
+    say('Check the lounge menu for the exact build.', 'Check the lounge menu for the full recipe.'),
+    '',
+    `${say('Finish', 'Finish')}: **${techniqueLabel || '—'}**`
   ];
-  if (ingredientLines.length) {
-    orderLines.push(...ingredientLines);
-    orderLines.push('');
-  }
-  orderLines.push(`${say('Finish', 'Finish')}: **${techniqueLabel || '—'}**`);
 
   const orderEmbed = new EmbedBuilder()
     .setColor(COLORS[job.id] || COLORS.default)
@@ -356,11 +350,7 @@ function buildBartenderStageEmbeds(session, stage, kittenMode) {
   const embed = new EmbedBuilder()
     .setColor(COLORS[job.id] || COLORS.default)
     .setTitle(`${jobIcon} ${job.displayName} Shift — Stage ${stageNumber}/${totalStages}`)
-    .setDescription([
-      stage.prompt,
-      '',
-      say('Select each ingredient in order, Kitten, then finish with the right move.', 'Pick each ingredient in order, then choose the correct finish.')
-    ].join('\n'))
+    .setDescription(stage.prompt)
     .addFields(
       {
         name: say('Score So Far', 'Score So Far'),
@@ -369,24 +359,8 @@ function buildBartenderStageEmbeds(session, stage, kittenMode) {
       {
         name: say('Your Build', 'Your Build'),
         value: formatBartenderBuild(stageState, blank)
-      },
-      {
-        name: say('Stage History', 'Stage History'),
-        value: buildHistoryLines(session)
       }
     );
-
-  const limit = JOB_SHIFT_STREAK_LIMIT;
-  const beforeRemaining = Number(session.shiftStatusBefore?.shiftsRemaining ?? limit);
-  const afterRemaining = Math.max(0, beforeRemaining - 1);
-  const streakAfter = Math.min(limit, Number(session.shiftStatusBefore?.streakCount ?? 0) + 1);
-  embed.addFields({
-    name: say('Rest Tracker', 'Rest Tracker'),
-    value: say(
-      `After this run you’ll have **${afterRemaining}** ${afterRemaining === 1 ? 'shift' : 'shifts'} before cooldown.`,
-      `After this run you’ll have **${afterRemaining}** ${afterRemaining === 1 ? 'shift' : 'shifts'} before the ${formatDuration(JOB_SHIFT_STREAK_COOLDOWN_SECONDS)} rest (${streakAfter}/${limit} this burst).`
-    )
-  });
 
   const penaltyTotal = Math.max(0, Math.floor(stageState.penalties || 0));
   embed.addFields({
@@ -403,12 +377,21 @@ function buildBartenderStageEmbeds(session, stage, kittenMode) {
     });
   }
 
-  menuChunks.forEach((chunk, idx) => {
+  const recipeLines = bartenderMenuLines(menu);
+  const recipeEntry = recipeLines.find(line => line.includes(drink.name)) ?? recipeLines[0];
+  if (recipeEntry) {
     embed.addFields({
-      name: idx === 0 ? say('Tonight’s Menu', 'Tonight’s Menu') : say('Menu (cont.)', 'Menu (cont.)'),
-      value: chunk
+      name: say('Tonight’s Menu', 'Tonight’s Menu'),
+      value: recipeEntry
     });
-  });
+  }
+
+  if (Array.isArray(session.history) && session.history.length) {
+    embed.addFields({
+      name: say('Stage History', 'Stage History'),
+      value: buildHistoryLines(session)
+    });
+  }
 
   return [orderEmbed, embed];
 }
