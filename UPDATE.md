@@ -10,3 +10,4 @@ version: 1.0.9
 - Added `scripts/list-application-emojis.mjs` to dump the bot’s application emoji inventory from the CLI.
 - Introduced paginated `/leaderboard` output (10 pages × 10 players) with interactive navigation buttons backed by a session cache.
 - Defers leaderboard replies and ignores expired interaction errors to eliminate recurring Discord `10062` Unknown interaction logs.
+- Published `docs/tos.md` and `docs/privacy-policy.md`, and wired `/request` erasure tickets through the global review flow with a one-click purge for moderators.
