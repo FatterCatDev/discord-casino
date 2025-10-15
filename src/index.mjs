@@ -569,6 +569,12 @@ client.on(Events.InteractionCreate, async interaction => {
       return onRequestButtons(interaction, ctx);
     }
 
+    // Leaderboard buttons
+    else if (interaction.isButton() && interaction.customId.startsWith('leader|')) {
+      const mod = await import('./interactions/leaderboardButtons.mjs');
+      return mod.default(interaction);
+    }
+
     // Roulette select menus
     else if (interaction.isStringSelectMenu() && interaction.customId === 'rou|type') {
       const ctx = buildCommandContext(interaction, ctxExtras);
