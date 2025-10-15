@@ -12,7 +12,7 @@ Discord bot for a lightweight casino economy with two currencies and multiple mi
 
 Balances are global: the House bank and user wallets follow players across every guild where the bot runs. The economy owner (Discord ID `94915805375889408`) retains ultimate control over minting and burning.
 
-Includes slash commands for balances, leaderboards, admin operations, cash/request workflows, logging, and the following games: Ride the Bus, Blackjack, Slots, Roulette, Dice War, Horse Race, and a Texas Hold’em table.
+Includes slash commands for balances, leaderboards, admin operations, cash/request workflows, logging, a five-stage job system, and the following games: Ride the Bus, Blackjack, Slots, Roulette, Dice War, Horse Race, and a Texas Hold’em table.
 
 > **Note on UI Icons:** For any player-facing components (buttons, select menus, interactive text), use standard Unicode emojis or plain text. Avoid referencing custom server emojis in interactive UI so the controls render consistently across guilds.
 
