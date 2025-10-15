@@ -1029,11 +1029,14 @@ export function getActiveRequest(guildId, userId) {
 }
 export function createActiveRequest(guildId, userId, messageId, type, amount) {
   if (!guildId || !userId || !messageId) throw new Error('ACTIVE_REQ_PARAMS');
-  if (!Number.isInteger(amount) || amount <= 0) throw new Error('ACTIVE_REQ_AMOUNT');
+  const normalizedType = String(type || 'unknown');
+  let normalizedAmount = Number.isInteger(amount) ? amount : 0;
+  if (normalizedType !== 'erase' && normalizedAmount <= 0) throw new Error('ACTIVE_REQ_AMOUNT');
+  if (normalizedType === 'erase') normalizedAmount = 0;
   // Ensure none exists already; caller should check, but double-guard
   const existing = getActiveRequest(guildId, userId);
   if (existing) throw new Error('ACTIVE_REQ_EXISTS');
-  insertActiveReqStmt.run(guildId, userId, messageId, String(type || 'unknown'), amount, 'PENDING');
+  insertActiveReqStmt.run(guildId, userId, messageId, normalizedType, normalizedAmount, 'PENDING');
   return getActiveRequest(guildId, userId);
 }
 export function updateActiveRequestStatus(guildId, userId, status) {
