@@ -125,37 +125,62 @@ function followUpEphemeral(interaction, payload) {
   return interaction.followUp(ensureEphemeralPayload(payload));
 }
 
-function normalizeDealerSelection(selection) {
+function normalizeDealerSelection(selection, stage) {
   if (!Array.isArray(selection) || !selection.length) return '';
-  const seatLetters = ['A', 'B', 'C'];
-  const allowed = ['hand-1', 'hand-2', 'hand-3'];
-  const indices = selection
-    .map(value => allowed.indexOf(value))
-    .filter(index => index >= 0 && index < seatLetters.length);
-  if (!indices.length) return '';
-  const unique = Array.from(new Set(indices)).sort((a, b) => a - b);
-  return unique.map(index => seatLetters[index]).join('');
+  const seatSummaries = Array.isArray(stage?.seatSummaries) && stage.seatSummaries.length
+    ? stage.seatSummaries
+    : [
+        { id: 'A', text: 'Seat A' },
+        { id: 'B', text: 'Seat B' },
+        { id: 'C', text: 'Seat C' }
+      ];
+  const seatOrder = seatSummaries.map(summary => String(summary.id).toUpperCase());
+  const allowed = new Set(seatOrder);
+  const filtered = selection
+    .map(value => String(value).toUpperCase())
+    .filter(value => allowed.has(value));
+  if (!filtered.length) return '';
+  const unique = Array.from(new Set(filtered));
+  unique.sort((a, b) => seatOrder.indexOf(a) - seatOrder.indexOf(b));
+  return unique.join('');
 }
 
-function renderDealerSelection(selection) {
+function renderDealerSelection(selection, stage) {
   if (!Array.isArray(selection) || !selection.length) return 'No selection';
-  const allowed = ['hand-1', 'hand-2', 'hand-3'];
-  const labels = ['Hand 1', 'Hand 2', 'Hand 3'];
-  const indices = selection
-    .map(value => allowed.indexOf(value))
-    .filter(index => index >= 0 && index < labels.length);
-  if (!indices.length) return 'No selection';
-  const unique = Array.from(new Set(indices)).sort((a, b) => a - b);
-  return unique.map(index => labels[index]).join(', ');
+  const seatSummaries = Array.isArray(stage?.seatSummaries) && stage.seatSummaries.length
+    ? stage.seatSummaries
+    : [
+        { id: 'A', text: 'Seat A' },
+        { id: 'B', text: 'Seat B' },
+        { id: 'C', text: 'Seat C' }
+      ];
+  const seatMap = new Map(seatSummaries.map(summary => [String(summary.id).toUpperCase(), summary.text]));
+  const seatOrder = seatSummaries.map(summary => String(summary.id).toUpperCase());
+  const filtered = selection
+    .map(value => String(value).toUpperCase())
+    .filter(value => seatMap.has(value));
+  if (!filtered.length) return 'No selection';
+  const unique = Array.from(new Set(filtered));
+  unique.sort((a, b) => seatOrder.indexOf(a) - seatOrder.indexOf(b));
+  return unique.map(id => seatMap.get(id) ?? `Seat ${id}`).join(', ');
 }
 
-function renderDealerAnswer(code) {
+function renderDealerAnswer(code, stage) {
   if (!code) return 'No selection';
-  const labels = { A: 'Hand 1', B: 'Hand 2', C: 'Hand 3' };
-  const chars = String(code).toUpperCase().split('').filter(ch => labels[ch]);
+  const seatSummaries = Array.isArray(stage?.seatSummaries) && stage.seatSummaries.length
+    ? stage.seatSummaries
+    : [
+        { id: 'A', text: 'Seat A' },
+        { id: 'B', text: 'Seat B' },
+        { id: 'C', text: 'Seat C' }
+      ];
+  const seatMap = new Map(seatSummaries.map(summary => [String(summary.id).toUpperCase(), summary.text]));
+  const seatOrder = seatSummaries.map(summary => String(summary.id).toUpperCase());
+  const chars = String(code).toUpperCase().split('').filter(ch => seatMap.has(ch));
   if (!chars.length) return 'No selection';
-  const unique = Array.from(new Set(chars)).sort((a, b) => a.localeCompare(b));
-  return unique.map(ch => labels[ch]).join(', ');
+  const unique = Array.from(new Set(chars));
+  unique.sort((a, b) => seatOrder.indexOf(a) - seatOrder.indexOf(b));
+  return unique.map(ch => seatMap.get(ch) ?? `Seat ${ch}`).join(', ');
 }
 
 function buildHistoryLines(session) {
