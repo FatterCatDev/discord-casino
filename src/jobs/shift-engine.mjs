@@ -1237,10 +1237,11 @@ function stageTimeoutSeconds(attempts) {
 
 async function cancelSession(session, { editOriginal = false } = {}) {
   const say = (kitten, normal) => (session.kittenMode ? kitten : normal);
+  const briefingOnly = session.awaitingStart === true;
 
   clearSession(session);
   await completeJobShift(session.shiftId, {
-    resultState: 'CANCELLED',
+    resultState: briefingOnly ? 'BRIEFING_CANCELLED' : 'CANCELLED',
     metadata: buildMetadata(session, {
       performanceScore: session.totalScore,
       xpEarned: 0,
@@ -1251,17 +1252,24 @@ async function cancelSession(session, { editOriginal = false } = {}) {
       tipPercent: 0,
       tipAmount: 0,
       totalPayout: 0,
-      payoutStatus: 'CANCELLED'
+      payoutStatus: briefingOnly ? 'NONE' : 'CANCELLED'
     })
   });
-  await updateJobProfile(session.guildId, session.userId, session.jobId, {
+  const profileUpdate = {
     lastShiftAt: session.previousLastShiftAt ?? null,
     rank: session.profileBefore.rank,
     totalXp: session.profileBefore.totalXp,
     xpToNext: session.profileBefore.xpToNext
-  });
+  };
+  if (briefingOnly) {
+    profileUpdate.shiftsRemaining = Number(session.shiftStatusBefore?.shiftsRemaining ?? JOB_SHIFT_STREAK_LIMIT);
+    profileUpdate.shiftStreakCount = Number(session.shiftStatusBefore?.streakCount ?? 0);
+  }
+  await updateJobProfile(session.guildId, session.userId, session.jobId, profileUpdate);
 
-  const message = `${emoji('warning')} ${say('Shift cancelled — no penalties applied.', 'Shift cancelled. No XP or chips were awarded.')}`;
+  const message = briefingOnly
+    ? `${emoji('warning')} ${say('Briefing cancelled — shift never started.', 'Briefing cancelled before the shift started.')}`
+    : `${emoji('warning')} ${say('Shift cancelled — no penalties applied.', 'Shift cancelled. No XP or chips were awarded.')}`;
 
   if (editOriginal && session.client && session.channelId && session.messageId) {
     try {
