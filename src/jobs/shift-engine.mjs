@@ -1309,7 +1309,7 @@ export async function handleJobShiftButton(interaction, ctx) {
       await replyEphemeral(interaction, { content: `${emoji('warning')} Invalid hand selection. Try again.` });
       return true;
     }
-    const attemptLabel = renderDealerSelection(selected);
+    const attemptLabel = renderDealerSelection(selected, stage);
     stageState.attempts += 1;
     stageState.attemptsLog.push({
       optionId: attemptLabel,
