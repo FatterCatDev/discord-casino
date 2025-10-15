@@ -469,6 +469,20 @@ function buildDealerSelectRow(session, stage) {
   return new ActionRowBuilder().addComponents(select);
 }
 
+function buildDealerIntroRow(sessionId) {
+  return new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId(`jobshift|${sessionId}|start`)
+      .setLabel('Start Dealing')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
+      .setCustomId(`jobshift|${sessionId}|cancel`)
+      .setLabel('End Shift')
+      .setEmoji('🛑')
+      .setStyle(ButtonStyle.Secondary)
+  );
+}
+
 function buildDealerActionRow(sessionId) {
   return new ActionRowBuilder().addComponents(
     new ButtonBuilder()
