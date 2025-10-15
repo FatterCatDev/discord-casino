@@ -68,68 +68,15 @@ const DEALER_OPTIONS = [
   { id: 'ABC', label: 'All seats split' }
 ];
 
-const DEALER_STAGE_TEMPLATES = [
-  {
-    id: 'dealer-warmup',
-    title: 'Warm-Up Table',
-    difficulty: 'easy',
-    board: ['8♣', '9♦', 'T♠', 'J♥', '2♣'],
-    hands: [
-      ['Q♣', 'K♦'],
-      ['T♦', 'T♥'],
-      ['A♠', '4♠']
-    ],
-    correct: 'A'
-  },
-  {
-    id: 'dealer-fullhouse',
-    title: 'Full House Showdown',
-    difficulty: 'medium',
-    board: ['5♣', '5♦', 'K♠', 'K♥', '9♠'],
-    hands: [
-      ['A♣', '9♦'],
-      ['T♣', 'T♦'],
-      ['K♦', 'Q♦']
-    ],
-    correct: 'C'
-  },
-  {
-    id: 'dealer-flush-pressure',
-    title: 'Flush Pressure',
-    difficulty: 'medium',
-    board: ['2♠', '7♠', 'T♠', 'J♠', 'K♦'],
-    hands: [
-      ['Q♠', '9♣'],
-      ['K♣', 'K♥'],
-      ['A♣', 'Q♦']
-    ],
-    correct: 'A'
-  },
-  {
-    id: 'dealer-wheel-sneak',
-    title: 'Wheel Sneak Attack',
-    difficulty: 'hard',
-    board: ['A♦', '2♣', '3♥', '9♣', 'K♠'],
-    hands: [
-      ['4♠', '5♠'],
-      ['Q♦', 'Q♣'],
-      ['A♣', '9♦']
-    ],
-    correct: 'A'
-  },
-  {
-    id: 'dealer-split-trap',
-    title: 'Split Trap',
-    difficulty: 'hard',
-    board: ['9♣', 'T♦', 'J♣', 'Q♥', 'K♣'],
-    hands: [
-      ['A♠', '2♠'],
-      ['A♦', '9♦'],
-      ['5♣', '5♦']
-    ],
-    correct: 'AB'
+const STANDARD_DECK_TOKENS = (() => {
+  const cards = [];
+  for (const suit of SUIT_TEMPLATES) {
+    for (const rank of RANK_SEQUENCE) {
+      cards.push(`${rank}${suit}`);
+    }
   }
-];
+  return cards;
+})();
 
 function shuffle(array) {
   const copy = array.slice();
@@ -151,22 +98,6 @@ function createSuitMap() {
   const map = new Map();
   for (let i = 0; i < SUIT_TEMPLATES.length; i += 1) {
     map.set(SUIT_TEMPLATES[i], permutation[i]);
-  }
-  return map;
-}
-
-function createRankMap(template) {
-  const tokens = [...template.board, ...template.hands.flat()];
-  const uniqueRanks = Array.from(new Set(tokens.map(token => parseToken(token).rank)));
-  uniqueRanks.sort((a, b) => RANK_TO_VALUE[b] - RANK_TO_VALUE[a]);
-
-  const availableWindow = RANK_SEQUENCE.length - uniqueRanks.length;
-  const startIndex = availableWindow > 0 ? crypto.randomInt(0, availableWindow + 1) : 0;
-  const targetSlice = RANK_SEQUENCE.slice(startIndex, startIndex + uniqueRanks.length).reverse();
-
-  const map = new Map();
-  for (let i = 0; i < uniqueRanks.length; i += 1) {
-    map.set(uniqueRanks[i], targetSlice[i]);
   }
   return map;
 }
@@ -383,65 +314,52 @@ function createPrompt(board, hands) {
   ].join('\n');
 }
 
-function instantiateDealerStage(template) {
-  for (let attempt = 0; attempt < 100; attempt += 1) {
-    const suitMap = createSuitMap();
-    const rankMap = createRankMap(template);
-    const boardCards = template.board.map(token => mapCard(token, rankMap, suitMap));
-    const handCards = template.hands.map(hand => hand.map(token => mapCard(token, rankMap, suitMap)));
+function determineStageDifficulty(evaluation) {
+  if (!evaluation) return 'medium';
+  if (evaluation.category >= 7) return 'hard';
+  if (evaluation.category >= 4) return 'medium';
+  return 'easy';
+}
 
-    const evaluations = handCards.map(hand => evaluateCombination(hand.concat(boardCards)));
-    const winners = determineWinners(evaluations);
-    const correct = winnersToOption(winners);
+function createRandomDealerStage(index) {
+  const deck = shuffle(STANDARD_DECK_TOKENS);
+  const drawCard = () => deck.pop();
 
-    if (correct !== template.correct) continue;
+  const boardTokens = Array.from({ length: 5 }, () => drawCard());
+  const handsTokens = Array.from({ length: 3 }, () => [drawCard(), drawCard()]);
 
-    const boardString = boardCards.map(card => card.label).join(' ');
-    const handStrings = handCards.map(hand => hand.map(card => card.label).join(' '));
+  const suitMap = createSuitMap();
+  const rankMap = new Map(RANK_SEQUENCE.map(rank => [rank, rank]));
 
-    return {
-      id: template.id,
-      title: template.title,
-      difficulty: template.difficulty,
-      prompt: createPrompt(boardString, handStrings),
-      options: DEALER_OPTIONS,
-      correct,
-      details: buildDetails(winners, evaluations)
-    };
-  }
+  const boardCards = boardTokens.map(token => mapCard(token, rankMap, suitMap));
+  const handCards = handsTokens.map(hand => hand.map(token => mapCard(token, rankMap, suitMap)));
 
-  // Fallback to non-randomized representation if randomization fails
-  const identityRankMap = new Map();
-  const tokens = [...template.board, ...template.hands.flat()];
-  const uniqueRanks = Array.from(new Set(tokens.map(token => parseToken(token).rank)));
-  for (const rank of uniqueRanks) identityRankMap.set(rank, rank);
-  const identitySuitMap = new Map();
-  for (let i = 0; i < SUIT_TEMPLATES.length; i += 1) {
-    identitySuitMap.set(SUIT_TEMPLATES[i], SUIT_PERMUTATIONS[i]);
-  }
+  const evaluations = handCards.map(hand => evaluateCombination(hand.concat(boardCards)));
+  const winners = determineWinners(evaluations);
+  const correct = winnersToOption(winners);
 
-  const fallbackBoardCards = template.board.map(token => mapCard(token, identityRankMap, identitySuitMap));
-  const fallbackHandCards = template.hands.map(hand => hand.map(token => mapCard(token, identityRankMap, identitySuitMap)));
-  const fallbackEvaluations = fallbackHandCards.map(hand => evaluateCombination(hand.concat(fallbackBoardCards)));
-  const fallbackWinners = determineWinners(fallbackEvaluations);
-  const fallbackBoardString = fallbackBoardCards.map(card => card.label).join(' ');
-  const fallbackHandStrings = fallbackHandCards.map(hand => hand.map(card => card.label).join(' '));
+  const boardString = boardCards.map(card => card.label).join(' ');
+  const handStrings = handCards.map(hand => hand.map(card => card.label).join(' '));
+
+  const bestEvaluation = evaluations[winners[0]];
+  const categoryName = CATEGORY_NAMES[bestEvaluation.category] || 'High Card';
+  const difficulty = determineStageDifficulty(bestEvaluation);
 
   return {
-    id: template.id,
-    title: template.title,
-    difficulty: template.difficulty,
-    prompt: createPrompt(fallbackBoardString, fallbackHandStrings),
+    id: `dealer-random-${crypto.randomUUID()}`,
+    title: `Table ${index + 1}: ${categoryName}`,
+    difficulty,
+    prompt: createPrompt(boardString, handStrings),
     options: DEALER_OPTIONS,
-    correct: template.correct,
-    details: buildDetails(fallbackWinners, fallbackEvaluations)
+    correct,
+    details: buildDetails(winners, evaluations)
   };
 }
 
-export function generateDealerStages(count = DEALER_STAGE_TEMPLATES.length) {
+export function generateDealerStages(count = 5) {
   const stages = [];
-  for (let i = 0; i < Math.min(count, DEALER_STAGE_TEMPLATES.length); i += 1) {
-    stages.push(instantiateDealerStage(DEALER_STAGE_TEMPLATES[i]));
+  for (let i = 0; i < count; i += 1) {
+    stages.push(createRandomDealerStage(i));
   }
   return stages;
 }
