@@ -1302,12 +1302,12 @@ export async function handleJobShiftButton(interaction, ctx) {
     if (stageState.attempts >= 3) {
       await handleIncorrect(interaction, session, stage, stageState);
       if (result.message) {
-        await interaction.followUp({ content: result.message });
+        await interaction.followUp({ content: result.message, ephemeral: true });
       }
       return true;
     }
 
-    await interaction.reply({ content: result.message || `${emoji('warning')} Not quite right.` });
+    await interaction.reply({ content: result.message || `${emoji('warning')} Not quite right.`, ephemeral: true });
     const embed = buildStageEmbed(session, stage, session.kittenMode);
     const components = buildStageComponents(session, stage);
     await interaction.message.edit({ embeds: [embed], components });
