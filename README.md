@@ -10,7 +10,7 @@ Discord bot for a lightweight casino economy with two currencies and multiple mi
 - Chips: backed by a global House bank shared across every server and used for all payouts.
 - Credits: personal, non‑house currency; burned on losses when used to stake.
 
-Balances are global: the House bank and user wallets follow players across every guild where the bot runs. The economy owner (Discord ID `94915805375889408`) retains ultimate control over minting and burning.
+Balances are global: the House bank and user wallets follow players across every guild where the bot runs. Every chip or credit change writes to the same shared ledger—per-server economies are no longer supported. The economy owner (Discord ID `94915805375889408`) retains ultimate control over minting and burning.
 
 Includes slash commands for balances, leaderboards, admin operations, cash/request workflows, logging, a five-stage job system, and the following games: Ride the Bus, Blackjack, Slots, Roulette, Dice War, Horse Race, and a Texas Hold’em table.
 
