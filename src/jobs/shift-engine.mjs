@@ -543,9 +543,9 @@ function jobDisplayIcon(job) {
   return job?.emojiKey ? emoji(job.emojiKey) : job?.icon || '';
 }
 
-function buildStageEmbed(session, stage, kittenMode) {
+function buildStageEmbeds(session, stage, kittenMode) {
   if (isBartenderStage(stage, session)) {
-    return buildBartenderStageEmbed(session, stage, kittenMode);
+    return [buildBartenderStageEmbed(session, stage, kittenMode)];
   }
   const job = session.job;
   const stageNumber = session.stageIndex + 1;
@@ -564,7 +564,7 @@ function buildStageEmbed(session, stage, kittenMode) {
     )
   };
   const descriptionLines = [];
-  let boardField = null;
+  let boardEmbed = null;
 
   if (job.id === 'dealer') {
     const promptLines = String(stage.prompt ?? '').split('\n');
@@ -608,10 +608,10 @@ function buildStageEmbed(session, stage, kittenMode) {
 
     if (boardCards) {
       const boardTitle = say('Main Board', 'Board');
-      boardField = {
-        name: `${emoji('boardBanner')} ${boardTitle}`,
-        value: `\`\`\`md\n${boardCards}\n\`\`\``
-      };
+      boardEmbed = new EmbedBuilder()
+        .setColor(COLORS[job.id] || COLORS.default)
+        .setTitle(`${emoji('boardBanner')} ${boardTitle}`)
+        .setDescription(`**${boardCards}**`);
     }
   } else if (stage.prompt) {
     descriptionLines.push(`${stage.prompt}`);
@@ -627,14 +627,13 @@ function buildStageEmbed(session, stage, kittenMode) {
     descriptionLines.push('Finish under 15s for 20 pts, under 30s for 18 pts, under 40s for 15 pts. Any slower pays (45 − your time) with zero at 45s.');
   }
 
-  const embed = new EmbedBuilder()
+  const mainEmbed = new EmbedBuilder()
     .setColor(COLORS[job.id] || COLORS.default)
     .setTitle(`${jobIcon} ${job.displayName} Shift — Stage ${stageNumber}/${totalStages}`)
     .setDescription(descriptionLines.join('\n'))
     .setFooter({ text: say('Cancel anytime with End Shift - rest after five shifts (6h cooldown)', 'Cancel anytime with End Shift - rest after five shifts (6h cooldown)') });
 
   const fields = [
-    boardField,
     {
       name: say('Score So Far', 'Score So Far'),
       value: `${session.totalScore} / 100`
@@ -658,8 +657,11 @@ function buildStageEmbed(session, stage, kittenMode) {
     }
   ].filter(Boolean);
 
-  embed.addFields(fields);
-  return embed;
+  mainEmbed.addFields(fields);
+  const embeds = [];
+  if (boardEmbed) embeds.push(boardEmbed);
+  embeds.push(mainEmbed);
+  return embeds;
 }
 
 function buildBartenderIntroEmbed(session, kittenMode) {
