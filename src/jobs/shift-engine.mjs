@@ -115,7 +115,11 @@ function ensureEphemeralPayload(payload) {
 }
 
 function replyEphemeral(interaction, payload) {
-  return interaction.reply(ensureEphemeralPayload(payload));
+  const body = ensureEphemeralPayload(payload);
+  if (interaction.deferred || interaction.replied) {
+    return interaction.followUp(body);
+  }
+  return interaction.reply(body);
 }
 
 function followUpEphemeral(interaction, payload) {
