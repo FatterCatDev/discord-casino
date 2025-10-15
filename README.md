@@ -189,6 +189,14 @@ Tip: verify env parsing with `npm run env`.
 - Users listed in `OWNER_USER_IDS` are treated as admins everywhere, providing a recovery path if no administrators remain.
 - All economy commands (chip grants, requests, resets) act on the shared global ledger—coordinate across servers before running high-impact actions.
 
+## Data Erasure Workflow
+
+- Players start `/request type:Erase Account Data notes:<reason>` from any guild. Validation notes are mandatory; without them the command is rejected.
+- Configure the primary review guild via `PRIMARY_GUILD_ID` (falls back to `GUILD_ID`) and `/setrequestchannel` in that guild — all erasure tickets are posted there regardless of origin.
+- Staff click **Take Request** to claim the ticket, confirm the user’s identity, then press **Erase User Data**. The bot purges ledger balances, requests, vote rewards, job profiles, daily spin history, Hold’em escrow/commits, moderator/admin assignments, and deletes transaction rows where the user was the account (admin IDs are anonymised to `NULL`).
+- The embed records how many rows were deleted or anonymised and the requester receives an automatic DM confirming completion.
+- If the request is invalid, use **Reject Request** with a reason; the user is notified and the cooldown resets so they can refile when ready.
+
 ## Scripts
 - `npm start` – Run the bot (`src/index.mjs`)
 - `npm run deploy` – Register global slash commands (set `CLEAR_GUILD_IDS` to a comma list to wipe guild overrides)
