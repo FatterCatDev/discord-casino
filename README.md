@@ -16,6 +16,13 @@ Includes slash commands for balances, leaderboards, admin operations, cash/reque
 
 > **Note on UI Icons:** For any player-facing components (buttons, select menus, interactive text), use standard Unicode emojis or plain text. Avoid referencing custom server emojis in interactive UI so the controls render consistently across guilds.
 
+## Global Economy
+
+- Chips, Credits, and job progress live in one shared ledger for every guild where the bot runs.
+- `/balance`, `/job`, `/request`, and logging commands always reference the global house and wallet totals.
+- Vote rewards, buy-ins, and game payouts all settle against that same ledger—there is no per-server opt-out.
+- If you previously ran isolated ledgers, keep `ECONOMY_SCOPE=global` and use `GLOBAL_ECONOMY_ID` only when you need to migrate the canonical guild id.
+
 ## Games
 
 All games except Texas Hold’em use Credits‑first staking: your bet draws from your Credits balance first, with any remainder automatically covered by Chips. On loss, the Credits portion is burned; if Chips were used, that portion is transferred to the House. Winnings are always paid in Chips from the House.
