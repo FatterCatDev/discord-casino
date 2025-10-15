@@ -184,6 +184,7 @@ Tip: verify env parsing with `npm run env`.
 - Moderators and admins are tracked by user ID per guild. Use `/addmod user:<@User>` and `/removemod user:<@User>` to manage moderators.
 - Admins are managed with `/addadmin user:<@User>` and `/removeadmin user:<@User>`; admins automatically enjoy moderator privileges.
 - Users listed in `OWNER_USER_IDS` are treated as admins everywhere, providing a recovery path if no administrators remain.
+- All economy commands (chip grants, requests, resets) act on the shared global ledger—coordinate across servers before running high-impact actions.
 
 ## Scripts
 - `npm start` – Run the bot (`src/index.mjs`)
