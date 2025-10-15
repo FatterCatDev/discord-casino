@@ -1361,17 +1361,15 @@ export async function startJobShift(interaction, ctx, jobInput) {
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
   const jobId = String(jobInput || '').trim().toLowerCase();
   if (!jobId) {
-    return interaction.reply({
-      content: `${emoji('question')} ${say('Tell me which job you want, Kitten — try `/job start dealer`.', 'Choose a job with `/job start <job>` to begin.')}`,
-      ephemeral: true
+    return replyEphemeral(interaction, {
+      content: `${emoji('question')} ${say('Tell me which job you want, Kitten — try `/job start dealer`.', 'Choose a job with `/job start <job>` to begin.')}`
     });
   }
 
   const job = getJobById(jobId);
   if (!job) {
-    return interaction.reply({
-      content: `${emoji('question')} ${say('I don’t recognize that job badge yet.', 'Unknown job option.')}`,
-      ephemeral: true
+    return replyEphemeral(interaction, {
+      content: `${emoji('question')} ${say('I don’t recognize that job badge yet.', 'Unknown job option.')}`
     });
   }
 
