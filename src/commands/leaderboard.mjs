@@ -12,6 +12,7 @@ export default async function handleLeaderboard(interaction, ctx) {
   if (!rows.length) {
     return interaction.editReply({
       content: say(`${emoji('chartDown')} No Kittens have claimed any chips yet. Be the first to indulge!`, `${emoji('chartDown')} No players with chips yet. Be the first to earn some!`),
+      components: []
     });
   }
   const medals = [emoji('medalGold'), emoji('medalSilver'), emoji('medalBronze')];
