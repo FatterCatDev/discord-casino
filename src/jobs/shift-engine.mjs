@@ -127,6 +127,15 @@ function renderDealerSelection(selection) {
   return unique.map(index => labels[index]).join(', ');
 }
 
+function renderDealerAnswer(code) {
+  if (!code) return 'No selection';
+  const labels = { A: 'Hand 1', B: 'Hand 2', C: 'Hand 3' };
+  const chars = String(code).toUpperCase().split('').filter(ch => labels[ch]);
+  if (!chars.length) return 'No selection';
+  const unique = Array.from(new Set(chars)).sort((a, b) => a.localeCompare(b));
+  return unique.map(ch => labels[ch]).join(', ');
+}
+
 function buildHistoryLines(session) {
   if (!session.history.length) return 'No stages completed yet.';
   return session.history.map(item => {
