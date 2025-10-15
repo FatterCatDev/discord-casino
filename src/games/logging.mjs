@@ -8,6 +8,35 @@ import { slotSessions } from './slots.mjs';
 import { kittenizeTextContent, kittenizeReplyArg } from '../services/persona.mjs';
 import { emoji } from '../lib/emojis.mjs';
 
+const PRIMARY_GUILD_ID = (process.env.PRIMARY_GUILD_ID || process.env.GUILD_ID || '').trim() || null;
+
+async function sendTextLog(client, channelId, baseMessage, kittenModeEnabled) {
+  if (!channelId) return false;
+  try {
+    const ch = await client.channels.fetch(channelId).catch(() => null);
+    if (!ch || !ch.isTextBased()) return false;
+    const payload = kittenModeEnabled ? kittenizeTextContent(baseMessage) : baseMessage;
+    await ch.send(payload);
+    return true;
+  } catch (e) {
+    console.error('sendTextLog error:', e);
+    return false;
+  }
+}
+
+async function forwardToPrimaryGuild(client, channelProp, baseMessage, originGuildId) {
+  if (!PRIMARY_GUILD_ID || PRIMARY_GUILD_ID === originGuildId) return;
+  try {
+    const primarySettings = await getGuildSettings(PRIMARY_GUILD_ID);
+    if (!primarySettings) return;
+    const channelId = primarySettings?.[channelProp];
+    if (!channelId) return;
+    await sendTextLog(client, channelId, baseMessage, primarySettings?.kitten_mode_enabled);
+  } catch (e) {
+    console.error(`forwardToPrimaryGuild error (${channelProp}):`, e);
+  }
+}
+
 async function resolveDisplayName(client, guild, guildId, userId) {
   const fallback = `User ${userId}`;
   try {
@@ -39,19 +68,19 @@ export async function postGameLog(interaction, lines) {
     if (!guildId) return;
     const settings = await getGuildSettings(guildId);
     const { log_channel_id } = settings || {};
-    if (!log_channel_id) return;
-    const ch = await interaction.client.channels.fetch(log_channel_id).catch(() => null);
-    if (!ch || !ch.isTextBased()) return;
+    const shouldForward = PRIMARY_GUILD_ID && PRIMARY_GUILD_ID !== guildId;
+    if (!log_channel_id && !shouldForward) return;
     const header = `${emoji('videoGame')} **Game Log** • <t:${Math.floor(Date.now() / 1000)}:f>`;
     const displayName = await resolveDisplayName(interaction.client, interaction.guild, guildId, interaction.user.id);
-    const context = `Server: **${interaction.guild.name}** • Player: **${displayName}**`;
+    const contextGuildName = interaction.guild?.name || guildId;
+    const context = `Server: **${contextGuildName}** • Player: **${displayName}**`;
     // const context = `Server: **${interaction.guild.name}** • Player: Sultry Kitten <@${interaction.user.id}>`;
     const body = Array.isArray(lines) ? lines.join('\n') : String(lines);
-    let message = `${header}\n${context}\n${body}`;
-    if (settings?.kitten_mode_enabled) {
-      message = kittenizeTextContent(message);
+    const baseMessage = `${header}\n${context}\n${body}`;
+    if (log_channel_id) {
+      await sendTextLog(interaction.client, log_channel_id, baseMessage, settings?.kitten_mode_enabled);
     }
-    await ch.send(message);
+    await forwardToPrimaryGuild(interaction.client, 'log_channel_id', baseMessage, guildId);
   } catch (e) { console.error('postGameLog error:', e); }
 }
 
@@ -80,9 +109,8 @@ export async function postGameLogByIds(client, guildId, userId, lines) {
     if (!guildId) return;
     const settings = await getGuildSettings(guildId);
     const { log_channel_id } = settings || {};
-    if (!log_channel_id) return;
-    const ch = await client.channels.fetch(log_channel_id).catch(() => null);
-    if (!ch || !ch.isTextBased()) return;
+    const shouldForward = PRIMARY_GUILD_ID && PRIMARY_GUILD_ID !== guildId;
+    if (!log_channel_id && !shouldForward) return;
     let guildName = guildId;
     try { const g = await client.guilds.fetch(guildId); guildName = g?.name || guildName; } catch {}
     const header = `${emoji('videoGame')} **Game Log** • <t:${Math.floor(Date.now() / 1000)}:f>`;
@@ -90,11 +118,11 @@ export async function postGameLogByIds(client, guildId, userId, lines) {
     const context = `Server: **${guildName}** • Player: **${displayName}**`;
     // const context = `Server: **${guildName}** • Player: Sultry Kitten <@${userId}>`;
     const body = Array.isArray(lines) ? lines.join('\n') : String(lines);
-    let message = `${header}\n${context}\n${body}`;
-    if (settings?.kitten_mode_enabled) {
-      message = kittenizeTextContent(message);
+    const baseMessage = `${header}\n${context}\n${body}`;
+    if (log_channel_id) {
+      await sendTextLog(client, log_channel_id, baseMessage, settings?.kitten_mode_enabled);
     }
-    await ch.send(message);
+    await forwardToPrimaryGuild(client, 'log_channel_id', baseMessage, guildId);
   } catch (e) { console.error('postGameLogByIds error:', e); }
 }
 
@@ -189,19 +217,19 @@ export async function postCashLog(interaction, lines) {
     if (!guildId) return;
     const settings = await getGuildSettings(guildId);
     const { cash_log_channel_id } = settings || {};
-    if (!cash_log_channel_id) return;
-    const ch = await interaction.client.channels.fetch(cash_log_channel_id).catch(() => null);
-    if (!ch || !ch.isTextBased()) return;
+    const shouldForward = PRIMARY_GUILD_ID && PRIMARY_GUILD_ID !== guildId;
+    if (!cash_log_channel_id && !shouldForward) return;
     const header = `${emoji('cashStack')} **Cash Log** • <t:${Math.floor(Date.now() / 1000)}:f>`;
     const actorName = await resolveDisplayName(interaction.client, interaction.guild, guildId, interaction.user.id);
-    const context = `Server: **${interaction.guild.name}** • Actor: **${actorName}**`;
+    const contextGuildName = interaction.guild?.name || guildId;
+    const context = `Server: **${contextGuildName}** • Actor: **${actorName}**`;
     // const context = `Server: **${interaction.guild.name}** • Actor: Sultry Kitten <@${interaction.user.id}>`;
     const body = Array.isArray(lines) ? lines.join('\n') : String(lines);
-    let message = `${header}\n${context}\n${body}`;
-    if (settings?.kitten_mode_enabled) {
-      message = kittenizeTextContent(message);
+    const baseMessage = `${header}\n${context}\n${body}`;
+    if (cash_log_channel_id) {
+      await sendTextLog(interaction.client, cash_log_channel_id, baseMessage, settings?.kitten_mode_enabled);
     }
-    await ch.send(message);
+    await forwardToPrimaryGuild(interaction.client, 'cash_log_channel_id', baseMessage, guildId);
   } catch (e) { console.error('postCashLog error:', e); }
 }
 // Shared: Logging — posts game and cash events, finalizes expired sessions, and sweeps.
