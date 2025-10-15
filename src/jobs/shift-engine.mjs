@@ -1263,7 +1263,7 @@ async function cancelSession(session, { editOriginal = false } = {}) {
   };
   if (briefingOnly) {
     profileUpdate.shiftsRemaining = Number(session.shiftStatusBefore?.shiftsRemaining ?? JOB_SHIFT_STREAK_LIMIT);
-    profileUpdate.shiftStreakCount = Number(session.shiftStatusBefore?.streakCount ?? 0);
+    profileUpdate.shiftStreakCount = Number(session.shiftStatusBefore?.streakCount ?? session.shiftStatusBefore?.shiftCount ?? 0);
   }
   await updateJobProfile(session.guildId, session.userId, session.jobId, profileUpdate);
 
