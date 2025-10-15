@@ -649,6 +649,9 @@ function buildStageComponents(session, stage) {
     return buildBouncerStageComponents(session, stage);
   }
   if (session.jobId === 'dealer') {
+    if (session.awaitingStart) {
+      return [buildDealerIntroRow(session.sessionId)];
+    }
     return [
       buildDealerSelectRow(session, stage),
       buildDealerActionRow(session.sessionId),
