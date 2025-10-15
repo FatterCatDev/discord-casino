@@ -674,7 +674,7 @@ export function getRaceByChannel(channelId) {
 
 export async function createHorseRace(interaction, ctx) {
   if (racesByChannel.has(interaction.channelId)) {
-    return interaction.reply({ content: '❌ A horse race is already running in this channel.' });
+    return interaction.reply({ content: `${emoji('cross')} A horse race is already running in this channel.` });
   }
 
   const state = createEmptyState(ctx, interaction);
@@ -689,17 +689,17 @@ export async function createHorseRace(interaction, ctx) {
 export async function handleRaceStart(interaction, state) {
   if (state.status !== 'betting') {
     await acknowledgeInteraction(interaction);
-    await showRaceNotice(state, interaction.client, '⚠ The race is already underway.');
+    await showRaceNotice(state, interaction.client, `${emoji('warning')} The race is already underway.`);
     return;
   }
   if (state.hostConfirm) {
     await acknowledgeInteraction(interaction);
-    await showRaceNotice(state, interaction.client, '⚠ Countdown already in progress.');
+    await showRaceNotice(state, interaction.client, `${emoji('warning')} Countdown already in progress.`);
     return;
   }
   if (!state.bets.size) {
     await acknowledgeInteraction(interaction);
-    await showRaceNotice(state, interaction.client, '⚠ At least one bet is required before starting the race.');
+    await showRaceNotice(state, interaction.client, `${emoji('warning')} At least one bet is required before starting the race.`);
     return;
   }
 
@@ -713,7 +713,7 @@ export async function handleRaceStart(interaction, state) {
 
   if (!isHost && !isModerator) {
     await acknowledgeInteraction(interaction);
-    await showRaceNotice(state, interaction.client, '⚠ Only the race host or moderators can start the countdown.');
+    await showRaceNotice(state, interaction.client, `${emoji('warning')} Only the race host or moderators can start the countdown.`);
     return;
   }
 
@@ -732,23 +732,23 @@ export async function handleRaceStart(interaction, state) {
 export async function handleHorseBet(interaction, state, horseIndex, amount) {
   if (state.status === 'countdown') {
     await acknowledgeInteraction(interaction);
-    await showRaceNotice(state, interaction.client, '⚠ Bets are locked during the countdown.');
+    await showRaceNotice(state, interaction.client, `${emoji('warning')} Bets are locked during the countdown.`);
     return;
   }
   if (!(state.status === 'betting' || state.status === 'running')) {
     await acknowledgeInteraction(interaction);
-    await showRaceNotice(state, interaction.client, '⚠ The race is not accepting bets right now.');
+    await showRaceNotice(state, interaction.client, `${emoji('warning')} The race is not accepting bets right now.`);
     return;
   }
   const horseCount = state.horseLabels?.length ?? HORSE_COUNT;
   if (horseIndex < 0 || horseIndex >= horseCount) {
     await acknowledgeInteraction(interaction);
-    await showRaceNotice(state, interaction.client, '⚠ Choose a horse between 1 and 5.');
+    await showRaceNotice(state, interaction.client, `${emoji('warning')} Choose a horse between 1 and 5.`);
     return;
   }
   if (!Number.isInteger(amount) || amount <= 0) {
     await acknowledgeInteraction(interaction);
-    await showRaceNotice(state, interaction.client, '⚠ Bet amount must be a positive integer.');
+    await showRaceNotice(state, interaction.client, `${emoji('warning')} Bet amount must be a positive integer.`);
     return;
   }
 
@@ -759,7 +759,7 @@ export async function handleHorseBet(interaction, state, horseIndex, amount) {
   const previousAmount = stakeAmount;
   if (existing && !isBettingStage && amount !== stakeAmount) {
     await acknowledgeInteraction(interaction);
-    await showRaceNotice(state, interaction.client, `⚠ Keep your stake at **${formatChips(stakeAmount)}**. Bet changes only swap horses and incur a fee.`);
+    await showRaceNotice(state, interaction.client, `${emoji('warning')} Keep your stake at **${formatChips(stakeAmount)}**. Bet changes only swap horses and incur a fee.`);
     return;
   }
   const fee = existing
@@ -772,7 +772,7 @@ export async function handleHorseBet(interaction, state, horseIndex, amount) {
   const houseBalance = await getHouseBalance(state.guildId);
   if (houseBalance < newExposure) {
     await acknowledgeInteraction(interaction);
-    await showRaceNotice(state, interaction.client, '⚠ The house cannot cover that wager right now. Try a smaller bet.');
+    await showRaceNotice(state, interaction.client, `${emoji('warning')} The house cannot cover that wager right now. Try a smaller bet.`);
     return;
   }
 
@@ -816,7 +816,7 @@ export async function handleHorseBet(interaction, state, horseIndex, amount) {
   } catch (err) {
     console.error('Horse race bet collection failed:', err);
     await acknowledgeInteraction(interaction);
-    await showRaceNotice(state, interaction.client, '⚠ Could not process your bet. Do you have enough Credits/Chips?');
+    await showRaceNotice(state, interaction.client, `${emoji('warning')} Could not process your bet. Do you have enough Credits/Chips?`);
     return;
   }
 
@@ -866,11 +866,11 @@ export async function handleRaceCancel(interaction, state) {
     isModerator = false;
   }
   if (!isHost && !isModerator) {
-    return interaction.reply({ content: '❌ Only the race host or moderators can cancel this race.', ephemeral: true });
+    return interaction.reply({ content: `${emoji('cross')} Only the race host or moderators can cancel this race.`, ephemeral: true });
   }
 
   if (!(state.status === 'betting' || state.status === 'countdown')) {
-    return interaction.reply({ content: '❌ You can only cancel before the race begins.', ephemeral: true });
+    return interaction.reply({ content: `${emoji('cross')} You can only cancel before the race begins.`, ephemeral: true });
   }
 
   state.status = 'cancelled';
