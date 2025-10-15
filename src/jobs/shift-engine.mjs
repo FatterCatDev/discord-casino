@@ -1182,6 +1182,7 @@ async function handleCorrect(interaction, ctx, session, stage, stageState) {
   const attempts = stageState.attempts;
   const elapsedMs = Date.now() - stageState.startedAtMs;
   const bartenderStage = isBartenderStage(stage, session);
+  const dealerStage = session.jobId === 'dealer';
   let totalScore;
   let recordDetails = stage.details || null;
   let recordBase = 0;
@@ -1191,6 +1192,17 @@ async function handleCorrect(interaction, ctx, session, stage, stageState) {
     totalScore = Math.max(0, 20 - penalties);
     recordBase = totalScore;
     recordDetails = `Time penalties: -${penalties} pts`;
+  } else if (dealerStage) {
+    const elapsedSeconds = elapsedMs / 1000;
+    totalScore = calculateDealerScore(elapsedMs);
+    recordBase = totalScore;
+    recordBonus = 0;
+    const timeSummary = `Time: ${formatSeconds(elapsedSeconds)}s`;
+    if (stage.details) {
+      recordDetails = `${stage.details} (${timeSummary})`;
+    } else {
+      recordDetails = timeSummary;
+    }
   } else {
     let baseScore = attempts === 1 ? 18 : attempts === 2 ? 9 : 0;
     let bonus = 0;
