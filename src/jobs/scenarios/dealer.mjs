@@ -8,6 +8,12 @@ const SUIT_PERMUTATIONS = [
   { char: 'D', key: 'pokerDiamond' },
   { char: 'C', key: 'pokerClub' }
 ];
+const SUIT_SUMMARY_NAMES = {
+  pokerSpade: 'Spades',
+  pokerHeart: 'Hearts',
+  pokerDiamond: 'Diamonds',
+  pokerClub: 'Clubs'
+};
 
 const RANK_SEQUENCE = ['2', '3', '4', '5', '6', '7', '8', '9', 'T', 'J', 'Q', 'K', 'A'];
 
