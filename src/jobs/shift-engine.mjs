@@ -1085,6 +1085,9 @@ async function handleCorrect(interaction, ctx, session, stage, stageState) {
   if (bartenderStage) {
     record.penalties = Math.max(0, Math.floor(stageState.penalties || 0));
   }
+  if (session.jobId === 'dealer') {
+    record.correct = renderDealerAnswer(stage.correct);
+  }
   appendHistory(session, record);
   session.stageState = null;
   session.stageIndex += 1;
