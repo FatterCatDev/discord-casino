@@ -628,11 +628,19 @@ client.on(Events.InteractionCreate, async interaction => {
 
     // ignore other interaction types
   } catch (err) {
+    if (err && typeof err === 'object' && 'code' in err && Number(err.code) === 10062) {
+      console.warn('Skipped error response for expired interaction (code 10062)');
+      return;
+    }
     console.error(err);
-    if (interaction.deferred || interaction.replied) {
-      await interaction.followUp({ content: '❌ Unexpected error.', ephemeral: true });
-    } else {
-      await interaction.reply({ content: '❌ Unexpected error.', ephemeral: true });
+    try {
+      if (interaction.deferred || interaction.replied) {
+        await interaction.followUp({ content: '❌ Unexpected error.', ephemeral: true }).catch(()=>{});
+      } else {
+        await interaction.reply({ content: '❌ Unexpected error.', ephemeral: true }).catch(()=>{});
+      }
+    } catch (followErr) {
+      console.error('Failed to send error response:', followErr);
     }
   }
 });
