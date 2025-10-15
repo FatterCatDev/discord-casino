@@ -319,7 +319,7 @@ async function editRaceMessage(state, client, options = {}) {
     const channel = await client.channels.fetch(state.channelId);
     if (!channel || !channel.isTextBased()) return;
     const message = await channel.messages.fetch(state.messageId);
-    await message.edit({ embeds: [createRaceEmbed(state, options)], components: buildComponents(state) });
+    await message.edit({ embeds: createRaceEmbeds(state, options), components: buildComponents(state) });
   } catch (err) {
     console.error('Failed to edit horse race message:', err);
   }
@@ -678,8 +678,8 @@ export async function createHorseRace(interaction, ctx) {
   }
 
   const state = createEmptyState(ctx, interaction);
-  const embed = createRaceEmbed(state, { footerText: INITIAL_FOOTER_TEXT });
-  const message = await interaction.reply({ embeds: [embed], components: buildComponents(state), fetchReply: true });
+  const embeds = createRaceEmbeds(state, { footerText: INITIAL_FOOTER_TEXT });
+  const message = await interaction.reply({ embeds, components: buildComponents(state), fetchReply: true });
   storeRace(state, message.id);
   refreshRaceTimeout(state, interaction.client);
 
