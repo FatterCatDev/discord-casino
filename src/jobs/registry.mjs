@@ -2,7 +2,7 @@ const JOB_DEFINITIONS = [
   {
     id: 'bartender',
     displayName: 'Bartender',
-    icon: '🍸',
+    emojiKey: 'cocktail',
     tagline: {
       normal: 'Craft perfect cocktails during the nightclub rush.',
       kitten: 'Shake, stir, and dazzle the VIP lounge, Kitten.'
@@ -17,7 +17,6 @@ const JOB_DEFINITIONS = [
   {
     id: 'dealer',
     displayName: 'Card Dealer',
-    icon: '🃏',
     emojiKey: 'pokerSpade',
     tagline: {
       normal: 'Run five rapid-fire tables and call the best poker hand.',
@@ -33,7 +32,7 @@ const JOB_DEFINITIONS = [
   {
     id: 'bouncer',
     displayName: 'Bouncer',
-    icon: '🛂',
+    emojiKey: 'passportControl',
     tagline: {
       normal: 'Guard the velvet rope and keep the queue under control.',
       kitten: 'Spot those fakes and protect the den, Kitten.'
