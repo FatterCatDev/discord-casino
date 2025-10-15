@@ -22,6 +22,7 @@ Includes slash commands for balances, leaderboards, admin operations, cash/reque
 - `/balance`, `/job`, `/request`, and logging commands always reference the global house and wallet totals.
 - Vote rewards, buy-ins, and game payouts all settle against that same ledger—there is no per-server opt-out.
 - If you previously ran isolated ledgers, keep `ECONOMY_SCOPE=global` and use `GLOBAL_ECONOMY_ID` only when you need to migrate the canonical guild id.
+- Moderators can use `/housebalance` to spot-check the shared vault before approving big withdrawals or resets.
 
 ## Games
 
