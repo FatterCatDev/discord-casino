@@ -586,6 +586,22 @@ function buildStageEmbed(session, stage, kittenMode) {
   return embed;
 }
 
+function buildBartenderIntroEmbed(session, kittenMode) {
+  const say = (kitten, normal) => (kittenMode ? kitten : normal);
+  const job = session.job;
+  const jobIcon = jobDisplayIcon(job);
+  const embed = new EmbedBuilder()
+    .setColor(COLORS[job.id] || COLORS.default)
+    .setTitle(`${jobIcon} ${job.displayName} Shift — Prep Brief`)
+    .setDescription([
+      say('Kitten, let’s warm up the shakers.', 'Time to prep the station.'),
+      `${emoji('clipboard')} ${say('Review the menu, nail ingredients, then pick the right finish.', 'Check the menu: ingredients plus shake vs stir.')}`,
+      `${emoji('timer')} ${say('Tap “Open Bar” when you’re ready — speed counts.', 'Press “Open Bar” when ready; quick builds earn bonuses.')}`,
+      `${emoji('warning')} ${say('Three attempts per drink — miss thrice and the table busts.', 'Only three attempts per drink, so focus.')}`
+    ].join('\n'));
+  return embed;
+}
+
 function buildBouncerIntroEmbed(session, kittenMode) {
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
   const job = session.job;
@@ -623,6 +639,22 @@ function buildBouncerIntroComponents(session) {
       new ButtonBuilder()
         .setCustomId(`jobshift|${session.sessionId}|start`)
         .setLabel('Open Queue')
+        .setStyle(ButtonStyle.Primary),
+      new ButtonBuilder()
+        .setCustomId(`jobshift|${session.sessionId}|cancel`)
+        .setLabel('End Shift')
+        .setEmoji('🛑')
+        .setStyle(ButtonStyle.Secondary)
+    )
+  ];
+}
+
+function buildBartenderIntroComponents(session) {
+  return [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`jobshift|${session.sessionId}|start`)
+        .setLabel('Open Bar')
         .setStyle(ButtonStyle.Primary),
       new ButtonBuilder()
         .setCustomId(`jobshift|${session.sessionId}|cancel`)
