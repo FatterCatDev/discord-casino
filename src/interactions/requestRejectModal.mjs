@@ -6,10 +6,12 @@ export default async function handleRequestRejectModal(interaction, ctx) {
   const messageId = parts[2];
   const targetId = parts[3];
   const type = parts[4];
-  const amount = Number(parts[5]);
+  const amount = Number(parts[5]) || 0;
   const reason = interaction.fields.getTextInputValue('reason');
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
+  const typeLabel = type === 'buyin' ? 'Buy In' : type === 'cashout' ? 'Cash Out' : 'Erase Account Data';
+  const completeLabel = type === 'erase' ? 'Erase User Data' : 'Request Complete';
   try {
     const ch = interaction.channel;
     const msg = await ch.messages.fetch(messageId);
@@ -22,7 +24,7 @@ export default async function handleRequestRejectModal(interaction, ctx) {
     embed.setFields(fields);
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder().setCustomId(`req|take|${targetId}|${type}|${amount}`).setLabel('Take Request').setStyle(ButtonStyle.Primary).setDisabled(true),
-      new ButtonBuilder().setCustomId(`req|done|${targetId}|${type}|${amount}`).setLabel('Request Complete').setStyle(ButtonStyle.Success).setDisabled(true),
+      new ButtonBuilder().setCustomId(`req|done|${targetId}|${type}|${amount}`).setLabel(completeLabel).setStyle(ButtonStyle.Success).setDisabled(true),
       new ButtonBuilder().setCustomId(`req|reject|${targetId}|${type}|${amount}`).setLabel('Reject Request').setStyle(ButtonStyle.Danger).setDisabled(true)
     );
     const payload = ctx?.kittenizePayload ? ctx.kittenizePayload({ embeds: [embed], components: [row] }) : { embeds: [embed], components: [row] };
@@ -30,10 +32,18 @@ export default async function handleRequestRejectModal(interaction, ctx) {
   try { await clearActiveRequest(interaction.guild.id, targetId); } catch {}
     try {
       const user = await interaction.client.users.fetch(targetId);
-      const message = say(
-        `❌ My sweet Kitten <@${interaction.user.id}> had to decline your request (${type === 'buyin' ? 'Buy In' : 'Cash Out'} ${amount.toLocaleString()} Chips). Reason: ${reason}`,
-        `❌ Your request (${type === 'buyin' ? 'Buy In' : 'Cash Out'} ${amount.toLocaleString()} Chips) was rejected by ${interaction.user.tag}. Reason: ${reason}`
-      );
+      let message;
+      if (type === 'erase') {
+        message = say(
+          `❌ I cannot honor your erasure plea just yet, Kitten — ${interaction.user.tag} declined it. Reason: ${reason}`,
+          `❌ Your data erasure request was rejected by ${interaction.user.tag}. Reason: ${reason}`
+        );
+      } else {
+        message = say(
+          `❌ My sweet Kitten <@${interaction.user.id}> had to decline your request (${typeLabel} ${ctx.chipsAmount ? ctx.chipsAmount(amount) : amount.toLocaleString()} Chips). Reason: ${reason}`,
+          `❌ Your request (${typeLabel} ${ctx.chipsAmount ? ctx.chipsAmount(amount) : amount.toLocaleString()} Chips) was rejected by ${interaction.user.tag}. Reason: ${reason}`
+        );
+      }
       await user.send(message);
     } catch {}
     return interaction.reply({ content: say('✅ Request rejected and the Kitten has been notified. Thank you for keeping things tidy.', '✅ Request rejected and user notified.'), ephemeral: true });
