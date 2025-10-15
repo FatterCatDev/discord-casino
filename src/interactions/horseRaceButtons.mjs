@@ -7,6 +7,7 @@ import {
   showRaceNotice,
   acknowledgeInteraction
 } from '../games/horserace.mjs';
+import { emoji } from '../lib/emojis.mjs';
 
 export default async function handleHorseRaceButtons(interaction) {
   const parts = interaction.customId.split('|');
@@ -23,13 +24,13 @@ export default async function handleHorseRaceButtons(interaction) {
     const horseIndex = Number(parts[3]);
     if (!Number.isInteger(horseIndex) || horseIndex < 0 || horseIndex >= 5) {
       await acknowledgeInteraction(interaction);
-      await showRaceNotice(state, interaction.client, '⚠ Invalid horse selection.');
+      await showRaceNotice(state, interaction.client, `${emoji('warning')} Invalid horse selection.`);
       return;
     }
 
     if (state.status === 'countdown') {
       await acknowledgeInteraction(interaction);
-      await showRaceNotice(state, interaction.client, '⚠ Countdown in progress; bets are locked.');
+      await showRaceNotice(state, interaction.client, `${emoji('warning')} Countdown in progress; bets are locked.`);
       return;
     }
 
@@ -56,26 +57,26 @@ export default async function handleHorseRaceButtons(interaction) {
       const existing = state.bets.get(interaction.user.id);
       if (!existing) {
         await acknowledgeInteraction(interaction);
-        await showRaceNotice(state, interaction.client, '⚠ You must have an active bet from the betting phase to switch horses mid-race.');
+        await showRaceNotice(state, interaction.client, `${emoji('warning')} You must have an active bet from the betting phase to switch horses mid-race.`);
         return;
       }
       if (existing.horse === horseIndex) {
         await acknowledgeInteraction(interaction);
-        await showRaceNotice(state, interaction.client, '⚠ You are already backing that horse.');
+        await showRaceNotice(state, interaction.client, `${emoji('warning')} You are already backing that horse.`);
         return;
       }
       return handleHorseBet(interaction, state, horseIndex, existing.originalAmount);
     }
 
     await acknowledgeInteraction(interaction);
-    await showRaceNotice(state, interaction.client, '⚠ Betting is closed for this race.');
+    await showRaceNotice(state, interaction.client, `${emoji('warning')} Betting is closed for this race.`);
     return;
   }
 
   if (action === 'cancel') {
     if (!(state.status === 'betting' || state.status === 'countdown')) {
       await acknowledgeInteraction(interaction);
-      await showRaceNotice(state, interaction.client, '⚠ You can only cancel before the race begins.');
+      await showRaceNotice(state, interaction.client, `${emoji('warning')} You can only cancel before the race begins.`);
       return;
     }
     return handleRaceCancel(interaction, state);
