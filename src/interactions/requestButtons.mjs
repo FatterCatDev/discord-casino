@@ -63,7 +63,10 @@ export default async function handleRequestButtons(interaction, ctx) {
     try {
       await deferUpdateOnce();
       await ensureKittenMode();
+
       const guildId = interaction.guild?.id;
+      let erasureSummary = null;
+
       if (type === 'buyin') {
         const { chips } = await mintChips(guildId, targetId, amount, 'request buy-in', interaction.user.id);
         await ctx.postCashLog(interaction, kittenMode
@@ -85,7 +88,6 @@ export default async function handleRequestButtons(interaction, ctx) {
           );
           await user.send(dm);
         } catch {}
-        // try { const user = await interaction.client.users.fetch(targetId); await user.send(`${emoji('coin')} Buy-in: Come savor these chips, Kitten <@${targetId}> — with affection from your mistress.`); } catch {}
       } else if (type === 'cashout') {
         const { chips } = await burnFromUser(guildId, targetId, amount, 'request cashout', interaction.user.id);
         await ctx.postCashLog(interaction, kittenMode
@@ -107,7 +109,6 @@ export default async function handleRequestButtons(interaction, ctx) {
           );
           await user.send(dm);
         } catch {}
-        // try { const user = await interaction.client.users.fetch(targetId); await user.send(`${emoji('moneyWings')} Cash Out: Easy now, Kitten <@${targetId}> — your balance bends to your desires.`); } catch {}
       } else if (type === 'erase') {
         const summary = await eraseUserData(targetId);
         try {
@@ -118,11 +119,6 @@ export default async function handleRequestButtons(interaction, ctx) {
           );
           await user.send(dm);
         } catch {}
-        const fields = Array.isArray(orig?.fields) ? orig.fields.map(f => ({ name: f.name, value: f.value, inline: f.inline })) : [];
-        const idx = fields.findIndex(f => f.name === 'Status');
-        const statusValue = say(`Complete — Data scrubbed by <@${interaction.user.id}>`, `Completed by <@${interaction.user.id}> — data erased`);
-        if (idx >= 0) fields[idx].value = statusValue;
-        else fields.push({ name: 'Status', value: statusValue });
 
         const deleted = summary?.deleted || {};
         const updated = summary?.updated || {};
@@ -136,29 +132,33 @@ export default async function handleRequestButtons(interaction, ctx) {
           .slice(0, 6)
           .map(([key, count]) => `• ${key}: ${count}`);
         if (trims.length) details.push(trims.join('\n'));
-        if (details.length) {
-          const summaryFieldIdx = fields.findIndex(f => f.name.toLowerCase() === 'erasure summary');
-          const value = details.join('\n');
-        if (summaryFieldIdx >= 0) fields[summaryFieldIdx].value = value;
-        else fields.push({ name: 'Erasure Summary', value });
-      }
-      embed.setFields(fields);
-      const row = new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId(`req|take|${targetId}|${type}|${amount}`).setLabel('Take Request').setStyle(ButtonStyle.Primary).setDisabled(true),
-          new ButtonBuilder().setCustomId(`req|done|${targetId}|${type}|${amount}`).setLabel(completeLabel).setStyle(ButtonStyle.Success).setDisabled(true),
-          new ButtonBuilder().setCustomId(`req|reject|${targetId}|${type}|${amount}`).setLabel('Reject Request').setStyle(ButtonStyle.Danger).setDisabled(true)
-        );
-        try { await clearActiveRequest(interaction.guild.id, targetId); } catch {}
-        return interaction.update({ embeds: [embed], components: [row] });
+        if (details.length) erasureSummary = details.join('\n');
       } else {
-        return interaction.reply({ content: say('❌ I don’t recognize that request type, Kitten.', '❌ Unknown request type.'), ephemeral: true });
+        await ensureKittenMode();
+        if (deferred) {
+          await interaction.followUp({ content: say('❌ I don’t recognize that request type, Kitten.', '❌ Unknown request type.'), ephemeral: true });
+        } else {
+          await interaction.reply({ content: say('❌ I don’t recognize that request type, Kitten.', '❌ Unknown request type.'), ephemeral: true });
+        }
+        return;
       }
+
       const fields = Array.isArray(orig?.fields) ? orig.fields.map(f => ({ name: f.name, value: f.value, inline: f.inline })) : [];
-      const idx = fields.findIndex(f => f.name === 'Status');
-      const statusValue = say(`Complete — Mistress <@${interaction.user.id}> has finished, Kitten`, `Completed by <@${interaction.user.id}>`);
-      if (idx >= 0) fields[idx].value = statusValue;
+      const statusIdx = fields.findIndex(f => f.name === 'Status');
+      const statusValue = type === 'erase'
+        ? say(`Complete — Data scrubbed by <@${interaction.user.id}>`, `Completed by <@${interaction.user.id}> — data erased`)
+        : say(`Complete — Mistress <@${interaction.user.id}> has finished, Kitten`, `Completed by <@${interaction.user.id}>`);
+      if (statusIdx >= 0) fields[statusIdx].value = statusValue;
       else fields.push({ name: 'Status', value: statusValue });
+
+      if (erasureSummary) {
+        const summaryIdx = fields.findIndex(f => f.name.toLowerCase() === 'erasure summary');
+        if (summaryIdx >= 0) fields[summaryIdx].value = erasureSummary;
+        else fields.push({ name: 'Erasure Summary', value: erasureSummary });
+      }
+
       embed.setFields(fields);
+
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(`req|take|${targetId}|${type}|${amount}`).setLabel('Take Request').setStyle(ButtonStyle.Primary).setDisabled(true),
         new ButtonBuilder().setCustomId(`req|done|${targetId}|${type}|${amount}`).setLabel(completeLabel).setStyle(ButtonStyle.Success).setDisabled(true),
