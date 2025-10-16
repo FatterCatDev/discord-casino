@@ -1,5 +1,6 @@
 import { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
 import { emoji } from '../lib/emojis.mjs';
+import { scheduleInteractionAck } from '../lib/interactionAck.mjs';
 
 const BUTTON_STALE_MS = (() => {
   const specific = Number(process.env.BLACKJACK_BUTTON_STALE_MS);
@@ -16,13 +17,15 @@ export default async function onBlackjackButtons(interaction, ctx) {
   let deferred = false;
   const deferUpdateOnce = async () => {
     if (!deferred && !interaction.deferred && !interaction.replied) {
+      cancelAutoAck();
       await interaction.deferUpdate();
       deferred = true;
     }
   };
   const updateMessage = (payload) => ctx.sendGameMessage(interaction, payload, 'update');
+  const cancelAutoAck = scheduleInteractionAck(interaction, { timeout: BUTTON_STALE_MS, mode: 'update' });
   if (action !== 'again' && action !== 'change') {
-    if (!state) return updateMessage({ content: `${emoji('hourglass')} This session expired. Use \`/blackjack\` to start a new one.`, components: [] });
+    if (!state) { cancelAutoAck(); return updateMessage({ content: `${emoji('hourglass')} This session expired. Use \`/blackjack\` to start a new one.`, components: [] }); }
     if (interaction.user.id !== state.userId) return interaction.reply({ content: '❌ Only the original player can use these buttons.', ephemeral: true });
     if (state.finished) return interaction.reply({ content: '❌ Hand already finished.', ephemeral: true });
   }
@@ -38,6 +41,7 @@ export default async function onBlackjackButtons(interaction, ctx) {
       await ctx.postGameSessionEnd(interaction, { game: 'Blackjack', userId: state.userId, houseNet: net });
       ctx.clearActiveSession(interaction.guild.id, interaction.user.id);
     }
+    cancelAutoAck();
     return updateMessage({ content: `${emoji('hourglass')} This session expired. Use \`/blackjack\` to start a new one.`, components: [] });
   }
   ctx.touchActiveSession(interaction.guild.id, interaction.user.id, 'blackjack');
@@ -60,6 +64,7 @@ export default async function onBlackjackButtons(interaction, ctx) {
     }
     const ageMs = Date.now() - interaction.createdTimestamp;
     if (ageMs > BUTTON_STALE_MS) {
+      cancelAutoAck();
       return interaction.reply({ content: `${emoji('hourglass')} This button cooled off. Use \`/blackjack\` to start a fresh hand.`, ephemeral: true });
     }
     const modal = new ModalBuilder()
@@ -76,6 +81,7 @@ export default async function onBlackjackButtons(interaction, ctx) {
     }
     modal.addComponents(new ActionRowBuilder().addComponents(amountInput));
     try {
+      cancelAutoAck();
       return await interaction.showModal(modal);
     } catch (err) {
       if (err?.code === 10062) {
@@ -89,7 +95,7 @@ export default async function onBlackjackButtons(interaction, ctx) {
     const table = parts[2];
     const bet = Number(parts[3]) || 1;
     const ownerId = parts[4];
-    if (ownerId && ownerId !== interaction.user.id) return interaction.reply({ content: '❌ Only the original player can start another hand from this message.', ephemeral: true });
+    if (ownerId && ownerId !== interaction.user.id) { cancelAutoAck(); return interaction.reply({ content: '❌ Only the original player can start another hand from this message.', ephemeral: true }); }
     ctx.blackjackGames.delete(k);
     await deferUpdateOnce();
     return ctx.startBlackjack(interaction, table, bet);
