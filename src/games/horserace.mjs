@@ -11,6 +11,7 @@ import {
 import { formatChips, chipsAmountSigned } from './format.mjs';
 import { emoji, HORSE_COLOR_EMOJIS } from '../lib/emojis.mjs';
 import { postGameSessionEnd, postGameSessionEndByIds } from './logging.mjs';
+import { withInsufficientFundsTip } from '../lib/fundsTip.mjs';
 
 const TRACK_LENGTH = 100;
 const STAGE_COUNT = 10;
@@ -817,7 +818,8 @@ export async function handleHorseBet(interaction, state, horseIndex, amount) {
   } catch (err) {
     console.error('Horse race bet collection failed:', err);
     await acknowledgeInteraction(interaction);
-    await showRaceNotice(state, interaction.client, `${emoji('warning')} Could not process your bet. Do you have enough Credits/Chips?`);
+    const warning = `${emoji('warning')} Could not process your bet. Do you have enough Credits/Chips?`;
+    await showRaceNotice(state, interaction.client, withInsufficientFundsTip(warning));
     return;
   }
 
