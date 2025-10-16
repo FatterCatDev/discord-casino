@@ -183,16 +183,36 @@ async function maybePromptNewPlayer(interaction) {
   const guildId = interaction.guild?.id || null;
   const userId = interaction.user?.id || null;
   if (!guildId || !userId) return false;
+  let status = null;
   try {
-    const status = await getUserOnboardingStatus(guildId, userId);
+    status = await getUserOnboardingStatus(guildId, userId);
     if (status?.acknowledgedAt) return false;
   } catch (err) {
     console.error(`Failed to read onboarding status for ${userId} in ${guildId}`, err);
     return false;
   }
 
+  let bonusJustGranted = false;
+  let grantError = null;
+  try {
+    const alreadyGranted = (status?.chipsGranted ?? 0) >= WELCOME_BONUS_AMOUNT;
+    if (!alreadyGranted) {
+      const result = await grantUserOnboardingBonus(guildId, userId, WELCOME_BONUS_AMOUNT, 'welcome bonus');
+      bonusJustGranted = result?.granted === true;
+      status = result?.status || await getUserOnboardingStatus(guildId, userId);
+    }
+  } catch (err) {
+    grantError = err;
+    console.error(`Failed to grant welcome bonus for ${userId} in ${guildId}`, err);
+    try {
+      status = status || await getUserOnboardingStatus(guildId, userId);
+    } catch {}
+  }
+
+  if (status?.acknowledgedAt) return false;
+
   const payload = {
-    embeds: [buildWelcomePromptEmbed()],
+    embeds: [buildWelcomePromptEmbed({ status, bonusJustGranted, bonusError: grantError })],
     components: buildWelcomePromptComponents(),
     ephemeral: true
   };
