@@ -39,18 +39,30 @@ export default async function onRouletteButtons(interaction, ctx) {
         : emoji('squareGreen');
     const pocketLabel = spin.label;
     let winnings = 0;
+    let creditsBurned = 0;
     const wins = [];
     for (const b of state.bets) {
       const won = ctx.rouletteWins(b.type, b.pocket, spin);
       if (won) { const w = b.amount * b.payoutMult; winnings += w; wins.push(b); }
-      else { try { if (b.creditPart>0) await ctx.burnCredits(interaction.user.id, b.creditPart, `roulette loss (${b.type})`, null); } catch {} }
+      else {
+        if (b.creditPart > 0) {
+          try {
+            await ctx.burnCredits(interaction.user.id, b.creditPart, `roulette loss (${b.type})`, null);
+            creditsBurned += b.creditPart;
+          } catch {}
+        }
+      }
     }
     const returnStake = wins.reduce((s,b)=>s+b.chipPart,0);
     const payout = winnings + returnStake;
     if (payout>0) { try { await ctx.transferFromHouseToUser(interaction.user.id, payout, 'roulette payout', null); } catch { return interaction.reply({ content:'⚠️ Payout failed.', ephemeral:true }); } }
     const lines = [`${emoji('roulette')} Roulette Result: ${colorEmoji} **${pocketLabel}**`, ...state.bets.map(b=>`${wins.includes(b)?'✅ Win':'❌ Lose'}: ${b.type}${b.pocket!==undefined?` ${b.pocket}`:''} — **${ctx.chipsAmount(b.amount)}**`), `Total won: **${ctx.chipsAmount(winnings)}**`];
+    if (creditsBurned > 0) {
+      lines.push(`Credits burned: **${new Intl.NumberFormat('en-US').format(creditsBurned)}**`);
+    }
     ctx.addHouseNet(interaction.guild.id, interaction.user.id, 'roulette', chipStake - payout);
-    try { ctx.recordSessionGame(interaction.guild.id, interaction.user.id, payout - chipStake); } catch {}
+    const net = payout - chipStake - creditsBurned;
+    try { ctx.recordSessionGame(interaction.guild.id, interaction.user.id, net); } catch {}
     ctx.rouletteSessions.delete(key);
     const resultEmbed = new EmbedBuilder()
       .setTitle(`${emoji('roulette')} Roulette`)
