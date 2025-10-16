@@ -4,7 +4,8 @@ export function scheduleInteractionAck(interaction, options = {}) {
   if (!interaction || typeof interaction !== 'object') return () => {};
   const {
     timeout = DEFAULT_TIMEOUT_MS,
-    mode = 'update'
+    mode = 'update',
+    signal
   } = options;
 
   let cleared = false;
@@ -27,9 +28,22 @@ export function scheduleInteractionAck(interaction, options = {}) {
     cleared = true;
   }, effectiveTimeout);
 
-  return () => {
+  const clear = () => {
     if (cleared) return;
     cleared = true;
     clearTimeout(timer);
+    if (signal && typeof signal.removeEventListener === 'function') {
+      signal.removeEventListener('abort', clear);
+    }
   };
+
+  if (signal && typeof signal.addEventListener === 'function') {
+    if (signal.aborted) {
+      clear();
+    } else {
+      signal.addEventListener('abort', clear, { once: true });
+    }
+  }
+
+  return clear;
 }
