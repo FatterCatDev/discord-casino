@@ -8,18 +8,39 @@ export default async function handleRequestButtons(interaction, ctx) {
   const targetId = parts[2];
   const type = parts[3]; // 'buyin' | 'cashout'
   const amount = Number(parts[4]) || 0;
-  const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
+
+  let kittenMode;
+  let kittenModeLoaded = false;
+  const ensureKittenMode = async () => {
+    if (!kittenModeLoaded) {
+      kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
+      kittenModeLoaded = true;
+    }
+    return kittenMode;
+  };
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
+
   if (!(await ctx.isModerator(interaction))) {
+    await ensureKittenMode();
     return interaction.reply({ content: say('❌ Only my trusted moderators may touch these buttons, Kitten.', '❌ Moderators only.'), ephemeral: true });
   }
+
   const msg = interaction.message;
   const orig = msg.embeds?.[0];
   const embed = orig ? EmbedBuilder.from(orig) : new EmbedBuilder();
   const typeLabel = type === 'buyin' ? 'Buy In' : type === 'cashout' ? 'Cash Out' : 'Erase Account Data';
   const completeLabel = type === 'erase' ? 'Erase User Data' : 'Request Complete';
+  let deferred = false;
+  const deferUpdateOnce = async () => {
+    if (!deferred) {
+      await interaction.deferUpdate();
+      deferred = true;
+    }
+  };
 
   if (action === 'take') {
+    await deferUpdateOnce();
+    await ensureKittenMode();
     const fields = Array.isArray(orig?.fields) ? orig.fields.map(f => ({ name: f.name, value: f.value, inline: f.inline })) : [];
     const idx = fields.findIndex(f => f.name === 'Status');
     const takingText = type === 'erase'
@@ -34,11 +55,14 @@ export default async function handleRequestButtons(interaction, ctx) {
       new ButtonBuilder().setCustomId(`req|reject|${targetId}|${type}|${amount}`).setLabel('Reject Request').setStyle(ButtonStyle.Danger)
     );
     try { await updateActiveRequestStatus(interaction.guild.id, targetId, 'TAKEN'); } catch {}
-    return interaction.update({ embeds: [embed], components: [row] });
+    await interaction.editReply({ embeds: [embed], components: [row] });
+    return;
   }
 
   if (action === 'done') {
     try {
+      await deferUpdateOnce();
+      await ensureKittenMode();
       const guildId = interaction.guild?.id;
       if (type === 'buyin') {
         const { chips } = await mintChips(guildId, targetId, amount, 'request buy-in', interaction.user.id);
@@ -115,11 +139,11 @@ export default async function handleRequestButtons(interaction, ctx) {
         if (details.length) {
           const summaryFieldIdx = fields.findIndex(f => f.name.toLowerCase() === 'erasure summary');
           const value = details.join('\n');
-          if (summaryFieldIdx >= 0) fields[summaryFieldIdx].value = value;
-          else fields.push({ name: 'Erasure Summary', value });
-        }
-        embed.setFields(fields);
-        const row = new ActionRowBuilder().addComponents(
+        if (summaryFieldIdx >= 0) fields[summaryFieldIdx].value = value;
+        else fields.push({ name: 'Erasure Summary', value });
+      }
+      embed.setFields(fields);
+      const row = new ActionRowBuilder().addComponents(
           new ButtonBuilder().setCustomId(`req|take|${targetId}|${type}|${amount}`).setLabel('Take Request').setStyle(ButtonStyle.Primary).setDisabled(true),
           new ButtonBuilder().setCustomId(`req|done|${targetId}|${type}|${amount}`).setLabel(completeLabel).setStyle(ButtonStyle.Success).setDisabled(true),
           new ButtonBuilder().setCustomId(`req|reject|${targetId}|${type}|${amount}`).setLabel('Reject Request').setStyle(ButtonStyle.Danger).setDisabled(true)
@@ -141,10 +165,17 @@ export default async function handleRequestButtons(interaction, ctx) {
         new ButtonBuilder().setCustomId(`req|reject|${targetId}|${type}|${amount}`).setLabel('Reject Request').setStyle(ButtonStyle.Danger).setDisabled(true)
       );
       try { await clearActiveRequest(interaction.guild.id, targetId); } catch {}
-      return interaction.update({ embeds: [embed], components: [row] });
+      await interaction.editReply({ embeds: [embed], components: [row] });
+      return;
     } catch (e) {
       console.error('request done error:', e);
-      return interaction.reply({ content: say('❌ I couldn’t complete that request, Kitten.', '❌ Failed to complete request.'), ephemeral: true });
+      await ensureKittenMode();
+      if (deferred) {
+        await interaction.followUp({ content: say('❌ I couldn’t complete that request, Kitten.', '❌ Failed to complete request.'), ephemeral: true });
+      } else {
+        await interaction.reply({ content: say('❌ I couldn’t complete that request, Kitten.', '❌ Failed to complete request.'), ephemeral: true });
+      }
+      return;
     }
   }
 
