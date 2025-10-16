@@ -98,8 +98,10 @@ export async function showRouletteTypePrompt(interaction) {
 
 export async function startRouletteSession(interaction) {
   const key = keyFor(interaction);
-  rouletteSessions.set(key, { guildId: interaction.guild.id, userId: interaction.user.id, bets: [] });
-  setActiveSession(interaction.guild.id, interaction.user.id, 'roulette', 'Roulette');
+  const dbGuildId = interaction.guild?.id || null;
+  const sessionGuildId = interaction.guild?.id || 'dm';
+  rouletteSessions.set(key, { guildId: dbGuildId, userId: interaction.user.id, bets: [] });
+  setActiveSession(sessionGuildId, interaction.user.id, 'roulette', 'Roulette');
   return showRouletteTypePrompt(interaction);
 }
 // Game: Roulette — interactive betting flow, spin result, and settlement helpers.
