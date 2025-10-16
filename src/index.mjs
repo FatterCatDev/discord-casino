@@ -185,6 +185,13 @@ async function findBotInviter(guild) {
   } catch (err) {
     console.warn(`Could not resolve bot inviter for guild ${guild?.id}`, err);
   }
+  if (guild?.ownerId) {
+    try {
+      return await guild.client.users.fetch(guild.ownerId);
+    } catch {
+      return guild.client.users.resolve(guild.ownerId) || null;
+    }
+  }
   return null;
 }
 
