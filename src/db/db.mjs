@@ -397,6 +397,16 @@ const ensureUserStmt = db.prepare('INSERT OR IGNORE INTO users (guild_id, discor
 const getUserStmt = db.prepare('SELECT chips, credits FROM users WHERE guild_id = ? AND discord_id = ?');
 const addChipsStmt = db.prepare('UPDATE users SET chips = chips + ?, updated_at = CURRENT_TIMESTAMP WHERE guild_id = ? AND discord_id = ?');
 const addCreditsStmt = db.prepare('UPDATE users SET credits = credits + ?, updated_at = CURRENT_TIMESTAMP WHERE guild_id = ? AND discord_id = ?');
+const getUserOnboardingStmt = db.prepare('SELECT acknowledged_at, chips_granted FROM user_onboarding WHERE guild_id = ? AND user_id = ?');
+const markUserOnboardingStmt = db.prepare(`
+  INSERT INTO user_onboarding (guild_id, user_id, acknowledged_at, chips_granted, updated_at)
+  VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)
+  ON CONFLICT(guild_id, user_id) DO UPDATE SET
+    acknowledged_at = excluded.acknowledged_at,
+    chips_granted = excluded.chips_granted,
+    updated_at = CURRENT_TIMESTAMP
+  WHERE user_onboarding.acknowledged_at IS NULL
+`);
 
 const ensureHouseStmt = db.prepare('INSERT OR IGNORE INTO guild_house (guild_id) VALUES (?)');
 const getHouseStmt = db.prepare('SELECT chips FROM guild_house WHERE guild_id = ?');
