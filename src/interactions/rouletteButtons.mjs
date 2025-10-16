@@ -6,6 +6,13 @@ export default async function onRouletteButtons(interaction, ctx) {
   const state = ctx.rouletteSessions.get(key);
   const parts = interaction.customId.split('|');
   const action = parts[1];
+  let deferred = false;
+  const deferUpdateOnce = async () => {
+    if (!deferred && !interaction.deferred && !interaction.replied) {
+      await interaction.deferUpdate();
+      deferred = true;
+    }
+  };
   if (action !== 'again') {
     if (ctx.hasActiveExpired(interaction.guild.id, interaction.user.id, 'roulette') || !ctx.getActiveSession(interaction.guild.id, interaction.user.id)) {
       ctx.rouletteSessions.delete(key);
@@ -31,6 +38,7 @@ export default async function onRouletteButtons(interaction, ctx) {
     const neededCover = chipStake + state.bets.reduce((s,b)=>s + (b.amount * b.payoutMult),0);
     if (await ctx.getHouseBalance() < neededCover) return interaction.reply({ content: `❌ House cannot cover potential payout. Needed: **${ctx.chipsAmount(neededCover)}**.`, ephemeral: true });
     if (chipStake>0) try { await ctx.takeFromUserToHouse(interaction.user.id, chipStake, 'roulette buy-in (chips)', interaction.user.id); } catch { return interaction.reply({ content: '❌ Could not process buy-in.', ephemeral: true }); }
+    await deferUpdateOnce();
     const spin = ctx.spinRoulette();
     const colorEmoji = spin.color === 'RED'
       ? emoji('squareRed')
@@ -54,8 +62,15 @@ export default async function onRouletteButtons(interaction, ctx) {
       }
     }
     const returnStake = wins.reduce((s,b)=>s+b.chipPart,0);
-    const payout = winnings + returnStake;
-    if (payout>0) { try { await ctx.transferFromHouseToUser(interaction.user.id, payout, 'roulette payout', null); } catch { return interaction.reply({ content:'⚠️ Payout failed.', ephemeral:true }); } }
+   const payout = winnings + returnStake;
+    if (payout>0) {
+      try {
+        await ctx.transferFromHouseToUser(interaction.user.id, payout, 'roulette payout', null);
+      } catch {
+        if (deferred) return interaction.followUp({ content:'⚠️ Payout failed.', ephemeral:true });
+        return interaction.reply({ content:'⚠️ Payout failed.', ephemeral:true });
+      }
+    }
     const lines = [`${emoji('roulette')} Roulette Result: ${colorEmoji} **${pocketLabel}**`, ...state.bets.map(b=>`${wins.includes(b)?'✅ Win':'❌ Lose'}: ${b.type}${b.pocket!==undefined?` ${b.pocket}`:''} — **${ctx.chipsAmount(b.amount)}**`), `Total won: **${ctx.chipsAmount(winnings)}**`];
     if (creditsBurned > 0) {
       lines.push(`Credits burned: **${new Intl.NumberFormat('en-US').format(creditsBurned)}**`);
@@ -94,6 +109,7 @@ export default async function onRouletteButtons(interaction, ctx) {
     if (ownerId && ownerId !== interaction.user.id) {
       return interaction.reply({ content: '❌ Only the original player can start again from this message.', ephemeral: true });
     }
+    await deferUpdateOnce();
     ctx.rouletteSessions.delete(key);
     ctx.rouletteSessions.set(key, { guildId: interaction.guild.id, userId: interaction.user.id, bets: [] });
     ctx.setActiveSession(interaction.guild.id, interaction.user.id, 'roulette', 'Roulette');
