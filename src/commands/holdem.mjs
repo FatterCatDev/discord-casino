@@ -5,7 +5,9 @@ import { emoji } from '../lib/emojis.mjs';
 async function inCasinoCategory(interaction) {
   try {
     const { casino_category_id } = await getGuildSettings(interaction.guild.id) || {};
-    if (!casino_category_id) return { ok: false, reason: '❌ Casino category is not configured. Admins: use /setcasinocategory.' };
+    if (!casino_category_id) {
+      return { ok: false, reason: '❌ I can’t create a Hold’em table until a casino category is configured. Ask a server admin to run /setcasinocategory.' };
+    }
     const ch = interaction.channel;
     let catId = null;
     try {
