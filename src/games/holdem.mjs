@@ -1219,10 +1219,14 @@ export async function joinTable(interaction, ctx, buyin) {
   // Chips-only buy-in to escrow, then seat the player with stack equal to buy-in.
   try {
     const { chips } = await getUserBalances(guildId, interaction.user.id);
-    if ((chips||0) < buyin) return interaction.reply({ content: '❌ Not enough Chips for that buy-in.', ephemeral: true });
+    if ((chips||0) < buyin) {
+      const msg = withInsufficientFundsTip('❌ Not enough Chips for that buy-in.', state?.kittenMode === true);
+      return interaction.reply({ content: msg, ephemeral: true });
+    }
     await escrowAdd(state.channelId, interaction.user.id, buyin);
   } catch {
-    return interaction.reply({ content: '❌ Could not process buy-in (insufficient Chips?).', ephemeral: true });
+    const msg = withInsufficientFundsTip('❌ Could not process buy-in (insufficient Chips?).', state?.kittenMode === true);
+    return interaction.reply({ content: msg, ephemeral: true });
   }
   state.seats.push(emptySeat(interaction.user.id, buyin));
   try { if (state.closeTimer) { clearTimeout(state.closeTimer); state.closeTimer = null; } } catch {}
