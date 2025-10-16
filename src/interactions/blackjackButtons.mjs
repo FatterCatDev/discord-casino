@@ -64,7 +64,15 @@ export default async function onBlackjackButtons(interaction, ctx) {
       amountInput.setValue(String(defaultBet));
     }
     modal.addComponents(new ActionRowBuilder().addComponents(amountInput));
-    return interaction.showModal(modal);
+    try {
+      return await interaction.showModal(modal);
+    } catch (err) {
+      if (err?.code === 10062) {
+        console.warn('Blackjack change modal failed: interaction expired before acknowledgement.');
+        return;
+      }
+      throw err;
+    }
   }
   if (action === 'again') {
     const table = parts[2];
