@@ -765,20 +765,18 @@ client.on(Events.InteractionCreate, async interaction => {
         return interaction.reply({ content: '⚠️ This bonus is only available inside a server.', ephemeral: true }).catch(() => {});
       }
       try {
-        const result = await markUserOnboardingAcknowledged(guildId, userId, WELCOME_BONUS_AMOUNT);
-        let embed;
-        if (result?.didAcknowledge) {
-          let mintedSuccess = true;
-          try {
-            await mintChips(guildId, userId, WELCOME_BONUS_AMOUNT, 'welcome bonus', null);
-          } catch (mintErr) {
-            mintedSuccess = false;
-            console.error(`Failed to mint welcome bonus for ${userId} in ${guildId}`, mintErr);
-          }
-          embed = buildWelcomeAcknowledgedEmbed({ mintedSuccess, alreadyClaimed: false });
-        } else {
-          embed = buildWelcomeAcknowledgedEmbed({ mintedSuccess: true, alreadyClaimed: true });
+        const existingStatus = await getUserOnboardingStatus(guildId, userId);
+        const alreadyClaimed = !!(existingStatus && existingStatus.acknowledgedAt);
+        const ackResult = await markUserOnboardingAcknowledged(guildId, userId);
+        let status = ackResult?.status || existingStatus;
+        if (!status) {
+          try { status = await getUserOnboardingStatus(guildId, userId); } catch {}
         }
+        const acknowledgedNow = ackResult?.acknowledged === true;
+        const embed = buildWelcomeAcknowledgedEmbed({
+          status,
+          alreadyClaimed: !acknowledgedNow && (alreadyClaimed || !!(status && status.acknowledgedAt))
+        });
         try {
           await interaction.update({ embeds: [embed], components: [] });
         } catch (updateErr) {
