@@ -700,6 +700,9 @@ client.on(Events.InteractionCreate, async interaction => {
 
     // ========== SLASH COMMANDS ==========
       if (interaction.isChatInputCommand()) {
+      const gated = await maybePromptNewPlayer(interaction);
+      if (gated) return;
+
       // End any existing active game session when a new command is run.
       // Don't await this cleanup so the slash command can acknowledge within Discord's 3s window.
       endActiveSessionForUser(interaction, 'new_command').catch(err => {
