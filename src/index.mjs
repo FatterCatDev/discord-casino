@@ -15,8 +15,8 @@ import {
   getAdmins,
   takeFromUserToHouse,
   burnCredits,
-  mintChips,
   getUserOnboardingStatus,
+  grantUserOnboardingBonus,
   markUserOnboardingAcknowledged
 } from './db/db.auto.mjs';
 import { formatChips, chipsAmount } from './games/format.mjs';
