@@ -107,12 +107,24 @@ export default async function onBlackjackButtons(interaction, ctx) {
     dealerPlay();
     const p = ctx.bjHandValue(state.player), d = ctx.bjHandValue(state.dealer);
     ctx.blackjackGames.delete(k);
-    if (p.total > 21) { try { if (state.creditsStake > 0) await ctx.burnCredits(state.userId, state.creditsStake, 'blackjack loss (double bust)', null); } catch {}; ctx.addHouseNet(state.guildId, state.userId, 'blackjack', state.chipsStake); try { ctx.recordSessionGame(state.guildId, state.userId, -state.chipsStake); } catch {}; return interaction.update({ embeds: [await ctx.bjEmbed(state, { footer: 'You bust after doubling. Dealer wins.', color: 0xED4245 })], components: [ctx.bjPlayAgainRow(state.table, state.bet / 2, state.userId)] }); }
+    if (p.total > 21) {
+      let burned = 0;
+      if (state.creditsStake > 0) {
+        try { await ctx.burnCredits(state.userId, state.creditsStake, 'blackjack loss (double bust)', null); burned = state.creditsStake; } catch {}
+      }
+      ctx.addHouseNet(state.guildId, state.userId, 'blackjack', state.chipsStake);
+      try { ctx.recordSessionGame(state.guildId, state.userId, -state.chipsStake - burned); } catch {}
+      return interaction.update({ embeds: [await ctx.bjEmbed(state, { footer: 'You bust after doubling. Dealer wins.', color: 0xED4245 })], components: [ctx.bjPlayAgainRow(state.table, state.bet / 2, state.userId)] });
+    }
     if (d.total > 21) { const win = state.bet; try { const payout = state.chipsStake + win; await ctx.transferFromHouseToUser(state.userId, payout, 'blackjack win (double, dealer bust)', null); ctx.addHouseNet(state.guildId, state.userId, 'blackjack', -win); try { ctx.recordSessionGame(state.guildId, state.userId, win); } catch {}; return interaction.update({ embeds: [await ctx.bjEmbed(state, { footer: `Dealer busts. You win ${ctx.formatChips(win)}.`, color: 0x57F287 })], components: [ctx.bjPlayAgainRow(state.table, state.bet / 2, state.userId)] }); } catch { return interaction.update({ content: '⚠️ Payout failed.', components: [] }); } }
     if (p.total > d.total) { const win = state.bet; try { const payout = state.chipsStake + win; await ctx.transferFromHouseToUser(state.userId, payout, 'blackjack win (double)', null); ctx.addHouseNet(state.guildId, state.userId, 'blackjack', -win); try { ctx.recordSessionGame(state.guildId, state.userId, win); } catch {}; return interaction.update({ embeds: [await ctx.bjEmbed(state, { footer: `You win ${ctx.chipsAmount(win)}.`, color: 0x57F287 })], components: [ctx.bjPlayAgainRow(state.table, state.bet / 2, state.userId)] }); } catch { return interaction.update({ content: '⚠️ Payout failed.', components: [] }); } }
     if (p.total === d.total) { try { if (state.chipsStake > 0) await ctx.transferFromHouseToUser(state.userId, state.chipsStake, 'blackjack push (double)', null); ctx.addHouseNet(state.guildId, state.userId, 'blackjack', 0); try { ctx.recordSessionGame(state.guildId, state.userId, 0); } catch {}; return interaction.update({ embeds: [await ctx.bjEmbed(state, { footer: 'Push. Your stake was returned.', color: 0x2b2d31 })], components: [ctx.bjPlayAgainRow(state.table, state.bet / 2, state.userId)] }); } catch { return interaction.update({ content: '⚠️ Return failed.', components: [] }); } }
-    try { if (state.creditsStake > 0) await ctx.burnCredits(state.userId, state.creditsStake, 'blackjack loss (double)', null); } catch {}
-    ctx.addHouseNet(state.guildId, state.userId, 'blackjack', state.chipsStake); try { ctx.recordSessionGame(state.guildId, state.userId, -state.chipsStake); } catch {}
+    let lossCredits = 0;
+    if (state.creditsStake > 0) {
+      try { await ctx.burnCredits(state.userId, state.creditsStake, 'blackjack loss (double)', null); lossCredits = state.creditsStake; } catch {}
+    }
+    ctx.addHouseNet(state.guildId, state.userId, 'blackjack', state.chipsStake);
+    try { ctx.recordSessionGame(state.guildId, state.userId, -state.chipsStake - lossCredits); } catch {}
     return interaction.update({ embeds: [await ctx.bjEmbed(state, { footer: 'Dealer wins.', color: 0xED4245 })], components: [ctx.bjPlayAgainRow(state.table, state.bet / 2, state.userId)] });
   }
   if (action === 'split') {
