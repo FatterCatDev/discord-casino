@@ -482,7 +482,7 @@ export async function markUserOnboardingAcknowledged(guildId, userId, acknowledg
   await q('INSERT INTO user_onboarding (guild_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [gid, uid]);
   const res = ack === null
     ? { rowCount: 0 }
-    : await q('UPDATE user_onboarding SET acknowledged_at = $1, updated_at = NOW() WHERE guild_id = $2 AND user_id = $3 AND acknowledged_at IS NULL', [ack, gid, uid]);
+    : await pool.query('UPDATE user_onboarding SET acknowledged_at = $1, updated_at = NOW() WHERE guild_id = $2 AND user_id = $3 AND acknowledged_at IS NULL', [ack, gid, uid]);
   const status = await getUserOnboardingStatus(gid, uid);
   return {
     acknowledged: (res?.rowCount || 0) > 0 && !!(status && status.acknowledgedAt !== null),
