@@ -73,6 +73,7 @@ export default async function handleRequestButtons(interaction, ctx) {
 
   if (action === 'done') {
     try {
+      cancelAutoAck();
       await deferUpdateOnce();
       await ensureKittenMode();
 
