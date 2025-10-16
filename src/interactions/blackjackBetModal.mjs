@@ -55,6 +55,10 @@ export default async function handleBlackjackBetModal(interaction, ctx) {
     return result;
   }
 
+  if (!interaction.deferred && !interaction.replied) {
+    try { await interaction.deferUpdate(); } catch {}
+  }
+
   const proxy = Object.create(interaction);
   proxy.isButton = () => true;
   proxy.channelId = targetMessage.channelId;
@@ -73,9 +77,5 @@ export default async function handleBlackjackBetModal(interaction, ctx) {
       await interaction.reply({ content: '⚠️ Something went wrong refreshing the table. Try again.', ephemeral: true });
     }
     return;
-  }
-
-  if (!interaction.replied && !interaction.deferred) {
-    await interaction.reply({ content: `${emoji('check')} Bet updated. Good luck!`, ephemeral: true });
   }
 }
