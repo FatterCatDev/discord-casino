@@ -1351,7 +1351,7 @@ export function markUserOnboardingAcknowledged(guildId, userId, chipsGranted = 0
   const info = markUserOnboardingStmt.run(gid, uid, ackTs, chips);
   const status = getUserOnboardingStatus(gid, uid);
   return {
-    acknowledged: info.changes > 0 && !!(status && status.acknowledgedAt !== null),
+    didAcknowledge: info.changes > 0 && !!(status && status.acknowledgedAt !== null),
     status
   };
 }
