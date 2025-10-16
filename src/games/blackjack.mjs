@@ -4,6 +4,7 @@ import { makeDeck, show } from './cards.mjs';
 import { chipsAmount, formatChips } from './format.mjs';
 import { setActiveSession, buildPlayerBalanceField, addHouseNet, recordSessionGame, sendGameMessage, buildTimeoutField } from './session.mjs';
 import { emoji } from '../lib/emojis.mjs';
+import { withInsufficientFundsTip } from '../lib/fundsTip.mjs';
 
 export const blackjackGames = new Map();
 
@@ -77,7 +78,12 @@ export async function startBlackjack(interaction, table, bet) {
 
   const guildId = interaction.guild?.id;
   const { chips, credits } = await getUserBalances(guildId, interaction.user.id);
-  const total = chips + credits; if (total < bet) { const fmt = new Intl.NumberFormat('en-US'); return interaction.reply({ content: `❌ Not enough funds. Credits: **${fmt.format(credits)}**, Chips: **${fmt.format(chips)}**. Need: **${fmt.format(bet)}**.`, ephemeral: true }); }
+  const total = chips + credits;
+  if (total < bet) {
+    const fmt = new Intl.NumberFormat('en-US');
+    const base = `❌ Not enough funds. Credits: **${fmt.format(credits)}**, Chips: **${fmt.format(chips)}**. Need: **${fmt.format(bet)}**.`;
+    return interaction.reply({ content: withInsufficientFundsTip(base), ephemeral: true });
+  }
   const cover = await getHouseBalance(guildId);
   // Credits-first staking
   const creditStake = Math.min(bet, credits); const chipStake = bet - creditStake; const neededCover = chipStake + (bet * 2);
