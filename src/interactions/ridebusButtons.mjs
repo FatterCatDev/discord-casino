@@ -138,11 +138,14 @@ export default async function onRideBusButtons(interaction, ctx) {
     const correct = (arg === 'higher') ? (ctx.val(c2) > ctx.val(c1)) : (ctx.val(c2) < ctx.val(c1));
     if (!correct) {
       ctx.ridebusGames.delete(k);
-      await burnStakeCredits('ridebus loss (Q2)');
+      const burned = await burnStakeCredits('ridebus loss (Q2)');
       ctx.addHouseNet(state.guildId, state.userId, 'ridebus', (state.chipsStake || 0));
-      try { ctx.recordSessionGame(state.guildId, state.userId, -(state.chipsStake || 0)); } catch {}
+      try { ctx.recordSessionGame(state.guildId, state.userId, -(state.chipsStake || 0) - burned); } catch {}
       const lossEmbed = await ctx.embedForState(state, {
-        description: say(`❌ Not this time, Kitten. ${ctx.show(c1)} → ${ctx.show(c2)} and the house clings to the pot.`, `❌ **Wrong!** ${ctx.show(c1)} → ${ctx.show(c2)}. House keeps pot.`),
+        description: say(
+          `❌ Not this time, Kitten. ${ctx.show(c1)} → ${ctx.show(c2)} and the house clings to the pot.\nCredits burned: **${ctx.formatChips(burned)}**`,
+          `❌ **Wrong!** ${ctx.show(c1)} → ${ctx.show(c2)}. House keeps pot.\nCredits burned: **${ctx.formatChips(burned)}**`
+        ),
         color: 0xED4245,
         kittenMode
       });
