@@ -27,5 +27,55 @@ export default async function handleBlackjackBetModal(interaction, ctx) {
 
   const key = ctx.keyFor(interaction);
   ctx.blackjackGames.delete(key);
-  return ctx.startBlackjack(interaction, table, bet);
+
+  const activeSession = ctx.getActiveSession(interaction.guildId, interaction.user.id);
+  const channelId = activeSession?.msgChannelId;
+  const messageId = activeSession?.msgId;
+
+  let targetMessage = null;
+  if (channelId && messageId) {
+    try {
+      const channel = await interaction.client.channels.fetch(channelId);
+      if (channel?.isTextBased()) {
+        targetMessage = await channel.messages.fetch(messageId).catch(() => null);
+      }
+    } catch {
+      targetMessage = null;
+    }
+  }
+
+  if (!targetMessage) {
+    const result = await ctx.startBlackjack(interaction, table, bet);
+    if (!interaction.replied && !interaction.deferred) {
+      await interaction.reply({
+        content: `${emoji('warning')} Could not refresh the existing hand, so I posted a new game message.`,
+        ephemeral: true
+      });
+    }
+    return result;
+  }
+
+  const proxy = Object.create(interaction);
+  proxy.isButton = () => true;
+  proxy.channelId = targetMessage.channelId;
+  proxy.message = targetMessage;
+  proxy.update = async (payload) => {
+    const edited = await targetMessage.edit(payload);
+    return edited;
+  };
+  proxy.fetchReply = async () => targetMessage;
+
+  try {
+    await ctx.startBlackjack(proxy, table, bet);
+  } catch (err) {
+    console.error('Failed to restart Blackjack with updated bet:', err);
+    if (!interaction.replied && !interaction.deferred) {
+      await interaction.reply({ content: '⚠️ Something went wrong refreshing the table. Try again.', ephemeral: true });
+    }
+    return;
+  }
+
+  if (!interaction.replied && !interaction.deferred) {
+    await interaction.reply({ content: `${emoji('check')} Bet updated. Good luck!`, ephemeral: true });
+  }
 }
