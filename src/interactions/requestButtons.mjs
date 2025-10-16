@@ -196,6 +196,7 @@ export default async function handleRequestButtons(interaction, ctx) {
     const ageMs = Date.now() - interaction.createdTimestamp;
     if (ageMs > REQUEST_BUTTON_STALE_MS) {
       await ensureKittenMode();
+      cancelAutoAck();
       return interaction.reply({ content: say(`${emoji('hourglass')} This request widget cooled off, Kitten. Tap the command again.`, `${emoji('hourglass')} This request button expired. Please run /request again.`), ephemeral: true });
     }
     const modal = new ModalBuilder()
@@ -205,6 +206,7 @@ export default async function handleRequestButtons(interaction, ctx) {
       new TextInputBuilder().setCustomId('reason').setLabel('Reason').setStyle(TextInputStyle.Paragraph).setRequired(true)
     ));
     try {
+      cancelAutoAck();
       return await interaction.showModal(modal);
     } catch (err) {
       if (err?.code === 10062) {
