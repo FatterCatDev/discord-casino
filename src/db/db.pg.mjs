@@ -443,25 +443,49 @@ export async function getUserOnboardingStatus(guildId, userId) {
   };
 }
 
-export async function markUserOnboardingAcknowledged(guildId, userId, chipsGranted = 0, acknowledgedAt = Math.floor(Date.now() / 1000)) {
+export async function grantUserOnboardingBonus(guildId, userId, amount, reason = 'welcome bonus') {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  const amt = Math.trunc(Number(amount) || 0);
+  if (!uid) throw new Error('ONBOARD_USER_REQUIRED');
+  if (!Number.isInteger(amt) || amt <= 0) {
+    return { granted: false, status: await getUserOnboardingStatus(gid, uid) };
+  }
+  const result = await tx(async c => {
+    await c.query('INSERT INTO users (guild_id, discord_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [gid, uid]);
+    await c.query('INSERT INTO user_onboarding (guild_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [gid, uid]);
+    const current = await c.query('SELECT chips_granted FROM user_onboarding WHERE guild_id = $1 AND user_id = $2 FOR UPDATE', [gid, uid]);
+    const prevGranted = Math.trunc(Number(current?.rows?.[0]?.chips_granted) || 0);
+    if (prevGranted >= amt) {
+      return { granted: false };
+    }
+    await c.query('UPDATE users SET chips = chips + $1, updated_at = NOW() WHERE guild_id = $2 AND discord_id = $3', [amt, gid, uid]);
+    await c.query(
+      'INSERT INTO transactions (guild_id, account, delta, reason, admin_id, currency) VALUES ($1,$2,$3,$4,$5,$6)',
+      [gid, uid, amt, reason || 'welcome bonus', null, 'CHIPS']
+    );
+    await c.query('UPDATE user_onboarding SET chips_granted = $1, updated_at = NOW() WHERE guild_id = $2 AND user_id = $3', [amt, gid, uid]);
+    return { granted: true };
+  });
+  const status = await getUserOnboardingStatus(gid, uid);
+  return {
+    granted: result?.granted === true,
+    status
+  };
+}
+
+export async function markUserOnboardingAcknowledged(guildId, userId, acknowledgedAt = Math.floor(Date.now() / 1000)) {
   const gid = resolveGuildId(guildId);
   const uid = String(userId || '').trim();
   if (!uid) throw new Error('ONBOARD_USER_REQUIRED');
   const ack = acknowledgedAt === null ? null : Math.trunc(Number(acknowledgedAt) || Math.floor(Date.now() / 1000));
-  const chips = Math.trunc(Number(chipsGranted) || 0);
-  const res = await pool.query(`
-    INSERT INTO user_onboarding (guild_id, user_id, acknowledged_at, chips_granted, updated_at)
-    VALUES ($1, $2, $3, $4, NOW())
-    ON CONFLICT (guild_id, user_id) DO UPDATE SET
-      acknowledged_at = EXCLUDED.acknowledged_at,
-      chips_granted = EXCLUDED.chips_granted,
-      updated_at = NOW()
-    WHERE user_onboarding.acknowledged_at IS NULL
-    RETURNING acknowledged_at
-  `, [gid, uid, ack, chips]);
+  await q('INSERT INTO user_onboarding (guild_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [gid, uid]);
+  const res = ack === null
+    ? { rowCount: 0 }
+    : await q('UPDATE user_onboarding SET acknowledged_at = $1, updated_at = NOW() WHERE guild_id = $2 AND user_id = $3 AND acknowledged_at IS NULL', [ack, gid, uid]);
   const status = await getUserOnboardingStatus(gid, uid);
   return {
-    didAcknowledge: res.rows.length > 0 && !!(status && status.acknowledgedAt !== null),
+    acknowledged: (res?.rowCount || 0) > 0 && !!(status && status.acknowledgedAt !== null),
     status
   };
 }
