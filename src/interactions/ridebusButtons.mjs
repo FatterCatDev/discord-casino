@@ -238,7 +238,7 @@ export default async function onRideBusButtons(interaction, ctx) {
     if (!win) {
       const burned = await burnStakeCredits('ridebus loss (Q4)');
       ctx.addHouseNet(state.guildId, state.userId, 'ridebus', (state.chipsStake || 0));
-      try { ctx.recordSessionGame(state.guildId, state.userId, -(state.chipsStake || 0)); } catch {}
+      try { ctx.recordSessionGame(state.guildId, state.userId, -(state.chipsStake || 0) - burned); } catch {}
       const lossEmbed = await ctx.embedForState(state, {
         description: say(
           `❌ Wrong suit, Kitten. Final card ${ctx.show(c4)} keeps the spoils in my hands.\nCredits burned: **${ctx.formatChips(burned)}**`,
