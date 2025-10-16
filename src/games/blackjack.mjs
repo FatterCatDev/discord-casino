@@ -55,7 +55,16 @@ export async function bjEmbed(state, opts = {}) {
 
 export function bjPlayAgainRow(table, bet, userId) {
   return new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId(`bj|again|${table}|${bet}|${userId}`).setLabel(`Play Again (${formatChips(bet)})`).setEmoji('🔁').setStyle(ButtonStyle.Secondary)
+    new ButtonBuilder()
+      .setCustomId(`bj|again|${table}|${bet}|${userId}`)
+      .setLabel(`Play Again (${formatChips(bet)})`)
+      .setEmoji('🔁')
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
+      .setCustomId(`bj|change|${table}|${bet}|${userId}`)
+      .setLabel('Play Again (Change Bet)')
+      .setEmoji('📝')
+      .setStyle(ButtonStyle.Secondary)
   );
 }
 
