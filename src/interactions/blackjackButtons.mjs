@@ -167,17 +167,17 @@ export default async function onBlackjackButtons(interaction, ctx) {
     return updateMessage({ embeds: [await ctx.bjEmbed(state, { footer: 'Dealer wins.', color: 0xED4245 })], components: [ctx.bjPlayAgainRow(state.table, state.bet / 2, state.userId)] });
   }
   if (action === 'split') {
-    if (state.split) return interaction.reply({ content: '❌ Already split.', ephemeral: true });
-    if (state.player.length !== 2) return interaction.reply({ content: '❌ Split only available on first decision.', ephemeral: true });
+    if (state.split) { cancelAutoAck(); return interaction.reply({ content: '❌ Already split.', ephemeral: true }); }
+    if (state.player.length !== 2) { cancelAutoAck(); return interaction.reply({ content: '❌ Split only available on first decision.', ephemeral: true }); }
     const v1 = ctx.cardValueForSplit(state.player[0]);
     const v2 = ctx.cardValueForSplit(state.player[1]);
-    if (v1 !== v2) return interaction.reply({ content: '❌ You can only split equal-value cards.', ephemeral: true });
-    if (!(await ctx.canAffordExtra(state.userId, state.bet))) return interaction.reply({ content: '❌ Not enough funds to split.', ephemeral: true });
+    if (v1 !== v2) { cancelAutoAck(); return interaction.reply({ content: '❌ You can only split equal-value cards.', ephemeral: true }); }
+    if (!(await ctx.canAffordExtra(state.userId, state.bet))) { cancelAutoAck(); return interaction.reply({ content: '❌ Not enough funds to split.', ephemeral: true }); }
     const c1 = state.player[0], c2 = state.player[1];
     const { credits, chips } = await ctx.getUserBalances(state.userId);
     const extraCredit = Math.min(state.bet, credits);
     const extraChip = state.bet - extraCredit;
-    if (extraChip > 0) { try { await ctx.takeFromUserToHouse(state.userId, extraChip, 'blackjack split (chips)', state.userId); } catch { return interaction.reply({ content: '❌ Could not process split.', ephemeral: true }); } }
+    if (extraChip > 0) { try { await ctx.takeFromUserToHouse(state.userId, extraChip, 'blackjack split (chips)', state.userId); } catch { cancelAutoAck(); return interaction.reply({ content: '❌ Could not process split.', ephemeral: true }); } }
     state.split = true; state.hands = [{ cards: [c1], bet: state.bet, creditsStake: state.creditsStake, chipsStake: state.chipsStake, finished: false }, { cards: [c2], bet: state.bet, creditsStake: extraCredit, chipsStake: extraChip, finished: false }]; state.active = 0; delete state.player; delete state.creditsStake; delete state.chipsStake;
     const row = ctx.rowButtons([{ id: 'bj|hit', label: 'Hit', style: 1 }, { id: 'bj|stand', label: 'Stand', style: 2 }]);
     await deferUpdateOnce();
