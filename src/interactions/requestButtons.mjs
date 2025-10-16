@@ -28,6 +28,8 @@ export default async function handleRequestButtons(interaction, ctx) {
   };
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
 
+  const cancelAutoAck = scheduleInteractionAck(interaction, { timeout: REQUEST_BUTTON_STALE_MS, mode: 'update' });
+
   if (!(await ctx.isModerator(interaction))) {
     await ensureKittenMode();
     return interaction.reply({ content: say('❌ Only my trusted moderators may touch these buttons, Kitten.', '❌ Moderators only.'), ephemeral: true });
