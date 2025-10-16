@@ -2,6 +2,7 @@ import { EmbedBuilder } from 'discord.js';
 import { getGuildSettings, getUserBalances, getHouseBalance, takeFromUserToHouse, transferFromHouseToUser, burnCredits } from '../db/db.auto.mjs';
 import { chipsAmount } from '../games/format.mjs';
 import { emoji } from '../lib/emojis.mjs';
+import { withInsufficientFundsTip } from '../lib/fundsTip.mjs';
 
 async function inCasinoCategory(interaction, kittenMode) {
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
@@ -37,7 +38,8 @@ export async function playDiceWar(interaction, ctx, bet) {
   const { chips, credits } = await getUserBalances(guildId, interaction.user.id);
   const total = (chips || 0) + (credits || 0);
   if (total < bet) {
-    return interaction.reply({ content: say(`❌ You need at least **${chipsAmount(bet)}** in Chips+Credits to tantalize me, Kitten.`, `❌ You need at least **${chipsAmount(bet)}** in Chips+Credits.`), ephemeral: true });
+    const base = say(`❌ You need at least **${chipsAmount(bet)}** in Chips+Credits to tantalize me, Kitten.`, `❌ You need at least **${chipsAmount(bet)}** in Chips+Credits.`);
+    return interaction.reply({ content: withInsufficientFundsTip(base, kittenMode), ephemeral: true });
   }
 
   // Roll dice
