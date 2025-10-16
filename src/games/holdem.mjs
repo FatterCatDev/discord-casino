@@ -3,6 +3,7 @@ import crypto from 'node:crypto';
 import { postGameLogByIds } from './logging.mjs';
 import { getGuildSettings, ensureHoldemTable, createHoldemHand, escrowAdd, escrowReturn, escrowCommit, escrowCreditMany, settleRake, finalizeHoldemHand, getEscrowBalance, getUserBalances } from '../db/db.auto.mjs';
 import { emoji } from '../lib/emojis.mjs';
+import { withInsufficientFundsTip } from '../lib/fundsTip.mjs';
 
 // In-memory Table state; escrow/payouts are enforced via DB helpers.
 
