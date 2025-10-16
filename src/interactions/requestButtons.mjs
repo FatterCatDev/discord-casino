@@ -2,6 +2,13 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ModalBuilde
 import { updateActiveRequestStatus, clearActiveRequest, mintChips, burnFromUser, eraseUserData } from '../db/db.auto.mjs';
 import { emoji } from '../lib/emojis.mjs';
 
+const REQUEST_BUTTON_STALE_MS = (() => {
+  const specific = Number(process.env.REQUEST_BUTTON_STALE_MS);
+  if (Number.isFinite(specific) && specific > 0) return specific;
+  const general = Number(process.env.INTERACTION_STALE_MS);
+  return Number.isFinite(general) && general > 0 ? general : 2500;
+})();
+
 export default async function handleRequestButtons(interaction, ctx) {
   const parts = interaction.customId.split('|');
   const action = parts[1]; // 'take' | 'done' | 'reject'
@@ -180,6 +187,11 @@ export default async function handleRequestButtons(interaction, ctx) {
   }
 
   if (action === 'reject') {
+    const ageMs = Date.now() - interaction.createdTimestamp;
+    if (ageMs > REQUEST_BUTTON_STALE_MS) {
+      await ensureKittenMode();
+      return interaction.reply({ content: say(`${emoji('hourglass')} This request widget cooled off, Kitten. Tap the command again.`, `${emoji('hourglass')} This request button expired. Please run /request again.`), ephemeral: true });
+    }
     const modal = new ModalBuilder()
       .setCustomId(`req|rejmodal|${interaction.message.id}|${targetId}|${type}|${amount}`)
       .setTitle('Reject Request');
