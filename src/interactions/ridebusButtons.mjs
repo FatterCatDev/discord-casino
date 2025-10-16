@@ -184,7 +184,7 @@ export default async function onRideBusButtons(interaction, ctx) {
       ctx.ridebusGames.delete(k);
       const burned = await burnStakeCredits('ridebus loss (Q3 - pair rule)');
       ctx.addHouseNet(state.guildId, state.userId, 'ridebus', (state.chipsStake || 0));
-      try { ctx.recordSessionGame(state.guildId, state.userId, -(state.chipsStake || 0)); } catch {}
+      try { ctx.recordSessionGame(state.guildId, state.userId, -(state.chipsStake || 0) - burned); } catch {}
       const lossEmbed = await ctx.embedForState(state, {
         description: say(
           `❌ Naughty! Pair rule meant Outside only, Kitten. Draw was ${ctx.show(c3)}, so the house devours the pot.\nCredits burned: **${ctx.formatChips(burned)}**`,
@@ -200,7 +200,7 @@ export default async function onRideBusButtons(interaction, ctx) {
       ctx.ridebusGames.delete(k);
       const burned = await burnStakeCredits('ridebus loss (Q3)');
       ctx.addHouseNet(state.guildId, state.userId, 'ridebus', (state.chipsStake || 0));
-      try { ctx.recordSessionGame(state.guildId, state.userId, -(state.chipsStake || 0)); } catch {}
+      try { ctx.recordSessionGame(state.guildId, state.userId, -(state.chipsStake || 0) - burned); } catch {}
       const lossEmbed = await ctx.embedForState(state, {
         description: say(
           `❌ Missed it, Kitten. Draw was ${ctx.show(c3)} and the house clings to the pot.\nCredits burned: **${ctx.formatChips(burned)}**`,
