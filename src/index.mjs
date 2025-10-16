@@ -124,6 +124,10 @@ process.on('unhandledRejection', (reason) => {
 });
 
 process.on('uncaughtException', (err) => {
+  if (err && typeof err === 'object' && 'code' in err && Number(err.code) === 10062) {
+    console.warn('Ignored expired interaction (code 10062)');
+    return;
+  }
   console.error('Uncaught exception:', err);
 });
 
