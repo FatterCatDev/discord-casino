@@ -183,6 +183,7 @@ export default async function handleRequestButtons(interaction, ctx) {
     } catch (e) {
       console.error('request done error:', e);
       await ensureKittenMode();
+      cancelAutoAck();
       if (deferred) {
         await interaction.followUp({ content: say('❌ I couldn’t complete that request, Kitten.', '❌ Failed to complete request.'), ephemeral: true });
       } else {
