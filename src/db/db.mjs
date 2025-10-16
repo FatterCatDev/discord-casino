@@ -1327,6 +1327,35 @@ export function getUserBalances(guildId, discordId) {
   return { chips: Number(row.chips || 0), credits: Number(row.credits || 0) };
 }
 
+export function getUserOnboardingStatus(guildId, userId) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) return null;
+  const row = getUserOnboardingStmt.get(gid, uid);
+  if (!row) return null;
+  const acknowledgedAt = row.acknowledged_at !== null && row.acknowledged_at !== undefined
+    ? toInt(row.acknowledged_at, null)
+    : null;
+  return {
+    acknowledgedAt,
+    chipsGranted: toInt(row.chips_granted ?? 0, 0)
+  };
+}
+
+export function markUserOnboardingAcknowledged(guildId, userId, chipsGranted = 0, acknowledgedAt = nowSeconds()) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) throw new Error('ONBOARD_USER_REQUIRED');
+  const ackTs = acknowledgedAt === null ? null : toInt(acknowledgedAt, nowSeconds());
+  const chips = toInt(chipsGranted, 0);
+  const info = markUserOnboardingStmt.run(gid, uid, ackTs, chips);
+  const status = getUserOnboardingStatus(gid, uid);
+  return {
+    acknowledged: info.changes > 0 && !!(status && status.acknowledgedAt !== null),
+    status
+  };
+}
+
 export function getTopUsers(guildId, limit = 10) {
   const gid = resolveGuildId(guildId);
   const n = Math.max(1, Math.min(25, Number(limit) || 10));
