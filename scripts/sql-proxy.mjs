@@ -46,6 +46,7 @@ const handleShutdown = (signal) => {
 
 process.on('SIGINT', () => handleShutdown('SIGINT'));
 process.on('SIGTERM', () => handleShutdown('SIGTERM'));
+process.on('SIGQUIT', () => handleShutdown('SIGQUIT'));
 process.on('exit', () => {
   if (!child.killed) {
     try { child.kill(); } catch {}
