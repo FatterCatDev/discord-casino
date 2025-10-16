@@ -5,11 +5,12 @@ export default async function onRouletteModal(interaction, ctx) {
   const key = ctx.keyFor(interaction);
   const state = ctx.rouletteSessions.get(key);
   if (!state) return interaction.reply({ content: '❌ No active roulette session.', ephemeral: true });
-  if (ctx.hasActiveExpired(interaction.guild.id, interaction.user.id, 'roulette') || !ctx.getActiveSession(interaction.guild.id, interaction.user.id)) {
+  const sessionGuildId = interaction.guild?.id || 'dm';
+  if (ctx.hasActiveExpired(sessionGuildId, interaction.user.id, 'roulette') || !ctx.getActiveSession(sessionGuildId, interaction.user.id)) {
     ctx.rouletteSessions.delete(key);
     return interaction.reply({ content: `${emoji('hourglass')} Your roulette session expired. Use `/roulette` to start a new one.`, ephemeral: true });
   }
-  ctx.touchActiveSession(interaction.guild.id, interaction.user.id, 'roulette');
+  ctx.touchActiveSession(sessionGuildId, interaction.user.id, 'roulette');
   const type = state.pendingType;
   if (!type) return interaction.reply({ content: '❌ No bet type selected.', ephemeral: true });
   const amountStr = interaction.fields.getTextInputValue('amount');
