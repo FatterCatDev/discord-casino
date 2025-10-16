@@ -204,7 +204,9 @@ function buildGuildWelcomeMessage(inviter, guild) {
     '4. Moderator and admin access is managed by the development team to protect the shared economy—reach out if you need roster changes.',
     '5. Use `/help` any time for the full command list and extra guidance.',
     '',
-    'Once those are set, your players can jump straight into `/slots`, `/blackjack`, `/roulette`, and more. Have fun!'
+    'Once those are set, your players can jump straight into `/slots`, `/blackjack`, `/roulette`, and more. Have fun!',
+    '',
+    'Need a hand or spot an issue? Hop into our support hub: https://discord.gg/semutaofdune'
   ].join('\n');
 }
 
