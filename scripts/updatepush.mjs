@@ -102,7 +102,10 @@ function bumpPatch(version) {
 
 function resolveGuildIds() {
   const raw = process.env.UPDATE_GUILD_IDS || process.env.PRIMARY_GUILD_ID || process.env.GUILD_ID || '';
-  const ids = raw.split(',').map(s => s.trim()).filter(Boolean);
+  const ids = raw
+    .split(/[,\s]+/)
+    .map(s => s.trim())
+    .filter(Boolean);
   if (!ids.length) throw new Error('No guild IDs resolved. Set UPDATE_GUILD_IDS or PRIMARY_GUILD_ID.');
   return ids;
 }
