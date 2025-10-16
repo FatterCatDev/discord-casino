@@ -2,8 +2,10 @@ import { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from
 import { emoji } from '../lib/emojis.mjs';
 
 const BUTTON_STALE_MS = (() => {
-  const raw = Number(process.env.INTERACTION_STALE_MS);
-  return Number.isFinite(raw) && raw > 0 ? raw : 2500;
+  const specific = Number(process.env.BLACKJACK_BUTTON_STALE_MS);
+  if (Number.isFinite(specific) && specific > 0) return specific;
+  const general = Number(process.env.INTERACTION_STALE_MS);
+  return Number.isFinite(general) && general > 0 ? general : 2500;
 })();
 
 export default async function onBlackjackButtons(interaction, ctx) {
