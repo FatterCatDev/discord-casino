@@ -1,7 +1,7 @@
 export function insufficientFundsTip(kittenMode = false) {
   return kittenMode
-    ? 'Need a refill? Claim `/dailyspin`, clock a shift with `/job`, or purr at staff via `/request type:buyin amount:<chips>`.'
-    : 'Need more chips? Try `/dailyspin`, run `/job`, or submit `/request type:buyin amount:<chips>`.';
+    ? 'Need a refill? Claim `/dailyspin`, snag `/vote`, clock a shift with `/job`, or purr at staff via `/request type:buyin amount:<chips>`.'
+    : 'Need more chips? Try `/dailyspin`, claim `/vote`, run `/job`, or submit `/request type:buyin amount:<chips>`.';
 }
 
 export function withInsufficientFundsTip(message, kittenMode = false) {
