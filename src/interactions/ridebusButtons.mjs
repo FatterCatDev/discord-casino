@@ -104,11 +104,14 @@ export default async function onRideBusButtons(interaction, ctx) {
     const correct = (guessRed && ctx.color(c1) === 'RED') || (!guessRed && ctx.color(c1) === 'BLACK');
     if (!correct) {
       ctx.ridebusGames.delete(k);
-      await burnStakeCredits('ridebus loss (Q1)');
+      const burned = await burnStakeCredits('ridebus loss (Q1)');
       ctx.addHouseNet(state.guildId, state.userId, 'ridebus', (state.chipsStake || 0));
-      try { ctx.recordSessionGame(state.guildId, state.userId, -(state.chipsStake || 0)); } catch {}
+      try { ctx.recordSessionGame(state.guildId, state.userId, -(state.chipsStake || 0) - burned); } catch {}
       const lossEmbed = await ctx.embedForState(state, {
-        description: say(`❌ Wrong move, Kitten. Card was **${ctx.show(c1)}** (${ctx.color(c1)}). The house keeps your wager.`, `❌ **Wrong!** Card was **${ctx.show(c1)}** (${ctx.color(c1)}). House keeps your bet.`),
+        description: say(
+          `❌ Wrong move, Kitten. Card was **${ctx.show(c1)}** (${ctx.color(c1)}). The house keeps your wager.\nCredits burned: **${ctx.formatChips(burned)}**`,
+          `❌ **Wrong!** Card was **${ctx.show(c1)}** (${ctx.color(c1)}). House keeps your bet.\nCredits burned: **${ctx.formatChips(burned)}**`
+        ),
         color: 0xED4245,
         kittenMode
       });
