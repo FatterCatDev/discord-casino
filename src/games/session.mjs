@@ -68,6 +68,11 @@ export function setActiveMessageRef(guildId, userId, channelId, messageId) {
 // Send/Update a game message and remember its channel/message id
 export async function sendGameMessage(interaction, payload, mode = 'auto') {
   if (mode === 'update' || (mode === 'auto' && interaction.isButton && interaction.isButton())) {
+    if (interaction.deferred || interaction.replied) {
+      const res = await interaction.editReply(payload);
+      try { setActiveMessageRef(interaction.guild.id, interaction.user.id, res.channelId, res.id); } catch {}
+      return res;
+    }
     const res = await interaction.update(payload);
     try { setActiveMessageRef(interaction.guild.id, interaction.user.id, interaction.channelId, interaction.message.id); } catch {}
     return res;
