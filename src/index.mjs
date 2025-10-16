@@ -352,17 +352,31 @@ client.once(Events.ClientReady, c => {
 
 client.on(Events.GuildCreate, async (guild) => {
   try {
-    const inviter = await findBotInviter(guild);
-    if (!inviter) {
-      console.warn(`Skipping welcome DM: no inviter found for guild ${guild?.id}`);
-      return;
+    const joinedTimestamp = Number(
+      guild?.joinedTimestamp ??
+      guild?.members?.me?.joinedTimestamp ??
+      guild?.joinedAt?.getTime?.()
+    );
+    if (Number.isFinite(joinedTimestamp)) {
+      const age = Date.now() - joinedTimestamp;
+      if (age > GUILD_WELCOME_WINDOW_MS) return;
     }
-    const message = buildGuildWelcomeMessage(inviter, guild);
-    await inviter.send({ content: message });
-    const identifier = inviter.tag || inviter.username || inviter.id;
-    console.log(`Sent setup DM to ${identifier} for guild ${guild?.id}`);
+    await sendGuildWelcomeDm(guild, { source: 'guildCreate' });
   } catch (err) {
-    console.error(`Failed to send welcome DM for guild ${guild?.id}`, err);
+    console.error(`Failed to process guildCreate welcome for guild ${guild?.id}`, err);
+  }
+});
+
+client.on(Events.GuildAuditLogEntryCreate, async (entry, guild) => {
+  try {
+    if (!guild || !entry || entry.action !== AuditLogEvent.BotAdd) return;
+    if (entry.target?.id !== guild.client?.user?.id) return;
+    const executor = entry.executor
+      ? await guild.client.users.fetch(entry.executor.id).catch(() => entry.executor)
+      : null;
+    await sendGuildWelcomeDm(guild, { inviter: executor, source: 'auditLog' });
+  } catch (err) {
+    console.error(`Failed to process audit log welcome for guild ${guild?.id}`, err);
   }
 });
 
