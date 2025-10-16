@@ -11,3 +11,4 @@ version: 1.0.10
 - Erasing an account now clears onboarding state so returning players start fresh.
 - Casino games (except Hold’em) can run in any channel when no casino category is configured; Hold’em now explains how to set `/setcasinocategory`.
 - `/help` overview card now highlights quick commands such as `/balance`, `/dailyspin`, and `/status`.
+- Insufficient-funds warnings now include guidance to restock via `/dailyspin`, `/job`, or `/request type:buyin`.
