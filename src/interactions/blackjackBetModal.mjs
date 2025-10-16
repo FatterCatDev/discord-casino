@@ -53,6 +53,8 @@ export default async function handleBlackjackBetModal(interaction, ctx) {
     return;
   }
 
+  let earlyExit = false;
+
   const proxy = Object.create(interaction);
   proxy.isButton = () => true;
   proxy.channelId = targetMessage.channelId;
@@ -63,15 +65,17 @@ export default async function handleBlackjackBetModal(interaction, ctx) {
   };
   proxy.fetchReply = async () => targetMessage;
   proxy.reply = async (payload) => {
+    earlyExit = true;
     await interaction.editReply(payload).catch(() => {});
-    throw new Error('BLACKJACK_PROXY_EARLY_EXIT');
+    return;
   };
 
   try {
     await ctx.startBlackjack(proxy, table, bet);
-    await interaction.deleteReply().catch(() => {});
+    if (!earlyExit) {
+      await interaction.deleteReply().catch(() => {});
+    }
   } catch (err) {
-    if (err?.message === 'BLACKJACK_PROXY_EARLY_EXIT') return;
     console.error('Failed to restart Blackjack with updated bet:', err);
     const message = err?.code === 'InteractionAlreadyReplied'
       ? '⚠️ I already responded to that bet change. If the table didn’t refresh, try again.'
