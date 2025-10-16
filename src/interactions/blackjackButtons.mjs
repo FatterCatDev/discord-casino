@@ -235,6 +235,7 @@ export default async function onBlackjackButtons(interaction, ctx) {
     ctx.addHouseNet(state.guildId, state.userId, 'blackjack', state.chipsStake); try { ctx.recordSessionGame(state.guildId, state.userId, -state.chipsStake - creditsLoss); } catch {}
     return updateMessage({ embeds: [await ctx.bjEmbed(state, { footer: 'Dealer wins.', color: 0xED4245 })], components: [ctx.bjPlayAgainRow(state.table, state.bet, state.userId)] });
   }
+  cancelAutoAck();
   return interaction.reply({ content: '❌ Unknown action.', ephemeral: true });
 }
 // Interaction: Blackjack buttons (Hit/Stand/Double/Split/Again)
