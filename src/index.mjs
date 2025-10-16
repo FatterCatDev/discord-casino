@@ -324,6 +324,22 @@ client.once(Events.ClientReady, c => {
 
 });
 
+client.on(Events.GuildCreate, async (guild) => {
+  try {
+    const inviter = await findBotInviter(guild);
+    if (!inviter) {
+      console.warn(`Skipping welcome DM: no inviter found for guild ${guild?.id}`);
+      return;
+    }
+    const message = buildGuildWelcomeMessage(inviter, guild);
+    await inviter.send({ content: message });
+    const identifier = inviter.tag || `${inviter.username}#${inviter.discriminator}`;
+    console.log(`Sent setup DM to ${identifier} for guild ${guild?.id}`);
+  } catch (err) {
+    console.error(`Failed to send welcome DM for guild ${guild?.id}`, err);
+  }
+});
+
 // Command registry and context for modular handlers
 const KITTEN_PATCHED = Symbol('kittenModePatched');
 
