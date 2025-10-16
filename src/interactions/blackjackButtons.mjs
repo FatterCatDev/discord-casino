@@ -6,8 +6,16 @@ export default async function onBlackjackButtons(interaction, ctx) {
   let action = parts[1];
   const k = ctx.keyFor(interaction);
   const state = ctx.blackjackGames.get(k);
+  let deferred = false;
+  const deferUpdateOnce = async () => {
+    if (!deferred && !interaction.deferred && !interaction.replied) {
+      await interaction.deferUpdate();
+      deferred = true;
+    }
+  };
+  const updateMessage = (payload) => ctx.sendGameMessage(interaction, payload, 'update');
   if (action !== 'again' && action !== 'change') {
-    if (!state) return interaction.update({ content: `${emoji('hourglass')} This session expired. Use \`/blackjack\` to start a new one.`, components: [] });
+    if (!state) return updateMessage({ content: `${emoji('hourglass')} This session expired. Use \`/blackjack\` to start a new one.`, components: [] });
     if (interaction.user.id !== state.userId) return interaction.reply({ content: '❌ Only the original player can use these buttons.', ephemeral: true });
     if (state.finished) return interaction.reply({ content: '❌ Hand already finished.', ephemeral: true });
   }
