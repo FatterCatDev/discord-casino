@@ -70,13 +70,14 @@ export function bjPlayAgainRow(table, bet, userId) {
 }
 
 export async function startBlackjack(interaction, table, bet) {
-  const k = `${interaction.guild.id}:${interaction.user.id}`;
+  const sessionGuildId = interaction.guild?.id || 'dm';
+  const k = `${sessionGuildId}:${interaction.user.id}`;
   if (blackjackGames.has(k)) return interaction.reply({ content: '❌ You already have an active Blackjack hand. Finish it first.', ephemeral: true });
   if (table === 'HIGH') { if (bet < 100) return interaction.reply({ content: '❌ High table minimum is 100.', ephemeral: true }); }
   else if (table === 'LOW') { if (bet > 99) return interaction.reply({ content: '❌ Low table maximum is 99.', ephemeral: true }); }
   else return interaction.reply({ content: '❌ Invalid table.', ephemeral: true });
 
-  const guildId = interaction.guild?.id;
+  const guildId = interaction.guild?.id || null;
   const { chips, credits } = await getUserBalances(guildId, interaction.user.id);
   const total = chips + credits;
   if (total < bet) {
@@ -91,9 +92,22 @@ export async function startBlackjack(interaction, table, bet) {
   if (chipStake > 0) { try { await takeFromUserToHouse(guildId, interaction.user.id, chipStake, 'blackjack buy-in (chips)', interaction.user.id); } catch { return interaction.reply({ content: '❌ Could not process buy-in.', ephemeral: true }); } }
 
   const deck = makeDeck();
-  const state = { guildId: interaction.guild.id, userId: interaction.user.id, table, bet, creditsStake: creditStake, chipsStake: chipStake, deck, player: [deck.pop(), deck.pop()], dealer: [deck.pop(), deck.pop()], finished: false, revealed: false };
+  const state = {
+    guildId,
+    sessionGuildId,
+    userId: interaction.user.id,
+    table,
+    bet,
+    creditsStake: creditStake,
+    chipsStake: chipStake,
+    deck,
+    player: [deck.pop(), deck.pop()],
+    dealer: [deck.pop(), deck.pop()],
+    finished: false,
+    revealed: false
+  };
   blackjackGames.set(k, state);
-  setActiveSession(interaction.guild.id, interaction.user.id, 'blackjack', 'Blackjack');
+  setActiveSession(sessionGuildId, interaction.user.id, 'blackjack', 'Blackjack');
 
   const p = bjHandValue(state.player); const d = bjHandValue(state.dealer);
   const playerBJ = (p.total === 21 && state.player.length === 2); const dealerBJ = (d.total === 21 && state.dealer.length === 2);
@@ -104,8 +118,8 @@ export async function startBlackjack(interaction, table, bet) {
         if (state.chipsStake > 0) {
           await transferFromHouseToUser(state.guildId, state.userId, state.chipsStake, 'blackjack push (both BJ)', null);
         }
-        addHouseNet(state.guildId, state.userId, 'blackjack', 0);
-        try { recordSessionGame(state.guildId, state.userId, 0); } catch {}
+    addHouseNet(state.sessionGuildId, state.userId, 'blackjack', 0);
+    try { recordSessionGame(state.sessionGuildId, state.userId, 0); } catch {}
         const row = bjPlayAgainRow(state.table, state.bet, state.userId);
         return sendGameMessage(interaction, { embeds: [await bjEmbed(state, { footer: 'Push. Your stake was returned.', color: 0x2b2d31 })], components: [row] });
       } catch { return interaction.reply({ content: '⚠️ Settlement failed.', ephemeral: true }); }
@@ -115,16 +129,16 @@ export async function startBlackjack(interaction, table, bet) {
       try {
         const payout = state.chipsStake + win;
         await transferFromHouseToUser(state.guildId, state.userId, payout, 'blackjack natural', null);
-        addHouseNet(state.guildId, state.userId, 'blackjack', -win);
-        try { recordSessionGame(state.guildId, state.userId, win); } catch {}
+        addHouseNet(state.sessionGuildId, state.userId, 'blackjack', -win);
+        try { recordSessionGame(state.sessionGuildId, state.userId, win); } catch {}
         const row = bjPlayAgainRow(state.table, state.bet, state.userId);
         return sendGameMessage(interaction, { embeds: [await bjEmbed(state, { footer: `Natural! You win ${chipsAmount(win)}.`, color: 0x57F287 })], components: [row] });
       } catch { return interaction.reply({ content: '⚠️ Payout failed.', ephemeral: true }); }
     }
     try {
       await burnCredits(state.guildId, state.userId, state.creditsStake, 'blackjack loss (dealer BJ)', null);
-      addHouseNet(state.guildId, state.userId, 'blackjack', state.chipsStake);
-      try { recordSessionGame(state.guildId, state.userId, -state.chipsStake); } catch {}
+      addHouseNet(state.sessionGuildId, state.userId, 'blackjack', state.chipsStake);
+      try { recordSessionGame(state.sessionGuildId, state.userId, -state.chipsStake); } catch {}
       const row = bjPlayAgainRow(state.table, state.bet, state.userId);
       return sendGameMessage(interaction, { embeds: [await bjEmbed(state, { footer: 'Dealer Blackjack. You lose.', color: 0xED4245 })], components: [row] });
     } catch { return interaction.reply({ content: '⚠️ Settle failed.', ephemeral: true }); }
