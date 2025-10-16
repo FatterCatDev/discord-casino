@@ -44,6 +44,14 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (guild_id, discord_id)
 );
+CREATE TABLE IF NOT EXISTS user_onboarding (
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  acknowledged_at INTEGER,
+  chips_granted INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY (guild_id, user_id)
+);
 CREATE TABLE IF NOT EXISTS transactions (
   id INTEGER PRIMARY KEY,
   guild_id TEXT NOT NULL,
@@ -358,6 +366,7 @@ db.exec('CREATE INDEX IF NOT EXISTS idx_job_profiles_job ON job_profiles (job_id
 db.exec('CREATE INDEX IF NOT EXISTS idx_job_shifts_user_started ON job_shifts (guild_id, user_id, started_at)');
 db.exec('CREATE INDEX IF NOT EXISTS idx_job_status_guild_switch ON job_status (guild_id, job_switch_available_at)');
 db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_vote_rewards_source_external ON vote_rewards (source, external_id)');
+db.exec('CREATE INDEX IF NOT EXISTS idx_user_onboarding_ack ON user_onboarding (guild_id, acknowledged_at)');
 
 
 // --- PREPARED STATEMENTS ---
