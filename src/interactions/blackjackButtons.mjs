@@ -26,8 +26,8 @@ export default async function onBlackjackButtons(interaction, ctx) {
   const cancelAutoAck = scheduleInteractionAck(interaction, { timeout: BUTTON_STALE_MS, mode: 'update' });
   if (action !== 'again' && action !== 'change') {
     if (!state) { cancelAutoAck(); return updateMessage({ content: `${emoji('hourglass')} This session expired. Use \`/blackjack\` to start a new one.`, components: [] }); }
-    if (interaction.user.id !== state.userId) return interaction.reply({ content: '❌ Only the original player can use these buttons.', ephemeral: true });
-    if (state.finished) return interaction.reply({ content: '❌ Hand already finished.', ephemeral: true });
+    if (interaction.user.id !== state.userId) { cancelAutoAck(); return interaction.reply({ content: '❌ Only the original player can use these buttons.', ephemeral: true }); }
+    if (state.finished) { cancelAutoAck(); return interaction.reply({ content: '❌ Hand already finished.', ephemeral: true }); }
   }
   if (action !== 'again' && ctx.hasActiveExpired(interaction.guild.id, interaction.user.id, 'blackjack')) {
     if (state) {
