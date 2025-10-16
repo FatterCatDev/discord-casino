@@ -1336,16 +1336,45 @@ export function getUserOnboardingStatus(guildId, userId) {
   };
 }
 
-export function markUserOnboardingAcknowledged(guildId, userId, chipsGranted = 0, acknowledgedAt = nowSeconds()) {
+export function grantUserOnboardingBonus(guildId, userId, amount, reason = 'welcome bonus') {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  const amt = toInt(amount, 0);
+  if (!uid) throw new Error('ONBOARD_USER_REQUIRED');
+  if (!Number.isInteger(amt) || amt <= 0) {
+    return { granted: false, status: getUserOnboardingStatus(gid, uid) };
+  }
+  const run = db.transaction(() => {
+    ensureGuildUser(gid, uid);
+    ensureUserOnboardingStmt.run(gid, uid);
+    const current = getUserOnboardingStmt.get(gid, uid) || { acknowledged_at: null, chips_granted: 0 };
+    const prevGranted = toInt(current.chips_granted ?? 0, 0);
+    if (prevGranted >= amt) {
+      return { granted: false };
+    }
+    addChipsStmt.run(amt, gid, uid);
+    recordTxn(gid, uid, amt, reason || 'welcome bonus', null, 'CHIPS');
+    updateUserOnboardingGrantStmt.run(amt, gid, uid);
+    return { granted: true };
+  });
+  const result = run();
+  const status = getUserOnboardingStatus(gid, uid);
+  return {
+    granted: result?.granted === true,
+    status
+  };
+}
+
+export function markUserOnboardingAcknowledged(guildId, userId, acknowledgedAt = nowSeconds()) {
   const gid = resolveGuildId(guildId);
   const uid = String(userId || '').trim();
   if (!uid) throw new Error('ONBOARD_USER_REQUIRED');
   const ackTs = acknowledgedAt === null ? null : toInt(acknowledgedAt, nowSeconds());
-  const chips = toInt(chipsGranted, 0);
-  const info = markUserOnboardingStmt.run(gid, uid, ackTs, chips);
+  ensureUserOnboardingStmt.run(gid, uid);
+  const info = ackTs === null ? { changes: 0 } : acknowledgeUserOnboardingStmt.run(ackTs, gid, uid);
   const status = getUserOnboardingStatus(gid, uid);
   return {
-    didAcknowledge: info.changes > 0 && !!(status && status.acknowledgedAt !== null),
+    acknowledged: info.changes > 0 && !!(status && status.acknowledgedAt !== null),
     status
   };
 }
