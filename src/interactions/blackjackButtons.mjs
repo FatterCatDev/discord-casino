@@ -57,7 +57,7 @@ export default async function onBlackjackButtons(interaction, ctx) {
       return interaction.reply({ content: '❌ Only the original player can adjust this bet.', ephemeral: true });
     }
     const ageMs = Date.now() - interaction.createdTimestamp;
-    if (ageMs > 2500) {
+    if (ageMs > BUTTON_STALE_MS) {
       return interaction.reply({ content: `${emoji('hourglass')} This button cooled off. Use \`/blackjack\` to start a fresh hand.`, ephemeral: true });
     }
     const modal = new ModalBuilder()
