@@ -189,6 +189,7 @@ export default async function handleRequestButtons(interaction, ctx) {
     return interaction.showModal(modal);
   }
 
+  await ensureKittenMode();
   return interaction.reply({ content: say('❌ Naughty Kitten, that action is unknown.', '❌ Unknown action.'), ephemeral: true });
 }
 // Interaction: Request admin action buttons (Take/Complete/Reject)
