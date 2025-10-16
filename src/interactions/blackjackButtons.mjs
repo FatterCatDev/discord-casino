@@ -1,3 +1,4 @@
+import { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
 import { emoji } from '../lib/emojis.mjs';
 
 export default async function onBlackjackButtons(interaction, ctx) {
@@ -5,7 +6,7 @@ export default async function onBlackjackButtons(interaction, ctx) {
   let action = parts[1];
   const k = ctx.keyFor(interaction);
   const state = ctx.blackjackGames.get(k);
-  if (action !== 'again') {
+  if (action !== 'again' && action !== 'change') {
     if (!state) return interaction.update({ content: `${emoji('hourglass')} This session expired. Use `/blackjack` to start a new one.`, components: [] });
     if (interaction.user.id !== state.userId) return interaction.reply({ content: '❌ Only the original player can use these buttons.', ephemeral: true });
     if (state.finished) return interaction.reply({ content: '❌ Hand already finished.', ephemeral: true });
@@ -34,6 +35,28 @@ export default async function onBlackjackButtons(interaction, ctx) {
     const emb = await ctx.bjEmbed(state, { footer: 'You bust. Dealer wins.', color: 0xED4245 });
     return interaction.update({ embeds: [emb], components: [ctx.bjPlayAgainRow(state.table, state.bet, state.userId)] });
   };
+  if (action === 'change') {
+    const table = parts[2];
+    const defaultBet = Number(parts[3]) || 1;
+    const ownerId = parts[4] || interaction.user.id;
+    if (ownerId && ownerId !== interaction.user.id) {
+      return interaction.reply({ content: '❌ Only the original player can adjust this bet.', ephemeral: true });
+    }
+    const modal = new ModalBuilder()
+      .setCustomId(`bj|betmodal|${table}|${ownerId}`)
+      .setTitle('Play Again — Change Bet');
+    const amountInput = new TextInputBuilder()
+      .setCustomId('bet')
+      .setLabel('New bet amount (chips)')
+      .setPlaceholder('Enter a positive whole number')
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true);
+    if (Number.isFinite(defaultBet) && defaultBet > 0) {
+      amountInput.setValue(String(defaultBet));
+    }
+    modal.addComponents(new ActionRowBuilder().addComponents(amountInput));
+    return interaction.showModal(modal);
+  }
   if (action === 'again') {
     const table = parts[2];
     const bet = Number(parts[3]) || 1;
