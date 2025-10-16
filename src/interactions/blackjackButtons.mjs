@@ -60,6 +60,7 @@ export default async function onBlackjackButtons(interaction, ctx) {
     const defaultBet = Number(parts[3]) || 1;
     const ownerId = parts[4] || interaction.user.id;
     if (ownerId && ownerId !== interaction.user.id) {
+      cancelAutoAck();
       return interaction.reply({ content: '❌ Only the original player can adjust this bet.', ephemeral: true });
     }
     const ageMs = Date.now() - interaction.createdTimestamp;
