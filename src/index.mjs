@@ -700,6 +700,11 @@ client.on(Events.InteractionCreate, async interaction => {
       const ctx = buildCommandContext(interaction, ctxExtras);
       return onRequestRejectModal(interaction, ctx);
     }
+    else if (interaction.isModalSubmit() && interaction.customId.startsWith('bj|betmodal|')) {
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      const mod = await import('./interactions/blackjackBetModal.mjs');
+      return mod.default(interaction, ctx);
+    }
 
     // Roulette modal submits
     else if (interaction.isModalSubmit() && interaction.customId.startsWith('rou|modal|')) {
