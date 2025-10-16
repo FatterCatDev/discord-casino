@@ -106,17 +106,34 @@ const OWNER_USER_IDS = Array.from(new Set([
 const WELCOME_BONUS_AMOUNT = 200;
 const WELCOME_ACK_CUSTOM_ID = 'welcome|ack';
 
-function buildWelcomePromptEmbed() {
+function buildWelcomePromptEmbed({ status = null, bonusJustGranted = false, bonusError = null } = {}) {
   const chipsText = formatChips(WELCOME_BONUS_AMOUNT);
+  const hasBonus = (status?.chipsGranted ?? 0) >= WELCOME_BONUS_AMOUNT;
+  let statusLine;
+  if (bonusError) {
+    statusLine = `⚠️ I tried to add **${chipsText}** to your chips but hit a snag. Please ping a moderator so we can fix it right away.`;
+  } else if (bonusJustGranted) {
+    statusLine = `✅ I just added **${chipsText}** to your balance to get you started.`;
+  } else if (hasBonus) {
+    statusLine = `✅ You already have **${chipsText}** waiting in your pocket—nice!`;
+  } else {
+    statusLine = `✅ I’ll add **${chipsText}** as soon as this welcome message sticks.`;
+  }
   return new EmbedBuilder()
     .setColor(0xF1C40F)
     .setTitle('Welcome to Casino Bot')
     .setDescription([
       'Casino Bot shares a single chip balance across every server, so what you earn here travels with you.',
       '',
+      statusLine,
+      '',
       'Here are two quick ways to dive in:'
     ].join('\n'))
     .addFields(
+      {
+        name: 'ℹ️ Quick Commands',
+        value: 'Use `/help` for the full guide and `/balance` to check your chips any time.'
+      },
       {
         name: '🎰 Casino Games',
         value: 'Spin `/slots`, challenge `/blackjack`, or bet big in `/roulette` for instant thrills.'
@@ -126,7 +143,7 @@ function buildWelcomePromptEmbed() {
         value: 'Run `/job` to choose a career, clock shifts, and build reliable income alongside your wagers.'
       }
     )
-    .setFooter({ text: `Click Okay to claim ${chipsText} and hit the tables.` });
+    .setFooter({ text: 'Hit Okay when you’re ready to jump in.' });
 }
 
 function buildWelcomePromptComponents() {
@@ -141,24 +158,25 @@ function buildWelcomePromptComponents() {
   ];
 }
 
-function buildWelcomeAcknowledgedEmbed({ mintedSuccess, alreadyClaimed }) {
+function buildWelcomeAcknowledgedEmbed({ status, alreadyClaimed }) {
   const chipsText = formatChips(WELCOME_BONUS_AMOUNT);
+  const hasBonus = (status?.chipsGranted ?? 0) >= WELCOME_BONUS_AMOUNT;
   if (alreadyClaimed) {
     return new EmbedBuilder()
       .setColor(0x5865F2)
       .setTitle('Welcome back!')
       .setDescription('You already claimed the welcome bonus—good luck out there!');
   }
-  if (mintedSuccess) {
+  if (hasBonus) {
     return new EmbedBuilder()
       .setColor(0x57F287)
       .setTitle('All set!')
-      .setDescription(`I added **${chipsText}** to your chips. Check \`/balance\` any time and explore games like \`/slots\`, \`/blackjack\`, or pick a shift with \`/job\`.`);
+      .setDescription(`You’re stocked with **${chipsText}** to start. Try \`/help\` for tips or \`/balance\` to see your chips any time.`);
   }
   return new EmbedBuilder()
     .setColor(0xED4245)
     .setTitle('Heads up!')
-    .setDescription('I noted your welcome bonus, but crediting chips failed. Please ping a moderator so we can fix it right away.');
+    .setDescription('I still owe you the welcome chips—let a moderator know so we can sort it out for you.');
 }
 
 async function maybePromptNewPlayer(interaction) {
