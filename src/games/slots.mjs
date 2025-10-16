@@ -169,22 +169,35 @@ export async function runSlotsSpin(interaction, bet, key) {
   const creditStake = Math.min(bet, credits);
   const chipStake = bet - creditStake;
   const cover = await getHouseBalance(guildId);
-  const neededCover = chipStake + win;
-  if (cover < neededCover) {
-    return interaction.reply({ content: `❌ House cannot cover potential payout. Needed: **${chipsAmount(neededCover)}**.`, ephemeral: true });
+  if (cover + chipStake < win) {
+    return interaction.reply({ content: `❌ House cannot cover potential payout. Needed: **${chipsAmount(win)}**.`, ephemeral: true });
   }
   if (chipStake > 0) {
     try { await takeFromUserToHouse(guildId, interaction.user.id, chipStake, 'slots spin (chips)', interaction.user.id); } catch { return interaction.reply({ content: '❌ Could not process bet.', ephemeral: true }); }
   }
-  let footer;
+  const fmtCredits = new Intl.NumberFormat('en-US');
+  let creditsBurned = 0;
   if (win > 0) {
-    const payout = chipStake + win;
-    try { await transferFromHouseToUser(guildId, interaction.user.id, payout, 'slots win', null); footer = `Win: ${chipsAmount(win)} • Returned stake: ${chipsAmount(chipStake)}`; }
+    const payout = win;
+    try { await transferFromHouseToUser(guildId, interaction.user.id, payout, 'slots win', null); }
     catch { return interaction.reply({ content: '⚠️ Payout failed.', ephemeral: true }); }
   } else {
-    try { if (creditStake > 0) await burnCredits(guildId, interaction.user.id, creditStake, 'slots loss', null); } catch {}
-    footer = 'No win.';
+    try {
+      if (creditStake > 0) {
+        await burnCredits(guildId, interaction.user.id, creditStake, 'slots loss', null);
+        creditsBurned = creditStake;
+      }
+    } catch {}
   }
+  const totalNet = win - chipStake - creditsBurned;
+  const footerParts = [];
+  footerParts.push(win > 0 ? `Win: ${chipsAmount(win)}` : 'No win');
+  footerParts.push(`Net: ${chipsAmountSigned(totalNet)}`);
+  if (creditStake > 0) {
+    const label = creditsBurned > 0 ? 'Credits Burned' : 'Credits Used';
+    footerParts.push(`${label}: ${fmtCredits.format(creditStake)}`);
+  }
+  const footer = footerParts.join(' • ');
   const e = new EmbedBuilder()
     .setTitle(`${emoji('slots')} Slots`)
     .setColor(win > 0 ? 0x57F287 : 0xED4245)
@@ -204,13 +217,12 @@ export async function runSlotsSpin(interaction, bet, key) {
     try { e.addFields(buildTimeoutField(interaction.guild.id, interaction.user.id)); } catch {}
   } catch {}
   try {
-    const payout = (win > 0) ? (chipStake + win) : 0;
-    const houseDelta = chipStake - payout;
+    const houseDelta = chipStake - win;
     const cur = slotSessions.get(key) || { lastBet: 0, houseNet: 0 };
     cur.lastBet = bet;
     cur.houseNet = (cur.houseNet || 0) + houseDelta;
     slotSessions.set(key, cur);
-    try { recordSessionGame(interaction.guild.id, interaction.user.id, win > 0 ? win : -chipStake); } catch {}
+    try { recordSessionGame(interaction.guild.id, interaction.user.id, totalNet); } catch {}
 // Game: Slots — spin, evaluate lines, settle payouts (Credits-first), and render result UI.
   } catch {}
   const again = new ActionRowBuilder().addComponents(
