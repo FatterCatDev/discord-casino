@@ -218,6 +218,20 @@ async function ensureJobTables() {
   await q('CREATE INDEX IF NOT EXISTS idx_job_shifts_user_started ON job_shifts (guild_id, user_id, started_at)');
 }
 
+async function ensureOnboardingTable() {
+  await q(`
+    CREATE TABLE IF NOT EXISTS user_onboarding (
+      guild_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      acknowledged_at BIGINT,
+      chips_granted BIGINT NOT NULL DEFAULT 0,
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      PRIMARY KEY (guild_id, user_id)
+    )
+  `);
+  await q('CREATE INDEX IF NOT EXISTS idx_user_onboarding_ack ON user_onboarding (guild_id, acknowledged_at)');
+}
+
 async function mergeEconomyToGlobalScope() {
   if (!USE_GLOBAL_ECONOMY) return;
   const gid = ECONOMY_GUILD_ID;
