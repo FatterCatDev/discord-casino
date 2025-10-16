@@ -4,9 +4,7 @@ async function inCasinoCategory(interaction, kittenMode) {
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
   try {
     const { casino_category_id } = await getGuildSettings(interaction.guild.id) || {};
-    if (!casino_category_id) {
-      return { ok: false, reason: say('❌ The casino category isn’t configured yet, Kitten. Ask an admin to use /setcasinocategory.', '❌ Casino category is not configured. Admins: use /setcasinocategory.') };
-    }
+    if (!casino_category_id) return { ok: true };
     const ch = interaction.channel;
     let catId = null;
     try {
