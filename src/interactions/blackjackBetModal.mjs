@@ -29,8 +29,8 @@ export default async function handleBlackjackBetModal(interaction, ctx) {
 
   const key = ctx.keyFor(interaction);
   ctx.blackjackGames.delete(key);
-
-  const activeSession = ctx.getActiveSession(interaction.guildId, interaction.user.id);
+  const sessionGuildId = interaction.guildId || interaction.guild?.id || 'dm';
+  const activeSession = ctx.getActiveSession(sessionGuildId, interaction.user.id);
   const channelId = activeSession?.msgChannelId;
   const messageId = activeSession?.msgId;
 
