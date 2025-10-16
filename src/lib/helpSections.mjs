@@ -659,6 +659,35 @@ export function buildHelpSections({ kittenMode = false, isMod = false, isSetupAd
       {
         label: say(`${emoji('map')} Categories`, `${emoji('map')} Categories`),
         items: overviewItems
+      },
+      {
+        label: say(`${emoji('sparkles')} Quick Commands`, `${emoji('sparkles')} Quick Commands`),
+        items: [
+          {
+            emoji: emoji('chips'),
+            cmd: '/balance',
+            desc: say(
+              'Peek at your chips and credits before you wager, Kitten.',
+              'Check your current chips and credits balance.'
+            )
+          },
+          {
+            emoji: emoji('gift'),
+            cmd: '/dailyspin',
+            desc: say(
+              'Grab your free daily spin — it resets every 24 hours.',
+              'Claim a free chip spin once every 24 hours.'
+            )
+          },
+          {
+            emoji: emoji('robot'),
+            cmd: '/status',
+            desc: say(
+              'See my status, build, and how many kittens I’m entertaining.',
+              'View bot status, version, and global player counts.'
+            )
+          }
+        ]
       }
     ],
     footer: say(
