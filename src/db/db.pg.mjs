@@ -760,6 +760,7 @@ export async function eraseUserData(discordId) {
     deleted.holdemCommits = (await c.query('DELETE FROM holdem_commits WHERE user_id = $1', [userId])).rowCount;
     deleted.modAssignments = (await c.query('DELETE FROM mod_users WHERE user_id = $1', [userId])).rowCount;
     deleted.adminAssignments = (await c.query('DELETE FROM admin_users WHERE user_id = $1', [userId])).rowCount;
+    deleted.onboarding = (await c.query('DELETE FROM user_onboarding WHERE user_id = $1', [userId])).rowCount;
     const updated = {};
     updated.transactionsAdmin = (await c.query('UPDATE transactions SET admin_id = NULL WHERE admin_id = $1', [userId])).rowCount;
     updated.holdemTablesHost = (await c.query('UPDATE holdem_tables SET host_id = NULL WHERE host_id = $1', [userId])).rowCount;
