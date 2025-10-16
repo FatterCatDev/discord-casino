@@ -1328,6 +1328,58 @@ async function finalizeShift(interaction, ctx, session) {
     metadata
   });
 
+  if (typeof ctx?.postCashLog === 'function') {
+    const totalPaid = payoutResult.basePaid + payoutResult.tipPaid;
+    const jobIcon = jobDisplayIcon(session.job);
+    const jobLabel = jobIcon ? `${jobIcon} ${session.job.displayName}` : session.job.displayName;
+    const formatAmount = typeof ctx?.chipsAmount === 'function'
+      ? amount => ctx.chipsAmount(amount)
+      : amount => `${new Intl.NumberFormat('en-US').format(Math.max(0, Number(amount) || 0))} Chips`;
+    const statusNotes = {
+      SUCCESS: { kitten: '', normal: '' },
+      TIP_SKIPPED: {
+        kitten: ' — Tip skipped; the vault clenched mid-transfer.',
+        normal: ' — Tip skipped; house balance dipped mid-transfer.'
+      },
+      HOUSE_INSUFFICIENT: {
+        kitten: ' — Vault couldn’t cover the payout; nothing moved.',
+        normal: ' — House couldn’t cover the payout; no chips transferred.'
+      },
+      ERROR: {
+        kitten: ' — Transfer error logged for review.',
+        normal: ' — Transfer error logged for review.'
+      }
+    };
+    const statusKey = payoutResult.status || 'SUCCESS';
+    const statusNote = statusNotes[statusKey] || {
+      kitten: ` — Status: ${statusKey}`,
+      normal: ` — Status: ${statusKey}`
+    };
+    const totalLineSuffix = session.kittenMode ? statusNote.kitten : statusNote.normal;
+    const logLines = session.kittenMode
+      ? [
+          `${emoji('briefcase')} **Shift Ledger**`,
+          `Role: ${jobLabel}`,
+          `Performance: **${performanceScore} / 100**`,
+          `Base Tribute: **${formatAmount(payoutResult.basePaid)}**`,
+          `Tip Sprinkle (${tipPercent}%): **${formatAmount(payoutResult.tipPaid)}**`,
+          `House Transfer: **${formatAmount(totalPaid)}**${totalLineSuffix}`
+        ]
+      : [
+          `${emoji('briefcase')} **Job Shift Settled**`,
+          `Role: ${jobLabel}`,
+          `Performance: **${performanceScore} / 100**`,
+          `Base Pay: **${formatAmount(payoutResult.basePaid)}**`,
+          `Tip (${tipPercent}%): **${formatAmount(payoutResult.tipPaid)}**`,
+          `Total Paid: **${formatAmount(totalPaid)}**${totalLineSuffix}`
+        ];
+    try {
+      await ctx.postCashLog(interaction, logLines);
+    } catch (err) {
+      console.error('job shift cash log failed', err);
+    }
+  }
+
   const shiftStatus = await recordShiftCompletion(session.guildId, session.userId);
   const shiftStatusField = buildShiftStatusField(session, shiftStatus);
 
