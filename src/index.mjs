@@ -103,6 +103,95 @@ const OWNER_USER_IDS = Array.from(new Set([
     .filter(Boolean)
 ]));
 
+const WELCOME_BONUS_AMOUNT = 200;
+const WELCOME_ACK_CUSTOM_ID = 'welcome|ack';
+
+function buildWelcomePromptEmbed() {
+  const chipsText = formatChips(WELCOME_BONUS_AMOUNT);
+  return new EmbedBuilder()
+    .setColor(0xF1C40F)
+    .setTitle('Welcome to Casino Bot')
+    .setDescription([
+      'Casino Bot shares a single chip balance across every server, so what you earn here travels with you.',
+      '',
+      'Here are two quick ways to dive in:'
+    ].join('\n'))
+    .addFields(
+      {
+        name: '🎰 Casino Games',
+        value: 'Spin `/slots`, challenge `/blackjack`, or bet big in `/roulette` for instant thrills.'
+      },
+      {
+        name: '💼 Job System',
+        value: 'Run `/job` to choose a career, clock shifts, and build reliable income alongside your wagers.'
+      }
+    )
+    .setFooter({ text: `Click Okay to claim ${chipsText} and hit the tables.` });
+}
+
+function buildWelcomePromptComponents() {
+  return [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(WELCOME_ACK_CUSTOM_ID)
+        .setLabel('Okay')
+        .setEmoji('✅')
+        .setStyle(ButtonStyle.Success)
+    )
+  ];
+}
+
+function buildWelcomeAcknowledgedEmbed({ mintedSuccess, alreadyClaimed }) {
+  const chipsText = formatChips(WELCOME_BONUS_AMOUNT);
+  if (alreadyClaimed) {
+    return new EmbedBuilder()
+      .setColor(0x5865F2)
+      .setTitle('Welcome back!')
+      .setDescription('You already claimed the welcome bonus—good luck out there!');
+  }
+  if (mintedSuccess) {
+    return new EmbedBuilder()
+      .setColor(0x57F287)
+      .setTitle('All set!')
+      .setDescription(`I added **${chipsText}** to your chips. Check \`/balance\` any time and explore games like \`/slots\`, \`/blackjack\`, or pick a shift with \`/job\`.`);
+  }
+  return new EmbedBuilder()
+    .setColor(0xED4245)
+    .setTitle('Heads up!')
+    .setDescription('I noted your welcome bonus, but crediting chips failed. Please ping a moderator so we can fix it right away.');
+}
+
+async function maybePromptNewPlayer(interaction) {
+  const guildId = interaction.guild?.id || null;
+  const userId = interaction.user?.id || null;
+  if (!guildId || !userId) return false;
+  try {
+    const status = await getUserOnboardingStatus(guildId, userId);
+    if (status?.acknowledgedAt) return false;
+  } catch (err) {
+    console.error(`Failed to read onboarding status for ${userId} in ${guildId}`, err);
+    return false;
+  }
+
+  const payload = {
+    embeds: [buildWelcomePromptEmbed()],
+    components: buildWelcomePromptComponents(),
+    ephemeral: true
+  };
+
+  try {
+    if (interaction.deferred || interaction.replied) {
+      await interaction.followUp(payload);
+    } else {
+      await interaction.reply(payload);
+    }
+    return true;
+  } catch (err) {
+    console.error(`Failed to send welcome prompt for ${userId} in ${guildId}`, err);
+    return false;
+  }
+}
+
 
 // Session tracking (in-memory per bot runtime)
 // NOTE: We surface current session stats from activeSessions (below).
