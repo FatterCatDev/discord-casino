@@ -308,7 +308,9 @@ async function notifyAutoKick(client, state, removed) {
     for (const r of removed) {
       try {
         const user = await client.users.fetch(r.userId);
-        const msg = applyKittenText(state, `${emoji('noEntry')} You were removed from the Hold’em table — insufficient chips to cover the big blind (${bb}).`);
+        const base = `${emoji('noEntry')} You were removed from the Hold’em table — insufficient chips to cover the big blind (${bb}).`;
+        const enriched = withInsufficientFundsTip(base, state?.kittenMode === true);
+        const msg = applyKittenText(state, enriched);
         await user.send(msg);
       } catch {}
     }
