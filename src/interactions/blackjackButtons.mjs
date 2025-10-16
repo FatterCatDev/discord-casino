@@ -154,7 +154,30 @@ export default async function onBlackjackButtons(interaction, ctx) {
     const d = ctx.bjHandValue(state.dealer); ctx.blackjackGames.delete(k);
     if (state.split && Array.isArray(state.hands)) {
       let totalPayout = 0; let summary = []; let creditsBurned = 0;
-      for (let i = 0; i < 2; i++) { const h = state.hands[i]; const pv = ctx.bjHandValue(h.cards); if (h.busted) { if (h.creditsStake > 0) { try { await ctx.burnCredits(state.userId, h.creditsStake, 'blackjack loss (split)'); creditsBurned += h.creditsStake; } catch {} } summary.push(`Hand ${i===0?'A':'B'}: BUST`); continue; } if (d.total > 21 || pv.total > d.total) { totalPayout += h.chipsStake + h.bet; summary.push(`Hand ${i===0?'A':'B'}: WIN (+${ctx.formatChips(h.bet)})`); } else if (pv.total === d.total) { totalPayout += h.chipsStake; summary.push(`Hand ${i===0?'A':'B'}: PUSH`); } else { if (h.creditsStake > 0) { try { await ctx.burnCredits(state.userId, h.creditsStake, 'blackjack loss (split)'); creditsBurned += h.creditsStake; } catch {} } summary.push(`Hand ${i===0?'A':'B'}: LOSS`); } }
+      for (let i = 0; i < 2; i++) {
+        const h = state.hands[i];
+        const pv = ctx.bjHandValue(h.cards);
+        if (h.busted) {
+          creditsBurned += h.creditsStake || 0;
+          summary.push(`Hand ${i === 0 ? 'A' : 'B'}: BUST`);
+          continue;
+        }
+        if (d.total > 21 || pv.total > d.total) {
+          totalPayout += h.chipsStake + h.bet;
+          summary.push(`Hand ${i === 0 ? 'A' : 'B'}: WIN (+${ctx.formatChips(h.bet)})`);
+        } else if (pv.total === d.total) {
+          totalPayout += h.chipsStake;
+          summary.push(`Hand ${i === 0 ? 'A' : 'B'}: PUSH`);
+        } else {
+          if (h.creditsStake > 0) {
+            try {
+              await ctx.burnCredits(state.userId, h.creditsStake, 'blackjack loss (split)');
+              creditsBurned += h.creditsStake;
+            } catch {}
+          }
+          summary.push(`Hand ${i === 0 ? 'A' : 'B'}: LOSS`);
+        }
+      }
       if (totalPayout > 0) { try { await ctx.transferFromHouseToUser(state.userId, totalPayout, 'blackjack settle (split)', null); } catch {} }
       try { const totalChipsStake = (state.hands?.[0]?.chipsStake || 0) + (state.hands?.[1]?.chipsStake || 0); ctx.recordSessionGame(state.guildId, state.userId, totalPayout - totalChipsStake - creditsBurned); } catch {}
       try { const totalChipsStake = (state.hands?.[0]?.chipsStake || 0) + (state.hands?.[1]?.chipsStake || 0); ctx.addHouseNet(state.guildId, state.userId, 'blackjack', totalChipsStake - totalPayout); } catch {}
