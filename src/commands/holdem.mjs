@@ -5,6 +5,15 @@ import { emoji } from '../lib/emojis.mjs';
 async function inCasinoCategory(interaction, kittenMode) {
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
   try {
+    if (!interaction.guild) {
+      return {
+        ok: false,
+        reason: say(
+          '❌ I can only host Hold’em inside a server. Invite me there and ask an admin to run `/setcasinocategory`.',
+          '❌ Hold’em tables can only be hosted inside a server. Have an admin run `/setcasinocategory` in your guild.'
+        )
+      };
+    }
     const { casino_category_id } = await getGuildSettings(interaction.guild.id) || {};
     if (!casino_category_id) {
       return {
