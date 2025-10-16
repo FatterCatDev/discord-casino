@@ -32,6 +32,7 @@ export default async function handleRequestButtons(interaction, ctx) {
 
   if (!(await ctx.isModerator(interaction))) {
     await ensureKittenMode();
+    cancelAutoAck();
     return interaction.reply({ content: say('❌ Only my trusted moderators may touch these buttons, Kitten.', '❌ Moderators only.'), ephemeral: true });
   }
 
