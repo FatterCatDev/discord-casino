@@ -1,6 +1,11 @@
 import { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
 import { emoji } from '../lib/emojis.mjs';
 
+const BUTTON_STALE_MS = (() => {
+  const raw = Number(process.env.INTERACTION_STALE_MS);
+  return Number.isFinite(raw) && raw > 0 ? raw : 2500;
+})();
+
 export default async function onBlackjackButtons(interaction, ctx) {
   const parts = interaction.customId.split('|');
   let action = parts[1];
