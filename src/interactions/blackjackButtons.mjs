@@ -1,6 +1,7 @@
 import { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
 import { emoji } from '../lib/emojis.mjs';
 import { scheduleInteractionAck } from '../lib/interactionAck.mjs';
+import { withInsufficientFundsTip } from '../lib/fundsTip.mjs';
 
 const BUTTON_STALE_MS = (() => {
   const specific = Number(process.env.BLACKJACK_BUTTON_STALE_MS);
@@ -14,6 +15,9 @@ export default async function onBlackjackButtons(interaction, ctx) {
   let action = parts[1];
   const k = ctx.keyFor(interaction);
   const state = ctx.blackjackGames.get(k);
+  const kittenMode = typeof ctx?.kittenModeEnabled === 'boolean'
+    ? ctx.kittenModeEnabled
+    : (typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false);
   let deferred = false;
   const deferUpdateOnce = async () => {
     if (!deferred && !interaction.deferred && !interaction.replied) {
@@ -131,7 +135,11 @@ export default async function onBlackjackButtons(interaction, ctx) {
     if (state.split) { cancelAutoAck(); return interaction.reply({ content: '❌ Double after split is not supported in this version.', ephemeral: true }); }
     if (state.player.length !== 2 || state.doubled) { cancelAutoAck(); return interaction.reply({ content: '❌ Double is only available on your first decision.', ephemeral: true }); }
     const addBet = state.bet;
-    if (!(await ctx.canAffordExtra(state.userId, addBet))) { cancelAutoAck(); return interaction.reply({ content: '❌ Not enough funds to double.', ephemeral: true }); }
+    if (!(await ctx.canAffordExtra(state.userId, addBet))) {
+      cancelAutoAck();
+      const msg = withInsufficientFundsTip('❌ Not enough funds to double.', kittenMode);
+      return interaction.reply({ content: msg, ephemeral: true });
+    }
     try {
       // Credits-first for the added stake
       const { credits, chips } = await ctx.getUserBalances(state.userId);
@@ -172,7 +180,11 @@ export default async function onBlackjackButtons(interaction, ctx) {
     const v1 = ctx.cardValueForSplit(state.player[0]);
     const v2 = ctx.cardValueForSplit(state.player[1]);
     if (v1 !== v2) { cancelAutoAck(); return interaction.reply({ content: '❌ You can only split equal-value cards.', ephemeral: true }); }
-    if (!(await ctx.canAffordExtra(state.userId, state.bet))) { cancelAutoAck(); return interaction.reply({ content: '❌ Not enough funds to split.', ephemeral: true }); }
+    if (!(await ctx.canAffordExtra(state.userId, state.bet))) {
+      cancelAutoAck();
+      const msg = withInsufficientFundsTip('❌ Not enough funds to split.', kittenMode);
+      return interaction.reply({ content: msg, ephemeral: true });
+    }
     const c1 = state.player[0], c2 = state.player[1];
     const { credits, chips } = await ctx.getUserBalances(state.userId);
     const extraCredit = Math.min(state.bet, credits);
