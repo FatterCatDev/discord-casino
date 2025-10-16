@@ -1312,7 +1312,17 @@ export async function rebuyAtTable(interaction, ctx, amount) {
     return interaction.reply({ content: '❌ You can rebuy only between hands (not during an active hand).', ephemeral: true });
   }
   // Chips-only rebuy into escrow
-  try { await escrowAdd(state.channelId, interaction.user.id, amount); } catch { return interaction.reply({ content: '❌ Could not process rebuy (insufficient Chips?).', ephemeral: true }); }
+  try {
+    const { chips } = await getUserBalances(interaction.guild.id, interaction.user.id);
+    if ((chips || 0) < amount) {
+      const msg = withInsufficientFundsTip('❌ Not enough Chips for that rebuy.', state?.kittenMode === true);
+      return interaction.reply({ content: msg, ephemeral: true });
+    }
+    await escrowAdd(state.channelId, interaction.user.id, amount);
+  } catch {
+    const msg = withInsufficientFundsTip('❌ Could not process rebuy (insufficient Chips?).', state?.kittenMode === true);
+    return interaction.reply({ content: msg, ephemeral: true });
+  }
   seat.stack = newStack;
   const embed = buildTableEmbed(state);
   const row = tableButtons(state);
