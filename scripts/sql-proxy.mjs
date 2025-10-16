@@ -33,3 +33,21 @@ child.on('exit', (code, sig) => {
   else console.log(`Proxy exited with code ${code}`);
 });
 
+const handleShutdown = (signal) => {
+  console.log(`Received ${signal}. Stopping Cloud SQL Proxy...`);
+  try {
+    if (!child.killed) child.kill(signal);
+  } catch (err) {
+    console.error('Failed to terminate proxy process:', err);
+  } finally {
+    process.exit();
+  }
+};
+
+process.on('SIGINT', () => handleShutdown('SIGINT'));
+process.on('SIGTERM', () => handleShutdown('SIGTERM'));
+process.on('exit', () => {
+  if (!child.killed) {
+    try { child.kill(); } catch {}
+  }
+});
