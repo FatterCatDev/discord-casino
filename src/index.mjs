@@ -166,12 +166,14 @@ client.botVersion = BOT_VERSION;
 client.pushUpdateAnnouncement = (guildId, details = {}) => pushUpdateAnnouncement(client, guildId, details);
 
 const OWNER_USER_SET = new Set(OWNER_USER_IDS);
+const GUILD_WELCOME_WINDOW_MS = 5 * 60 * 1000;
+const guildWelcomeSent = new Set();
 
 async function findBotInviter(guild) {
   if (!guild || !guild.client?.user) return null;
   try {
     const logs = await guild.fetchAuditLogs({ type: AuditLogEvent.BotAdd, limit: 5 });
-    const entry = logs.entries.find(logEntry => logEntry.target?.id === guild.client.user.id);
+    const entry = logs.entries.find(logEntry => logEntry.action === AuditLogEvent.BotAdd && logEntry.target?.id === guild.client.user.id);
     if (entry?.executor) {
       try {
         return await guild.client.users.fetch(entry.executor.id);
@@ -208,6 +210,26 @@ function buildGuildWelcomeMessage(inviter, guild) {
     '',
     'Need a hand or spot an issue? Hop into our support hub: https://discord.gg/semutaofdune'
   ].join('\n');
+}
+
+async function sendGuildWelcomeDm(guild, { inviter, source } = {}) {
+  if (!guild || guildWelcomeSent.has(guild.id)) return;
+  let resolvedInviter = inviter;
+  try {
+    if (!resolvedInviter) resolvedInviter = await findBotInviter(guild);
+    if (!resolvedInviter) {
+      console.warn(`Skipping welcome DM: no inviter found for guild ${guild?.id} (${source || 'unknown'})`);
+      return;
+    }
+    const message = buildGuildWelcomeMessage(resolvedInviter, guild);
+    await resolvedInviter.send({ content: message });
+    const identifier = resolvedInviter.tag || resolvedInviter.username || resolvedInviter.id;
+    console.log(`Sent setup DM to ${identifier} for guild ${guild?.id} (${source || 'unknown'})`);
+  } catch (err) {
+    console.error(`Failed to send welcome DM for guild ${guild?.id} (${source || 'unknown'})`, err);
+  } finally {
+    guildWelcomeSent.add(guild.id);
+  }
 }
 
 function hasOwnerOverride(userId) {
