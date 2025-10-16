@@ -195,7 +195,7 @@ function buildGuildWelcomeMessage(inviter, guild) {
     '',
     'Quick setup checklist:',
     '1. Run `/setcasinocategory category:<#Category>` so all games live in a dedicated channel group.',
-    '2. Confirm the bot can Send Messages, Embed Links, Manage Channels, and Read Message History in that category.',
+    '2. Confirm the bot can Send Messages, Embed Links, Manage Channels, Use External Emojis, and Read Message History in that category.',
     '3. (Optional) Point the log channels if you want detailed embeds elsewhere:',
     '   - `/setgamelogchannel channel:<#channel>` for game summaries',
     '   - `/setcashlog channel:<#channel>` for chip and cash ledger updates',
