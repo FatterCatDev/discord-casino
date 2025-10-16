@@ -8,12 +8,16 @@ import { rouletteSessions } from './roulette.mjs';
 import { slotSessions } from './slots.mjs';
 import { emoji } from '../lib/emojis.mjs';
 
+function normalizeGuildId(guildId) {
+  return guildId ?? 'dm';
+}
+
 export const ACTIVE_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 export const activeSessions = new Map(); // key: `${guildId}:${userId}` -> state
 
 // Key helpers
-export function activeKey(guildId, userId) { return `${guildId}:${userId}`; }
-export function keyFor(interaction) { return `${interaction.guild.id}:${interaction.user.id}`; }
+export function activeKey(guildId, userId) { return `${normalizeGuildId(guildId)}:${userId}`; }
+export function keyFor(interaction) { return activeKey(interaction.guild?.id, interaction.user.id); }
 export function getActiveSession(guildId, userId) { return activeSessions.get(activeKey(guildId, userId)) || null; }
 export function setActiveSession(guildId, userId, type, gameLabel, opts = {}) {
   const now = Date.now();
@@ -67,25 +71,26 @@ export function setActiveMessageRef(guildId, userId, channelId, messageId) {
 }
 // Send/Update a game message and remember its channel/message id
 export async function sendGameMessage(interaction, payload, mode = 'auto') {
+  const guildKey = normalizeGuildId(interaction.guild?.id);
   if (mode === 'update' || (mode === 'auto' && interaction.isButton && interaction.isButton())) {
     if (interaction.deferred || interaction.replied) {
       const res = await interaction.editReply(payload);
-      try { setActiveMessageRef(interaction.guild.id, interaction.user.id, res.channelId, res.id); } catch {}
+      try { setActiveMessageRef(guildKey, interaction.user.id, res.channelId, res.id); } catch {}
       return res;
     }
     const res = await interaction.update(payload);
-    try { setActiveMessageRef(interaction.guild.id, interaction.user.id, interaction.channelId, interaction.message.id); } catch {}
+    try { setActiveMessageRef(guildKey, interaction.user.id, interaction.channelId, interaction.message.id); } catch {}
     return res;
   }
   if (mode === 'followUp') {
     const msg = await interaction.followUp(payload);
-    try { setActiveMessageRef(interaction.guild.id, interaction.user.id, msg.channelId, msg.id); } catch {}
+    try { setActiveMessageRef(guildKey, interaction.user.id, msg.channelId, msg.id); } catch {}
     return msg;
   }
   await interaction.reply(payload);
   try {
     const msg = await interaction.fetchReply();
-    setActiveMessageRef(interaction.guild.id, interaction.user.id, msg.channelId, msg.id);
+    setActiveMessageRef(guildKey, interaction.user.id, msg.channelId, msg.id);
     return msg;
   } catch {}
 }
