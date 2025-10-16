@@ -72,6 +72,7 @@ export default async function onBlackjackButtons(interaction, ctx) {
     const ownerId = parts[4];
     if (ownerId && ownerId !== interaction.user.id) return interaction.reply({ content: '❌ Only the original player can start another hand from this message.', ephemeral: true });
     ctx.blackjackGames.delete(k);
+    await deferUpdateOnce();
     return ctx.startBlackjack(interaction, table, bet);
   }
   if (action === 'hit') {
