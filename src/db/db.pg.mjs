@@ -428,6 +428,44 @@ export async function getUserBalances(guildId, discordId) {
   return { chips: Number(row?.chips || 0), credits: Number(row?.credits || 0) };
 }
 
+export async function getUserOnboardingStatus(guildId, userId) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) return null;
+  const row = await q1('SELECT acknowledged_at, chips_granted FROM user_onboarding WHERE guild_id = $1 AND user_id = $2', [gid, uid]);
+  if (!row) return null;
+  const acknowledgedAt = row.acknowledged_at !== null && row.acknowledged_at !== undefined
+    ? Math.trunc(Number(row.acknowledged_at) || 0)
+    : null;
+  return {
+    acknowledgedAt,
+    chipsGranted: Math.trunc(Number(row.chips_granted) || 0)
+  };
+}
+
+export async function markUserOnboardingAcknowledged(guildId, userId, chipsGranted = 0, acknowledgedAt = Math.floor(Date.now() / 1000)) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) throw new Error('ONBOARD_USER_REQUIRED');
+  const ack = acknowledgedAt === null ? null : Math.trunc(Number(acknowledgedAt) || Math.floor(Date.now() / 1000));
+  const chips = Math.trunc(Number(chipsGranted) || 0);
+  const res = await pool.query(`
+    INSERT INTO user_onboarding (guild_id, user_id, acknowledged_at, chips_granted, updated_at)
+    VALUES ($1, $2, $3, $4, NOW())
+    ON CONFLICT (guild_id, user_id) DO UPDATE SET
+      acknowledged_at = EXCLUDED.acknowledged_at,
+      chips_granted = EXCLUDED.chips_granted,
+      updated_at = NOW()
+    WHERE user_onboarding.acknowledged_at IS NULL
+    RETURNING acknowledged_at
+  `, [gid, uid, ack, chips]);
+  const status = await getUserOnboardingStatus(gid, uid);
+  return {
+    didAcknowledge: res.rows.length > 0 && !!(status && status.acknowledgedAt !== null),
+    status
+  };
+}
+
 export async function getTopUsers(guildId, limit = 10) {
   const gid = resolveGuildId(guildId);
   const n = Math.max(1, Math.min(25, Number(limit) || 10));
