@@ -333,7 +333,7 @@ client.on(Events.GuildCreate, async (guild) => {
     }
     const message = buildGuildWelcomeMessage(inviter, guild);
     await inviter.send({ content: message });
-    const identifier = inviter.tag || `${inviter.username}#${inviter.discriminator}`;
+    const identifier = inviter.tag || inviter.username || inviter.id;
     console.log(`Sent setup DM to ${identifier} for guild ${guild?.id}`);
   } catch (err) {
     console.error(`Failed to send welcome DM for guild ${guild?.id}`, err);
