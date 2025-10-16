@@ -127,10 +127,10 @@ export default async function onBlackjackButtons(interaction, ctx) {
     }
   }
   if (action === 'double') {
-    if (state.split) return interaction.reply({ content: '❌ Double after split is not supported in this version.', ephemeral: true });
-    if (state.player.length !== 2 || state.doubled) return interaction.reply({ content: '❌ Double is only available on your first decision.', ephemeral: true });
+    if (state.split) { cancelAutoAck(); return interaction.reply({ content: '❌ Double after split is not supported in this version.', ephemeral: true }); }
+    if (state.player.length !== 2 || state.doubled) { cancelAutoAck(); return interaction.reply({ content: '❌ Double is only available on your first decision.', ephemeral: true }); }
     const addBet = state.bet;
-    if (!(await ctx.canAffordExtra(state.userId, addBet))) return interaction.reply({ content: '❌ Not enough funds to double.', ephemeral: true });
+    if (!(await ctx.canAffordExtra(state.userId, addBet))) { cancelAutoAck(); return interaction.reply({ content: '❌ Not enough funds to double.', ephemeral: true }); }
     try {
       // Credits-first for the added stake
       const { credits, chips } = await ctx.getUserBalances(state.userId);
@@ -138,7 +138,7 @@ export default async function onBlackjackButtons(interaction, ctx) {
       const extraChip = addBet - extraCredit;
       if (extraChip > 0) await ctx.takeFromUserToHouse(state.userId, extraChip, 'blackjack double (chips)', state.userId);
       state.bet += addBet; state.creditsStake += extraCredit; state.chipsStake += extraChip; state.doubled = true;
-    } catch { return interaction.reply({ content: '❌ Could not process double. Check your funds.', ephemeral: true }); }
+    } catch { cancelAutoAck(); return interaction.reply({ content: '❌ Could not process double. Check your funds.', ephemeral: true }); }
     state.player.push(draw()); state.revealed = true;
     await deferUpdateOnce();
     const dealerPlay = () => { while (true) { const v = ctx.bjHandValue(state.dealer); if (v.total > 21) return; if (v.total < 17) { state.dealer.push(draw()); continue; } if (v.total === 17 && state.table === 'HIGH' && v.soft) { state.dealer.push(draw()); continue; } return; } };
