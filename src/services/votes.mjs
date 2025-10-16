@@ -217,7 +217,7 @@ function extractDblVotes(payload) {
       if (voteId && typeof voteId === 'object') {
         voteId = voteId.$oid || voteId.id || null;
       }
-      let userId = entry.user_id || entry.userId || entry.user?.id || entry.member?.id || entry.member?.user?.id || null;
+      let userId = entry.user_id || entry.userId || entry.user?.id || entry.user?.userId || entry.member?.id || entry.member?.user?.id || null;
       if (!userId && typeof entry.user === 'string') userId = entry.user;
       if (!userId && typeof entry.id === 'string') userId = entry.id;
       const normalizedUser = String(userId || '').trim();
