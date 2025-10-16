@@ -1,11 +1,15 @@
 import { EmbedBuilder } from 'discord.js';
 import { emoji } from '../lib/emojis.mjs';
+import { withInsufficientFundsTip } from '../lib/fundsTip.mjs';
 
 export default async function onRouletteButtons(interaction, ctx) {
   const key = ctx.keyFor(interaction);
   const state = ctx.rouletteSessions.get(key);
   const parts = interaction.customId.split('|');
   const action = parts[1];
+  const kittenMode = typeof ctx?.kittenModeEnabled === 'boolean'
+    ? ctx.kittenModeEnabled
+    : (typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false);
   let deferred = false;
   const deferUpdateOnce = async () => {
     if (!deferred && !interaction.deferred && !interaction.replied) {
@@ -24,7 +28,10 @@ export default async function onRouletteButtons(interaction, ctx) {
     if (!state || !state.bets?.length) return interaction.reply({ content: '❌ No bets to confirm.', ephemeral: true });
     const { chips, credits } = await ctx.getUserBalances(interaction.user.id);
     const total = state.bets.reduce((s,b)=>s+b.amount,0);
-    if (chips + credits < total) return interaction.reply({ content: '❌ Not enough funds.', ephemeral: true });
+    if (chips + credits < total) {
+      const msg = withInsufficientFundsTip('❌ Not enough funds.', kittenMode);
+      return interaction.reply({ content: msg, ephemeral: true });
+    }
     // credits-first allocation
     let remH = chips, remC = credits;
     for (const b of state.bets) {
