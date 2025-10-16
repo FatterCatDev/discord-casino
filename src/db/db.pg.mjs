@@ -288,6 +288,7 @@ await seedGuildHouseFromLegacy();
 await mergeEconomyToGlobalScope();
 await ensureAccessControlTables();
 await ensureJobTables();
+await ensureOnboardingTable();
 
 try {
   if (await tableExists('guild_settings') && !(await tableHasColumn('guild_settings', 'kitten_mode_enabled'))) {
