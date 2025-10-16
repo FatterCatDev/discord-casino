@@ -539,6 +539,7 @@ const deleteHoldemCommitsStmt = db.prepare('DELETE FROM holdem_commits WHERE use
 const clearHoldemHostStmt = db.prepare('UPDATE holdem_tables SET host_id = NULL WHERE host_id = ?');
 const deleteModUserAllStmt = db.prepare('DELETE FROM mod_users WHERE user_id = ?');
 const deleteAdminUserAllStmt = db.prepare('DELETE FROM admin_users WHERE user_id = ?');
+const deleteUserOnboardingStmt = db.prepare('DELETE FROM user_onboarding WHERE user_id = ?');
 
 try { db.prepare(`SELECT shift_streak_count FROM job_status LIMIT 1`).get(); } catch {
   db.exec(`ALTER TABLE job_status ADD COLUMN shift_streak_count INTEGER NOT NULL DEFAULT 0`);
@@ -1577,7 +1578,8 @@ export function eraseUserData(discordId) {
       holdemEscrow: deleteHoldemEscrowStmt.run(userId).changes,
       holdemCommits: deleteHoldemCommitsStmt.run(userId).changes,
       modAssignments: deleteModUserAllStmt.run(userId).changes,
-      adminAssignments: deleteAdminUserAllStmt.run(userId).changes
+      adminAssignments: deleteAdminUserAllStmt.run(userId).changes,
+      onboarding: deleteUserOnboardingStmt.run(userId).changes
     };
     const updated = {
       transactionsAdmin: clearTransactionsAdminStmt.run(userId).changes,
