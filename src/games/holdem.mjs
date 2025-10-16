@@ -1055,7 +1055,7 @@ export async function hostTable(interaction, ctx, { sb, bb, min, max, cap, rakeB
   // Require configured casino category to place the temp channel
   const { casino_category_id, holdem_rake_bps } = await getGuildSettings(interaction.guild.id) || {};
   if (!casino_category_id) {
-    return interaction.reply({ content: '❌ Casino category is not configured. Admins: use /setcasinocategory.', ephemeral: true });
+    return interaction.reply({ content: '❌ I need a configured casino category to host Hold’em tables. Ask a server admin to run /setcasinocategory first.', ephemeral: true });
   }
   // Compute next table number within the category
   let tableNumber = 1;
