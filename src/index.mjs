@@ -720,6 +720,40 @@ client.on(Events.InteractionCreate, async interaction => {
 
       }
     // ========== BUTTONS ==========
+    else if (interaction.isButton() && interaction.customId === WELCOME_ACK_CUSTOM_ID) {
+      const guildId = interaction.guild?.id || null;
+      const userId = interaction.user?.id || null;
+      if (!guildId || !userId) {
+        return interaction.reply({ content: '⚠️ This bonus is only available inside a server.', ephemeral: true }).catch(() => {});
+      }
+      try {
+        const result = await markUserOnboardingAcknowledged(guildId, userId, WELCOME_BONUS_AMOUNT);
+        let embed;
+        if (result?.didAcknowledge) {
+          let mintedSuccess = true;
+          try {
+            await mintChips(guildId, userId, WELCOME_BONUS_AMOUNT, 'welcome bonus', null);
+          } catch (mintErr) {
+            mintedSuccess = false;
+            console.error(`Failed to mint welcome bonus for ${userId} in ${guildId}`, mintErr);
+          }
+          embed = buildWelcomeAcknowledgedEmbed({ mintedSuccess, alreadyClaimed: false });
+        } else {
+          embed = buildWelcomeAcknowledgedEmbed({ mintedSuccess: true, alreadyClaimed: true });
+        }
+        try {
+          await interaction.update({ embeds: [embed], components: [] });
+        } catch (updateErr) {
+          console.warn('welcome ack update failed, falling back to reply', updateErr);
+          await interaction.reply({ embeds: [embed], ephemeral: true }).catch(() => {});
+        }
+        return;
+      } catch (err) {
+        console.error(`Failed to acknowledge welcome bonus for ${userId} in ${guildId}`, err);
+        return interaction.reply({ content: '❌ I hit an error while confirming that bonus. Please try again in a moment.', ephemeral: true }).catch(() => {});
+      }
+    }
+    // ========== BUTTONS ==========
     else if ((interaction.isButton() || interaction.isStringSelectMenu()) && interaction.customId.startsWith('jobshift|')) {
       const ctx = buildCommandContext(interaction, ctxExtras);
       const mod = await import('./interactions/jobs/shiftButtons.mjs');
