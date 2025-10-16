@@ -65,6 +65,7 @@ export const takeFromUserToHouse = pick('takeFromUserToHouse');
 export const burnFromUser = pick('burnFromUser');
 export const mintChips = pick('mintChips');
 export const getUserOnboardingStatus = pick('getUserOnboardingStatus');
+export const grantUserOnboardingBonus = pick('grantUserOnboardingBonus');
 export const markUserOnboardingAcknowledged = pick('markUserOnboardingAcknowledged');
 export const recordVoteReward = pick('recordVoteReward');
 export const getPendingVoteRewards = pick('getPendingVoteRewards');
