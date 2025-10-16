@@ -71,6 +71,7 @@ export async function playDiceWar(interaction, ctx, bet) {
   let payout = 0;
   const playerWins = playerTotal > houseTotal;
   const doubleWin = playerWins && playerDoubles; // doubles only double when the player wins
+  let creditsBurned = 0;
   if (playerWins) {
     const winAmount = bet * (doubleWin ? 2 : 1);
     payout = chipStake + winAmount; // return chipStake + winnings
@@ -82,8 +83,20 @@ export async function playDiceWar(interaction, ctx, bet) {
     );
   } else {
     // tie or house higher => house wins; burn credits portion if any
-    if (creditStake > 0) try { await burnCredits(guildId, interaction.user.id, creditStake, 'dice war loss', null); } catch {}
+    if (creditStake > 0) {
+      try {
+        await burnCredits(guildId, interaction.user.id, creditStake, 'dice war loss', null);
+        creditsBurned = creditStake;
+      } catch {}
+    }
     outcome = say('❌ The house wins this round, Kitten.', '❌ House wins');
+    if (creditsBurned > 0) {
+      const burnedLine = say(
+        `\nCredits burned: **${new Intl.NumberFormat('en-US').format(creditsBurned)}**`,
+        `\nCredits burned: **${new Intl.NumberFormat('en-US').format(creditsBurned)}**`
+      );
+      outcome += burnedLine;
+    }
   }
 
   const e = new EmbedBuilder()
@@ -104,7 +117,10 @@ export async function playDiceWar(interaction, ctx, bet) {
     const houseNet = playerWins ? -(bet * (doubleWin ? 2 : 1)) : chipStake;
     ctx.addHouseNet(interaction.guild.id, interaction.user.id, 'dicewar', houseNet);
     // Player net for record (doesn't include returning chip stake)
-    ctx.recordSessionGame(interaction.guild.id, interaction.user.id, playerWins ? (bet * (doubleWin ? 2 : 1)) : -chipStake);
+    const playerNet = playerWins
+      ? (bet * (doubleWin ? 2 : 1))
+      : -(chipStake + creditsBurned);
+    ctx.recordSessionGame(interaction.guild.id, interaction.user.id, playerNet);
     ctx.touchActiveSession(interaction.guild.id, interaction.user.id, 'dicewar');
   } catch {}
 
