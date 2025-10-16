@@ -186,7 +186,15 @@ export default async function handleRequestButtons(interaction, ctx) {
     modal.addComponents(new ActionRowBuilder().addComponents(
       new TextInputBuilder().setCustomId('reason').setLabel('Reason').setStyle(TextInputStyle.Paragraph).setRequired(true)
     ));
-    return interaction.showModal(modal);
+    try {
+      return await interaction.showModal(modal);
+    } catch (err) {
+      if (err?.code === 10062) {
+        console.warn('Request reject interaction expired before modal could open.');
+        return;
+      }
+      throw err;
+    }
   }
 
   await ensureKittenMode();
