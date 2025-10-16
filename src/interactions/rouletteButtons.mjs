@@ -10,6 +10,8 @@ export default async function onRouletteButtons(interaction, ctx) {
   const kittenMode = typeof ctx?.kittenModeEnabled === 'boolean'
     ? ctx.kittenModeEnabled
     : (typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false);
+  const sessionGuildId = interaction.guild?.id || 'dm';
+  const dbGuildId = interaction.guild?.id || null;
   let deferred = false;
   const deferUpdateOnce = async () => {
     if (!deferred && !interaction.deferred && !interaction.replied) {
@@ -18,11 +20,11 @@ export default async function onRouletteButtons(interaction, ctx) {
     }
   };
   if (action !== 'again') {
-    if (ctx.hasActiveExpired(interaction.guild.id, interaction.user.id, 'roulette') || !ctx.getActiveSession(interaction.guild.id, interaction.user.id)) {
+    if (ctx.hasActiveExpired(sessionGuildId, interaction.user.id, 'roulette') || !ctx.getActiveSession(sessionGuildId, interaction.user.id)) {
       ctx.rouletteSessions.delete(key);
       return interaction.update({ content: `${emoji('hourglass')} This roulette session expired. Use `/roulette` to start a new one.`, embeds: [], components: [] });
     }
-    ctx.touchActiveSession(interaction.guild.id, interaction.user.id, 'roulette');
+    ctx.touchActiveSession(sessionGuildId, interaction.user.id, 'roulette');
   }
   if (action === 'confirm') {
     if (!state || !state.bets?.length) return interaction.reply({ content: '❌ No bets to confirm.', ephemeral: true });
@@ -82,9 +84,9 @@ export default async function onRouletteButtons(interaction, ctx) {
     if (creditsBurned > 0) {
       lines.push(`Credits burned: **${new Intl.NumberFormat('en-US').format(creditsBurned)}**`);
     }
-    ctx.addHouseNet(interaction.guild.id, interaction.user.id, 'roulette', chipStake - payout);
+    ctx.addHouseNet(sessionGuildId, interaction.user.id, 'roulette', chipStake - payout);
     const net = payout - chipStake - creditsBurned;
-    try { ctx.recordSessionGame(interaction.guild.id, interaction.user.id, net); } catch {}
+    try { ctx.recordSessionGame(sessionGuildId, interaction.user.id, net); } catch {}
     ctx.rouletteSessions.delete(key);
     const resultEmbed = new EmbedBuilder()
       .setTitle(`${emoji('roulette')} Roulette`)
@@ -93,7 +95,7 @@ export default async function onRouletteButtons(interaction, ctx) {
     try {
       const { chips, credits } = await ctx.getUserBalances(interaction.user.id);
       const fmt = new Intl.NumberFormat('en-US');
-      const sess = ctx.getActiveSession(interaction.guild.id, interaction.user.id);
+      const sess = ctx.getActiveSession(sessionGuildId, interaction.user.id);
       const sessLine = sess ? `Session: Games **${sess.games||0}** • Net **${(sess.playerNet||0)>=0?'+':'-'}${Math.abs(sess.playerNet||0).toLocaleString()} Chips**` : null;
       const val = [
         `Chips: **${ctx.chipsAmount(chips)}**`,
@@ -101,7 +103,7 @@ export default async function onRouletteButtons(interaction, ctx) {
         sessLine
       ].filter(Boolean).join('\n');
       resultEmbed.addFields({ name: 'Player Balance', value: val });
-      try { resultEmbed.addFields(ctx.buildTimeoutField(interaction.guild.id, interaction.user.id)); } catch {}
+      try { resultEmbed.addFields(ctx.buildTimeoutField(sessionGuildId, interaction.user.id)); } catch {}
     } catch {}
     return ctx.sendGameMessage(interaction, { embeds: [resultEmbed], components: [ctx.rowButtons([{ id: `rou|again|${interaction.user.id}`, label: 'Play Again', style: 2 }])] }, 'update');
   }
@@ -118,8 +120,8 @@ export default async function onRouletteButtons(interaction, ctx) {
     }
     await deferUpdateOnce();
     ctx.rouletteSessions.delete(key);
-    ctx.rouletteSessions.set(key, { guildId: interaction.guild.id, userId: interaction.user.id, bets: [] });
-    ctx.setActiveSession(interaction.guild.id, interaction.user.id, 'roulette', 'Roulette');
+    ctx.rouletteSessions.set(key, { guildId: dbGuildId, userId: interaction.user.id, bets: [] });
+    ctx.setActiveSession(sessionGuildId, interaction.user.id, 'roulette', 'Roulette');
     return ctx.startRouletteSession(interaction);
   }
   return interaction.reply({ content: '❌ Unknown action.', ephemeral: true });
