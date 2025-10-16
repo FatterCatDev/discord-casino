@@ -17,6 +17,16 @@ CREATE TABLE IF NOT EXISTS users (
 );
 CREATE INDEX IF NOT EXISTS idx_users_discord_id ON users(discord_id);
 
+CREATE TABLE IF NOT EXISTS user_onboarding (
+  guild_id        TEXT NOT NULL,
+  user_id         TEXT NOT NULL,
+  acknowledged_at BIGINT,
+  chips_granted   BIGINT NOT NULL DEFAULT 0,
+  updated_at      timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (guild_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_user_onboarding_guild_ack ON user_onboarding(guild_id, acknowledged_at);
+
 CREATE TABLE IF NOT EXISTS transactions (
   id         BIGSERIAL PRIMARY KEY,
   account    TEXT NOT NULL,            -- 'HOUSE', 'BURN', 'ESCROW:<id>', 'POT:<id>', or a Discord user id
