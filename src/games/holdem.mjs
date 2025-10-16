@@ -1599,10 +1599,14 @@ export async function onHoldemJoinModal(interaction, ctx) {
   // Seat the player with escrowed Chips (pre-check balance)
   try {
     const { chips } = await getUserBalances(guildId, interaction.user.id);
-    if ((chips||0) < buyin) return interaction.reply({ content: '❌ Not enough Chips for that buy-in.', ephemeral: true });
+    if ((chips||0) < buyin) {
+      const msg = withInsufficientFundsTip('❌ Not enough Chips for that buy-in.', state?.kittenMode === true);
+      return interaction.reply({ content: msg, ephemeral: true });
+    }
     await escrowAdd(state.channelId, interaction.user.id, buyin);
   } catch (e) {
-    return interaction.reply({ content: '❌ Could not process buy-in (insufficient Chips?).', ephemeral: true });
+    const msg = withInsufficientFundsTip('❌ Could not process buy-in (insufficient Chips?).', state?.kittenMode === true);
+    return interaction.reply({ content: msg, ephemeral: true });
   }
   state.seats.push(emptySeat(interaction.user.id, buyin));
   // Update the main table card
