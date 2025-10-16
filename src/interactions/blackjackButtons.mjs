@@ -115,6 +115,7 @@ export default async function onBlackjackButtons(interaction, ctx) {
       state.bet += addBet; state.creditsStake += extraCredit; state.chipsStake += extraChip; state.doubled = true;
     } catch { return interaction.reply({ content: '❌ Could not process double. Check your funds.', ephemeral: true }); }
     state.player.push(draw()); state.revealed = true;
+    await deferUpdateOnce();
     const dealerPlay = () => { while (true) { const v = ctx.bjHandValue(state.dealer); if (v.total > 21) return; if (v.total < 17) { state.dealer.push(draw()); continue; } if (v.total === 17 && state.table === 'HIGH' && v.soft) { state.dealer.push(draw()); continue; } return; } };
     dealerPlay();
     const p = ctx.bjHandValue(state.player), d = ctx.bjHandValue(state.dealer);
