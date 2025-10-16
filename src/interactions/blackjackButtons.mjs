@@ -154,7 +154,8 @@ export default async function onBlackjackButtons(interaction, ctx) {
     if (extraChip > 0) { try { await ctx.takeFromUserToHouse(state.userId, extraChip, 'blackjack split (chips)', state.userId); } catch { return interaction.reply({ content: '❌ Could not process split.', ephemeral: true }); } }
     state.split = true; state.hands = [{ cards: [c1], bet: state.bet, creditsStake: state.creditsStake, chipsStake: state.chipsStake, finished: false }, { cards: [c2], bet: state.bet, creditsStake: extraCredit, chipsStake: extraChip, finished: false }]; state.active = 0; delete state.player; delete state.creditsStake; delete state.chipsStake;
     const row = ctx.rowButtons([{ id: 'bj|hit', label: 'Hit', style: 1 }, { id: 'bj|stand', label: 'Stand', style: 2 }]);
-    return interaction.update({ embeds: [await ctx.bjEmbed(state)], components: [row] });
+    await deferUpdateOnce();
+    return updateMessage({ embeds: [await ctx.bjEmbed(state)], components: [row] });
   }
   if (action === 'stand') {
     if (state.split && (!state.hands[0]?.finished || !state.hands[1]?.finished)) {
