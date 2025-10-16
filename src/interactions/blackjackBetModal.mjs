@@ -81,10 +81,5 @@ export default async function handleBlackjackBetModal(interaction, ctx) {
       ? '⚠️ I already responded to that bet change. If the table didn’t refresh, try again.'
       : '⚠️ Something went wrong refreshing the table. Try again.';
     await interaction.editReply({ content: message }).catch(() => {});
-    return;
-  }
-}
-    }
-    return;
   }
 }
