@@ -213,7 +213,7 @@ function extractDblVotes(payload) {
     if (!Array.isArray(list)) continue;
     for (const entry of list) {
       if (!entry) continue;
-    const voteId = entry.vote_id || entry.voteId || entry._id || entry.vote_id || null;
+    const voteId = entry.vote_id || entry.voteId || entry.vote?.id || entry._id || null;
     const userId = entry.user_id || entry.userId || entry.user || entry.member?.id || entry.user?.id || entry.id;
       const normalizedUser = String(userId || '').trim();
       if (!normalizedUser) continue;
