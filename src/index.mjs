@@ -168,6 +168,7 @@ client.pushUpdateAnnouncement = (guildId, details = {}) => pushUpdateAnnouncemen
 const OWNER_USER_SET = new Set(OWNER_USER_IDS);
 const GUILD_WELCOME_WINDOW_MS = 5 * 60 * 1000;
 const guildWelcomeSent = new Set();
+const pendingGuildWelcome = new Set();
 
 async function findBotInviter(guild) {
   if (!guild || !guild.client?.user) return null;
@@ -213,11 +214,14 @@ function buildGuildWelcomeMessage(inviter, guild) {
 }
 
 async function sendGuildWelcomeDm(guild, { inviter, source } = {}) {
-  if (!guild || guildWelcomeSent.has(guild.id)) return;
+  if (!guild) return;
+  if (guildWelcomeSent.has(guild.id) || pendingGuildWelcome.has(guild.id)) return;
+  pendingGuildWelcome.add(guild.id);
   let resolvedInviter = inviter;
   if (!resolvedInviter) resolvedInviter = await findBotInviter(guild);
   if (!resolvedInviter) {
     console.warn(`Skipping welcome DM: no inviter found for guild ${guild?.id} (${source || 'unknown'})`);
+    pendingGuildWelcome.delete(guild.id);
     return;
   }
   try {
@@ -229,6 +233,7 @@ async function sendGuildWelcomeDm(guild, { inviter, source } = {}) {
     console.error(`Failed to send welcome DM for guild ${guild?.id} (${source || 'unknown'})`, err);
   }
   guildWelcomeSent.add(guild.id);
+  pendingGuildWelcome.delete(guild.id);
 }
 
 function hasOwnerOverride(userId) {
