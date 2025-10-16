@@ -1,6 +1,6 @@
 # Pending Update
 
-version: 1.0.10
+version: 1.1.0
 
 ## Changes
 
