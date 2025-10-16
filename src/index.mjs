@@ -1,4 +1,4 @@
-import { Client, GatewayIntentBits, Events, EmbedBuilder, MessageFlags, AuditLogEvent } from 'discord.js';
+import { Client, GatewayIntentBits, Events, EmbedBuilder, MessageFlags, AuditLogEvent, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { slotSessions, buildSlotsPaytableEmbed as buildSlotsPaytableEmbedMod, runSlotsSpin as runSlotsSpinMod, SLOTS_LINES as SLOTS_LINESMod } from './games/slots.mjs';
 import { rouletteSessions, rouletteSummaryEmbed as rouletteSummaryEmbedMod, rouletteTypeSelectRow as rouletteTypeSelectRowMod, startRouletteSession as startRouletteSessionMod, spinRoulette as spinRouletteMod, rouletteWins as rouletteWinsMod, roulettePayoutMult as roulettePayoutMultMod } from './games/roulette.mjs';
 import { ridebusGames, startRideBus as startRideBusMod, wagerAt as wagerAtMod } from './games/ridebus.mjs';
@@ -14,7 +14,10 @@ import {
   getModerators,
   getAdmins,
   takeFromUserToHouse,
-  burnCredits
+  burnCredits,
+  mintChips,
+  getUserOnboardingStatus,
+  markUserOnboardingAcknowledged
 } from './db/db.auto.mjs';
 import { formatChips, chipsAmount } from './games/format.mjs';
 import {
