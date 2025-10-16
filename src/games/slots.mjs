@@ -4,6 +4,7 @@ import { getUserBalances, getHouseBalance, takeFromUserToHouse, transferFromHous
 import { chipsAmount } from './format.mjs';
 import { sessionLineFor, setActiveSession, recordSessionGame, buildTimeoutField, sendGameMessage } from './session.mjs';
 import { emoji } from '../lib/emojis.mjs';
+import { withInsufficientFundsTip } from '../lib/fundsTip.mjs';
 
 // Symbols & pays (per 3/4/5 on a payline)
 export const SLOTS_SYMBOLS = {
@@ -161,7 +162,8 @@ export async function runSlotsSpin(interaction, bet, key) {
   const { chips, credits } = await getUserBalances(guildId, interaction.user.id);
   if (chips + credits < bet) {
     const fmt = new Intl.NumberFormat('en-US');
-    return interaction.reply({ content: `❌ Not enough funds. Credits: **${fmt.format(credits)}**, Chips: **${chipsAmount(chips)}**. Need: **${chipsAmount(bet)}**.`, ephemeral: true });
+    const base = `❌ Not enough funds. Credits: **${fmt.format(credits)}**, Chips: **${chipsAmount(chips)}**. Need: **${chipsAmount(bet)}**.`;
+    return interaction.reply({ content: withInsufficientFundsTip(base), ephemeral: true });
   }
   const grid = spinSlots();
   const { total: win } = evaluateSlots(grid, bet);
