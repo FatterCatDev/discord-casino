@@ -160,12 +160,13 @@ export default async function onBlackjackButtons(interaction, ctx) {
   if (action === 'stand') {
     if (state.split && (!state.hands[0]?.finished || !state.hands[1]?.finished)) {
       if (state.hands[state.active]) state.hands[state.active].finished = true;
-      if (state.active === 0) { state.active = 1; const row = ctx.rowButtons([{ id: 'bj|hit', label: 'Hit', style: 1 }, { id: 'bj|stand', label: 'Stand', style: 2 }]); return interaction.update({ embeds: [await ctx.bjEmbed(state)], components: [row] }); }
+      if (state.active === 0) { state.active = 1; const row = ctx.rowButtons([{ id: 'bj|hit', label: 'Hit', style: 1 }, { id: 'bj|stand', label: 'Stand', style: 2 }]); await deferUpdateOnce(); return updateMessage({ embeds: [await ctx.bjEmbed(state)], components: [row] }); }
     }
     state.revealed = true;
     const dealerPlay = () => { while (true) { const v = ctx.bjHandValue(state.dealer); if (v.total > 21) return; if (v.total < 17) { state.dealer.push(draw()); continue; } if (v.total === 17) { if (state.table === 'HIGH' && v.soft) { state.dealer.push(draw()); continue; } } return; } };
     dealerPlay();
     const d = ctx.bjHandValue(state.dealer); ctx.blackjackGames.delete(k);
+    await deferUpdateOnce();
     if (state.split && Array.isArray(state.hands)) {
       let totalPayout = 0; let summary = []; let creditsBurned = 0;
       for (let i = 0; i < 2; i++) {
