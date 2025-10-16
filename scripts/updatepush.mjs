@@ -107,7 +107,7 @@ function resolveGuildIds() {
   return ids;
 }
 
-const UPDATE_CHANNEL_ID = process.env.UPDATE_CHANNEL_ID || '1426730736312123466';
+const UPDATE_CHANNEL_ID = process.env.UPDATE_CHANNEL_ID || null;
 
 async function main() {
   const token = process.env.DISCORD_TOKEN;
