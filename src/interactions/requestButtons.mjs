@@ -1,6 +1,7 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
 import { updateActiveRequestStatus, clearActiveRequest, mintChips, burnFromUser, eraseUserData } from '../db/db.auto.mjs';
 import { emoji } from '../lib/emojis.mjs';
+import { scheduleInteractionAck } from '../lib/interactionAck.mjs';
 
 const REQUEST_BUTTON_STALE_MS = (() => {
   const specific = Number(process.env.REQUEST_BUTTON_STALE_MS);
