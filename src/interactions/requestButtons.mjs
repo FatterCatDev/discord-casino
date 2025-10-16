@@ -50,6 +50,7 @@ export default async function handleRequestButtons(interaction, ctx) {
   };
 
   if (action === 'take') {
+    cancelAutoAck();
     await deferUpdateOnce();
     await ensureKittenMode();
     const fields = Array.isArray(orig?.fields) ? orig.fields.map(f => ({ name: f.name, value: f.value, inline: f.inline })) : [];
