@@ -213,7 +213,10 @@ function extractDblVotes(payload) {
     if (!Array.isArray(list)) continue;
     for (const entry of list) {
       if (!entry) continue;
-      const voteId = entry.vote_id || entry.voteId || entry.vote?.id || entry._id || null;
+      let voteId = entry.vote_id || entry.voteId || entry.vote?.id || entry._id || null;
+      if (voteId && typeof voteId === 'object') {
+        voteId = voteId.$oid || voteId.id || null;
+      }
       let userId = entry.user_id || entry.userId || entry.user?.id || entry.member?.id || entry.member?.user?.id || null;
       if (!userId && typeof entry.user === 'string') userId = entry.user;
       if (!userId && typeof entry.id === 'string') userId = entry.id;
