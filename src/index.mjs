@@ -215,21 +215,20 @@ function buildGuildWelcomeMessage(inviter, guild) {
 async function sendGuildWelcomeDm(guild, { inviter, source } = {}) {
   if (!guild || guildWelcomeSent.has(guild.id)) return;
   let resolvedInviter = inviter;
+  if (!resolvedInviter) resolvedInviter = await findBotInviter(guild);
+  if (!resolvedInviter) {
+    console.warn(`Skipping welcome DM: no inviter found for guild ${guild?.id} (${source || 'unknown'})`);
+    return;
+  }
   try {
-    if (!resolvedInviter) resolvedInviter = await findBotInviter(guild);
-    if (!resolvedInviter) {
-      console.warn(`Skipping welcome DM: no inviter found for guild ${guild?.id} (${source || 'unknown'})`);
-      return;
-    }
     const message = buildGuildWelcomeMessage(resolvedInviter, guild);
     await resolvedInviter.send({ content: message });
     const identifier = resolvedInviter.tag || resolvedInviter.username || resolvedInviter.id;
     console.log(`Sent setup DM to ${identifier} for guild ${guild?.id} (${source || 'unknown'})`);
   } catch (err) {
     console.error(`Failed to send welcome DM for guild ${guild?.id} (${source || 'unknown'})`, err);
-  } finally {
-    guildWelcomeSent.add(guild.id);
   }
+  guildWelcomeSent.add(guild.id);
 }
 
 function hasOwnerOverride(userId) {
