@@ -167,6 +167,45 @@ client.pushUpdateAnnouncement = (guildId, details = {}) => pushUpdateAnnouncemen
 
 const OWNER_USER_SET = new Set(OWNER_USER_IDS);
 
+async function findBotInviter(guild) {
+  if (!guild || !guild.client?.user) return null;
+  try {
+    const logs = await guild.fetchAuditLogs({ type: AuditLogEvent.BotAdd, limit: 5 });
+    const entry = logs.entries.find(logEntry => logEntry.target?.id === guild.client.user.id);
+    if (entry?.executor) {
+      try {
+        return await guild.client.users.fetch(entry.executor.id);
+      } catch {
+        return entry.executor;
+      }
+    }
+  } catch (err) {
+    console.warn(`Could not resolve bot inviter for guild ${guild?.id}`, err);
+  }
+  return null;
+}
+
+function buildGuildWelcomeMessage(inviter, guild) {
+  const displayName = inviter?.globalName || inviter?.username || 'there';
+  const guildName = guild?.name ? ` to ${guild.name}` : '';
+  return [
+    `Hey ${displayName}! Thanks for inviting Casino Bot${guildName}.`,
+    '',
+    'Quick setup checklist:',
+    '1. Run `/setcasinocategory category:<#Category>` so all games live in a dedicated channel group.',
+    '2. Confirm the bot can Send Messages, Embed Links, Manage Channels, and Read Message History in that category.',
+    '3. Point the log channels:',
+    '   - `/setgamelogchannel channel:<#channel>` for game summaries',
+    '   - `/setcashlog channel:<#channel>` for chip and cash ledger updates',
+    '   - `/setrequestchannel channel:<#channel>` for buy-in and cash-out tickets',
+    '   - `/setupdatech channel:<#channel>` for release announcements',
+    '4. Add trusted staff with `/addmod` and `/addadmin` so they can approve requests and manage balances.',
+    '5. Use `/help` any time for the full command list and extra guidance.',
+    '',
+    'Once those are set, your players can jump straight into `/slots`, `/blackjack`, `/roulette`, and more. Have fun!'
+  ].join('\n');
+}
+
 function hasOwnerOverride(userId) {
   return !!(userId && OWNER_USER_SET.has(String(userId)));
 }
