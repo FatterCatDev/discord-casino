@@ -51,6 +51,10 @@ export default async function onBlackjackButtons(interaction, ctx) {
     if (ownerId && ownerId !== interaction.user.id) {
       return interaction.reply({ content: '❌ Only the original player can adjust this bet.', ephemeral: true });
     }
+    const ageMs = Date.now() - interaction.createdTimestamp;
+    if (ageMs > 2500) {
+      return interaction.reply({ content: `${emoji('hourglass')} This button cooled off. Use \`/blackjack\` to start a fresh hand.`, ephemeral: true });
+    }
     const modal = new ModalBuilder()
       .setCustomId(`bj|betmodal|${table}|${ownerId}`)
       .setTitle('Play Again — Change Bet');
