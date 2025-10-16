@@ -36,12 +36,13 @@ export default async function onBlackjackButtons(interaction, ctx) {
   ctx.touchActiveSession(interaction.guild.id, interaction.user.id, 'blackjack');
   const draw = () => state.deck.pop();
   const settleLoss = async (reason) => {
+    await deferUpdateOnce();
     ctx.blackjackGames.delete(k);
     const burned = await ctx.burnUpToCredits(state.userId, state.creditsStake, reason);
     ctx.addHouseNet(state.guildId, state.userId, 'blackjack', state.chipsStake);
     try { ctx.recordSessionGame(state.guildId, state.userId, -state.chipsStake - burned); } catch {}
     const emb = await ctx.bjEmbed(state, { footer: 'You bust. Dealer wins.', color: 0xED4245 });
-    return interaction.update({ embeds: [emb], components: [ctx.bjPlayAgainRow(state.table, state.bet, state.userId)] });
+    return updateMessage({ embeds: [emb], components: [ctx.bjPlayAgainRow(state.table, state.bet, state.userId)] });
   };
   if (action === 'change') {
     const table = parts[2];
