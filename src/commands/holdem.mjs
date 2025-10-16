@@ -2,11 +2,18 @@ import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'disc
 import { getGuildSettings } from '../db/db.auto.mjs';
 import { emoji } from '../lib/emojis.mjs';
 
-async function inCasinoCategory(interaction) {
+async function inCasinoCategory(interaction, kittenMode) {
+  const say = (kitten, normal) => (kittenMode ? kitten : normal);
   try {
     const { casino_category_id } = await getGuildSettings(interaction.guild.id) || {};
     if (!casino_category_id) {
-      return { ok: false, reason: '❌ I can’t create a Hold’em table until a casino category is configured. Ask a server admin to run /setcasinocategory.' };
+      return {
+        ok: false,
+        reason: say(
+          '❌ I can’t spin up a Hold’em lounge without a casino category, Kitten. Ask a server admin to run `/setcasinocategory` for me.',
+          '❌ I can’t create a Hold’em table until a casino category is configured. Please ask a server admin to run `/setcasinocategory`.'
+        )
+      };
     }
     const ch = interaction.channel;
     let catId = null;
@@ -18,13 +25,18 @@ async function inCasinoCategory(interaction) {
       return { ok: false, reason: '❌ This command can only be used inside the configured casino category.' };
     }
     return { ok: true };
-  } catch { return { ok: false, reason: '❌ Unable to verify channel category.' }; }
+  } catch {
+    return {
+      ok: false,
+      reason: say('❌ I couldn’t verify the casino category this time, Kitten.', '❌ Unable to verify channel category.')
+    };
+  }
 }
 
 export default async function handleHoldem(interaction, ctx) {
-  const loc = await inCasinoCategory(interaction);
-  if (!loc.ok) return interaction.reply({ content: loc.reason, ephemeral: true });
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
+  const loc = await inCasinoCategory(interaction, kittenMode);
+  if (!loc.ok) return interaction.reply({ content: loc.reason, ephemeral: true });
   const suitBanner = `${emoji('pokerSpade')}${emoji('pokerHeart')}${emoji('pokerDiamond')}${emoji('pokerClub')}`;
   let title = `${suitBanner} Texas Hold’em — Create Table`;
   let description = 'Choose a preset to create a table in this channel:';
