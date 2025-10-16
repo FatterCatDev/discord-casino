@@ -25,6 +25,8 @@ export default async function handleBlackjackBetModal(interaction, ctx) {
     return interaction.reply({ content: `${emoji('warning')} Invalid table selection. Try starting a new hand with /blackjack.`, ephemeral: true });
   }
 
+  await interaction.deferReply({ ephemeral: true });
+
   const key = ctx.keyFor(interaction);
   ctx.blackjackGames.delete(key);
 
@@ -45,18 +47,10 @@ export default async function handleBlackjackBetModal(interaction, ctx) {
   }
 
   if (!targetMessage) {
-    const result = await ctx.startBlackjack(interaction, table, bet);
-    if (!interaction.replied && !interaction.deferred) {
-      await interaction.reply({
-        content: `${emoji('warning')} Could not refresh the existing hand, so I posted a new game message.`,
-        ephemeral: true
-      });
-    }
-    return result;
-  }
-
-  if (!interaction.deferred && !interaction.replied) {
-    try { await interaction.deferUpdate(); } catch {}
+    await interaction.editReply({
+      content: `${emoji('warning')} I couldn’t locate the previous Blackjack message. Start a fresh hand with \`/blackjack\` using your new bet.`
+    }).catch(() => {});
+    return;
   }
 
   const proxy = Object.create(interaction);
@@ -68,13 +62,24 @@ export default async function handleBlackjackBetModal(interaction, ctx) {
     return edited;
   };
   proxy.fetchReply = async () => targetMessage;
+  proxy.reply = async (payload) => {
+    await interaction.editReply(payload).catch(() => {});
+    throw new Error('BLACKJACK_PROXY_EARLY_EXIT');
+  };
 
   try {
     await ctx.startBlackjack(proxy, table, bet);
+    await interaction.deleteReply().catch(() => {});
   } catch (err) {
+    if (err?.message === 'BLACKJACK_PROXY_EARLY_EXIT') return;
     console.error('Failed to restart Blackjack with updated bet:', err);
-    if (!interaction.replied && !interaction.deferred) {
-      await interaction.reply({ content: '⚠️ Something went wrong refreshing the table. Try again.', ephemeral: true });
+    const message = err?.code === 'InteractionAlreadyReplied'
+      ? '⚠️ I already responded to that bet change. If the table didn’t refresh, try again.'
+      : '⚠️ Something went wrong refreshing the table. Try again.';
+    await interaction.editReply({ content: message }).catch(() => {});
+    return;
+  }
+}
     }
     return;
   }
