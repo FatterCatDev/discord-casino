@@ -56,7 +56,7 @@ export default async function handleBlackjackBetModal(interaction, ctx) {
   let earlyExit = false;
 
   const proxy = Object.create(interaction);
-  proxy.isButton = () => true;
+  proxy.isButton = () => false;
   proxy.channelId = targetMessage.channelId;
   proxy.message = targetMessage;
   proxy.update = async (payload) => {
