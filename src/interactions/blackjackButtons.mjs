@@ -89,14 +89,16 @@ export default async function onBlackjackButtons(interaction, ctx) {
       }
       if (action !== 'stand') {
         const row = ctx.rowButtons([{ id: 'bj|hit', label: 'Hit', style: 1 }, { id: 'bj|stand', label: 'Stand', style: 2 }]);
-        return interaction.update({ embeds: [await ctx.bjEmbed(state)], components: [row] });
+        await deferUpdateOnce();
+        return updateMessage({ embeds: [await ctx.bjEmbed(state)], components: [row] });
       }
     } else {
       state.player.push(draw());
       const p = ctx.bjHandValue(state.player);
       if (p.total > 21) { state.revealed = true; return settleLoss('blackjack loss (bust)'); }
       const row = ctx.rowButtons([{ id: 'bj|hit', label: 'Hit', style: 1 }, { id: 'bj|stand', label: 'Stand', style: 2 }]);
-      return interaction.update({ embeds: [await ctx.bjEmbed(state)], components: [row] });
+      await deferUpdateOnce();
+      return updateMessage({ embeds: [await ctx.bjEmbed(state)], components: [row] });
     }
   }
   if (action === 'double') {
