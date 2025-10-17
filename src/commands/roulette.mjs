@@ -3,7 +3,12 @@ import { getGuildSettings } from '../db/db.auto.mjs';
 async function inCasinoCategory(interaction, kittenMode) {
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
   try {
-    if (!interaction.guild) return { ok: true };
+    if (!interaction.guild) {
+      return {
+        ok: false,
+        reason: say('❌ We can only spin the wheel inside a server, Kitten.', '❌ Roulette is only available inside servers.')
+      };
+    }
     const { casino_category_id } = await getGuildSettings(interaction.guild.id) || {};
     if (!casino_category_id) return { ok: true };
     const ch = interaction.channel;

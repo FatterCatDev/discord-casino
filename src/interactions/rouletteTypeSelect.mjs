@@ -2,6 +2,9 @@ import { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from
 import { emoji } from '../lib/emojis.mjs';
 
 export default async function onRouletteTypeSelect(interaction, ctx) {
+  if (!interaction.guild) {
+    return interaction.reply({ content: `${emoji('warning')} Roulette selections only work inside servers.`, ephemeral: true });
+  }
   const key = ctx.keyFor(interaction);
   const state = ctx.rouletteSessions.get(key);
   if (!state) return interaction.reply({ content: '❌ No active roulette session.', ephemeral: true });

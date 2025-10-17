@@ -1,6 +1,6 @@
 # Discord Casino Bot
 
-Last update: 1.1.0
+Last update: 1.0.9
 
 Invite Bot to your server:
 https://discord.com/oauth2/authorize?client_id=1415454565687492780&permissions=551903325264&integration_type=0&scope=bot
@@ -296,3 +296,13 @@ curl -X POST \
 ```
 
 Run locally: `node src/api/server.mjs` (port `3000` by default; override with `PORT`).
+
+# List of services
+systemctl list-units --type=service | grep casino
+
+# Restart the service
+sudo systemctl restart your-service-name.service
+
+# Optional: check status/logs
+sudo systemctl status your-service-name.service
+journalctl -u your-service-name.service -f

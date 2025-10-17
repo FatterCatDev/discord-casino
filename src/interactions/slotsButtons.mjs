@@ -3,6 +3,9 @@ import { emoji } from '../lib/emojis.mjs';
 export default async function onSlotsButtons(interaction, ctx) {
   const parts = interaction.customId.split('|');
   const action = parts[1];
+  if (!interaction.guild) {
+    return interaction.reply({ content: '❌ Slots buttons only work inside servers.', ephemeral: true });
+  }
   if (ctx.hasActiveExpired(interaction.guild.id, interaction.user.id, 'slots') || !ctx.getActiveSession(interaction.guild.id, interaction.user.id)) {
     try { await ctx.endActiveSessionForUser(interaction, 'expired_button'); } catch {}
     return interaction.reply({ content: `${emoji('hourglass')} This slots session expired. Use `/slots` to start a new one.`, ephemeral: true });

@@ -154,12 +154,23 @@ export function evaluateSlots(grid, betTotal) {
 
 // Handler: execute a spin, settle, and render result
 export async function runSlotsSpin(interaction, bet, key) {
+  if (!interaction.guild) {
+    const payload = { content: '❌ Slots can only be played inside a server.', ephemeral: true };
+    try {
+      if (interaction.replied || interaction.deferred) {
+        if (typeof interaction.followUp === 'function') return interaction.followUp(payload);
+        return interaction.reply(payload);
+      }
+      return interaction.reply(payload);
+    } catch {
+      return;
+    }
+  }
   const lines = SLOTS_LINES.length;
   if (!Number.isInteger(bet) || bet < 5) {
     return interaction.reply({ content: `❌ Bet must be an integer of at least 5 (total across ${lines} lines).`, ephemeral: true });
   }
-  const guildId = interaction.guild?.id || null;
-  const sessionGuildId = interaction.guild?.id || 'dm';
+  const guildId = interaction.guild?.id;
   const { chips, credits } = await getUserBalances(guildId, interaction.user.id);
   if (chips + credits < bet) {
     const fmt = new Intl.NumberFormat('en-US');
@@ -210,14 +221,14 @@ export async function runSlotsSpin(interaction, bet, key) {
   try {
     const { chips: chipsBal, credits: creditsBal } = await getUserBalances(guildId, interaction.user.id);
     const fmt = new Intl.NumberFormat('en-US');
-    const sess = sessionLineFor(sessionGuildId, interaction.user.id);
+    const sess = sessionLineFor(interaction.guild.id, interaction.user.id);
     const val = [
       `Chips: **${chipsAmount(chipsBal)}**`,
       `Credits: **${fmt.format(creditsBal)}**`,
       sess ? sess : null
     ].filter(Boolean).join('\n');
     e.addFields({ name: 'Player Balance', value: val });
-    try { e.addFields(buildTimeoutField(sessionGuildId, interaction.user.id)); } catch {}
+    try { e.addFields(buildTimeoutField(interaction.guild.id, interaction.user.id)); } catch {}
   } catch {}
   try {
     const houseDelta = chipStake - win;
@@ -225,7 +236,7 @@ export async function runSlotsSpin(interaction, bet, key) {
     cur.lastBet = bet;
     cur.houseNet = (cur.houseNet || 0) + houseDelta;
     slotSessions.set(key, cur);
-    try { recordSessionGame(sessionGuildId, interaction.user.id, totalNet); } catch {}
+    try { recordSessionGame(interaction.guild.id, interaction.user.id, totalNet); } catch {}
 // Game: Slots — spin, evaluate lines, settle payouts (Credits-first), and render result UI.
   } catch {}
   const again = new ActionRowBuilder().addComponents(
@@ -234,6 +245,6 @@ export async function runSlotsSpin(interaction, bet, key) {
   );
   const response = { embeds: [e], components: [again] };
   // Ensure we track the message reference for session finalization on expiry
-  setActiveSession(sessionGuildId, interaction.user.id, 'slots', 'Slots');
+  setActiveSession(interaction.guild.id, interaction.user.id, 'slots', 'Slots');
   return sendGameMessage(interaction, response, 'auto');
 }

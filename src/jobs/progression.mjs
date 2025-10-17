@@ -1,6 +1,6 @@
 import crypto from 'node:crypto';
 
-const JOB_PAYOUT_DIVISOR = 5;
+export const JOB_PAYOUT_DIVISOR = 5;
 
 export const JOB_SHIFT_STAGE_COUNT = 5;
 
@@ -26,6 +26,12 @@ export function xpToNextForRank(rank) {
 export function maxPayForRank(rank) {
   if (rank >= 10) return 100000;
   return xpToNextForRank(rank);
+}
+
+export function maxBasePayForRank(rank) {
+  const maxPay = maxPayForRank(rank);
+  if (!Number.isFinite(maxPay) || maxPay <= 0) return 0;
+  return Math.floor(maxPay / JOB_PAYOUT_DIVISOR);
 }
 
 export function clampPerformance(score) {
@@ -82,10 +88,10 @@ export function applyXpGain(profile, gainedXp) {
 }
 
 export function performanceToBasePay(rank, performanceScore) {
-  const maxPay = maxPayForRank(rank);
-  if (maxPay <= 0) return 0;
+  const maxBase = maxBasePayForRank(rank);
+  if (maxBase <= 0) return 0;
   const perf = clampPerformance(performanceScore);
-  return Math.floor(maxPay * (perf / 100) / JOB_PAYOUT_DIVISOR);
+  return Math.floor(maxBase * (perf / 100));
 }
 
 const TIP_OPTIONS = Array.from({ length: 21 }, (_, percent) => ({

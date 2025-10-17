@@ -13,6 +13,9 @@ const BUTTON_STALE_MS = (() => {
 export default async function onBlackjackButtons(interaction, ctx) {
   const parts = interaction.customId.split('|');
   let action = parts[1];
+  if (!interaction.guild) {
+    return interaction.reply({ content: `${emoji('warning')} Blackjack buttons only work inside servers.`, ephemeral: true });
+  }
   const k = ctx.keyFor(interaction);
   const state = ctx.blackjackGames.get(k);
   const kittenMode = typeof ctx?.kittenModeEnabled === 'boolean'

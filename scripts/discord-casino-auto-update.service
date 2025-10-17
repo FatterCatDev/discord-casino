@@ -1,0 +1,18 @@
+[Unit]
+Description=Discord Casino auto-update watcher
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# Keep the repo location here in case it moves.
+WorkingDirectory=/home/bot/discord-casino
+ExecStart=/usr/bin/env bash /home/bot/discord-casino/scripts/auto-update.sh
+Environment=PATH=/usr/local/bin:/usr/bin:/bin
+# Optional user overrides live in ~/.config/discord-casino/auto-update.env
+EnvironmentFile=-%h/.config/discord-casino/auto-update.env
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=default.target

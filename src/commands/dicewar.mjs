@@ -7,7 +7,12 @@ import { withInsufficientFundsTip } from '../lib/fundsTip.mjs';
 async function inCasinoCategory(interaction, kittenMode) {
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
   try {
-    if (!interaction.guild) return { ok: true };
+    if (!interaction.guild) {
+      return {
+        ok: false,
+        reason: say('❌ Roll with me inside a server, Kitten.', '❌ Dice War is only available inside servers.')
+      };
+    }
     const { casino_category_id } = await getGuildSettings(interaction.guild.id) || {};
     if (!casino_category_id) return { ok: true };
     const ch = interaction.channel;
@@ -26,10 +31,21 @@ async function inCasinoCategory(interaction, kittenMode) {
 }
 
 export async function playDiceWar(interaction, ctx, bet) {
-  const guildId = interaction.guild?.id || null;
-  const sessionGuildId = interaction.guild?.id || 'dm';
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
+  if (!interaction.guild) {
+    const payload = { content: say('❌ Roll with me inside a server, Kitten.', '❌ Dice War is only available inside servers.'), ephemeral: true };
+    try {
+      if (interaction.replied || interaction.deferred) {
+        if (typeof interaction.followUp === 'function') return interaction.followUp(payload);
+        return interaction.reply(payload);
+      }
+      return interaction.reply(payload);
+    } catch {
+      return;
+    }
+  }
+  const guildId = interaction.guild.id;
   const loc = await inCasinoCategory(interaction, kittenMode);
   if (!loc.ok) return interaction.reply({ content: loc.reason, ephemeral: true });
   if (!Number.isInteger(bet) || bet <= 0) {
@@ -110,20 +126,20 @@ export async function playDiceWar(interaction, ctx, bet) {
       { name: say('Your Wager', 'Bet'), value: `**${chipsAmount(bet)}**`, inline: true },
       { name: say('Result, Sweetheart', 'Result'), value: outcome, inline: false }
     );
-  try { e.addFields(ctx.buildPlayerBalanceField(guildId, interaction.user.id)); } catch {}
-  try { e.addFields(ctx.buildTimeoutField(sessionGuildId, interaction.user.id)); } catch {}
+  try { e.addFields(ctx.buildPlayerBalanceField(interaction.guild.id, interaction.user.id)); } catch {}
+  try { e.addFields(ctx.buildTimeoutField(interaction.guild.id, interaction.user.id)); } catch {}
 
   // Session tracking
   try {
-    ctx.setActiveSession(sessionGuildId, interaction.user.id, 'dicewar', kittenMode ? 'Dice War (Kitten)' : 'Dice War');
+    ctx.setActiveSession(interaction.guild.id, interaction.user.id, 'dicewar', kittenMode ? 'Dice War (Kitten)' : 'Dice War');
     const houseNet = playerWins ? -(bet * (doubleWin ? 2 : 1)) : chipStake;
-    ctx.addHouseNet(sessionGuildId, interaction.user.id, 'dicewar', houseNet);
+    ctx.addHouseNet(interaction.guild.id, interaction.user.id, 'dicewar', houseNet);
     // Player net for record (doesn't include returning chip stake)
     const playerNet = playerWins
       ? (bet * (doubleWin ? 2 : 1))
       : -(chipStake + creditsBurned);
-    ctx.recordSessionGame(sessionGuildId, interaction.user.id, playerNet);
-    ctx.touchActiveSession(sessionGuildId, interaction.user.id, 'dicewar');
+    ctx.recordSessionGame(interaction.guild.id, interaction.user.id, playerNet);
+    ctx.touchActiveSession(interaction.guild.id, interaction.user.id, 'dicewar');
   } catch {}
 
   // Play again button

@@ -97,11 +97,21 @@ export async function showRouletteTypePrompt(interaction) {
 }
 
 export async function startRouletteSession(interaction) {
+  if (!interaction.guild) {
+    const payload = { content: `${emoji('warning')} Roulette sessions can only run inside servers.`, ephemeral: true };
+    try {
+      if (interaction.replied || interaction.deferred) {
+        if (typeof interaction.followUp === 'function') return interaction.followUp(payload);
+        return interaction.reply(payload);
+      }
+      return interaction.reply(payload);
+    } catch {
+      return;
+    }
+  }
   const key = keyFor(interaction);
-  const dbGuildId = interaction.guild?.id || null;
-  const sessionGuildId = interaction.guild?.id || 'dm';
-  rouletteSessions.set(key, { guildId: dbGuildId, userId: interaction.user.id, bets: [] });
-  setActiveSession(sessionGuildId, interaction.user.id, 'roulette', 'Roulette');
+  rouletteSessions.set(key, { guildId: interaction.guild.id, userId: interaction.user.id, bets: [] });
+  setActiveSession(interaction.guild.id, interaction.user.id, 'roulette', 'Roulette');
   return showRouletteTypePrompt(interaction);
 }
 // Game: Roulette — interactive betting flow, spin result, and settlement helpers.

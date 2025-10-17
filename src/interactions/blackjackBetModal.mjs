@@ -8,6 +8,9 @@ export default async function handleBlackjackBetModal(interaction, ctx) {
   if (ownerId && ownerId !== interaction.user.id) {
     return interaction.reply({ content: '❌ Only the original player can adjust this bet.', ephemeral: true });
   }
+  if (!interaction.guild) {
+    return interaction.reply({ content: `${emoji('warning')} Blackjack bet updates are only available inside servers.`, ephemeral: true });
+  }
 
   const rawInput = interaction.fields.getTextInputValue('bet')?.trim() || '';
   const bet = Number(rawInput);
@@ -29,8 +32,8 @@ export default async function handleBlackjackBetModal(interaction, ctx) {
 
   const key = ctx.keyFor(interaction);
   ctx.blackjackGames.delete(key);
-  const sessionGuildId = interaction.guildId || interaction.guild?.id || 'dm';
-  const activeSession = ctx.getActiveSession(sessionGuildId, interaction.user.id);
+
+  const activeSession = ctx.getActiveSession(interaction.guildId, interaction.user.id);
   const channelId = activeSession?.msgChannelId;
   const messageId = activeSession?.msgId;
 

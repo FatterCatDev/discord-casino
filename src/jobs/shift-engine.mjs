@@ -16,7 +16,9 @@ import {
   calculateTipAmount,
   clampPerformance,
   JOB_SHIFT_STAGE_COUNT,
-  maxPayForRank
+  maxPayForRank,
+  maxBasePayForRank,
+  JOB_PAYOUT_DIVISOR
 } from './progression.mjs';
 import { emoji } from '../lib/emojis.mjs';
 
@@ -1100,7 +1102,7 @@ async function expireSession(sessionId) {
     const payoutText = formatPayoutText(session.ctx, session.kittenMode, {
       performanceScore,
       tipPercent: 0,
-      maxPay: maxPayForRank(rankBefore)
+      maxBasePay: maxBasePayForRank(rankBefore)
     }, { status: 'NO_PAYOUT', basePaid: 0, tipPaid: 0 });
 
     const say = (kitten, normal) => (session.kittenMode ? kitten : normal);
@@ -1273,7 +1275,18 @@ function formatPayoutText(ctx, kittenMode, totals, payoutResult) {
     return say('Unexpected payout error. No chips transferred.', 'Unexpected payout error prevented a payout.');
   }
   const lines = [];
-  lines.push(`${emoji('chips')} Base: **${fmt(payoutResult.basePaid)}** (cap ${fmt(totals.maxPay)})`);
+  const hasExplicitCap = totals && Object.prototype.hasOwnProperty.call(totals, 'maxBasePay');
+  const rawCap = hasExplicitCap
+    ? Number(totals.maxBasePay)
+    : Number(totals?.maxPay);
+  let baseCap = null;
+  if (Number.isFinite(rawCap)) {
+    baseCap = hasExplicitCap
+      ? Math.max(0, Math.floor(rawCap))
+      : Math.max(0, Math.floor(rawCap / JOB_PAYOUT_DIVISOR));
+  }
+  const capSuffix = baseCap !== null ? ` (cap ${fmt(baseCap)})` : '';
+  lines.push(`${emoji('chips')} Base: **${fmt(payoutResult.basePaid)}**${capSuffix}`);
   lines.push(`${emoji('sparkles')} Tip: **${fmt(payoutResult.tipPaid)}** (${totals.tipPercent}%)`);
   lines.push(`${emoji('moneyWings')} Total: **${fmt(payoutResult.basePaid + payoutResult.tipPaid)}**`);
   if (payoutResult.status === 'TIP_SKIPPED') {
@@ -1291,7 +1304,7 @@ async function finalizeShift(interaction, ctx, session) {
   const rankBefore = profileBefore.rank;
   const rankAfter = xpResult.rank;
   const xpToNext = xpResult.xpToNext;
-  const maxPay = maxPayForRank(rankBefore);
+  const maxBasePay = maxBasePayForRank(rankBefore);
   const basePay = performanceToBasePay(rankBefore, performanceScore);
   const tipPercent = rollTipPercent({ seed: session.shiftId });
   const tipAmount = calculateTipAmount(basePay, tipPercent);
@@ -1386,7 +1399,8 @@ async function finalizeShift(interaction, ctx, session) {
   const payoutText = formatPayoutText(ctx, session.kittenMode, {
     performanceScore,
     tipPercent,
-    maxPay
+    maxBasePay,
+    maxPay: maxPayForRank(rankBefore)
   }, payoutResult);
 
   const embed = buildCompletionEmbed(session, {

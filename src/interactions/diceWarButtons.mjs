@@ -4,6 +4,9 @@ import { emoji } from '../lib/emojis.mjs';
 export default async function handleDiceWarButtons(interaction, ctx) {
   const [prefix, action, betStr, userId] = interaction.customId.split('|');
   if (prefix !== 'dice') return;
+  if (!interaction.guild) {
+    return interaction.reply({ content: '❌ Dice War buttons only work inside servers.', ephemeral: true });
+  }
   if (action === 'again') {
     // Enforce inactivity timeout: if expired, finalize and end the session now
     if (
