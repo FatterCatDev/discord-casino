@@ -1,6 +1,6 @@
 # Discord Casino Bot
 
-Last update: 1.0.9
+Last update: 1.1.2
 
 Invite Bot to your server:
 https://discord.com/oauth2/authorize?client_id=1415454565687492780&permissions=551903325264&integration_type=0&scope=bot
@@ -80,7 +80,8 @@ All games except Texas Hold’em use Credits‑first staking: your bet draws fro
 Run `/job` inside any guild to open the career board. Shifts, XP, ranks, and cooldowns now follow you globally, so progress carries across every server where you play.
 
 - **Shift flow:** every shift is a five-stage interactive sequence. Completing each prompt on time advances the run; timing out or cancelling ends the attempt and breaks the streak.
-- **Burst limits:** players can clear up to five shifts in a burst. After the fifth shift a six-hour rest timer starts before another burst can begin.
+- **Stamina:** each shift costs one stamina point (max stack of five). You regenerate one stamina every two hours while below the cap.
+- **Burst limits:** players can clear up to five shifts in a burst before stamina triggers a six-hour rest timer.
 - **Rewards:** performance grades award Chips and XP. XP promotes you through job ranks and increases the chip bonus earned at the end of a successful shift.
 - **Player commands:**
   - `/job` (or `/job overview`) – review the job roster, current streak, and cooldown timer.
@@ -88,7 +89,7 @@ Run `/job` inside any guild to open the career board. Shifts, XP, ranks, and coo
   - `/job cancel` – leave an active shift early if needed.
   - `/job stats [user]` – inspect XP, ranks, cooldowns, and recent shifts for yourself or a tagged user.
 - **Admin commands:**
-  - `/job reset user:<@User>` – clear a player’s shift cooldown so they can immediately start another burst.
+  - `/job reset user:<@User>` – refill a player’s stamina so they can immediately start another burst of shifts.
   - `/job resetstats user:<@User>` – reset ranks, XP, and streak data across every job for a player.
 
 ## Requests & Logging

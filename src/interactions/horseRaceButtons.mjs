@@ -8,6 +8,14 @@ import {
   acknowledgeInteraction
 } from '../games/horserace.mjs';
 import { emoji } from '../lib/emojis.mjs';
+import { scheduleInteractionAck } from '../lib/interactionAck.mjs';
+
+const HORSE_BUTTON_ACK_MS = (() => {
+  const specific = Number(process.env.HORSE_RACE_BUTTON_ACK_MS);
+  if (Number.isFinite(specific) && specific > 0) return specific;
+  const general = Number(process.env.INTERACTION_STALE_MS);
+  return Number.isFinite(general) && general > 0 ? general : 2500;
+})();
 
 export default async function handleHorseRaceButtons(interaction) {
   const parts = interaction.customId.split('|');
@@ -19,6 +27,9 @@ export default async function handleHorseRaceButtons(interaction) {
     try { await interaction.deferUpdate(); } catch {}
     return;
   }
+
+  const cancelAutoAck = scheduleInteractionAck(interaction, { timeout: HORSE_BUTTON_ACK_MS, mode: 'update' });
+  interaction.__horseRaceCancelAck = cancelAutoAck;
 
   if (action === 'pick') {
     const horseIndex = Number(parts[3]);
@@ -50,6 +61,8 @@ export default async function handleHorseRaceButtons(interaction) {
       if (existing) amountInput.setValue(String(existing.originalAmount));
 
       modal.addComponents(new ActionRowBuilder().addComponents(amountInput));
+      cancelAutoAck();
+      interaction.__horseRaceCancelAck = null;
       return interaction.showModal(modal);
     }
 

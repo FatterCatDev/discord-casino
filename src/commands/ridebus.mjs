@@ -1,4 +1,5 @@
 import { getGuildSettings } from '../db/db.auto.mjs';
+import { formatCasinoCategory } from '../lib/casinoCategory.mjs';
 
 async function inCasinoCategory(interaction, kittenMode) {
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
@@ -13,7 +14,8 @@ async function inCasinoCategory(interaction, kittenMode) {
       else catId = ch?.parentId || null;
     } catch {}
     if (!catId || catId !== casino_category_id) {
-      return { ok: false, reason: say('❌ Bring me into the casino category before we tempt fate, Kitten.', '❌ This command can only be used inside the configured casino category.') };
+      const categoryLabel = await formatCasinoCategory(interaction, casino_category_id);
+      return { ok: false, reason: say(`❌ Bring me into ${categoryLabel} before we tempt fate, Kitten.`, `❌ This command can only be used inside ${categoryLabel}.`) };
     }
     return { ok: true };
   } catch {

@@ -83,7 +83,29 @@ function createEmptyState(ctx, interaction) {
   };
 }
 
+function cancelHorseAutoAck(interaction) {
+  if (!interaction) return;
+  const cancelFn = interaction.__horseRaceCancelAck;
+  if (typeof cancelFn === 'function') {
+    try { cancelFn(); } catch {}
+  }
+  interaction.__horseRaceCancelAck = null;
+}
+
+async function replyRaceEphemeral(interaction, payload) {
+  cancelHorseAutoAck(interaction);
+  const body = (payload && typeof payload === 'object' && !Array.isArray(payload))
+    ? { ...payload }
+    : { content: String(payload ?? '') };
+  if (!Object.prototype.hasOwnProperty.call(body, 'ephemeral')) body.ephemeral = true;
+  if (interaction.deferred || interaction.replied) {
+    return interaction.followUp(body);
+  }
+  return interaction.reply(body);
+}
+
 async function acknowledgeInteraction(interaction) {
+  cancelHorseAutoAck(interaction);
   if (!interaction || interaction.deferred || interaction.replied) return;
   try {
     if (typeof interaction.deferUpdate === 'function') {
@@ -681,7 +703,8 @@ export async function createHorseRace(interaction, ctx) {
 
   const state = createEmptyState(ctx, interaction);
   const embeds = createRaceEmbeds(state, { footerText: INITIAL_FOOTER_TEXT });
-  const message = await interaction.reply({ embeds, components: buildComponents(state), fetchReply: true });
+  await interaction.reply({ embeds, components: buildComponents(state) });
+  const message = await interaction.fetchReply();
   storeRace(state, message.id);
   refreshRaceTimeout(state, interaction.client);
 
@@ -719,6 +742,7 @@ export async function handleRaceStart(interaction, state) {
     return;
   }
 
+  await acknowledgeInteraction(interaction);
   clearRaceIdleTimer(state);
   state.hostConfirm = true;
   await editRaceMessage(state, interaction.client, {
@@ -726,9 +750,6 @@ export async function handleRaceStart(interaction, state) {
     extraDescription: `**${emoji('policeLight')} COUNTDOWN: ${START_COUNTDOWN_SEC}s**`
   });
   await startCountdown(state, interaction.client);
-  if (!interaction.deferred && !interaction.replied) {
-    try { await interaction.deferUpdate(); } catch {}
-  }
 }
 
 export async function handleHorseBet(interaction, state, horseIndex, amount) {
@@ -754,6 +775,7 @@ export async function handleHorseBet(interaction, state, horseIndex, amount) {
     return;
   }
 
+  await acknowledgeInteraction(interaction);
   const betKey = interaction.user.id;
   const existing = state.bets.get(betKey);
   const isBettingStage = state.status === 'betting';
@@ -855,9 +877,7 @@ export async function handleHorseBet(interaction, state, horseIndex, amount) {
     : 'Next stage in 2.5 seconds — adjust bets now!';
   await editRaceMessage(state, interaction.client, { footerText });
   refreshRaceTimeout(state, interaction.client);
-  if (!interaction.deferred && !interaction.replied) {
-    try { await interaction.deferUpdate(); } catch {}
-  }
+  cancelHorseAutoAck(interaction);
 }
 
 export async function handleRaceCancel(interaction, state) {
@@ -869,13 +889,14 @@ export async function handleRaceCancel(interaction, state) {
     isModerator = false;
   }
   if (!isHost && !isModerator) {
-    return interaction.reply({ content: `${emoji('cross')} Only the race host or moderators can cancel this race.`, ephemeral: true });
+    return replyRaceEphemeral(interaction, { content: `${emoji('cross')} Only the race host or moderators can cancel this race.` });
   }
 
   if (!(state.status === 'betting' || state.status === 'countdown')) {
-    return interaction.reply({ content: `${emoji('cross')} You can only cancel before the race begins.`, ephemeral: true });
+    return replyRaceEphemeral(interaction, { content: `${emoji('cross')} You can only cancel before the race begins.` });
   }
 
+  await acknowledgeInteraction(interaction);
   state.status = 'cancelled';
   clearRace(state);
 
@@ -896,9 +917,7 @@ export async function handleRaceCancel(interaction, state) {
   } catch (err) {
     console.error('Horse race cancel log failed:', err);
   }
-  if (!interaction.deferred && !interaction.replied) {
-    try { await interaction.deferUpdate(); } catch {}
-  }
+  cancelHorseAutoAck(interaction);
 }
 
 export { showRaceNotice, acknowledgeInteraction };

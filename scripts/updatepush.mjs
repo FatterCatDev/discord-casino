@@ -13,6 +13,21 @@ const __dirname = path.dirname(__filename);
 const ROOT = path.resolve(__dirname, '..');
 const UPDATE_PATH = path.join(ROOT, 'UPDATE.md');
 const README_PATH = path.join(ROOT, 'README.md');
+const STATUS_HEADING_REGEX = /^#\s*(?:pending\s+update|update)\b.*$/im;
+
+function setUpdateStatus(content, status) {
+  if (status !== 'pending' && status !== 'update') {
+    throw new Error(`Unsupported update status: ${status}`);
+  }
+  const heading = status === 'pending' ? '# Pending Update' : '# Update';
+  const match = content.match(STATUS_HEADING_REGEX);
+  if (match) {
+    return content.replace(STATUS_HEADING_REGEX, heading);
+  }
+  const eol = content.includes('\r\n') ? '\r\n' : '\n';
+  const trimmed = content.replace(/^\s+/, '');
+  return `${heading}${eol}${eol}${trimmed}`;
+}
 
 function parseUpdateFile(text) {
   const lines = text.split(/\r?\n/);
@@ -116,78 +131,97 @@ async function main() {
   const token = process.env.DISCORD_TOKEN;
   if (!token) throw new Error('DISCORD_TOKEN is required to push update announcements.');
 
-  const fileText = await fs.readFile(UPDATE_PATH, 'utf8').catch(err => {
+  const originalUpdateContent = await fs.readFile(UPDATE_PATH, 'utf8').catch(err => {
     if (err.code === 'ENOENT') {
       throw new Error('UPDATE.md not found. Create the file before running updatepush.');
     }
     throw err;
   });
 
-  const trimmed = fileText.trimEnd();
-  const { version: fileVersion, changes } = parseUpdateFile(fileText);
+  const { version: fileVersion, changes } = parseUpdateFile(originalUpdateContent);
   const currentVersion = fileVersion || pkg.version;
   if (!currentVersion) throw new Error('Unable to determine current version from UPDATE.md or package.json.');
   if (!changes.length) throw new Error('No changes listed in UPDATE.md. Add bullet points before running updatepush.');
 
-  const guildIds = resolveGuildIds();
-  const releaseTimestamp = new Date().toISOString();
+  const activeUpdateContent = setUpdateStatus(originalUpdateContent, 'update');
+  const messageContent = appendInstallLink(activeUpdateContent.trimEnd());
+
+  let updateStatusApplied = false;
+  let updateResetToPending = false;
+
+  if (activeUpdateContent !== originalUpdateContent) {
+    await fs.writeFile(UPDATE_PATH, activeUpdateContent, 'utf8');
+    updateStatusApplied = true;
+  }
 
   const client = new Client({ intents: [GatewayIntentBits.Guilds] });
-  await client.login(token);
-
   const failures = [];
   let successCount = 0;
-  for (const guildId of guildIds) {
-    try {
-      if (UPDATE_CHANNEL_ID) {
-        try {
-          await setUpdateChannel(guildId, UPDATE_CHANNEL_ID);
-        } catch (err) {
-          console.warn(`Warning: could not set update channel for guild ${guildId}:`, err?.message || err);
+  try {
+    const guildIds = resolveGuildIds();
+    await client.login(token);
+
+    for (const guildId of guildIds) {
+      try {
+        if (UPDATE_CHANNEL_ID) {
+          try {
+            await setUpdateChannel(guildId, UPDATE_CHANNEL_ID);
+          } catch (err) {
+            console.warn(`Warning: could not set update channel for guild ${guildId}:`, err?.message || err);
+          }
+        }
+        await pushUpdateAnnouncement(client, guildId, {
+          content: messageContent,
+          mentionEveryone: true
+        });
+        console.log(`Update announcement sent for guild ${guildId}`);
+        successCount += 1;
+      } catch (err) {
+        if (err?.message === 'UPDATE_CHANNEL_NOT_CONFIGURED') {
+          console.warn(`Skipping guild ${guildId}: no update channel set (use /setupdatech).`);
+          continue;
+        }
+        failures.push({ guildId, error: err });
+        const details = err?.rawError || err?.cause || err;
+        console.error(`Failed to push update for guild ${guildId}:`, err?.message || err);
+        if (details && details !== err) {
+          console.error('Additional error info:', details);
         }
       }
-      await pushUpdateAnnouncement(client, guildId, {
-        content: appendInstallLink(trimmed),
-        mentionEveryone: true
-      });
-      console.log(`Update announcement sent for guild ${guildId}`);
-      successCount += 1;
-    } catch (err) {
-      if (err?.message === 'UPDATE_CHANNEL_NOT_CONFIGURED') {
-        console.warn(`Skipping guild ${guildId}: no update channel set (use /setupdatech).`);
-        continue;
-      }
-      failures.push({ guildId, error: err });
-      const details = err?.rawError || err?.cause || err;
-      console.error(`Failed to push update for guild ${guildId}:`, err?.message || err);
-      if (details && details !== err) {
-        console.error('Additional error info:', details);
-      }
+    }
+
+    if (successCount === 0) {
+      console.error('No guilds received the update announcement. Configure an update channel with /setupdatech and try again.');
+      throw new Error('Update push aborted: no eligible guilds.');
+    }
+
+    if (failures.length) {
+      console.warn('Some guilds did not receive the announcement. Resolve the errors above and re-run updatepush if needed.');
+    }
+
+    await recordLastUpdateVersion(currentVersion);
+
+    const nextVersion = bumpPatch(currentVersion);
+
+    const newUpdateContent = `# Pending Update\n\nversion: ${nextVersion}\n\n## Changes\n\n<!-- Add one bullet per noteworthy change below. Example: - Improved chip payout handling -->\n\n## Bug Fixes\n\n<!-- Add one bullet per bug fix below. Example: - Fixed crash when playing blackjack in DMs -->\n\n`;
+    await fs.writeFile(UPDATE_PATH, newUpdateContent, 'utf8');
+    updateResetToPending = true;
+
+    const newPkg = { ...pkg, version: nextVersion };
+    await fs.writeFile(path.join(ROOT, 'package.json'), `${JSON.stringify(newPkg, null, 2)}\n`, 'utf8');
+
+    console.log(`Version bumped to ${nextVersion} and UPDATE.md reset.`);
+  } finally {
+    try {
+      await client.destroy();
+    } catch {
+      // ignore destroy errors; client might not have been logged in yet
+    }
+
+    if (updateStatusApplied && !updateResetToPending) {
+      await fs.writeFile(UPDATE_PATH, originalUpdateContent, 'utf8');
     }
   }
-
-  await client.destroy();
-
-  if (successCount === 0) {
-    console.error('No guilds received the update announcement. Configure an update channel with /setupdatech and try again.');
-    throw new Error('Update push aborted: no eligible guilds.');
-  }
-
-  if (failures.length) {
-    console.warn('Some guilds did not receive the announcement. Resolve the errors above and re-run updatepush if needed.');
-  }
-
-  await recordLastUpdateVersion(currentVersion);
-
-  const nextVersion = bumpPatch(currentVersion);
-
-  const newUpdateContent = `# Pending Update\n\nversion: ${nextVersion}\n\n## Changes\n\n<!-- Add one bullet per noteworthy change below. Example: - Improved chip payout handling -->\n\n`;
-  await fs.writeFile(UPDATE_PATH, newUpdateContent, 'utf8');
-
-  const newPkg = { ...pkg, version: nextVersion };
-  await fs.writeFile(path.join(ROOT, 'package.json'), `${JSON.stringify(newPkg, null, 2)}\n`, 'utf8');
-
-  console.log(`Version bumped to ${nextVersion} and UPDATE.md reset.`);
 }
 
 main().catch(err => {

@@ -6,7 +6,7 @@ import {
   createJobShift,
   completeJobShift
 } from '../db/db.auto.mjs';
-import { getJobStatusForUser, recordShiftCompletion, JOB_SHIFT_STREAK_LIMIT, JOB_SHIFT_STREAK_COOLDOWN_SECONDS } from './status.mjs';
+import { getJobStatusForUser, recordShiftCompletion, JOB_SHIFT_STREAK_LIMIT, JOB_SHIFT_RECHARGE_SECONDS } from './status.mjs';
 import { getJobById } from './registry.mjs';
 import { generateStagesForJob, generateBartenderShift } from './scenarios/index.mjs';
 import {
@@ -21,11 +21,18 @@ import {
   JOB_PAYOUT_DIVISOR
 } from './progression.mjs';
 import { emoji } from '../lib/emojis.mjs';
+import { scheduleInteractionAck } from '../lib/interactionAck.mjs';
 
 const sessionsById = new Map();
 const sessionsByUser = new Map();
 
 const SHIFT_SESSION_TIMEOUT_SECONDS = 120;
+const JOB_SHIFT_BUTTON_ACK_MS = (() => {
+  const specific = Number(process.env.JOB_SHIFT_BUTTON_ACK_MS);
+  if (Number.isFinite(specific) && specific > 0) return specific;
+  const general = Number(process.env.INTERACTION_STALE_MS);
+  return Number.isFinite(general) && general > 0 ? general : 2500;
+})();
 
 const COLORS = {
   bartender: 0xff9b54,
@@ -36,6 +43,32 @@ const COLORS = {
 
 function userKey(guildId, userId) {
   return `${guildId}:${userId}`;
+}
+
+function storeJobAutoAck(interaction, cancelFn) {
+  if (!interaction || typeof cancelFn !== 'function') return;
+  cancelJobAutoAck(interaction);
+  interaction.__jobShiftCancelAck = cancelFn;
+}
+
+function cancelJobAutoAck(interaction) {
+  if (!interaction) return;
+  const cancelFn = interaction.__jobShiftCancelAck;
+  if (typeof cancelFn === 'function') {
+    try { cancelFn(); } catch {}
+  }
+  interaction.__jobShiftCancelAck = null;
+}
+
+function sendShiftUpdate(interaction, ctx, payload) {
+  cancelJobAutoAck(interaction);
+  if (ctx && typeof ctx.sendGameMessage === 'function') {
+    return ctx.sendGameMessage(interaction, payload, 'update');
+  }
+  if (interaction.deferred || interaction.replied) {
+    return interaction.editReply(payload);
+  }
+  return interaction.update(payload);
 }
 
 function nowSeconds() {
@@ -116,6 +149,7 @@ function ensureEphemeralPayload(payload) {
 }
 
 function replyEphemeral(interaction, payload) {
+  cancelJobAutoAck(interaction);
   const body = ensureEphemeralPayload(payload);
   if (interaction.deferred || interaction.replied) {
     return interaction.followUp(body);
@@ -124,6 +158,7 @@ function replyEphemeral(interaction, payload) {
 }
 
 function followUpEphemeral(interaction, payload) {
+  cancelJobAutoAck(interaction);
   return interaction.followUp(ensureEphemeralPayload(payload));
 }
 
@@ -629,20 +664,34 @@ function buildStageEmbeds(session, stage, kittenMode) {
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
   const jobIcon = jobDisplayIcon(job);
   const limit = JOB_SHIFT_STREAK_LIMIT;
-  const beforeRemaining = Number(session.shiftStatusBefore?.shiftsRemaining ?? limit);
-  const afterRemaining = Math.max(0, beforeRemaining - 1);
-  const streakAfter = Math.min(limit, Number(session.shiftStatusBefore?.streakCount ?? 0) + 1);
+  const chargesBefore = Math.max(0, Math.min(limit, Number(session.shiftStatusBefore?.shiftsRemaining ?? limit)));
+  const chargesAfter = Math.max(0, Math.min(limit, chargesBefore - 1));
+  const nextChargeAt = Number(session.shiftStatusBefore?.shiftCooldownExpiresAt ?? session.shiftStatusBefore?.shift_cooldown_expires_at ?? 0);
+  const nowTs = nowSeconds();
+  const rechargeRemaining = nextChargeAt > nowTs ? nextChargeAt - nowTs : 0;
+  const restLines = [
+    `${emoji('clipboard')} ${say('Stamina ready:', 'Stamina ready:')} **${chargesBefore}/${limit}**`,
+    `${emoji('minus')} ${say('After this shift:', 'After this shift:')} **${chargesAfter}/${limit}**`
+  ];
+  if (chargesBefore < limit) {
+    if (nextChargeAt > 0 && rechargeRemaining > 0) {
+      restLines.push(`${emoji('timer')} ${say('Next stamina', 'Next stamina')} <t:${nextChargeAt}:R> (${formatDuration(rechargeRemaining)}).`);
+    } else {
+      restLines.push(`${emoji('timer')} ${say('Next stamina arriving soon.', 'Next stamina arriving soon.')}`);
+    }
+  } else {
+    restLines.push(`${emoji('sparkles')} ${say('Stamina full — spend one on a shift to start a recharge.', 'Stamina full — spend one on a shift to start a recharge.')}`);
+  }
   const restField = {
-    name: say('Rest Tracker', 'Rest Tracker'),
-    value: say(
-      `After this run you’ll have **${afterRemaining}** ${afterRemaining === 1 ? 'shift' : 'shifts'} before cooldown.`,
-      `After this run you’ll have **${afterRemaining}** ${afterRemaining === 1 ? 'shift' : 'shifts'} before the ${formatDuration(JOB_SHIFT_STREAK_COOLDOWN_SECONDS)} rest (${streakAfter}/${limit} in this cycle).`
-    )
+    name: say('Stamina', 'Stamina'),
+    value: restLines.join('\n')
   };
   const descriptionLines = [];
   let boardEmbed = null;
 
+  let dealerStageState = null;
   if (job.id === 'dealer') {
+    dealerStageState = ensureStageState(session, stage);
     const promptLines = String(stage.prompt ?? '').split('\n');
     const seatSections = [];
     const additional = [];
@@ -697,17 +746,12 @@ function buildStageEmbeds(session, stage, kittenMode) {
     descriptionLines.push('');
     descriptionLines.push(...stage.options.map(opt => `**${opt.id}.** ${opt.label}`));
   }
-  if (job.id === 'dealer') {
-    descriptionLines.push('');
-    descriptionLines.push('Select all winning seat(s) from the dropdown, then press Continue.');
-    descriptionLines.push('Finish under 15s for 20 pts, under 30s for 18 pts, under 40s for 15 pts. Any slower pays (45 − your time) with zero at 45s.');
-  }
 
   const mainEmbed = new EmbedBuilder()
     .setColor(COLORS[job.id] || COLORS.default)
     .setTitle(`${jobIcon} ${job.displayName} Shift — Stage ${stageNumber}/${totalStages}`)
     .setDescription(descriptionLines.join('\n'))
-    .setFooter({ text: say('Cancel anytime with End Shift - rest after five shifts (6h cooldown)', 'Cancel anytime with End Shift - rest after five shifts (6h cooldown)') });
+    .setFooter({ text: say('Cancel anytime with End Shift — stamina regenerates every 2h while below cap.', 'Cancel anytime with End Shift — stamina regenerates every 2h while below cap.') });
 
   const fields = [
     {
@@ -718,20 +762,38 @@ function buildStageEmbeds(session, stage, kittenMode) {
       name: say('Stage History', 'Stage History'),
       value: buildHistoryLines(session)
     },
-    restField,
-    {
-      name: say('Tips', 'Tips'),
-      value: job.id === 'dealer'
-        ? say(
-          'Pick every winning seat fast: <15s pays 20 pts, <30s pays 18 pts, <40s pays 15 pts — beyond that you earn 45 - time (40s = 5 pts). Three attempts max.',
-          'Select every winning seat quickly: under 15s is 20 pts, under 30s is 18 pts, under 40s is 15 pts, then the payout becomes 45 minus your time (floor 0). Only three submissions per table.'
-        )
-        : say(
-          'First-try clears pay 18 base points (+2 under 6s, +1 under 10s). You get three attempts before the stage busts.',
-          'First-try answers earn 18 base points (+2 under 6 seconds, +1 under 10 seconds). Three attempts total before the stage fails.'
-        )
-    }
+    restField
   ].filter(Boolean);
+
+  if (job.id === 'dealer') {
+    const attemptsUsed = dealerStageState?.attempts ?? 0;
+    const attemptsRemaining = Math.max(0, 3 - attemptsUsed);
+    const selectedSeats = Array.isArray(dealerStageState?.selectedHands) && dealerStageState.selectedHands.length
+      ? renderDealerSelection(dealerStageState.selectedHands, stage)
+      : say('None marked yet.', 'None marked yet.');
+    const lastAttempt = dealerStageState?.attemptsLog?.length
+      ? dealerStageState.attemptsLog.at(-1)
+      : null;
+    const statusLines = [
+      `${emoji('radioButton')} ${say('Seats marked:', 'Seats marked:')} ${selectedSeats}`,
+      `${emoji('timer')} ${say('Attempts left:', 'Attempts left:')} ${attemptsRemaining}`
+    ];
+    if (lastAttempt) {
+      statusLines.push(`${emoji(lastAttempt.correct ? 'check' : 'cross')} ${say('Last submission:', 'Last submission:')} ${lastAttempt.optionId}`);
+    }
+    fields.push({
+      name: say('Stage Status', 'Stage Status'),
+      value: statusLines.join('\n')
+    });
+  } else {
+    fields.push({
+      name: say('Tips', 'Tips'),
+      value: say(
+        'First-try clears pay 18 base points (+2 under 6s, +1 under 10s). You get three attempts before the stage busts.',
+        'First-try answers earn 18 base points (+2 under 6 seconds, +1 under 10 seconds). Three attempts total before the stage fails.'
+      )
+    });
+  }
 
   mainEmbed.addFields(fields);
   const embeds = [];
@@ -840,50 +902,39 @@ function buildDealerIntroEmbed(session, kittenMode) {
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
   const job = session.job;
   const jobIcon = jobDisplayIcon(job);
+  const descriptionLines = [
+    say('Ready to deal, Kitten? Keep it sharp and swift.', 'Ready to deal today? Keep it sharp and swift.'),
+    `${emoji('boardBanner')} ${say(
+      'Each table shows a board plus three seats. Spot every seat sharing the winning hand.',
+      'Each stage shows community cards and three seats. Identify every seat sharing the winning hand.'
+    )}`,
+    `${emoji('timer')} ${say(
+      'Hit “Start Dealing” when you’re ready — the timer fires instantly.',
+      'Press “Start Dealing” when you’re ready — the timer starts instantly.'
+    )}`
+  ];
+  const reminders = [
+    `${emoji('ballot')} ${say(
+      'Use the dropdown to flag every winning seat; you can reopen it until you press Continue.',
+      'Use the dropdown to flag every winning seat; you can reopen it until you press Continue.'
+    )}`,
+    `${emoji('warning')} ${say(
+      'Only three attempts per table — miss all three and the house sweeps the pot.',
+      'Only three attempts per table — miss all three and the house sweeps the pot.'
+    )}`,
+    `${emoji('chips')} ${say(
+      '<15s:20 pts • <30s:18 • <40s:15 • ≥40s: 45 − time (floored at 0).',
+      '<15s:20 pts • <30s:18 • <40s:15 • ≥40s: 45 − time (floored at 0).'
+    )}`
+  ];
   const embed = new EmbedBuilder()
     .setColor(COLORS[job.id] || COLORS.default)
     .setTitle(`${jobIcon} ${job.displayName} Shift — Briefing`)
-    .setDescription([
-      say('Ready to deal, Kitten?', 'Ready to deal today?'),
-      `${emoji('boardBanner')} ${say(
-        'Each table reveals a board plus three seats. Identify the seat(s) with the best poker hand.',
-        'Every stage shows community cards and three players. Figure out which seat(s) hold the top hand.'
-      )}`,
-      `${emoji('timer')} ${say(
-        'Tap “Start Dealing” to reveal Stage 1 — your timer starts immediately.',
-        'Press “Start Dealing” to open Stage 1. The timer starts right away, so scan fast.'
-      )}`,
-      `${emoji('target')} ${say(
-        'Use the dropdown to mark every winning seat. Submit within 15 seconds for full payout — under 30s still pays 18 pts, under 40s pays 15 pts, then the bank pays 45 minus your time.',
-        'Select every winning seat from the dropdown. Finishing under 15s pays 20 points, under 30s pays 18, under 40s pays 15, and beyond that the pot equals 45 minus your time (seconds).'
-      )}`,
-      `${emoji('doorOpen')} ${say(
-        'Press Continue to lock in your seats. You can revisit the dropdown until you submit.',
-        'Confirm your picks with Continue — you may reopen the dropdown until you submit.'
-      )}`,
-      `${emoji('warning')} ${say(
-        'You still only get three attempts — bust the table and you lose the pot.',
-        'You have three attempts per table. Blow them all and the table busts.'
-      )}`
-    ].join('\n'))
-    .addFields(
-      {
-        name: say('How To Deal', 'How To Deal'),
-        value: [
-          '- Study the community board and each seat’s hole cards.',
-          '- Determine the best poker hand, considering splits and kickers.',
-          '- Select every seat sharing the top hand before you press Continue.'
-        ].join('\n')
-      },
-      {
-        name: say('Scoring Tiers', 'Scoring Tiers'),
-        value: [
-          '- <15s: 20 pts | <30s: 18 pts | <40s: 15 pts.',
-          '- ≥40s: payout = 45 − time (40s = 5 pts, 45s = 0).',
-          '- Three incorrect submissions bust the table.'
-        ].join('\n')
-      }
-    );
+    .setDescription(descriptionLines.join('\n'))
+    .addFields({
+      name: say('Quick Reminders', 'Quick Reminders'),
+      value: reminders.join('\n')
+    });
   return embed;
 }
 
@@ -989,9 +1040,9 @@ function buildCooldownMessage(kittenMode, availableAt) {
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
   const remain = Math.max(0, availableAt - nowSeconds());
   return [
-    `${emoji('hourglassFlow')} ${say(`Cooldown triggered — ${JOB_SHIFT_STREAK_LIMIT} shifts back-to-back is the max, Kitten.`, `Cooldown triggered — ${JOB_SHIFT_STREAK_LIMIT} shifts back-to-back hits the limit.`)}`,
-    `${emoji('timer')} ${say('Next shift window opens', 'Next shift window opens')} <t:${availableAt}:R> (${formatDuration(remain)}).`,
-    `${emoji('repeat')} ${say(`Cooldown length: ${formatDuration(JOB_SHIFT_STREAK_COOLDOWN_SECONDS)}.`, `Cooldown lasts ${formatDuration(JOB_SHIFT_STREAK_COOLDOWN_SECONDS)}.`)}`
+    `${emoji('hourglassFlow')} ${say('Out of stamina for now, Kitten.', 'You’re out of stamina for now.')}`,
+    `${emoji('timer')} ${say('Next stamina', 'Next stamina')} <t:${availableAt}:R> (${formatDuration(remain)}).`,
+    `${emoji('repeat')} ${say(`Stamina regenerates one point every ${formatDuration(JOB_SHIFT_RECHARGE_SECONDS)} while you’re below cap.`, `Stamina regenerates one point every ${formatDuration(JOB_SHIFT_RECHARGE_SECONDS)} while you’re below cap.`)}`
   ].join('\n');
 }
 
@@ -1012,20 +1063,24 @@ function buildShiftStatusField(session, status) {
   if (!status) return null;
   const say = (kitten, normal) => (session.kittenMode ? kitten : normal);
   const limit = JOB_SHIFT_STREAK_LIMIT;
-  if (status.onShiftCooldown) {
-    const expiresAt = Number(status.shiftCooldownExpiresAt ?? status.shift_cooldown_expires_at ?? 0);
-    const remain = Math.max(0, status.shiftCooldownRemaining ?? (expiresAt - nowSeconds()));
-    return {
-      name: say('Rest Status', 'Rest Status'),
-      value: `${emoji('hourglassFlow')} ${say('Cooldown active — lounge until the timer clears.', 'Cooldown active until the timer clears.')} ${say('Back on duty', 'Next shift')} <t:${expiresAt}:R> (${formatDuration(remain)}).`
-    };
+  const charges = Math.max(0, Math.min(limit, Number(status.shiftCharges ?? status.shiftsRemaining ?? limit)));
+  const nextChargeAt = Number(status.shiftCooldownExpiresAt ?? status.shift_cooldown_expires_at ?? 0);
+  const remain = Math.max(0, status.shiftCooldownRemaining ?? (nextChargeAt - nowSeconds()));
+  const lines = [
+    `${emoji('clipboard')} ${say('Stamina ready:', 'Stamina ready:')} **${charges}/${limit}**`
+  ];
+  if (charges < limit) {
+    if (nextChargeAt > 0 && remain > 0) {
+      lines.push(`${emoji('timer')} ${say('Next stamina', 'Next stamina')} <t:${nextChargeAt}:R> (${formatDuration(remain)}).`);
+    } else {
+      lines.push(`${emoji('timer')} ${say('Next stamina arriving soon.', 'Next stamina arriving soon.')}`);
+    }
+  } else {
+    lines.push(`${emoji('sparkles')} ${say('Stamina full — spend one on a shift to start a recharge.', 'Stamina full — spend one on a shift to start a recharge.')}`);
   }
-  const streak = Number(status.shiftStreakCount ?? status.shift_streak_count ?? 0);
-  const remaining = Number(status.shiftsRemaining ?? Math.max(0, limit - streak));
-  const word = remaining === 1 ? say('shift', 'shift') : say('shifts', 'shifts');
   return {
-    name: say('Rest Status', 'Rest Status'),
-    value: `${emoji('clipboard')} ${say('Shifts before rest:', 'Shifts before rest:')} **${remaining}** ${word} (${streak}/${limit} used).`
+    name: say('Stamina', 'Stamina'),
+    value: lines.join('\n')
   };
 }
 
@@ -1427,7 +1482,7 @@ async function finalizeShift(interaction, ctx, session) {
   });
 
   clearSession(session);
-  return interaction.update({ embeds: [embed], components: [] });
+  return sendShiftUpdate(interaction, session.ctx || ctx, { embeds: [embed], components: [] });
 }
 
 function stageTimeoutSeconds(attempts) {
@@ -1461,8 +1516,9 @@ async function cancelSession(session, { editOriginal = false } = {}) {
     xpToNext: session.profileBefore.xpToNext
   };
   if (briefingOnly) {
-    profileUpdate.shiftsRemaining = Number(session.shiftStatusBefore?.shiftsRemaining ?? JOB_SHIFT_STREAK_LIMIT);
-    profileUpdate.shiftStreakCount = Number(session.shiftStatusBefore?.streakCount ?? session.shiftStatusBefore?.shiftCount ?? 0);
+    const chargesBefore = Math.max(0, Math.min(JOB_SHIFT_STREAK_LIMIT, Number(session.shiftStatusBefore?.shiftsRemaining ?? JOB_SHIFT_STREAK_LIMIT)));
+    profileUpdate.shiftsRemaining = chargesBefore;
+    profileUpdate.shiftStreakCount = JOB_SHIFT_STREAK_LIMIT - chargesBefore;
   }
   await updateJobProfile(session.guildId, session.userId, session.jobId, profileUpdate);
 
@@ -1563,7 +1619,7 @@ async function handleCorrect(interaction, ctx, session, stage, stageState) {
   const nextStage = session.stages[session.stageIndex];
   session.stageState = createStageState(session, nextStage);
   const embeds = buildStageEmbeds(session, nextStage, session.kittenMode);
-  return interaction.update({ embeds, components: buildStageComponents(session, nextStage) });
+  return sendShiftUpdate(interaction, session.ctx, { embeds, components: buildStageComponents(session, nextStage) });
 }
 
 async function handleIncorrect(interaction, session, stage, stageState) {
@@ -1600,7 +1656,7 @@ async function handleIncorrect(interaction, session, stage, stageState) {
     const nextStage = session.stages[session.stageIndex];
     session.stageState = createStageState(session, nextStage);
     const embeds = buildStageEmbeds(session, nextStage, session.kittenMode);
-    return interaction.update({ embeds, components: buildStageComponents(session, nextStage) });
+    return sendShiftUpdate(interaction, session.ctx, { embeds, components: buildStageComponents(session, nextStage) });
   }
 
   return replyEphemeral(interaction, {
@@ -1614,6 +1670,8 @@ export async function handleJobShiftButton(interaction, ctx) {
   const isSelectMenu = typeof interaction.isStringSelectMenu === 'function' && interaction.isStringSelectMenu();
   const [prefix, sessionId, action, payload] = interaction.customId.split('|');
   if (prefix !== 'jobshift') return false;
+  const cancelAutoAck = scheduleInteractionAck(interaction, { timeout: JOB_SHIFT_BUTTON_ACK_MS, mode: 'update' });
+  storeJobAutoAck(interaction, cancelAutoAck);
   const session = sessionsById.get(sessionId);
   if (!session) {
     await replyEphemeral(interaction, { content: `${emoji('warning')} Shift session expired.` });
@@ -1644,7 +1702,7 @@ export async function handleJobShiftButton(interaction, ctx) {
     refreshSessionTimeout(session);
     const embeds = buildStageEmbeds(session, stage, session.kittenMode);
     const components = buildStageComponents(session, stage);
-    return interaction.update({ embeds, components });
+    return sendShiftUpdate(interaction, session.ctx || ctx, { embeds, components });
   }
 
   if (session.awaitingStart) {
@@ -1672,15 +1730,18 @@ export async function handleJobShiftButton(interaction, ctx) {
       const unique = Array.from(new Set(values.map(value => String(value).toUpperCase()).filter(value => allowed.has(value))));
       unique.sort((a, b) => seatOrder.indexOf(a) - seatOrder.indexOf(b));
       stageState.selectedHands = unique;
+      cancelJobAutoAck(interaction);
       await interaction.deferUpdate();
       return true;
     }
     if (session.jobId === 'bouncer' && action === 'approve') {
       stageState.selectedNames = Array.isArray(interaction.values) ? interaction.values : [];
+      cancelJobAutoAck(interaction);
       await interaction.deferUpdate();
       return true;
     }
     if (!isBartenderStage(stage, session) || action !== 'slot') {
+      cancelJobAutoAck(interaction);
       return false;
     }
     const slotIndex = Number(payload);
@@ -1695,7 +1756,7 @@ export async function handleJobShiftButton(interaction, ctx) {
     stageState.lastFeedback = null;
     const embeds = buildStageEmbeds(session, stage, session.kittenMode);
     const components = buildStageComponents(session, stage);
-    return interaction.update({ embeds, components });
+    return sendShiftUpdate(interaction, session.ctx || ctx, { embeds, components });
   }
 
   if (action === 'submit' && session.jobId === 'bouncer') {
@@ -1789,7 +1850,7 @@ export async function handleJobShiftButton(interaction, ctx) {
 
   if (action === 'cancel') {
     const message = await cancelSession(session);
-    await interaction.update({
+    await sendShiftUpdate(interaction, session.ctx || ctx, {
       content: message,
       embeds: [],
       components: []
@@ -1808,6 +1869,7 @@ export async function handleJobShiftButton(interaction, ctx) {
     return handleIncorrect(interaction, session, stage, stageState);
   }
 
+  cancelJobAutoAck(interaction);
   return false;
 }
 
@@ -1831,14 +1893,9 @@ export async function startJobShift(interaction, ctx, jobInput) {
   }
 
   const status = await getJobStatusForUser(guildId, userId);
-  if (status?.onShiftCooldown) {
-    const availableAt = Number(status.shiftCooldownExpiresAt ?? status.shift_cooldown_expires_at ?? 0) || (nowSeconds() + JOB_SHIFT_STREAK_COOLDOWN_SECONDS);
-    return buildCooldownError(interaction, kittenMode, availableAt);
-  }
-
-  const remaining = Number(status?.shiftsRemaining ?? (JOB_SHIFT_STREAK_LIMIT - (status?.shiftStreakCount ?? 0)));
-  if (remaining <= 0) {
-    const availableAt = Number(status?.shiftCooldownExpiresAt ?? status?.shift_cooldown_expires_at ?? 0) || (nowSeconds() + JOB_SHIFT_STREAK_COOLDOWN_SECONDS);
+  const charges = Number(status?.shiftCharges ?? status?.shiftsRemaining ?? JOB_SHIFT_STREAK_LIMIT);
+  if (charges <= 0) {
+    const availableAt = Number(status?.shiftCooldownExpiresAt ?? status?.shift_cooldown_expires_at ?? 0) || (nowSeconds() + JOB_SHIFT_RECHARGE_SECONDS);
     return buildCooldownError(interaction, kittenMode, availableAt);
   }
 
@@ -1898,8 +1955,9 @@ export async function startJobShift(interaction, ctx, jobInput) {
     openedAt: now,
     kittenMode,
     shiftStatusBefore: {
-      shiftsRemaining: remaining,
-      streakCount: Number(status?.shiftStreakCount ?? status?.shift_streak_count ?? 0)
+      shiftsRemaining: charges,
+      shiftCharges: charges,
+      shiftCooldownExpiresAt: Number(status?.shiftCooldownExpiresAt ?? status?.shift_cooldown_expires_at ?? 0)
     },
     totalScore: 0,
     stageIndex: 0,

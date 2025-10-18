@@ -1,10 +1,11 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
 import crypto from 'node:crypto';
 import { getUserBalances, getHouseBalance, takeFromUserToHouse, transferFromHouseToUser, burnCredits } from '../db/db.auto.mjs';
-import { chipsAmount } from './format.mjs';
+import { chipsAmount, chipsAmountSigned } from './format.mjs';
 import { sessionLineFor, setActiveSession, recordSessionGame, buildTimeoutField, sendGameMessage } from './session.mjs';
 import { emoji } from '../lib/emojis.mjs';
 import { withInsufficientFundsTip } from '../lib/fundsTip.mjs';
+import { scheduleInteractionAck } from '../lib/interactionAck.mjs';
 
 // Symbols & pays (per 3/4/5 on a payline)
 export const SLOTS_SYMBOLS = {
@@ -153,29 +154,60 @@ export function evaluateSlots(grid, betTotal) {
 }
 
 // Handler: execute a spin, settle, and render result
+const SLOTS_ACK_TIMEOUT_MS = (() => {
+  const specific = Number(process.env.SLOTS_INTERACTION_ACK_MS);
+  if (Number.isFinite(specific) && specific > 0) return specific;
+  const general = Number(process.env.INTERACTION_STALE_MS);
+  return Number.isFinite(general) && general > 0 ? general : 2500;
+})();
+
 export async function runSlotsSpin(interaction, bet, key) {
-  if (!interaction.guild) {
-    const payload = { content: '❌ Slots can only be played inside a server.', ephemeral: true };
-    try {
-      if (interaction.replied || interaction.deferred) {
-        if (typeof interaction.followUp === 'function') return interaction.followUp(payload);
-        return interaction.reply(payload);
-      }
-      return interaction.reply(payload);
-    } catch {
-      return;
+  const isButtonInteraction = typeof interaction.isButton === 'function' && interaction.isButton();
+  const cancelAutoAck = scheduleInteractionAck(interaction, { timeout: SLOTS_ACK_TIMEOUT_MS, mode: isButtonInteraction ? 'update' : 'reply' });
+  let acked = false;
+  const ensureAck = async () => {
+    if (acked || interaction.deferred || interaction.replied) return;
+    cancelAutoAck();
+    if (isButtonInteraction && typeof interaction.deferUpdate === 'function') {
+      await interaction.deferUpdate().catch(() => {});
+    } else if (typeof interaction.deferReply === 'function') {
+      await interaction.deferReply().catch(() => {});
+    } else if (typeof interaction.deferUpdate === 'function') {
+      await interaction.deferUpdate().catch(() => {});
     }
+    acked = true;
+  };
+  const respondEphemeral = async (payload = {}) => {
+    const base = (payload && typeof payload === 'object' && !Array.isArray(payload)) ? { ...payload } : { content: String(payload || '') };
+    if (!Object.prototype.hasOwnProperty.call(base, 'ephemeral')) base.ephemeral = true;
+    cancelAutoAck();
+    if (interaction.deferred || interaction.replied || acked) {
+      if (typeof interaction.followUp === 'function') {
+        return interaction.followUp(base);
+      }
+      const clone = { ...base };
+      delete clone.ephemeral;
+      if (typeof interaction.editReply === 'function') {
+        return interaction.editReply(clone);
+      }
+      return interaction.reply(clone);
+    }
+    return interaction.reply(base);
+  };
+
+  if (!interaction.guild) {
+    return respondEphemeral({ content: '❌ Slots can only be played inside a server.' });
   }
   const lines = SLOTS_LINES.length;
   if (!Number.isInteger(bet) || bet < 5) {
-    return interaction.reply({ content: `❌ Bet must be an integer of at least 5 (total across ${lines} lines).`, ephemeral: true });
+    return respondEphemeral({ content: `❌ Bet must be an integer of at least 5 (total across ${lines} lines).` });
   }
   const guildId = interaction.guild?.id;
   const { chips, credits } = await getUserBalances(guildId, interaction.user.id);
   if (chips + credits < bet) {
     const fmt = new Intl.NumberFormat('en-US');
     const base = `❌ Not enough funds. Credits: **${fmt.format(credits)}**, Chips: **${chipsAmount(chips)}**. Need: **${chipsAmount(bet)}**.`;
-    return interaction.reply({ content: withInsufficientFundsTip(base), ephemeral: true });
+    return respondEphemeral({ content: withInsufficientFundsTip(base) });
   }
   const grid = spinSlots();
   const { total: win } = evaluateSlots(grid, bet);
@@ -184,17 +216,26 @@ export async function runSlotsSpin(interaction, bet, key) {
   const chipStake = bet - creditStake;
   const cover = await getHouseBalance(guildId);
   if (cover + chipStake < win) {
-    return interaction.reply({ content: `❌ House cannot cover potential payout. Needed: **${chipsAmount(win)}**.`, ephemeral: true });
+    return respondEphemeral({ content: `❌ House cannot cover potential payout. Needed: **${chipsAmount(win)}**.` });
   }
+  await ensureAck();
   if (chipStake > 0) {
-    try { await takeFromUserToHouse(guildId, interaction.user.id, chipStake, 'slots spin (chips)', interaction.user.id); } catch { return interaction.reply({ content: '❌ Could not process bet.', ephemeral: true }); }
+    try {
+      await takeFromUserToHouse(guildId, interaction.user.id, chipStake, 'slots spin (chips)', interaction.user.id);
+    } catch {
+      return respondEphemeral({ content: '❌ Could not process bet.' });
+    }
   }
   const fmtCredits = new Intl.NumberFormat('en-US');
   let creditsBurned = 0;
   if (win > 0) {
     const payout = win;
-    try { await transferFromHouseToUser(guildId, interaction.user.id, payout, 'slots win', null); }
-    catch { return interaction.reply({ content: '⚠️ Payout failed.', ephemeral: true }); }
+    try {
+      await transferFromHouseToUser(guildId, interaction.user.id, payout, 'slots win', null);
+    }
+    catch {
+      return respondEphemeral({ content: '⚠️ Payout failed.' });
+    }
   } else {
     try {
       if (creditStake > 0) {
@@ -246,5 +287,6 @@ export async function runSlotsSpin(interaction, bet, key) {
   const response = { embeds: [e], components: [again] };
   // Ensure we track the message reference for session finalization on expiry
   setActiveSession(interaction.guild.id, interaction.user.id, 'slots', 'Slots');
+  cancelAutoAck();
   return sendGameMessage(interaction, response, 'auto');
 }

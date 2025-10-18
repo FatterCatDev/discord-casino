@@ -18,13 +18,13 @@ const commands = [
   },
   {
     name: 'job',
-    description: 'Clock in for casino shifts and manage your role.',
+    description: 'Clock in for casino shifts, manage stamina, and oversee your role.',
     options: [
-      { type: 1, name: 'overview', description: 'Preview available jobs and shift structure.' },
+      { type: 1, name: 'overview', description: 'Preview available jobs, shift structure, and stamina status.' },
       {
         type: 1,
         name: 'start',
-        description: 'Start a shift for a specific job.',
+        description: 'Start a shift for a specific job (spends stamina).',
         options: [
           {
             name: 'job',
@@ -35,11 +35,11 @@ const commands = [
           }
         ]
       },
-      { type: 1, name: 'cancel', description: 'Cancel your active job shift.' },
+      { type: 1, name: 'cancel', description: 'Cancel your active shift.' },
       {
         type: 1,
         name: 'stats',
-        description: 'Review job ranks, XP, and shift history.',
+        description: 'Review job ranks, XP, shift history, and stamina.',
         options: [
           { name: 'user', description: 'Target user to inspect', type: 6, required: false }
         ]
@@ -47,7 +47,7 @@ const commands = [
       {
         type: 1,
         name: 'reset',
-        description: 'Admin only: reset job cooldowns and shift timers.',
+        description: 'Admin only: reset job cooldowns and stamina timers.',
         options: [
           { name: 'user', description: 'Target user (defaults to yourself)', type: 6, required: false }
         ]

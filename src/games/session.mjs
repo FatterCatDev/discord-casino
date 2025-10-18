@@ -82,6 +82,11 @@ export async function sendGameMessage(interaction, payload, mode = 'auto') {
     try { setActiveMessageRef(interaction.guild.id, interaction.user.id, msg.channelId, msg.id); } catch {}
     return msg;
   }
+  if (interaction.deferred || interaction.replied) {
+    const res = await interaction.editReply(payload);
+    try { setActiveMessageRef(interaction.guild.id, interaction.user.id, res.channelId, res.id); } catch {}
+    return res;
+  }
   await interaction.reply(payload);
   try {
     const msg = await interaction.fetchReply();

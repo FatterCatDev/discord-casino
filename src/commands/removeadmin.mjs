@@ -5,7 +5,7 @@ export default async function handleRemoveAdmin(interaction, ctx) {
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
   const guildId = interaction.guild?.id;
   if (!guildId) {
-    return interaction.reply({ content: say('❌ Administrative shifts happen inside a server, Kitten.', '❌ This command can only be used in a server.'), ephemeral: true });
+    return interaction.reply({ content: say('❌ Administrative actions happen inside a server, Kitten.', '❌ This command can only be used in a server.'), ephemeral: true });
   }
   if (!(await ctx.isAdmin(interaction))) {
     return interaction.reply({ content: say('❌ Only my cherished administrators may demote another, Kitten.', '❌ Admin access required.'), ephemeral: true });

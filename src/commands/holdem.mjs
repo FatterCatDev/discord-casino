@@ -1,6 +1,7 @@
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { getGuildSettings } from '../db/db.auto.mjs';
 import { emoji } from '../lib/emojis.mjs';
+import { formatCasinoCategory } from '../lib/casinoCategory.mjs';
 
 async function inCasinoCategory(interaction, kittenMode) {
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
@@ -31,7 +32,8 @@ async function inCasinoCategory(interaction, kittenMode) {
       else catId = ch?.parentId || null;
     } catch {}
     if (!catId || catId !== casino_category_id) {
-      return { ok: false, reason: '❌ This command can only be used inside the configured casino category.' };
+      const categoryLabel = await formatCasinoCategory(interaction, casino_category_id);
+      return { ok: false, reason: say(`❌ Hold’em belongs inside ${categoryLabel}, Kitten. Meet me there.`, `❌ This command can only be used inside ${categoryLabel}.`) };
     }
     return { ok: true };
   } catch {

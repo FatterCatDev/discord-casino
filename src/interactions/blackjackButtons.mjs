@@ -18,6 +18,7 @@ export default async function onBlackjackButtons(interaction, ctx) {
   }
   const k = ctx.keyFor(interaction);
   const state = ctx.blackjackGames.get(k);
+  const cancelAutoAck = scheduleInteractionAck(interaction, { timeout: BUTTON_STALE_MS, mode: 'update' });
   const kittenMode = typeof ctx?.kittenModeEnabled === 'boolean'
     ? ctx.kittenModeEnabled
     : (typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false);
@@ -29,14 +30,23 @@ export default async function onBlackjackButtons(interaction, ctx) {
       deferred = true;
     }
   };
+  const respondEphemeral = async (payload = {}) => {
+    cancelAutoAck();
+    const base = (payload && typeof payload === 'object' && !Array.isArray(payload)) ? { ...payload } : { content: String(payload || '') };
+    if (!Object.prototype.hasOwnProperty.call(base, 'ephemeral')) base.ephemeral = true;
+    if (deferred || interaction.deferred || interaction.replied) {
+      return interaction.followUp(base);
+    }
+    return interaction.reply(base);
+  };
   const updateMessage = (payload) => ctx.sendGameMessage(interaction, payload, 'update');
-  const cancelAutoAck = scheduleInteractionAck(interaction, { timeout: BUTTON_STALE_MS, mode: 'update' });
   if (action !== 'again' && action !== 'change') {
     if (!state) { cancelAutoAck(); return updateMessage({ content: `${emoji('hourglass')} This session expired. Use \`/blackjack\` to start a new one.`, components: [] }); }
-    if (interaction.user.id !== state.userId) { cancelAutoAck(); return interaction.reply({ content: '❌ Only the original player can use these buttons.', ephemeral: true }); }
-    if (state.finished) { cancelAutoAck(); return interaction.reply({ content: '❌ Hand already finished.', ephemeral: true }); }
+    if (interaction.user.id !== state.userId) { return respondEphemeral({ content: '❌ Only the original player can use these buttons.' }); }
+    if (state.finished) { return respondEphemeral({ content: '❌ Hand already finished.' }); }
   }
   if (action !== 'again' && ctx.hasActiveExpired(interaction.guild.id, interaction.user.id, 'blackjack')) {
+    await deferUpdateOnce();
     if (state) {
       ctx.blackjackGames.delete(k);
       try { if (state.creditsStake > 0) await ctx.burnCredits(state.userId, state.creditsStake, 'blackjack expired', null); } catch {}
@@ -67,13 +77,11 @@ export default async function onBlackjackButtons(interaction, ctx) {
     const defaultBet = Number(parts[3]) || 1;
     const ownerId = parts[4] || interaction.user.id;
     if (ownerId && ownerId !== interaction.user.id) {
-      cancelAutoAck();
-      return interaction.reply({ content: '❌ Only the original player can adjust this bet.', ephemeral: true });
+      return respondEphemeral({ content: '❌ Only the original player can adjust this bet.' });
     }
     const ageMs = Date.now() - interaction.createdTimestamp;
     if (ageMs > BUTTON_STALE_MS) {
-      cancelAutoAck();
-      return interaction.reply({ content: `${emoji('hourglass')} This button cooled off. Use \`/blackjack\` to start a fresh hand.`, ephemeral: true });
+      return respondEphemeral({ content: `${emoji('hourglass')} This button cooled off. Use \`/blackjack\` to start a fresh hand.` });
     }
     const modal = new ModalBuilder()
       .setCustomId(`bj|betmodal|${table}|${ownerId}`)
@@ -103,12 +111,13 @@ export default async function onBlackjackButtons(interaction, ctx) {
     const table = parts[2];
     const bet = Number(parts[3]) || 1;
     const ownerId = parts[4];
-    if (ownerId && ownerId !== interaction.user.id) { cancelAutoAck(); return interaction.reply({ content: '❌ Only the original player can start another hand from this message.', ephemeral: true }); }
+    if (ownerId && ownerId !== interaction.user.id) { return respondEphemeral({ content: '❌ Only the original player can start another hand from this message.' }); }
     ctx.blackjackGames.delete(k);
     await deferUpdateOnce();
     return ctx.startBlackjack(interaction, table, bet);
   }
   if (action === 'hit') {
+    await deferUpdateOnce();
     if (state.split) {
       const hand = state.hands[state.active];
       hand.cards.push(draw());
@@ -135,13 +144,13 @@ export default async function onBlackjackButtons(interaction, ctx) {
     }
   }
   if (action === 'double') {
-    if (state.split) { cancelAutoAck(); return interaction.reply({ content: '❌ Double after split is not supported in this version.', ephemeral: true }); }
-    if (state.player.length !== 2 || state.doubled) { cancelAutoAck(); return interaction.reply({ content: '❌ Double is only available on your first decision.', ephemeral: true }); }
+    if (state.split) { return respondEphemeral({ content: '❌ Double after split is not supported in this version.' }); }
+    if (state.player.length !== 2 || state.doubled) { return respondEphemeral({ content: '❌ Double is only available on your first decision.' }); }
     const addBet = state.bet;
+    await deferUpdateOnce();
     if (!(await ctx.canAffordExtra(state.userId, addBet))) {
-      cancelAutoAck();
       const msg = withInsufficientFundsTip('❌ Not enough funds to double.', kittenMode);
-      return interaction.reply({ content: msg, ephemeral: true });
+      return respondEphemeral({ content: msg });
     }
     try {
       // Credits-first for the added stake
@@ -150,7 +159,7 @@ export default async function onBlackjackButtons(interaction, ctx) {
       const extraChip = addBet - extraCredit;
       if (extraChip > 0) await ctx.takeFromUserToHouse(state.userId, extraChip, 'blackjack double (chips)', state.userId);
       state.bet += addBet; state.creditsStake += extraCredit; state.chipsStake += extraChip; state.doubled = true;
-    } catch { cancelAutoAck(); return interaction.reply({ content: '❌ Could not process double. Check your funds.', ephemeral: true }); }
+    } catch { return respondEphemeral({ content: '❌ Could not process double. Check your funds.' }); }
     state.player.push(draw()); state.revealed = true;
     await deferUpdateOnce();
     const dealerPlay = () => { while (true) { const v = ctx.bjHandValue(state.dealer); if (v.total > 21) return; if (v.total < 17) { state.dealer.push(draw()); continue; } if (v.total === 17 && state.table === 'HIGH' && v.soft) { state.dealer.push(draw()); continue; } return; } };
@@ -178,24 +187,23 @@ export default async function onBlackjackButtons(interaction, ctx) {
     return updateMessage({ embeds: [await ctx.bjEmbed(state, { footer: 'Dealer wins.', color: 0xED4245 })], components: [ctx.bjPlayAgainRow(state.table, state.bet / 2, state.userId)] });
   }
   if (action === 'split') {
-    if (state.split) { cancelAutoAck(); return interaction.reply({ content: '❌ Already split.', ephemeral: true }); }
-    if (state.player.length !== 2) { cancelAutoAck(); return interaction.reply({ content: '❌ Split only available on first decision.', ephemeral: true }); }
+    if (state.split) { return respondEphemeral({ content: '❌ Already split.' }); }
+    if (state.player.length !== 2) { return respondEphemeral({ content: '❌ Split only available on first decision.' }); }
     const v1 = ctx.cardValueForSplit(state.player[0]);
     const v2 = ctx.cardValueForSplit(state.player[1]);
-    if (v1 !== v2) { cancelAutoAck(); return interaction.reply({ content: '❌ You can only split equal-value cards.', ephemeral: true }); }
+    if (v1 !== v2) { return respondEphemeral({ content: '❌ You can only split equal-value cards.' }); }
+    await deferUpdateOnce();
     if (!(await ctx.canAffordExtra(state.userId, state.bet))) {
-      cancelAutoAck();
       const msg = withInsufficientFundsTip('❌ Not enough funds to split.', kittenMode);
-      return interaction.reply({ content: msg, ephemeral: true });
+      return respondEphemeral({ content: msg });
     }
     const c1 = state.player[0], c2 = state.player[1];
     const { credits, chips } = await ctx.getUserBalances(state.userId);
     const extraCredit = Math.min(state.bet, credits);
     const extraChip = state.bet - extraCredit;
-    if (extraChip > 0) { try { await ctx.takeFromUserToHouse(state.userId, extraChip, 'blackjack split (chips)', state.userId); } catch { cancelAutoAck(); return interaction.reply({ content: '❌ Could not process split.', ephemeral: true }); } }
+    if (extraChip > 0) { try { await ctx.takeFromUserToHouse(state.userId, extraChip, 'blackjack split (chips)', state.userId); } catch { return respondEphemeral({ content: '❌ Could not process split.' }); } }
     state.split = true; state.hands = [{ cards: [c1], bet: state.bet, creditsStake: state.creditsStake, chipsStake: state.chipsStake, finished: false }, { cards: [c2], bet: state.bet, creditsStake: extraCredit, chipsStake: extraChip, finished: false }]; state.active = 0; delete state.player; delete state.creditsStake; delete state.chipsStake;
     const row = ctx.rowButtons([{ id: 'bj|hit', label: 'Hit', style: 1 }, { id: 'bj|stand', label: 'Stand', style: 2 }]);
-    await deferUpdateOnce();
     return updateMessage({ embeds: [await ctx.bjEmbed(state)], components: [row] });
   }
   if (action === 'stand') {
@@ -250,7 +258,6 @@ export default async function onBlackjackButtons(interaction, ctx) {
     ctx.addHouseNet(state.guildId, state.userId, 'blackjack', state.chipsStake); try { ctx.recordSessionGame(state.guildId, state.userId, -state.chipsStake - creditsLoss); } catch {}
     return updateMessage({ embeds: [await ctx.bjEmbed(state, { footer: 'Dealer wins.', color: 0xED4245 })], components: [ctx.bjPlayAgainRow(state.table, state.bet, state.userId)] });
   }
-  cancelAutoAck();
-  return interaction.reply({ content: '❌ Unknown action.', ephemeral: true });
+  return respondEphemeral({ content: '❌ Unknown action.' });
 }
 // Interaction: Blackjack buttons (Hit/Stand/Double/Split/Again)

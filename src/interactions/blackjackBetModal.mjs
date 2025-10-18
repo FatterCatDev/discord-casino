@@ -60,12 +60,22 @@ export default async function handleBlackjackBetModal(interaction, ctx) {
   proxy.isButton = () => false;
   proxy.channelId = targetMessage.channelId;
   proxy.message = targetMessage;
+  proxy.deferred = false;
+  proxy.replied = false;
   proxy.update = async (payload) => {
     const edited = await targetMessage.edit(payload);
     return edited;
   };
   proxy.fetchReply = async () => targetMessage;
   proxy.reply = async (payload) => {
+    const edited = await targetMessage.edit(payload);
+    return edited;
+  };
+  proxy.editReply = async (payload) => {
+    const edited = await targetMessage.edit(payload);
+    return edited;
+  };
+  proxy.followUp = async (payload) => {
     const edited = await targetMessage.edit(payload);
     return edited;
   };

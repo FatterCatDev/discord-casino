@@ -1,4 +1,12 @@
 import { emoji } from '../lib/emojis.mjs';
+import { scheduleInteractionAck } from '../lib/interactionAck.mjs';
+
+const BUTTON_STALE_MS = (() => {
+  const specific = Number(process.env.RIDEBUS_BUTTON_STALE_MS);
+  if (Number.isFinite(specific) && specific > 0) return specific;
+  const general = Number(process.env.INTERACTION_STALE_MS);
+  return Number.isFinite(general) && general > 0 ? general : 2500;
+})();
 
 export default async function onRideBusButtons(interaction, ctx) {
   const parts = interaction.customId.split('|'); // rb|<step>|<arg>[|ownerId]
@@ -7,26 +15,50 @@ export default async function onRideBusButtons(interaction, ctx) {
 
   const flavor = (kittenMode, text) => (ctx.kittenizeText && kittenMode) ? ctx.kittenizeText(text) : text;
   const wrap = (kittenMode, kittenText, normalText) => kittenMode ? kittenText : normalText;
+  const cancelAutoAck = scheduleInteractionAck(interaction, { timeout: BUTTON_STALE_MS, mode: 'update' });
+  let deferred = false;
+  const deferUpdateOnce = async () => {
+    if (!deferred && !interaction.deferred && !interaction.replied) {
+      cancelAutoAck();
+      await interaction.deferUpdate().catch(() => {});
+      deferred = true;
+    }
+  };
+  const respondEphemeral = async (payload = {}) => {
+    cancelAutoAck();
+    const base = (payload && typeof payload === 'object' && !Array.isArray(payload)) ? { ...payload } : { content: String(payload || '') };
+    if (!Object.prototype.hasOwnProperty.call(base, 'ephemeral')) base.ephemeral = true;
+    if (deferred || interaction.deferred || interaction.replied) {
+      if (typeof interaction.followUp === 'function') return interaction.followUp(base);
+      if (typeof interaction.editReply === 'function') return interaction.editReply(base);
+    }
+    return interaction.reply(base);
+  };
+  const updateMessage = (payload) => {
+    cancelAutoAck();
+    return ctx.sendGameMessage(interaction, payload, 'update');
+  };
+  const sessionKey = ctx.keyFor(interaction);
 
   if (step === 'again') {
     const bet = Number(arg) || 1;
     const ownerId = parts[3];
     if (ownerId && ownerId !== interaction.user.id) {
       const msg = flavor(false, '❌ Only the original player can start another hand from this message.');
-      return interaction.reply({ content: msg, ephemeral: true });
+      return respondEphemeral({ content: msg });
     }
-    const k = `${interaction.guild.id}:${interaction.user.id}`;
-    ctx.ridebusGames.delete(k);
+    ctx.ridebusGames.delete(sessionKey);
+    await deferUpdateOnce();
     return ctx.startRideBus(interaction, bet);
   }
 
-  const k = ctx.keyFor(interaction);
-  const state = ctx.ridebusGames.get(k);
+  const state = ctx.ridebusGames.get(sessionKey);
   if (!state) {
-    const expiredKitten = `${emoji('hourglass')} This session cooled off. Use `/ridebus` to tempt fate again, Kitten.`;
-    const expiredNormal = `${emoji('hourglass')} This session expired. Use `/ridebus` to start a new one.`;
+    await deferUpdateOnce();
+    const expiredKitten = `${emoji('hourglass')} This session cooled off. Use \`/ridebus\` to tempt fate again, Kitten.`;
+    const expiredNormal = `${emoji('hourglass')} This session expired. Use \`/ridebus\` to start a new one.`;
     const msg = ctx.kittenizeText ? ctx.kittenizeText(expiredKitten) : expiredNormal;
-    return interaction.update({ content: msg, components: [] });
+    return updateMessage({ content: msg, components: [] });
   }
 
   const kittenMode = !!state.kittenMode;
@@ -35,7 +67,7 @@ export default async function onRideBusButtons(interaction, ctx) {
 
   if (interaction.user.id !== state.userId) {
     const msg = speak('❌ Hands off, Kitten. Only the player who started this ride may press these buttons.', '❌ Only the original player can use these buttons.');
-    return interaction.reply({ content: msg, ephemeral: true });
+    return respondEphemeral({ content: msg });
   }
 
   const burnStakeCredits = async (detail) => {
@@ -52,7 +84,8 @@ export default async function onRideBusButtons(interaction, ctx) {
   };
 
   if (ctx.hasActiveExpired(interaction.guild.id, interaction.user.id, 'ridebus')) {
-    ctx.ridebusGames.delete(k);
+    await deferUpdateOnce();
+    ctx.ridebusGames.delete(sessionKey);
     await burnStakeCredits('ridebus expired');
     try {
       const sess = ctx.getActiveSession(interaction.guild.id, interaction.user.id) || { houseNet: 0 };
@@ -61,10 +94,10 @@ export default async function onRideBusButtons(interaction, ctx) {
     } catch {}
     ctx.clearActiveSession(interaction.guild.id, interaction.user.id);
     const msg = speak(
-      `${emoji('hourglass')} Our little ride fizzled out, Kitten. Use `/ridebus` when you crave another rush.`,
-      `${emoji('hourglass')} This session expired. Use `/ridebus` to start a new one.`
+      `${emoji('hourglass')} Our little ride fizzled out, Kitten. Use \`/ridebus\` when you crave another rush.`,
+      `${emoji('hourglass')} This session expired. Use \`/ridebus\` to start a new one.`
     );
-    return interaction.update({ content: msg, components: [] });
+    return updateMessage({ content: msg, components: [] });
   }
 
   ctx.touchActiveSession(interaction.guild.id, interaction.user.id, 'ridebus');
@@ -74,12 +107,13 @@ export default async function onRideBusButtons(interaction, ctx) {
     const requestedStep = Number(arg);
     if (state.step !== 4 || requestedStep !== 3) {
       const msg = speak('❌ Patience, Kitten—cash outs unlock only after Q3.', '❌ Cash out is only available at the final screen (after Q3).');
-      return interaction.reply({ content: msg, ephemeral: true });
+      return respondEphemeral({ content: msg });
     }
+    await deferUpdateOnce();
     const payout = ctx.wagerAt(state, 3);
     try {
       const { chips } = await ctx.transferFromHouseToUser(state.userId, payout, 'ridebus cashout q3', null);
-      ctx.ridebusGames.delete(k);
+      ctx.ridebusGames.delete(sessionKey);
       try { ctx.recordSessionGame(state.guildId, state.userId, payout - (state.chipsStake || 0)); } catch {}
       ctx.addHouseNet(state.guildId, state.userId, 'ridebus', (state.chipsStake || 0) - payout);
       const description = say(
@@ -87,23 +121,24 @@ export default async function onRideBusButtons(interaction, ctx) {
         `${emoji('chips')} **CASH OUT!** You took **${ctx.formatChips(payout)}** at Q3.\nYour balance: **${ctx.formatChips(chips)}**`
       );
       const doneEmbed = await ctx.embedForState(state, { description, color: 0x57F287, kittenMode });
-      return interaction.update({ embeds: [doneEmbed], components: [ctx.playAgainRow(state.bet, state.userId, { kittenMode })] });
+      return updateMessage({ embeds: [doneEmbed], components: [ctx.playAgainRow(state.bet, state.userId, { kittenMode })] });
     } catch {
       const errEmbed = await ctx.embedForState(state, {
         description: say('❌ Cash out faltered, Kitten. The house didn’t accept the tease.', '❌ Cash out failed.'),
         color: 0xED4245,
         kittenMode
       });
-      return interaction.update({ embeds: [errEmbed], components: [ctx.playAgainRow(state.bet, state.userId, { kittenMode })] });
+      return updateMessage({ embeds: [errEmbed], components: [ctx.playAgainRow(state.bet, state.userId, { kittenMode })] });
     }
   }
 
   if (step === 'q1' && state.step === 1) {
+    await deferUpdateOnce();
     const c1 = draw(); state.cards[0] = c1;
     const guessRed = (arg === 'red');
     const correct = (guessRed && ctx.color(c1) === 'RED') || (!guessRed && ctx.color(c1) === 'BLACK');
     if (!correct) {
-      ctx.ridebusGames.delete(k);
+      ctx.ridebusGames.delete(sessionKey);
       const burned = await burnStakeCredits('ridebus loss (Q1)');
       ctx.addHouseNet(state.guildId, state.userId, 'ridebus', (state.chipsStake || 0));
       try { ctx.recordSessionGame(state.guildId, state.userId, -(state.chipsStake || 0) - burned); } catch {}
@@ -115,7 +150,7 @@ export default async function onRideBusButtons(interaction, ctx) {
         color: 0xED4245,
         kittenMode
       });
-      return ctx.sendGameMessage(interaction, { embeds: [lossEmbed], components: [ctx.playAgainRow(state.bet, state.userId, { kittenMode })] });
+      return updateMessage({ embeds: [lossEmbed], components: [ctx.playAgainRow(state.bet, state.userId, { kittenMode })] });
     }
     state.step = 2;
     const q2Row = ctx.rowButtons([
@@ -129,15 +164,16 @@ export default async function onRideBusButtons(interaction, ctx) {
       ),
       kittenMode
     });
-    return ctx.sendGameMessage(interaction, { embeds: [emb], components: [q2Row] });
+    return updateMessage({ embeds: [emb], components: [q2Row] });
   }
 
   if (step === 'q2' && state.step === 2) {
+    await deferUpdateOnce();
     const c1 = state.cards[0];
     const c2 = draw(); state.cards[1] = c2;
     const correct = (arg === 'higher') ? (ctx.val(c2) > ctx.val(c1)) : (ctx.val(c2) < ctx.val(c1));
     if (!correct) {
-      ctx.ridebusGames.delete(k);
+      ctx.ridebusGames.delete(sessionKey);
       const burned = await burnStakeCredits('ridebus loss (Q2)');
       ctx.addHouseNet(state.guildId, state.userId, 'ridebus', (state.chipsStake || 0));
       try { ctx.recordSessionGame(state.guildId, state.userId, -(state.chipsStake || 0) - burned); } catch {}
@@ -149,7 +185,7 @@ export default async function onRideBusButtons(interaction, ctx) {
         color: 0xED4245,
         kittenMode
       });
-      return ctx.sendGameMessage(interaction, { embeds: [lossEmbed], components: [ctx.playAgainRow(state.bet, state.userId, { kittenMode })] });
+      return updateMessage({ embeds: [lossEmbed], components: [ctx.playAgainRow(state.bet, state.userId, { kittenMode })] });
     }
     state.step = 3;
     const isPair = ctx.val(c1) === ctx.val(c2);
@@ -167,10 +203,11 @@ export default async function onRideBusButtons(interaction, ctx) {
       ),
       kittenMode
     });
-    return ctx.sendGameMessage(interaction, { embeds: [emb], components: [q3Row] });
+    return updateMessage({ embeds: [emb], components: [q3Row] });
   }
 
   if (step === 'q3' && state.step === 3) {
+    await deferUpdateOnce();
     const [c1, c2] = state.cards;
     const c3 = draw(); state.cards[2] = c3;
     const low = Math.min(ctx.val(c1), ctx.val(c2));
@@ -181,7 +218,7 @@ export default async function onRideBusButtons(interaction, ctx) {
     const correct = arg === 'inside' ? inside : outside;
 
     if (isPair && arg === 'inside') {
-      ctx.ridebusGames.delete(k);
+      ctx.ridebusGames.delete(sessionKey);
       const burned = await burnStakeCredits('ridebus loss (Q3 - pair rule)');
       ctx.addHouseNet(state.guildId, state.userId, 'ridebus', (state.chipsStake || 0));
       try { ctx.recordSessionGame(state.guildId, state.userId, -(state.chipsStake || 0) - burned); } catch {}
@@ -193,11 +230,11 @@ export default async function onRideBusButtons(interaction, ctx) {
         color: 0xED4245,
         kittenMode
       });
-      return ctx.sendGameMessage(interaction, { embeds: [lossEmbed], components: [ctx.playAgainRow(state.bet, state.userId, { kittenMode })] });
+      return updateMessage({ embeds: [lossEmbed], components: [ctx.playAgainRow(state.bet, state.userId, { kittenMode })] });
     }
 
     if (!correct) {
-      ctx.ridebusGames.delete(k);
+      ctx.ridebusGames.delete(sessionKey);
       const burned = await burnStakeCredits('ridebus loss (Q3)');
       ctx.addHouseNet(state.guildId, state.userId, 'ridebus', (state.chipsStake || 0));
       try { ctx.recordSessionGame(state.guildId, state.userId, -(state.chipsStake || 0) - burned); } catch {}
@@ -209,7 +246,7 @@ export default async function onRideBusButtons(interaction, ctx) {
         color: 0xED4245,
         kittenMode
       });
-      return interaction.update({ embeds: [lossEmbed], components: [ctx.playAgainRow(state.bet, state.userId, { kittenMode })] });
+      return updateMessage({ embeds: [lossEmbed], components: [ctx.playAgainRow(state.bet, state.userId, { kittenMode })] });
     }
 
     state.step = 4;
@@ -227,13 +264,14 @@ export default async function onRideBusButtons(interaction, ctx) {
       ),
       kittenMode
     });
-    return ctx.sendGameMessage(interaction, { embeds: [emb], components: [q4Row] });
+    return updateMessage({ embeds: [emb], components: [q4Row] });
   }
 
   if (step === 'q4' && state.step === 4) {
+    await deferUpdateOnce();
     const c4 = draw(); state.cards[3] = c4;
     const win = (c4.s === arg);
-    ctx.ridebusGames.delete(k);
+    ctx.ridebusGames.delete(sessionKey);
 
     if (!win) {
       const burned = await burnStakeCredits('ridebus loss (Q4)');
@@ -247,7 +285,7 @@ export default async function onRideBusButtons(interaction, ctx) {
         color: 0xED4245,
         kittenMode
       });
-      return interaction.update({ embeds: [lossEmbed], components: [ctx.playAgainRow(state.bet, state.userId, { kittenMode })] });
+      return updateMessage({ embeds: [lossEmbed], components: [ctx.playAgainRow(state.bet, state.userId, { kittenMode })] });
     }
 
     const payout = ctx.wagerAt(state, 4);
@@ -263,17 +301,17 @@ export default async function onRideBusButtons(interaction, ctx) {
         kittenMode
       });
       try { ctx.recordSessionGame(state.guildId, state.userId, payout - (state.chipsStake || 0)); } catch {}
-      return ctx.sendGameMessage(interaction, { embeds: [winEmbed], components: [ctx.playAgainRow(state.bet, state.userId, { kittenMode })] });
+      return updateMessage({ embeds: [winEmbed], components: [ctx.playAgainRow(state.bet, state.userId, { kittenMode })] });
     } catch {
       const errEmbed = await ctx.embedForState(state, {
         description: say('⚠️ The house fumbled the purse, Kitten. No payout this time.', '⚠️ House could not pay out.'),
         color: 0xFEE75C,
         kittenMode
       });
-      return interaction.update({ embeds: [errEmbed], components: [ctx.playAgainRow(state.bet, state.userId, { kittenMode })] });
+      return updateMessage({ embeds: [errEmbed], components: [ctx.playAgainRow(state.bet, state.userId, { kittenMode })] });
     }
   }
 
   const msg = speak('❌ Naughty Kitten, that button no longer works.', '❌ Invalid or stale button.');
-  return interaction.reply({ content: msg, ephemeral: true });
+  return respondEphemeral({ content: msg });
 }

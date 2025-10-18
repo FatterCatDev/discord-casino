@@ -1,7 +1,7 @@
 import { EmbedBuilder } from 'discord.js';
 import { listJobs, getJobById } from '../jobs/registry.mjs';
 import { emoji } from '../lib/emojis.mjs';
-import { getJobStatusForUser, JOB_SHIFT_STREAK_LIMIT, JOB_SHIFT_STREAK_COOLDOWN_SECONDS } from '../jobs/status.mjs';
+import { getJobStatusForUser, JOB_SHIFT_STREAK_LIMIT, JOB_SHIFT_RECHARGE_SECONDS } from '../jobs/status.mjs';
 import {
   ensureJobProfile,
   listJobProfilesForUser,
@@ -40,48 +40,42 @@ function jobDisplayIcon(job) {
   return job?.emojiKey ? emoji(job.emojiKey) : job?.icon || '';
 }
 
-function formatShiftsRemaining(status, say) {
-  if (!status) return say('Tracker warming up.', 'Shift tracker warming up.');
-  if (status.onShiftCooldown) {
-    return say('None — cooldown in effect.', 'On cooldown — 0 shifts available.');
-  }
+function formatStaminaRemaining(status, say) {
+  if (!status) return say('Tracker warming up.', 'Stamina tracker warming up.');
   const limit = JOB_SHIFT_STREAK_LIMIT;
-  const streak = Number(status.shiftStreakCount ?? status.shift_streak_count ?? 0);
-  const remaining = Number(status.shiftsRemaining ?? Math.max(0, limit - streak));
-  const word = remaining === 1 ? say('shift', 'shift') : say('shifts', 'shifts');
+  const charges = Number(status.shiftCharges ?? status.shiftsRemaining ?? limit);
+  const staminaWord = charges === 1 ? say('stamina point', 'stamina point') : say('stamina points', 'stamina points');
   return say(
-    `**${remaining}** ${word} left (streak ${streak}/${limit}).`,
-    `**${remaining}** ${word} left (streak ${streak}/${limit}).`
+    `**${charges}/${limit}** ${staminaWord} ready for shifts.`,
+    `**${charges}/${limit}** ${staminaWord} ready for shifts.`
   );
 }
 
-function formatCooldownStatus(status, nowSeconds, say) {
+function formatStaminaCooldownStatus(status, nowSeconds, say) {
   const limit = JOB_SHIFT_STREAK_LIMIT;
-  const expiresAt = Number(status?.shiftCooldownExpiresAt ?? status?.shift_cooldown_expires_at ?? 0);
-  const remaining = Math.max(0, expiresAt - nowSeconds);
-  if (!status?.onShiftCooldown || remaining <= 0) {
+  const charges = Number(status?.shiftCharges ?? status?.shiftsRemaining ?? limit);
+  const nextChargeAt = Number(status?.shiftCooldownExpiresAt ?? status?.shift_cooldown_expires_at ?? 0);
+  const remaining = Math.max(0, nextChargeAt - nowSeconds);
+  if (charges >= limit) {
     return say(
-      `Rest triggers after ${limit} shifts — cooldown lasts ${formatDuration(JOB_SHIFT_STREAK_COOLDOWN_SECONDS)}.`,
-      `Rest triggers after ${limit} shifts — cooldown lasts ${formatDuration(JOB_SHIFT_STREAK_COOLDOWN_SECONDS)}.`
+      `Stamina full — spend one on a shift to start a ${formatDuration(JOB_SHIFT_RECHARGE_SECONDS)} recharge.`,
+      `Stamina full — spend one on a shift to trigger the ${formatDuration(JOB_SHIFT_RECHARGE_SECONDS)} recharge.`
     );
   }
+  if (remaining <= 0 || !nextChargeAt) {
+    return say('Next stamina arriving shortly.', 'Next stamina arriving shortly.');
+  }
   return say(
-    `Back on the floor <t:${expiresAt}:R> (${formatDuration(remaining)}).`,
-    `Next shift window <t:${expiresAt}:R> (${formatDuration(remaining)}).`
+    `Next stamina point for shifts <t:${nextChargeAt}:R> (${formatDuration(remaining)}).`,
+    `Next stamina point for shifts <t:${nextChargeAt}:R> (${formatDuration(remaining)}).`
   );
 }
 
-function buildShiftStatusLines(status, say, nowSeconds) {
-  if (status?.onShiftCooldown) {
-    return [
-      `${emoji('hourglassFlow')} ${say('Cooldown active — lounge for a bit, Kitten.', 'Cooldown active — take a breather.')}`,
-      `${emoji('timer')} ${formatCooldownStatus(status, nowSeconds, say)}`
-    ];
-  }
-  return [
-    `${emoji('clipboard')} ${say('Shifts before rest:', 'Shifts before rest:')} ${formatShiftsRemaining(status, say)}`,
-    `${emoji('timer')} ${formatCooldownStatus(status, nowSeconds, say)}`
-  ];
+function buildStaminaStatusLines(status, say, nowSeconds) {
+  const lines = [];
+  lines.push(`${emoji('clipboard')} ${say('Stamina available:', 'Stamina available:')} ${formatStaminaRemaining(status, say)}`);
+  lines.push(`${emoji('timer')} ${formatStaminaCooldownStatus(status, nowSeconds, say)}`);
+  return lines;
 }
 
 function profileSummaryLines(job, profile, say) {
@@ -120,9 +114,9 @@ function buildOverviewEmbed(kittenMode, status, profiles, nowSeconds) {
     .setColor(0x5865f2)
     .setTitle(say('Kitten Career Board', 'Casino Job Board'))
     .setDescription([
-      say('Each shift is a five-stage gauntlet with XP, rank, and chip payouts on the line.', 'Each shift runs five stages with XP, rank, and chip payouts on the line.'),
+      say('Each shift is a five-stage gauntlet with XP, rank, and chip payouts on the line. Stamina refills over time, so pace your runs.', 'Each shift runs five stages with XP, rank, and chip payouts on the line. Stamina refills on a timer, so pace your runs.'),
       `${emoji('sparkles')} ${say('Use `/job start <job>` to clock in anywhere.', 'Use `/job start <job>` to clock in for any role.')}`,
-      ...buildShiftStatusLines(status, say, nowSeconds)
+      ...buildStaminaStatusLines(status, say, nowSeconds)
     ].join('\n'));
 
   for (const job of listJobs()) {
@@ -147,13 +141,13 @@ function buildStatsEmbed(kittenMode, status, profiles, recentShifts, nowSeconds,
     .setDescription(targetUser ? `${emoji('busts')} Inspecting: <@${targetUser.id}>` : null)
     .addFields(
       {
-        name: say('Shifts Before Rest', 'Shifts Before Rest'),
-        value: formatShiftsRemaining(status, say),
+        name: say('Stamina', 'Stamina'),
+        value: formatStaminaRemaining(status, say),
         inline: true
       },
       {
-        name: say('Rest Status', 'Rest Status'),
-        value: formatCooldownStatus(status, nowSeconds, say),
+        name: say('Stamina Recharge', 'Stamina Recharge'),
+        value: formatStaminaCooldownStatus(status, nowSeconds, say),
         inline: true
       }
     );
@@ -283,8 +277,8 @@ export default async function handleJob(interaction, ctx) {
 
     return interaction.reply({
       content: forSelf
-        ? `${emoji('hammerWrench')} ${say('Shift timers scrubbed clean. You can run five back-to-back shifts right now, Kitten.', 'Shift cooldown reset. You can run five shifts before the next rest period.')}`
-        : `${emoji('hammerWrench')} ${say(`Shift timers wiped for ${targetMention}. They can run five fresh shifts in a row.`, `Shift cooldown cleared for ${targetMention}. They can run five shifts before the next rest.`)}`,
+        ? `${emoji('hammerWrench')} ${say('Stamina fully restored. You can run five back-to-back shifts right now, Kitten.', 'Stamina refilled. You can run five shifts before the next rest period.')}`
+        : `${emoji('hammerWrench')} ${say(`Stamina topped off for ${targetMention}. They can run five fresh shifts in a row.`, `Stamina refilled for ${targetMention}. They can run five shifts before the next rest.`)}`,
       ephemeral: true
     });
   }
@@ -330,8 +324,8 @@ export default async function handleJob(interaction, ctx) {
     const jobCount = profiles.size || listJobs().length;
     return interaction.reply({
       content: forSelf
-        ? `${emoji('sparkles')} ${say(`Fresh slate! Ranks, XP, and shift timers reset across ${jobCount} jobs.`, `Stats reset. Your ranks, XP, and shift counters across ${jobCount} jobs are back to defaults.`)}`
-        : `${emoji('sparkles')} ${say(`Reset ranks, XP, and shift timers for ${targetMention} across ${jobCount} jobs.`, `Stats reset for ${targetMention} across ${jobCount} jobs — shift timers included.`)}`,
+        ? `${emoji('sparkles')} ${say(`Fresh slate! Ranks, XP, and shift timers reset across ${jobCount} jobs — stamina fully recharged.`, `Stats reset. Your ranks, XP, and shift timers across ${jobCount} jobs are back to defaults with full stamina.`)}`
+        : `${emoji('sparkles')} ${say(`Reset ranks, XP, and shift timers for ${targetMention} across ${jobCount} jobs — stamina fully recharged.`, `Stats reset for ${targetMention} across ${jobCount} jobs — shift timers cleared and stamina recharged.`)}`,
       ephemeral: true
     });
   }

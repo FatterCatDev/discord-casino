@@ -140,7 +140,7 @@ function buildWelcomePromptEmbed({ status = null, bonusJustGranted = false, bonu
       },
       {
         name: '💼 Job System',
-        value: 'Run `/job` to choose a career, clock shifts, and build reliable income alongside your wagers.'
+        value: 'Run `/job` to choose a career, clock shifts with your stamina, and build reliable income alongside your wagers.'
       }
     )
     .setFooter({ text: 'Hit Okay when you’re ready to jump in.' });

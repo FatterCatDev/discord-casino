@@ -167,16 +167,16 @@ export function buildHelpSections({ kittenMode = false, isMod = false, isSetupAd
   const jobs = {
     id: 'jobs',
     summary: say(
-      'Clock shifts for XP, chip bonuses, and kitten titles.',
-      'Clock shifts to earn XP, chip bonuses, and new ranks.'
+      'Clock shifts for XP, chip bonuses, and kitten titles — stamina fuels every run.',
+      'Clock shifts to earn XP, chip bonuses, and new ranks. Manage your stamina to keep working.'
     ),
     label: say(`${emoji('briefcase')} Kitten Careers`, `${emoji('briefcase')} Job System`),
     menuLabel: say('Jobs', 'Jobs'),
     menuEmoji: '💼',
     color: DEFAULT_COLOR,
     description: say(
-      'Each shift is a five-stage performance. Nail five in a row, then rest those paws for six hours.',
-      'Each shift runs five stages. Finish up to five per burst, then rest for six hours before the next cycle.'
+      'Each shift is a five-stage performance. Spend stamina to work up to five back-to-back, then rest those paws for six hours.',
+      'Each shift runs five stages. Stamina refills every few hours while you’re below cap, so pace your streaks.'
     ),
     groups: [
       {
@@ -186,24 +186,24 @@ export function buildHelpSections({ kittenMode = false, isMod = false, isSetupAd
             emoji: emoji('clipboard'),
             cmd: '/job',
             desc: say(
-              'Open the career board to preview roles, streak status, and available shifts.',
-              'Open the job board to preview roles, streak status, and available shifts.'
+              'Open the career board to preview roles, streak status, and your current stamina.',
+              'Open the job board to preview roles, streak status, and available stamina.'
             )
           },
           {
             emoji: emoji('sparkles'),
             cmd: '/job start job:<id>',
             desc: say(
-              'Pick a role and sprint through a five-stage shift for XP, streak rewards, and chip payouts.',
-              'Pick a role and run a five-stage shift for XP, streak rewards, and chip payouts.'
+              'Pick a role and sprint through a five-stage shift for XP, streak rewards, and chip payouts — stamina required.',
+              'Pick a role and run a five-stage shift for XP, streak rewards, and chip payouts. Each shift spends stamina.'
             )
           },
           {
             emoji: emoji('stopSign'),
             cmd: '/job cancel',
             desc: say(
-              'Bail out of your active shift before the finale if something comes up.',
-              'Cancel an active shift early if you need to step away.'
+              'Bail out of your active shift before the finale if something comes up (stamina is refunded).',
+              'Cancel an active shift early if you need to step away; your stamina charge comes back.'
             )
           }
         ]
@@ -215,8 +215,8 @@ export function buildHelpSections({ kittenMode = false, isMod = false, isSetupAd
             emoji: emoji('chartUp'),
             cmd: '/job stats [user]',
             desc: say(
-              'See XP, ranks, cooldown timers, and recent shift logs for yourself or a tagged kitten.',
-              'Review XP, ranks, cooldown timers, and recent shift logs for yourself or another player.'
+              'See XP, ranks, stamina timers, and recent shift logs for yourself or a tagged kitten.',
+              'Review XP, ranks, stamina timers, and recent shift logs for yourself or another player.'
             )
           },
           {
@@ -236,8 +236,8 @@ export function buildHelpSections({ kittenMode = false, isMod = false, isSetupAd
             emoji: emoji('timer'),
             cmd: say('Burst Limit', 'Burst Limit'),
             desc: say(
-              'Run up to five shifts in a burst; afterwards I tuck you into a six-hour cooldown.',
-              'Complete up to five shifts in a burst, then a six-hour cooldown applies.'
+              'Run up to five shifts in a burst; stamina then forces a six-hour recharge.',
+              'Complete up to five shifts before stamina kicks off a six-hour recharge.'
             )
           },
           {
@@ -560,8 +560,8 @@ export function buildHelpSections({ kittenMode = false, isMod = false, isSetupAd
               emoji: emoji('timer'),
               cmd: '/job reset user:<@User>',
               desc: say(
-                'Clear a kitten’s shift cooldown so they can sprint another burst. (Admin only)',
-                'Clear a player’s shift cooldown so they can run a fresh burst. (Admin only)'
+                'Clear a kitten’s stamina cooldown so they can sprint another burst. (Admin only)',
+                'Clear a player’s stamina cooldown so they can run a fresh burst. (Admin only)'
               )
             },
             {
