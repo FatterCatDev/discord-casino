@@ -21,7 +21,10 @@ export default async function onRouletteButtons(interaction, ctx) {
   const kittenMode = typeof ctx?.kittenModeEnabled === 'boolean'
     ? ctx.kittenModeEnabled
     : (typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false);
+<<<<<<< HEAD
   const cancelAutoAck = scheduleInteractionAck(interaction, { timeout: ROULETTE_BUTTON_STALE_MS, mode: 'update' });
+=======
+>>>>>>> 4060006534002359355f885f429b8ca075370128
   let deferred = false;
   const deferUpdateOnce = async () => {
     if (!deferred && !interaction.deferred && !interaction.replied) {
@@ -30,6 +33,7 @@ export default async function onRouletteButtons(interaction, ctx) {
       deferred = true;
     }
   };
+<<<<<<< HEAD
   const respondEphemeral = async (payload = {}) => {
     cancelAutoAck();
     const base = (payload && typeof payload === 'object' && !Array.isArray(payload)) ? { ...payload } : { content: String(payload || '') };
@@ -54,6 +58,13 @@ export default async function onRouletteButtons(interaction, ctx) {
       await deferUpdateOnce();
       return updateMessage({ content: `${emoji('hourglass')} This roulette session expired. Use \`/roulette\` to start a new one.`, embeds: [], components: [] });
     }
+=======
+  if (action !== 'again') {
+    if (ctx.hasActiveExpired(interaction.guild.id, interaction.user.id, 'roulette') || !ctx.getActiveSession(interaction.guild.id, interaction.user.id)) {
+      ctx.rouletteSessions.delete(key);
+      return interaction.update({ content: `${emoji('hourglass')} This roulette session expired. Use `/roulette` to start a new one.`, embeds: [], components: [] });
+    }
+>>>>>>> 4060006534002359355f885f429b8ca075370128
     ctx.touchActiveSession(interaction.guild.id, interaction.user.id, 'roulette');
   }
   if (action === 'confirm') {

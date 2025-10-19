@@ -70,6 +70,7 @@ export function bjPlayAgainRow(table, bet, userId) {
 }
 
 export async function startBlackjack(interaction, table, bet) {
+<<<<<<< HEAD
   if (!interaction.guild) {
     const payload = { content: '❌ Blackjack tables are only available inside servers.', ephemeral: true };
     try {
@@ -82,6 +83,8 @@ export async function startBlackjack(interaction, table, bet) {
       return;
     }
   }
+=======
+>>>>>>> 4060006534002359355f885f429b8ca075370128
   const k = `${interaction.guild.id}:${interaction.user.id}`;
   if (blackjackGames.has(k)) return interaction.reply({ content: '❌ You already have an active Blackjack hand. Finish it first.', ephemeral: true });
   if (table === 'HIGH') { if (bet < 100) return interaction.reply({ content: '❌ High table minimum is 100.', ephemeral: true }); }

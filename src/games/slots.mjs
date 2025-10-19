@@ -287,6 +287,9 @@ export async function runSlotsSpin(interaction, bet, key) {
   const response = { embeds: [e], components: [again] };
   // Ensure we track the message reference for session finalization on expiry
   setActiveSession(interaction.guild.id, interaction.user.id, 'slots', 'Slots');
+<<<<<<< HEAD
   cancelAutoAck();
+=======
+>>>>>>> 4060006534002359355f885f429b8ca075370128
   return sendGameMessage(interaction, response, 'auto');
 }
