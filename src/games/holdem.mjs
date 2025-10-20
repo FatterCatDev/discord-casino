@@ -4,10 +4,12 @@ import { postGameLogByIds } from './logging.mjs';
 import { getGuildSettings, ensureHoldemTable, createHoldemHand, escrowAdd, escrowReturn, escrowCommit, escrowCreditMany, settleRake, finalizeHoldemHand, getEscrowBalance, getUserBalances } from '../db/db.auto.mjs';
 import { emoji } from '../lib/emojis.mjs';
 import { withInsufficientFundsTip } from '../lib/fundsTip.mjs';
+import { applyEmbedThumbnail, buildAssetAttachment } from '../lib/assets.mjs';
 
 // In-memory Table state; escrow/payouts are enforced via DB helpers.
 
 export const holdemTables = new Map(); // key: `${guildId}:${channelId}` -> state
+const HOLDEM_ASSET = 'holdem.png';
 
 function syncKittenPersona(state, ctx) {
   if (!state || !ctx) return;
@@ -101,6 +103,7 @@ export function buildTableEmbed(state) {
     }
   } catch {}
   e.setFooter({ text: 'Note: Escrow/payouts not yet wired to chips.' });
+  applyEmbedThumbnail(e, HOLDEM_ASSET);
   return e;
 }
 
@@ -145,6 +148,8 @@ function buildTablePayload(state, content = null) {
   const actRow = actionButtonsFor(state); if (actRow) rows.push(actRow);
   const payload = { embeds: [embed], components: rows };
   if (content) payload.content = content;
+  const art = buildAssetAttachment(HOLDEM_ASSET);
+  if (art) payload.files = [art];
   return payload;
 }
 

@@ -1,5 +1,8 @@
+import { EmbedBuilder } from 'discord.js';
+import { RIDE_BUS_ASSET } from '../games/ridebus.mjs';
 import { emoji } from '../lib/emojis.mjs';
 import { scheduleInteractionAck } from '../lib/interactionAck.mjs';
+import { buildAssetEmbedPayload } from '../lib/assets.mjs';
 
 const BUTTON_STALE_MS = (() => {
   const specific = Number(process.env.RIDEBUS_BUTTON_STALE_MS);
@@ -39,6 +42,13 @@ export default async function onRideBusButtons(interaction, ctx) {
     return ctx.sendGameMessage(interaction, payload, 'update');
   };
   const sessionKey = ctx.keyFor(interaction);
+  const buildExpiredPayload = (description, kittenMode = false) => {
+    const embed = new EmbedBuilder()
+      .setTitle(`${emoji('hourglass')} Ride the Bus`)
+      .setDescription(description)
+      .setColor(kittenMode ? 0xEB459E : 0x5865F2);
+    return buildAssetEmbedPayload(embed, RIDE_BUS_ASSET, []);
+  };
 
   if (step === 'again') {
     const bet = Number(arg) || 1;
@@ -58,7 +68,7 @@ export default async function onRideBusButtons(interaction, ctx) {
     const expiredKitten = `${emoji('hourglass')} This session cooled off. Use \`/ridebus\` to tempt fate again, Kitten.`;
     const expiredNormal = `${emoji('hourglass')} This session expired. Use \`/ridebus\` to start a new one.`;
     const msg = ctx.kittenizeText ? ctx.kittenizeText(expiredKitten) : expiredNormal;
-    return updateMessage({ content: msg, components: [] });
+    return updateMessage(buildExpiredPayload(msg));
   }
 
   const kittenMode = !!state.kittenMode;
@@ -97,7 +107,7 @@ export default async function onRideBusButtons(interaction, ctx) {
       `${emoji('hourglass')} Our little ride fizzled out, Kitten. Use \`/ridebus\` when you crave another rush.`,
       `${emoji('hourglass')} This session expired. Use \`/ridebus\` to start a new one.`
     );
-    return updateMessage({ content: msg, components: [] });
+    return updateMessage(buildExpiredPayload(msg, kittenMode));
   }
 
   ctx.touchActiveSession(interaction.guild.id, interaction.user.id, 'ridebus');

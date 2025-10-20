@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { fileURLToPath } from 'node:url';
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder, MessageFlags } from 'discord.js';
 import {
   ensureJobProfile,
@@ -40,6 +41,27 @@ const COLORS = {
   bouncer: 0x9b59b6,
   default: 0x5865f2
 };
+
+const JOB_STAGE_IMAGES = {
+  bartender: 'jobBarTender.png',
+  dealer: 'jobDealer.png',
+  bouncer: 'jobBouncer.png',
+  default: 'job.png'
+};
+
+function resolveJobStageImage(job) {
+  const fileName = JOB_STAGE_IMAGES[job?.id] || JOB_STAGE_IMAGES.default;
+  if (!fileName) return null;
+  try {
+    const attachmentPath = fileURLToPath(new URL(`../../Assets/${fileName}`, import.meta.url));
+    return {
+      name: fileName,
+      attachment: attachmentPath
+    };
+  } catch {
+    return null;
+  }
+}
 
 function userKey(guildId, userId) {
   return `${guildId}:${userId}`;
@@ -293,9 +315,9 @@ function applyBartenderTimingPenalty(stageState, elapsedMs) {
   if (!stageState) return { penalty: 0, seconds: 0 };
   const seconds = Math.max(0, elapsedMs / 1000);
   let penalty = 0;
-  if (seconds > 7) penalty = 5;
-  else if (seconds > 5) penalty = 2;
-  else if (seconds > 3) penalty = 1;
+  if (seconds > 15) penalty = 5;
+  else if (seconds > 7) penalty = 2;
+  else if (seconds > 5) penalty = 1;
   if (penalty > 0) {
     stageState.penalties = Math.max(0, (stageState.penalties || 0) + penalty);
     if (!Array.isArray(stageState.penaltyHistory)) stageState.penaltyHistory = [];
@@ -423,7 +445,14 @@ function buildBartenderStageEmbeds(session, stage, kittenMode) {
     });
   }
 
-  return [orderEmbed, embed];
+  const art = resolveJobStageImage(job);
+  const files = [];
+  if (art) {
+    embed.setThumbnail(`attachment://${art.name}`);
+    files.push({ attachment: art.attachment, name: art.name });
+  }
+
+  return { embeds: [orderEmbed, embed], files };
 }
 
 function buildBouncerStageEmbeds(session, stage, kittenMode) {
@@ -501,7 +530,13 @@ function buildBouncerStageEmbeds(session, stage, kittenMode) {
   }
 
   mainEmbed.addFields(fields);
-  return [lineupEmbed, mainEmbed];
+  const art = resolveJobStageImage(job);
+  const files = [];
+  if (art) {
+    mainEmbed.setThumbnail(`attachment://${art.name}`);
+    files.push({ attachment: art.attachment, name: art.name });
+  }
+  return { embeds: [lineupEmbed, mainEmbed], files };
 }
 
 function buildBartenderIngredientRow(session, slotIndex) {
@@ -618,26 +653,28 @@ function evaluateBartenderSubmission(session, stage) {
   const state = session.stageState || createStageState(session, stage);
   const picks = state.picks || [];
   const required = stage.drink.ingredients;
+  const normalize = value => String(value ?? '').trim().toLowerCase();
+  const blankNormalized = normalize(blank);
   const errors = [];
 
   for (let i = 0; i < required.length; i += 1) {
     const expected = required[i];
     const received = picks[i];
-    if (expected !== received) {
+    if (normalize(expected) !== normalize(received)) {
       errors.push(`Ingredient ${i + 1} should be **${expected}**.`);
     }
   }
 
   for (let i = required.length; i < picks.length; i += 1) {
     const received = picks[i];
-    if (received && received !== blank) {
+    if (received && normalize(received) !== blankNormalized) {
       errors.push(`Ingredient slot ${i + 1} must remain blank.`);
     }
   }
 
   if (!state.technique) {
     errors.push('Select whether to shake or stir the drink.');
-  } else if (state.technique !== stage.drink.technique) {
+  } else if (normalize(state.technique) !== normalize(stage.drink.technique)) {
     errors.push(`Finish should be **${stage.drink.technique.toUpperCase()}**.`);
   }
 
@@ -796,10 +833,17 @@ function buildStageEmbeds(session, stage, kittenMode) {
   }
 
   mainEmbed.addFields(fields);
+  const art = resolveJobStageImage(job);
+  const files = [];
+  if (art) {
+    mainEmbed.setThumbnail(`attachment://${art.name}`);
+    files.push({ attachment: art.attachment, name: art.name });
+  }
+
   const embeds = [];
   if (boardEmbed) embeds.push(boardEmbed);
   embeds.push(mainEmbed);
-  return embeds;
+  return { embeds, files };
 }
 
 function buildBartenderIntroEmbed(session, kittenMode) {
@@ -818,8 +862,8 @@ function buildBartenderIntroEmbed(session, kittenMode) {
         `Guests order from ${firstFeature}. Match every ingredient slot exactly; leave unused slots blank.`
       )}`,
       `${emoji('timer')} ${say(
-        'Tap “Open Bar” when you’re ready. Each pour starts the clock — slow builds add penalties.',
-        'Press “Open Bar” to begin. Every action starts the timer and time penalties add up.'
+        'Tap “Open Bar” when you’re ready. Each pour starts the clock — delays over 5s, 7s, and 15s shave 1, 2, then 5 points.',
+        'Press “Open Bar” to begin. Every segment over 5s, 7s, and 15s trims 1, 2, then 5 points from your score.'
       )}`,
       `${emoji('warning')} ${say(
         'Shake or stir to finish the drink. You only have three attempts before the guest walks.',
@@ -843,7 +887,7 @@ function buildBartenderIntroEmbed(session, kittenMode) {
         name: say('Scoring & Penalties', 'Scoring & Penalties'),
         value: [
           say('- Perfect pours start at 20 points; time penalties shave points away.', '- Perfect builds start at 20 points; time penalties reduce the payout.'),
-          '- Slow segments add time penalties — incorrect builds simply consume attempts.',
+          '- Lingering past 5s/7s/15s on a step deducts 1/2/5 points; incorrect builds only burn attempts.',
           '- You only have three attempts before the drink is lost.'
         ].join('\n')
       }
@@ -1006,6 +1050,21 @@ function buildCancelRow(sessionId) {
       .setEmoji(emoji('stopSign'))
       .setStyle(ButtonStyle.Secondary)
   );
+}
+
+function buildShiftCompleteComponents(session) {
+  return [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`jobstatus|${session.userId}|${session.userId}|start|${session.jobId}`)
+        .setLabel('Start Shift Again')
+        .setStyle(ButtonStyle.Success),
+      new ButtonBuilder()
+        .setCustomId(`jobstatus|${session.userId}|${session.userId}|main`)
+        .setLabel('Back to Job Status')
+        .setStyle(ButtonStyle.Secondary)
+    )
+  ];
 }
 
 function buildStageComponents(session, stage) {
@@ -1182,13 +1241,20 @@ async function expireSession(sessionId) {
       ]
     });
 
+    const expirePayload = { embeds: [embed], components: [] };
+    const expireArt = resolveJobStageImage(session.job);
+    if (expireArt) {
+      embed.setThumbnail(`attachment://${expireArt.name}`);
+      expirePayload.files = [{ attachment: expireArt.attachment, name: expireArt.name }];
+    }
+
     if (session.client && session.channelId && session.messageId) {
       try {
         const channel = await session.client.channels.fetch(session.channelId);
         if (channel && channel.isTextBased()) {
           const message = await channel.messages.fetch(session.messageId).catch(() => null);
           if (message) {
-            await message.edit({ embeds: [embed], components: [] });
+            await message.edit(expirePayload);
           }
         }
       } catch (err) {
@@ -1481,8 +1547,15 @@ async function finalizeShift(interaction, ctx, session) {
       : undefined
   });
 
+  const components = buildShiftCompleteComponents(session);
+  const completionPayload = { embeds: [embed], components };
+  const completionArt = resolveJobStageImage(session.job);
+  if (completionArt) {
+    embed.setThumbnail(`attachment://${completionArt.name}`);
+    completionPayload.files = [{ attachment: completionArt.attachment, name: completionArt.name }];
+  }
   clearSession(session);
-  return sendShiftUpdate(interaction, session.ctx || ctx, { embeds: [embed], components: [] });
+  return sendShiftUpdate(interaction, session.ctx || ctx, completionPayload);
 }
 
 function stageTimeoutSeconds(attempts) {
@@ -1618,8 +1691,12 @@ async function handleCorrect(interaction, ctx, session, stage, stageState) {
 
   const nextStage = session.stages[session.stageIndex];
   session.stageState = createStageState(session, nextStage);
-  const embeds = buildStageEmbeds(session, nextStage, session.kittenMode);
-  return sendShiftUpdate(interaction, session.ctx, { embeds, components: buildStageComponents(session, nextStage) });
+  const { embeds, files } = buildStageEmbeds(session, nextStage, session.kittenMode);
+  const payload = { embeds, components: buildStageComponents(session, nextStage) };
+  if (files?.length) {
+    payload.files = files;
+  }
+  return sendShiftUpdate(interaction, session.ctx, payload);
 }
 
 async function handleIncorrect(interaction, session, stage, stageState) {
@@ -1655,8 +1732,12 @@ async function handleIncorrect(interaction, session, stage, stageState) {
 
     const nextStage = session.stages[session.stageIndex];
     session.stageState = createStageState(session, nextStage);
-    const embeds = buildStageEmbeds(session, nextStage, session.kittenMode);
-    return sendShiftUpdate(interaction, session.ctx, { embeds, components: buildStageComponents(session, nextStage) });
+    const { embeds, files } = buildStageEmbeds(session, nextStage, session.kittenMode);
+    const payload = { embeds, components: buildStageComponents(session, nextStage) };
+    if (files?.length) {
+      payload.files = files;
+    }
+    return sendShiftUpdate(interaction, session.ctx, payload);
   }
 
   return replyEphemeral(interaction, {
@@ -1700,9 +1781,13 @@ export async function handleJobShiftButton(interaction, ctx) {
     session.awaitingStart = false;
     session.stageState = createStageState(session, stage);
     refreshSessionTimeout(session);
-    const embeds = buildStageEmbeds(session, stage, session.kittenMode);
+    const { embeds, files } = buildStageEmbeds(session, stage, session.kittenMode);
     const components = buildStageComponents(session, stage);
-    return sendShiftUpdate(interaction, session.ctx || ctx, { embeds, components });
+    const updatePayload = { embeds, components };
+    if (files?.length) {
+      updatePayload.files = files;
+    }
+    return sendShiftUpdate(interaction, session.ctx || ctx, updatePayload);
   }
 
   if (session.awaitingStart) {
@@ -1754,9 +1839,13 @@ export async function handleJobShiftButton(interaction, ctx) {
     registerBartenderAction(stageState);
     stageState.picks[slotIndex] = value || blank;
     stageState.lastFeedback = null;
-    const embeds = buildStageEmbeds(session, stage, session.kittenMode);
+    const { embeds, files } = buildStageEmbeds(session, stage, session.kittenMode);
     const components = buildStageComponents(session, stage);
-    return sendShiftUpdate(interaction, session.ctx || ctx, { embeds, components });
+    const updatePayload = { embeds, components };
+    if (files?.length) {
+      updatePayload.files = files;
+    }
+    return sendShiftUpdate(interaction, session.ctx || ctx, updatePayload);
   }
 
   if (action === 'submit' && session.jobId === 'bouncer') {
@@ -1842,9 +1931,13 @@ export async function handleJobShiftButton(interaction, ctx) {
     }
 
     await replyEphemeral(interaction, { content: result.message || `${emoji('warning')} Not quite right.` });
-    const embeds = buildStageEmbeds(session, stage, session.kittenMode);
+    const { embeds, files } = buildStageEmbeds(session, stage, session.kittenMode);
     const components = buildStageComponents(session, stage);
-    await interaction.message.edit({ embeds, components });
+    const editPayload = { embeds, components };
+    if (files?.length) {
+      editPayload.files = files;
+    }
+    await interaction.message.edit(editPayload);
     return true;
   }
 
@@ -1878,6 +1971,9 @@ export async function startJobShift(interaction, ctx, jobInput) {
   const userId = interaction.user.id;
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
+  const isComponentInteraction = typeof interaction.isMessageComponent === 'function'
+    ? interaction.isMessageComponent()
+    : false;
   const jobId = String(jobInput || '').trim().toLowerCase();
   if (!jobId) {
     return replyEphemeral(interaction, {
@@ -1973,6 +2069,10 @@ export async function startJobShift(interaction, ctx, jobInput) {
     channelId: interaction.channelId,
     messageId: null
   };
+  if (isComponentInteraction && interaction.message) {
+    session.messageId = interaction.message.id;
+    session.channelId = interaction.message.channelId ?? session.channelId;
+  }
 
   registerSession(session);
   refreshSessionTimeout(session);
@@ -1981,16 +2081,24 @@ export async function startJobShift(interaction, ctx, jobInput) {
     let success = true;
     let message = null;
     try {
-      if (interaction.deferred || interaction.replied) {
-        await interaction.editReply(payload);
+      if (isComponentInteraction) {
+        await interaction.update(payload);
+        message = interaction.message ?? null;
+      } else if (interaction.deferred || interaction.replied) {
+        message = await interaction.editReply(payload);
       } else {
         await interaction.reply(payload);
       }
-      try {
-        message = await interaction.fetchReply();
-      } catch (err) {
-        // Ephemeral messages cannot be fetched; that’s fine.
-        message = null;
+      if (!message) {
+        if (isComponentInteraction) {
+          message = interaction.message ?? null;
+        } else {
+          try {
+            message = await interaction.fetchReply();
+          } catch {
+            message = null;
+          }
+        }
       }
     } catch (err) {
       console.error('job shift initial response failed', err);
@@ -2007,26 +2115,64 @@ export async function startJobShift(interaction, ctx, jobInput) {
     if (session.jobId === 'bouncer') {
       const introEmbed = buildBouncerIntroEmbed(session, kittenMode);
       const introComponents = buildBouncerIntroComponents(session);
-      return await respond({ embeds: [introEmbed], components: introComponents });
+      const preview = resolveJobStageImage(session.job);
+      const payload = preview
+        ? {
+            embeds: [introEmbed],
+            components: introComponents,
+            files: [{ attachment: preview.attachment, name: preview.name }]
+          }
+        : { embeds: [introEmbed], components: introComponents };
+      if (preview) {
+        introEmbed.setThumbnail(`attachment://${preview.name}`);
+      }
+      return await respond(payload);
     }
     if (session.jobId === 'dealer') {
       const introEmbed = buildDealerIntroEmbed(session, kittenMode);
       const introComponents = [buildDealerIntroRow(session.sessionId)];
-      return await respond({ embeds: [introEmbed], components: introComponents });
+      const preview = resolveJobStageImage(session.job);
+      const payload = preview
+        ? {
+            embeds: [introEmbed],
+            components: introComponents,
+            files: [{ attachment: preview.attachment, name: preview.name }]
+          }
+        : { embeds: [introEmbed], components: introComponents };
+      if (preview) {
+        introEmbed.setThumbnail(`attachment://${preview.name}`);
+      }
+      return await respond(payload);
     }
     if (session.jobId === 'bartender') {
       const introEmbed = buildBartenderIntroEmbed(session, kittenMode);
       const introComponents = buildBartenderIntroComponents(session);
-      return await respond({ embeds: [introEmbed], components: introComponents });
+      const preview = resolveJobStageImage(session.job);
+      const payload = preview
+        ? {
+            embeds: [introEmbed],
+            components: introComponents,
+            files: [{ attachment: preview.attachment, name: preview.name }]
+          }
+        : { embeds: [introEmbed], components: introComponents };
+      if (preview) {
+        introEmbed.setThumbnail(`attachment://${preview.name}`);
+      }
+      return await respond(payload);
     }
   }
 
   const currentStage = stages[0];
   session.stageState = createStageState(session, currentStage);
-  const embeds = buildStageEmbeds(session, currentStage, kittenMode);
+  const { embeds, files } = buildStageEmbeds(session, currentStage, kittenMode);
   const components = buildStageComponents(session, currentStage);
 
-  return await respond({ embeds, components });
+  const payload = { embeds, components };
+  if (files?.length) {
+    payload.files = files;
+  }
+
+  return await respond(payload);
 }
 
 export async function cancelActiveShiftForUser(guildId, userId) {

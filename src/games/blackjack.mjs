@@ -5,8 +5,14 @@ import { chipsAmount, formatChips } from './format.mjs';
 import { setActiveSession, buildPlayerBalanceField, addHouseNet, recordSessionGame, sendGameMessage, buildTimeoutField } from './session.mjs';
 import { emoji } from '../lib/emojis.mjs';
 import { withInsufficientFundsTip } from '../lib/fundsTip.mjs';
+import { applyEmbedThumbnail, buildAssetEmbedPayload } from '../lib/assets.mjs';
 
 export const blackjackGames = new Map();
+export const BLACKJACK_ASSET = 'blackJack.png';
+
+function buildBlackjackPayload(embed, components) {
+  return buildAssetEmbedPayload(embed, BLACKJACK_ASSET, components);
+}
 
 // Compute hand total; treat Aces as 11 then reduce to avoid busting
 export function bjHandValue(cards) {
@@ -51,6 +57,7 @@ export async function bjEmbed(state, opts = {}) {
   try { e.addFields(await buildPlayerBalanceField(state.guildId, state.userId)); } catch {}
   try { e.addFields(buildTimeoutField(state.guildId, state.userId)); } catch {}
   if (footer) e.setFooter({ text: footer });
+  applyEmbedThumbnail(e, BLACKJACK_ASSET);
   return e;
 }
 
@@ -70,7 +77,6 @@ export function bjPlayAgainRow(table, bet, userId) {
 }
 
 export async function startBlackjack(interaction, table, bet) {
-<<<<<<< HEAD
   if (!interaction.guild) {
     const payload = { content: '❌ Blackjack tables are only available inside servers.', ephemeral: true };
     try {
@@ -83,8 +89,6 @@ export async function startBlackjack(interaction, table, bet) {
       return;
     }
   }
-=======
->>>>>>> 4060006534002359355f885f429b8ca075370128
   const k = `${interaction.guild.id}:${interaction.user.id}`;
   if (blackjackGames.has(k)) return interaction.reply({ content: '❌ You already have an active Blackjack hand. Finish it first.', ephemeral: true });
   if (table === 'HIGH') { if (bet < 100) return interaction.reply({ content: '❌ High table minimum is 100.', ephemeral: true }); }
@@ -122,7 +126,7 @@ export async function startBlackjack(interaction, table, bet) {
         addHouseNet(state.guildId, state.userId, 'blackjack', 0);
         try { recordSessionGame(state.guildId, state.userId, 0); } catch {}
         const row = bjPlayAgainRow(state.table, state.bet, state.userId);
-        return sendGameMessage(interaction, { embeds: [await bjEmbed(state, { footer: 'Push. Your stake was returned.', color: 0x2b2d31 })], components: [row] });
+        return sendGameMessage(interaction, buildBlackjackPayload(await bjEmbed(state, { footer: 'Push. Your stake was returned.', color: 0x2b2d31 }), [row]));
       } catch { return interaction.reply({ content: '⚠️ Settlement failed.', ephemeral: true }); }
     }
     if (playerBJ) {
@@ -133,7 +137,7 @@ export async function startBlackjack(interaction, table, bet) {
         addHouseNet(state.guildId, state.userId, 'blackjack', -win);
         try { recordSessionGame(state.guildId, state.userId, win); } catch {}
         const row = bjPlayAgainRow(state.table, state.bet, state.userId);
-        return sendGameMessage(interaction, { embeds: [await bjEmbed(state, { footer: `Natural! You win ${chipsAmount(win)}.`, color: 0x57F287 })], components: [row] });
+        return sendGameMessage(interaction, buildBlackjackPayload(await bjEmbed(state, { footer: `Natural! You win ${chipsAmount(win)}.`, color: 0x57F287 }), [row]));
       } catch { return interaction.reply({ content: '⚠️ Payout failed.', ephemeral: true }); }
     }
     try {
@@ -141,7 +145,7 @@ export async function startBlackjack(interaction, table, bet) {
       addHouseNet(state.guildId, state.userId, 'blackjack', state.chipsStake);
       try { recordSessionGame(state.guildId, state.userId, -state.chipsStake); } catch {}
       const row = bjPlayAgainRow(state.table, state.bet, state.userId);
-      return sendGameMessage(interaction, { embeds: [await bjEmbed(state, { footer: 'Dealer Blackjack. You lose.', color: 0xED4245 })], components: [row] });
+      return sendGameMessage(interaction, buildBlackjackPayload(await bjEmbed(state, { footer: 'Dealer Blackjack. You lose.', color: 0xED4245 }), [row]));
     } catch { return interaction.reply({ content: '⚠️ Settle failed.', ephemeral: true }); }
   }
   const firstDecision = state.player.length === 2;
@@ -157,5 +161,5 @@ export async function startBlackjack(interaction, table, bet) {
     if (v1 === v2 && await canAffordExtra(state.guildId, state.userId, state.bet)) actions.push({ id: 'bj|split', label: 'Split', style: ButtonStyle.Secondary, emoji: emoji('scissors') });
   }
   const row = new ActionRowBuilder().addComponents(...actions.map(({ id, label, style, emoji: icon }) => new ButtonBuilder().setCustomId(id).setLabel(label).setStyle(style).setEmoji(icon)));
-  return sendGameMessage(interaction, { embeds: [await bjEmbed(state)], components: [row] } );
+  return sendGameMessage(interaction, buildBlackjackPayload(await bjEmbed(state), [row]));
 }

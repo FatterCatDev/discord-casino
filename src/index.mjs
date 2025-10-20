@@ -789,6 +789,11 @@ client.on(Events.InteractionCreate, async interaction => {
         return interaction.reply({ content: '❌ I hit an error while confirming that bonus. Please try again in a moment.', ephemeral: true }).catch(() => {});
       }
     }
+    else if (interaction.isButton() && interaction.customId.startsWith('jobstatus|')) {
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      const mod = await import('./interactions/jobs/statusButtons.mjs');
+      return mod.default(interaction, ctx);
+    }
     else if ((interaction.isButton() || interaction.isStringSelectMenu()) && interaction.customId.startsWith('jobshift|')) {
       const ctx = buildCommandContext(interaction, ctxExtras);
       const mod = await import('./interactions/jobs/shiftButtons.mjs');

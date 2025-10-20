@@ -20,45 +20,32 @@ const commands = [
     name: 'job',
     description: 'Clock in for casino shifts, manage stamina, and oversee your role.',
     options: [
-      { type: 1, name: 'overview', description: 'Preview available jobs, shift structure, and stamina status.' },
       {
-        type: 1,
-        name: 'start',
-        description: 'Start a shift for a specific job (spends stamina).',
-        options: [
-          {
-            name: 'job',
-            description: 'Choose the job to run.',
-            type: 3,
-            required: true,
-            choices: jobChoices
-          }
-        ]
-      },
-      { type: 1, name: 'cancel', description: 'Cancel your active shift.' },
-      {
-        type: 1,
-        name: 'stats',
-        description: 'Review job ranks, XP, shift history, and stamina.',
-        options: [
-          { name: 'user', description: 'Target user to inspect', type: 6, required: false }
+        name: 'action',
+        description: 'Choose a job system action (leave blank for status).',
+        type: 3,
+        required: false,
+        choices: [
+          { name: 'Start Shift', value: 'start' },
+          { name: 'Cancel Active Shift', value: 'cancel' },
+          { name: 'Inspect Player', value: 'stats' },
+          { name: 'Reset Stamina (Admin)', value: 'reset' },
+          { name: 'Reset Stats (Admin)', value: 'resetstats' },
+          { name: 'Show Status', value: 'status' }
         ]
       },
       {
-        type: 1,
-        name: 'reset',
-        description: 'Admin only: reset job cooldowns and stamina timers.',
-        options: [
-          { name: 'user', description: 'Target user (defaults to yourself)', type: 6, required: false }
-        ]
+        name: 'job',
+        description: 'Job to start when running a shift.',
+        type: 3,
+        required: false,
+        choices: jobChoices
       },
       {
-        type: 1,
-        name: 'resetstats',
-        description: 'Admin only: reset job ranks & XP.',
-        options: [
-          { name: 'user', description: 'Target user (defaults to yourself)', type: 6, required: false }
-        ]
+        name: 'user',
+        description: 'Target user for inspect/reset actions.',
+        type: 6,
+        required: false
       }
     ]
   },

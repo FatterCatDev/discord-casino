@@ -12,6 +12,7 @@ import { formatChips, chipsAmountSigned } from './format.mjs';
 import { emoji, HORSE_COLOR_EMOJIS } from '../lib/emojis.mjs';
 import { postGameSessionEnd, postGameSessionEndByIds } from './logging.mjs';
 import { withInsufficientFundsTip } from '../lib/fundsTip.mjs';
+import { applyEmbedThumbnail, buildAssetAttachment } from '../lib/assets.mjs';
 
 const TRACK_LENGTH = 100;
 const STAGE_COUNT = 10;
@@ -48,6 +49,7 @@ const INITIAL_FOOTER_TEXT = 'Place your bets! Host must press Start to begin the
 const DEFAULT_STAGE_FOOTER_TEXT = 'Place or change bets within 2.5 seconds of each stage.';
 const NOTICE_DURATION_MS = 4_000;
 const RACE_TIMEOUT_MS = 2 * 60 * 1_000;
+const HORSE_RACE_ASSET = 'horseRace.png';
 
 const racesById = new Map();
 const racesByChannel = new Map();
@@ -246,6 +248,7 @@ function createRaceEmbed(state, options = {}) {
   if (descriptionParts.length) {
     embed.setDescription(descriptionParts.join('\n'));
   }
+  applyEmbedThumbnail(embed, HORSE_RACE_ASSET);
   return embed;
 }
 
@@ -703,7 +706,10 @@ export async function createHorseRace(interaction, ctx) {
 
   const state = createEmptyState(ctx, interaction);
   const embeds = createRaceEmbeds(state, { footerText: INITIAL_FOOTER_TEXT });
-  await interaction.reply({ embeds, components: buildComponents(state) });
+  const payload = { embeds, components: buildComponents(state) };
+  const art = buildAssetAttachment(HORSE_RACE_ASSET);
+  if (art) payload.files = [art];
+  await interaction.reply(payload);
   const message = await interaction.fetchReply();
   storeRace(state, message.id);
   refreshRaceTimeout(state, interaction.client);

@@ -7,6 +7,7 @@ import { blackjackGames } from './blackjack.mjs';
 import { rouletteSessions } from './roulette.mjs';
 import { slotSessions } from './slots.mjs';
 import { emoji } from '../lib/emojis.mjs';
+import { applyEmbedThumbnail, resolveGameThumbnail } from '../lib/assets.mjs';
 
 export const ACTIVE_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 export const activeSessions = new Map(); // key: `${guildId}:${userId}` -> state
@@ -147,7 +148,9 @@ export async function buildSessionEndEmbed(guildId, userId) {
   } catch {
     e.setDescription(`Game: ${game}`);
   }
-  return e;
+  const assetFile = resolveGameThumbnail(s.type, game);
+  const asset = assetFile ? applyEmbedThumbnail(e, assetFile) : null;
+  return { embed: e, asset };
 }
 
 export function expireAtUnix(guildId, userId) {

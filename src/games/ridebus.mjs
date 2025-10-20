@@ -4,8 +4,10 @@ import { makeDeck, show, color, val } from './cards.mjs';
 import { chipsAmount } from './format.mjs';
 import { buildPlayerBalanceField, sendGameMessage, setActiveSession, buildTimeoutField } from './session.mjs';
 import { emoji } from '../lib/emojis.mjs';
+import { applyEmbedThumbnail, buildAssetAttachment } from '../lib/assets.mjs';
 
 export const ridebusGames = new Map(); // key = `${guildId}:${userId}` -> state
+export const RIDE_BUS_ASSET = 'rideBus.png';
 
 const PAYOUT = { 1: 2, 2: 3, 3: 4, 4: 10 };
 const wagerAt = (state, s) => state.bet * PAYOUT[s];
@@ -32,6 +34,7 @@ export async function embedForState(state, opts = {}) {
   e.addFields({ name: 'Cards Dealt', value: cardList(state.cards) });
   try { e.addFields(await buildPlayerBalanceField(state.guildId, state.userId)); } catch {}
   try { e.addFields(buildTimeoutField(state.guildId, state.userId)); } catch {}
+  applyEmbedThumbnail(e, RIDE_BUS_ASSET);
   return e;
 }
 
@@ -91,7 +94,10 @@ export async function startRideBus(interaction, bet, persona = {}) {
     : `**Q1 (2×):** Pick a color — **Red (${RED_SUITS})** or **Black (${BLACK_SUITS})**.\n_Wrong at any step ends the hand. Clear all 4 to win **${chipsAmount(maxPayout)}**._`;
   const embed = await embedForState(state, { description: desc, kittenMode: state.kittenMode });
   const payload = { embeds: [embed], components: [q1Row] };
-  return sendGameMessage(interaction, persona.kittenizePayload ? persona.kittenizePayload(payload) : payload);
+  const art = buildAssetAttachment(RIDE_BUS_ASSET);
+  if (art) payload.files = [art];
+  const finalPayload = persona.kittenizePayload ? persona.kittenizePayload(payload) : payload;
+  return sendGameMessage(interaction, finalPayload);
 }
 
 export function playAgainRow(bet, userId, opts = {}) {

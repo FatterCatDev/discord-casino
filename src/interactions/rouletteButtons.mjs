@@ -2,6 +2,7 @@ import { EmbedBuilder } from 'discord.js';
 import { emoji } from '../lib/emojis.mjs';
 import { withInsufficientFundsTip } from '../lib/fundsTip.mjs';
 import { scheduleInteractionAck } from '../lib/interactionAck.mjs';
+import { applyEmbedThumbnail, buildAssetEmbedPayload } from '../lib/assets.mjs';
 
 const ROULETTE_BUTTON_STALE_MS = (() => {
   const specific = Number(process.env.ROULETTE_BUTTON_STALE_MS);
@@ -9,10 +10,11 @@ const ROULETTE_BUTTON_STALE_MS = (() => {
   const general = Number(process.env.INTERACTION_STALE_MS);
   return Number.isFinite(general) && general > 0 ? general : 2500;
 })();
+const ROULETTE_ASSET = 'roulette.png';
 
 export default async function onRouletteButtons(interaction, ctx) {
   if (!interaction.guild) {
-    return respondEphemeral({ content: `${emoji('warning')} Roulette buttons only work inside servers.` });
+    return interaction.reply({ content: `${emoji('warning')} Roulette buttons only work inside servers.`, ephemeral: true });
   }
   const key = ctx.keyFor(interaction);
   const state = ctx.rouletteSessions.get(key);
@@ -21,10 +23,7 @@ export default async function onRouletteButtons(interaction, ctx) {
   const kittenMode = typeof ctx?.kittenModeEnabled === 'boolean'
     ? ctx.kittenModeEnabled
     : (typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false);
-<<<<<<< HEAD
   const cancelAutoAck = scheduleInteractionAck(interaction, { timeout: ROULETTE_BUTTON_STALE_MS, mode: 'update' });
-=======
->>>>>>> 4060006534002359355f885f429b8ca075370128
   let deferred = false;
   const deferUpdateOnce = async () => {
     if (!deferred && !interaction.deferred && !interaction.replied) {
@@ -33,7 +32,6 @@ export default async function onRouletteButtons(interaction, ctx) {
       deferred = true;
     }
   };
-<<<<<<< HEAD
   const respondEphemeral = async (payload = {}) => {
     cancelAutoAck();
     const base = (payload && typeof payload === 'object' && !Array.isArray(payload)) ? { ...payload } : { content: String(payload || '') };
@@ -52,19 +50,19 @@ export default async function onRouletteButtons(interaction, ctx) {
     cancelAutoAck();
     return ctx.sendGameMessage(interaction, payload, 'update');
   };
+  const buildExpiredPayload = () => {
+    const embed = new EmbedBuilder()
+      .setTitle(`${emoji('hourglass')} Roulette Session Expired`)
+      .setDescription('Use `/roulette` to start a new session.')
+      .setColor(0x2b2d31);
+    return buildAssetEmbedPayload(embed, ROULETTE_ASSET, []);
+  };
   if (action !== 'again') {
     if (ctx.hasActiveExpired(interaction.guild.id, interaction.user.id, 'roulette') || !ctx.getActiveSession(interaction.guild.id, interaction.user.id)) {
       ctx.rouletteSessions.delete(key);
       await deferUpdateOnce();
-      return updateMessage({ content: `${emoji('hourglass')} This roulette session expired. Use \`/roulette\` to start a new one.`, embeds: [], components: [] });
+      return updateMessage(buildExpiredPayload());
     }
-=======
-  if (action !== 'again') {
-    if (ctx.hasActiveExpired(interaction.guild.id, interaction.user.id, 'roulette') || !ctx.getActiveSession(interaction.guild.id, interaction.user.id)) {
-      ctx.rouletteSessions.delete(key);
-      return interaction.update({ content: `${emoji('hourglass')} This roulette session expired. Use `/roulette` to start a new one.`, embeds: [], components: [] });
-    }
->>>>>>> 4060006534002359355f885f429b8ca075370128
     ctx.touchActiveSession(interaction.guild.id, interaction.user.id, 'roulette');
   }
   if (action === 'confirm') {
@@ -116,7 +114,7 @@ export default async function onRouletteButtons(interaction, ctx) {
       }
     }
     const returnStake = wins.reduce((s,b)=>s+b.chipPart,0);
-   const payout = winnings + returnStake;
+    const payout = winnings + returnStake;
     if (payout>0) {
       try {
         await ctx.transferFromHouseToUser(interaction.user.id, payout, 'roulette payout', null);
@@ -149,6 +147,7 @@ export default async function onRouletteButtons(interaction, ctx) {
       resultEmbed.addFields({ name: 'Player Balance', value: val });
       try { resultEmbed.addFields(ctx.buildTimeoutField(interaction.guild.id, interaction.user.id)); } catch {}
     } catch {}
+    applyEmbedThumbnail(resultEmbed, ROULETTE_ASSET);
     return updateMessage({ embeds: [resultEmbed], components: [ctx.rowButtons([{ id: `rou|again|${interaction.user.id}`, label: 'Play Again', style: 2 }])] });
   }
   if (action === 'cancel') {

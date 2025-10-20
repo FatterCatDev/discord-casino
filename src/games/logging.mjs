@@ -152,8 +152,9 @@ export async function finalizeSessionUIByIds(client, guildId, userId) {
     if (!ch || !ch.isTextBased()) return;
     const msg = await ch.messages.fetch(s.msgId).catch(() => null);
     if (!msg) return;
-    const emb = await buildSessionEndEmbed(guildId, userId);
-    let payload = { embeds: [emb], components: [] };
+    const { embed, asset } = await buildSessionEndEmbed(guildId, userId);
+    let payload = { embeds: [embed], components: [] };
+    if (asset) payload.files = [asset];
     try {
       const settings = await getGuildSettings(guildId);
       if (settings?.kitten_mode_enabled) {

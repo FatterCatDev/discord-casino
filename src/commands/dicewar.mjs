@@ -5,6 +5,7 @@ import { emoji } from '../lib/emojis.mjs';
 import { withInsufficientFundsTip } from '../lib/fundsTip.mjs';
 import { scheduleInteractionAck } from '../lib/interactionAck.mjs';
 import { formatCasinoCategory } from '../lib/casinoCategory.mjs';
+import { applyEmbedThumbnail, buildAssetAttachment } from '../lib/assets.mjs';
 
 const DICEWAR_ACK_TIMEOUT_MS = (() => {
   const specific = Number(process.env.DICEWAR_INTERACTION_ACK_MS);
@@ -12,6 +13,7 @@ const DICEWAR_ACK_TIMEOUT_MS = (() => {
   const general = Number(process.env.INTERACTION_STALE_MS);
   return Number.isFinite(general) && general > 0 ? general : 2500;
 })();
+const DICE_WAR_ASSET = 'diceWars.png';
 
 async function inCasinoCategory(interaction, kittenMode) {
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
@@ -167,6 +169,7 @@ export async function playDiceWar(interaction, ctx, bet) {
     );
   try { e.addFields(ctx.buildPlayerBalanceField(interaction.guild.id, interaction.user.id)); } catch {}
   try { e.addFields(ctx.buildTimeoutField(interaction.guild.id, interaction.user.id)); } catch {}
+  applyEmbedThumbnail(e, DICE_WAR_ASSET);
 
   // Session tracking
   try {
@@ -189,7 +192,10 @@ export async function playDiceWar(interaction, ctx, bet) {
 
   await deferReplyOnce();
   cancelAutoAck();
-  return ctx.sendGameMessage(interaction, { embeds: [e], components: [again] });
+  const payload = { embeds: [e], components: [again] };
+  const art = buildAssetAttachment(DICE_WAR_ASSET);
+  if (art) payload.files = [art];
+  return ctx.sendGameMessage(interaction, payload);
 }
 
 export default async function handleDiceWar(interaction, ctx) {

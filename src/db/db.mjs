@@ -443,6 +443,7 @@ const topUsersStmt = db.prepare(`
 
 const countUsersStmt = db.prepare('SELECT COUNT(*) AS n FROM users WHERE guild_id = ?');
 const countDistinctUsersStmt = db.prepare('SELECT COUNT(DISTINCT discord_id) AS n FROM users');
+const listAllUserIdsStmt = db.prepare('SELECT DISTINCT discord_id FROM users ORDER BY discord_id ASC');
 const resetUsersStmt = db.prepare('UPDATE users SET chips = 0, credits = 100, updated_at = CURRENT_TIMESTAMP WHERE guild_id = ?');
 const resetHouseExactStmt = db.prepare('UPDATE guild_house SET chips = 0, updated_at = CURRENT_TIMESTAMP WHERE guild_id = ?');
 
@@ -1313,6 +1314,11 @@ export function getCasinoNetworth(guildId) {
 export function getGlobalPlayerCount() {
   const row = countDistinctUsersStmt.get();
   return Number(row?.n || 0);
+}
+
+export function listAllUserIds() {
+  const rows = listAllUserIdsStmt.all();
+  return rows.map(row => String(row.discord_id));
 }
 
 export function getUserBalances(guildId, discordId) {

@@ -1,4 +1,5 @@
 import 'dotenv/config';
+import { existsSync, readFileSync } from 'node:fs';
 
 let Client;
 try { ({ Client } = await import('pg')); }
@@ -35,7 +36,7 @@ if (!targetDb) {
 }
 
 const adminUrl = buildAdminUrl(original);
-const ssl = process.env.PGSSLMODE ? { rejectUnauthorized: false } : undefined;
+const ssl = buildSslConfig();
 
 const client = new Client({ connectionString: adminUrl, ssl });
 
@@ -59,3 +60,21 @@ async function main() {
 
 main();
 
+function buildSslConfig() {
+  const mode = (process.env.PGSSLMODE || '').toLowerCase();
+  if (!mode || mode === 'disable') return undefined;
+
+  const inlineCert = process.env.DATABASE_CA_CERT;
+  if (inlineCert) return { ca: inlineCert.replace(/\\n/g, '\n') };
+
+  const certPath = process.env.DATABASE_CA_CERT_PATH || process.env.PGSSLROOTCERT;
+  if (certPath && existsSync(certPath)) {
+    return { ca: readFileSync(certPath, 'utf8') };
+  }
+
+  if (mode === 'verify-full' || mode === 'verify-ca') {
+    throw new Error(`PGSSLMODE=${mode} requires a CA certificate. Set DATABASE_CA_CERT, DATABASE_CA_CERT_PATH, or PGSSLROOTCERT.`);
+  }
+
+  return { rejectUnauthorized: false };
+}

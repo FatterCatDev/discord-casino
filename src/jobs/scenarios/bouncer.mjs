@@ -30,6 +30,18 @@ const WRISTBANDS = [
   { id: 'violet', label: 'Violet', emoji: emoji('squarePurple') }
 ];
 
+const MATCH_RATES = {
+  age: 0.735,
+  dress: 0.866,
+  wristband: 0.868,
+  guestList: 0.33
+};
+
+const GUEST_LIST_SIZE = 10;
+const MIN_FAIL_AGE = 16;
+const PASS_AGE_BONUS_MAX = 25;
+const EXTRA_PASS_CHANCE = 0.3;
+
 function sample(array) {
   return array[crypto.randomInt(0, array.length)];
 }
@@ -75,7 +87,7 @@ function generateChecklist() {
     ageRequirement: 21,
     dress: sample(DRESS_CODES),
     wristband: sample(WRISTBANDS),
-    guestList: sampleUniqueNames(10)
+    guestList: sampleUniqueNames(GUEST_LIST_SIZE)
   };
 }
 
@@ -87,47 +99,88 @@ function sampleUniqueNames(count) {
   return Array.from(set);
 }
 
-function resolveDress(required) {
-  if (Math.random() < 0.6) return required;
+function alignGuestListMembership(checklist, guestName, shouldInclude) {
+  const list = checklist.guestList.filter(entry => entry !== guestName);
+  if (shouldInclude) {
+    const insertAt = crypto.randomInt(0, list.length + 1);
+    list.splice(insertAt, 0, guestName);
+  }
+  while (list.length < GUEST_LIST_SIZE) {
+    const candidate = sample(GUEST_NAMES);
+    if (!shouldInclude && candidate === guestName) continue;
+    if (!list.includes(candidate)) {
+      list.push(candidate);
+    }
+  }
+  checklist.guestList = list;
+}
+
+function resolveDress(required, shouldMatch) {
+  if (shouldMatch) return required;
   let pick = sample(DRESS_CODES);
-  if (pick.id === required.id) {
-    pick = sample(DRESS_CODES.filter(code => code.id !== required.id));
+  while (pick.id === required.id) {
+    pick = sample(DRESS_CODES);
   }
   return pick;
 }
 
-function resolveWristband(required) {
-  if (Math.random() < 0.6) return required;
+function resolveWristband(required, shouldMatch) {
+  if (shouldMatch) return required;
   let pick = sample(WRISTBANDS);
-  if (pick.id === required.id) {
-    pick = sample(WRISTBANDS.filter(band => band.id !== required.id));
+  while (pick.id === required.id) {
+    pick = sample(WRISTBANDS);
   }
   return pick;
 }
 
 function buildGuest(name, checklist) {
-  const { dob, age } = randomDob();
-  const dress = resolveDress(checklist.dress);
-  const wristband = resolveWristband(checklist.wristband);
+  const meetsAge = Math.random() < MATCH_RATES.age;
+  const ageRangeMin = meetsAge ? checklist.ageRequirement + 1 : Math.max(MIN_FAIL_AGE, checklist.ageRequirement - 5);
+  const ageRangeMax = meetsAge
+    ? checklist.ageRequirement + PASS_AGE_BONUS_MAX
+    : checklist.ageRequirement;
+  const { dob, age } = randomDob(ageRangeMin, ageRangeMax);
+
+  const matchesDress = Math.random() < MATCH_RATES.dress;
+  const dress = resolveDress(checklist.dress, matchesDress);
+
+  const matchesWristband = Math.random() < MATCH_RATES.wristband;
+  const wristband = resolveWristband(checklist.wristband, matchesWristband);
+
+  const shouldBeOnGuestList = Math.random() < MATCH_RATES.guestList;
+  alignGuestListMembership(checklist, name, shouldBeOnGuestList);
   const onGuestList = checklist.guestList.includes(name);
+
   const meets = onGuestList && age > checklist.ageRequirement && dress.id === checklist.dress.id && wristband.id === checklist.wristband.id;
   return { name, age, dob, dress, wristband, meets, onGuestList };
 }
 
-function ensureAtLeastOnePasses(guests, checklist) {
-  if (guests.some(guest => guest.meets)) return guests;
-  const chosen = guests[crypto.randomInt(0, guests.length)];
-  const targetAge = checklist.ageRequirement + crypto.randomInt(1, 11);
+function forceGuestToPass(guest, checklist) {
+  const targetAge = checklist.ageRequirement + crypto.randomInt(1, PASS_AGE_BONUS_MAX + 1);
   const { dob, age } = dobForAge(targetAge);
-  chosen.dob = dob;
-  chosen.age = age;
-  chosen.dress = checklist.dress;
-  chosen.wristband = checklist.wristband;
-  if (!checklist.guestList.includes(chosen.name)) {
-    checklist.guestList.push(chosen.name);
+  guest.dob = dob;
+  guest.age = age;
+  guest.dress = checklist.dress;
+  guest.wristband = checklist.wristband;
+  alignGuestListMembership(checklist, guest.name, true);
+  guest.onGuestList = true;
+  guest.meets = true;
+}
+
+function ensureAtLeastOnePasses(guests, checklist) {
+  let passes = guests.filter(guest => guest.meets);
+  if (!passes.length) {
+    const chosen = guests[crypto.randomInt(0, guests.length)];
+    forceGuestToPass(chosen, checklist);
+    passes = [chosen];
   }
-  chosen.onGuestList = true;
-  chosen.meets = true;
+
+  const remaining = guests.filter(guest => !guest.meets);
+  if (remaining.length && Math.random() < EXTRA_PASS_CHANCE) {
+    const extra = remaining[crypto.randomInt(0, remaining.length)];
+    forceGuestToPass(extra, checklist);
+  }
+
   return guests;
 }
 
@@ -286,7 +339,13 @@ export function generateBouncerStages(count = 5) {
 
   for (let i = 0; i < count; i += 1) {
     const checklist = generateChecklist();
-    const size = i < 3 ? crypto.randomInt(1, 3) : crypto.randomInt(2, 4);
+    const [minSize, maxSizeExclusive] = (() => {
+      if (i === 0 || i === 1) return [1, 3];
+      if (i === 2 || i === 3) return [3, 5];
+      if (i === 4) return [5, 7];
+      return [3, 5];
+    })();
+    const size = crypto.randomInt(minSize, maxSizeExclusive);
     if (size <= 1) {
       const guestName = sampleName(usedNames);
       const guest = buildGuest(guestName, checklist);

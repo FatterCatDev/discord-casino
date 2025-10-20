@@ -1,7 +1,9 @@
-import { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
+import { ActionRowBuilder, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
+import { BLACKJACK_ASSET } from '../games/blackjack.mjs';
 import { emoji } from '../lib/emojis.mjs';
 import { scheduleInteractionAck } from '../lib/interactionAck.mjs';
 import { withInsufficientFundsTip } from '../lib/fundsTip.mjs';
+import { buildAssetEmbedPayload } from '../lib/assets.mjs';
 
 const BUTTON_STALE_MS = (() => {
   const specific = Number(process.env.BLACKJACK_BUTTON_STALE_MS);
@@ -39,9 +41,17 @@ export default async function onBlackjackButtons(interaction, ctx) {
     }
     return interaction.reply(base);
   };
+  const buildExpiredPayload = () => {
+    const embed = new EmbedBuilder()
+      .setTitle(`${emoji('hourglass')} Blackjack Session Expired`)
+      .setDescription('Use `/blackjack` to start a new hand.')
+      .setColor(0x2b2d31);
+    const payload = buildAssetEmbedPayload(embed, BLACKJACK_ASSET, []);
+    return payload;
+  };
   const updateMessage = (payload) => ctx.sendGameMessage(interaction, payload, 'update');
   if (action !== 'again' && action !== 'change') {
-    if (!state) { cancelAutoAck(); return updateMessage({ content: `${emoji('hourglass')} This session expired. Use \`/blackjack\` to start a new one.`, components: [] }); }
+    if (!state) { cancelAutoAck(); return updateMessage(buildExpiredPayload()); }
     if (interaction.user.id !== state.userId) { return respondEphemeral({ content: '❌ Only the original player can use these buttons.' }); }
     if (state.finished) { return respondEphemeral({ content: '❌ Hand already finished.' }); }
   }
@@ -59,7 +69,7 @@ export default async function onBlackjackButtons(interaction, ctx) {
       ctx.clearActiveSession(interaction.guild.id, interaction.user.id);
     }
     cancelAutoAck();
-    return updateMessage({ content: `${emoji('hourglass')} This session expired. Use \`/blackjack\` to start a new one.`, components: [] });
+    return updateMessage(buildExpiredPayload());
   }
   ctx.touchActiveSession(interaction.guild.id, interaction.user.id, 'blackjack');
   const draw = () => state.deck.pop();

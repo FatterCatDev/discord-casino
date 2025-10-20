@@ -58,6 +58,7 @@ export const getTopUsers = pick('getTopUsers');
 export const getHouseBalance = pick('getHouseBalance');
 export const getCasinoNetworth = pick('getCasinoNetworth');
 export const getGlobalPlayerCount = pick('getGlobalPlayerCount');
+export const listAllUserIds = pick('listAllUserIds');
 export const addToHouse = pick('addToHouse');
 export const removeFromHouse = pick('removeFromHouse');
 export const transferFromHouseToUser = pick('transferFromHouseToUser');

@@ -1,4 +1,5 @@
-import { EmbedBuilder } from 'discord.js';
+import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
+import { fileURLToPath } from 'node:url';
 import { listJobs, getJobById } from '../jobs/registry.mjs';
 import { emoji } from '../lib/emojis.mjs';
 import { getJobStatusForUser, JOB_SHIFT_STREAK_LIMIT, JOB_SHIFT_RECHARGE_SECONDS } from '../jobs/status.mjs';
@@ -12,6 +13,20 @@ import {
 import { rankTitle } from '../jobs/ranks.mjs';
 import { xpToNextForRank } from '../jobs/progression.mjs';
 import { startJobShift, cancelActiveShiftForUser } from '../jobs/shift-engine.mjs';
+
+const JOB_STATUS_COLORS = {
+  bartender: 0xff9b54,
+  dealer: 0x3498db,
+  bouncer: 0x9b59b6,
+  default: 0x5865f2
+};
+
+const JOB_STATUS_IMAGES = {
+  main: 'job.png',
+  bartender: 'jobBarTender.png',
+  dealer: 'jobDealer.png',
+  bouncer: 'jobBouncer.png'
+};
 
 function buildSay(kittenMode) {
   return (kittenText, normalText) => (kittenMode ? kittenText : normalText);
@@ -38,6 +53,15 @@ function formatDuration(totalSeconds) {
 
 function jobDisplayIcon(job) {
   return job?.emojiKey ? emoji(job.emojiKey) : job?.icon || '';
+}
+
+function jobAssetPath(fileName) {
+  if (!fileName) return null;
+  try {
+    return fileURLToPath(new URL(`../../Assets/${fileName}`, import.meta.url));
+  } catch {
+    return null;
+  }
 }
 
 function formatStaminaRemaining(status, say) {
@@ -71,13 +95,6 @@ function formatStaminaCooldownStatus(status, nowSeconds, say) {
   );
 }
 
-function buildStaminaStatusLines(status, say, nowSeconds) {
-  const lines = [];
-  lines.push(`${emoji('clipboard')} ${say('Stamina available:', 'Stamina available:')} ${formatStaminaRemaining(status, say)}`);
-  lines.push(`${emoji('timer')} ${formatStaminaCooldownStatus(status, nowSeconds, say)}`);
-  return lines;
-}
-
 function profileSummaryLines(job, profile, say) {
   const rank = profile?.rank || 1;
   const totalXp = profile?.totalXp ?? profile?.total_xp ?? 0;
@@ -96,7 +113,7 @@ function profileSummaryLines(job, profile, say) {
   return lines.join('\n');
 }
 
-async function fetchProfiles(guildId, userId) {
+export async function fetchProfiles(guildId, userId) {
   const existing = await listJobProfilesForUser(guildId, userId);
   const map = new Map(existing.map(p => [p.jobId || p.job_id, p]));
   for (const job of listJobs()) {
@@ -108,83 +125,171 @@ async function fetchProfiles(guildId, userId) {
   return map;
 }
 
-function buildOverviewEmbed(kittenMode, status, profiles, nowSeconds) {
-  const say = buildSay(kittenMode);
-  const embed = new EmbedBuilder()
-    .setColor(0x5865f2)
-    .setTitle(say('Kitten Career Board', 'Casino Job Board'))
-    .setDescription([
-      say('Each shift is a five-stage gauntlet with XP, rank, and chip payouts on the line. Stamina refills over time, so pace your runs.', 'Each shift runs five stages with XP, rank, and chip payouts on the line. Stamina refills on a timer, so pace your runs.'),
-      `${emoji('sparkles')} ${say('Use `/job start <job>` to clock in anywhere.', 'Use `/job start <job>` to clock in for any role.')}`,
-      ...buildStaminaStatusLines(status, say, nowSeconds)
-    ].join('\n'));
-
-  for (const job of listJobs()) {
-    const profile = profiles.get(job.id);
-    const icon = jobDisplayIcon(job);
-    embed.addFields({
-      name: `${icon} ${job.displayName}`,
-      value: `${say(job.tagline.kitten, job.tagline.normal)}
-${job.fantasy}
-${profileSummaryLines(job, profile, say)}`
-    });
-  }
-
-  return embed;
+function normalizeShiftJobId(shift) {
+  const value = shift?.jobId ?? shift?.job_id ?? '';
+  return String(value || '').trim().toLowerCase();
 }
 
-function buildStatsEmbed(kittenMode, status, profiles, recentShifts, nowSeconds, targetUser = null) {
+function formatRecentShiftLines(shifts, say, { limit = 5, jobId = null } = {}) {
+  const targetJob = jobId ? String(jobId).trim().toLowerCase() : null;
+  const source = Array.isArray(shifts) ? shifts : [];
+  const filtered = targetJob
+    ? source.filter(shift => normalizeShiftJobId(shift) === targetJob)
+    : source;
+  if (!filtered.length) {
+    return [`• ${say('No shifts recorded yet.', 'No shifts recorded yet.')}`];
+  }
+  return filtered.slice(0, limit).map(shift => {
+    const job = getJobById(normalizeShiftJobId(shift));
+    const icon = jobDisplayIcon(job);
+    const label = job ? `${icon ? `${icon} ` : ''}${job.displayName}` : (shift.jobId || shift.job_id || 'Unknown Job');
+    const performance = shift.performanceScore ?? shift.performance_score ?? 0;
+    const result = (shift.resultState || shift.result_state || 'PENDING').toUpperCase();
+    const finished = shift.completedAt ?? shift.completed_at ?? null;
+    const when = finished ? `<t:${finished}:R>` : say('In progress', 'In progress');
+    return `• ${label} — ${performance} pts (${result}) • ${when}`;
+  });
+}
+
+function buildJobStatusMainEmbed(kittenMode, status, shifts, nowSeconds, userId) {
   const say = buildSay(kittenMode);
+  const lines = [
+    `Inspecting: <@${userId}>`,
+    `Stamina: ${formatStaminaRemaining(status, say)}`,
+    `Stamina Recharge: ${formatStaminaCooldownStatus(status, nowSeconds, say)}`,
+    '',
+    'Recent Shifts:'
+  ];
+  const recentLines = formatRecentShiftLines(shifts, say, { limit: 5 });
+  return new EmbedBuilder()
+    .setColor(JOB_STATUS_COLORS.default)
+    .setTitle(say('Job Status', 'Job Status'))
+    .setDescription([...lines, ...recentLines].join('\n'));
+}
+
+function buildJobStatusJobEmbed(kittenMode, status, profile, job, shifts, nowSeconds, userId) {
+  const say = buildSay(kittenMode);
+  const description = [say(job.tagline?.kitten ?? job.tagline?.normal ?? job.displayName, job.tagline?.normal ?? job.displayName)];
+  if (job.fantasy) {
+    description.push(job.fantasy);
+  }
   const embed = new EmbedBuilder()
-    .setColor(0x9b59b6)
-    .setTitle(say('Shift dossier', 'Shift dossier'))
-    .setDescription(targetUser ? `${emoji('busts')} Inspecting: <@${targetUser.id}>` : null)
+    .setColor(JOB_STATUS_COLORS[job.id] || JOB_STATUS_COLORS.default)
+    .setTitle(`${jobDisplayIcon(job)} ${job.displayName} — ${say('Job Status', 'Job Status')}`)
+    .setDescription(description.join('\n'))
     .addFields(
+      {
+        name: say('Inspecting', 'Inspecting'),
+        value: `<@${userId}>`,
+        inline: true
+      },
       {
         name: say('Stamina', 'Stamina'),
         value: formatStaminaRemaining(status, say),
         inline: true
       },
       {
-        name: say('Stamina Recharge', 'Stamina Recharge'),
+        name: say('Recharge', 'Recharge'),
         value: formatStaminaCooldownStatus(status, nowSeconds, say),
         inline: true
+      },
+      {
+        name: say('Progress', 'Progress'),
+        value: profileSummaryLines(job, profile, say)
       }
     );
 
-  for (const job of listJobs()) {
-    const profile = profiles.get(job.id);
-    const icon = jobDisplayIcon(job);
+  if (Array.isArray(job.highlights) && job.highlights.length) {
     embed.addFields({
-      name: `${icon} ${job.displayName}`,
-      value: profileSummaryLines(job, profile, say)
+      name: say('Highlights', 'Highlights'),
+      value: job.highlights.map(item => `• ${item}`).join('\n')
     });
   }
 
-  if (recentShifts.length) {
-    const lines = recentShifts.map(shift => {
-      const job = getJobById(shift.jobId || shift.job_id);
-      const icon = jobDisplayIcon(job);
-      const label = job ? `${icon} ${job.displayName}` : shift.jobId;
-      const performance = shift.performanceScore ?? shift.performance_score ?? 0;
-      const total = shift.totalPayout ?? shift.total_payout ?? 0;
-      const result = (shift.resultState || shift.result_state || 'PENDING').toUpperCase();
-      const finished = shift.completedAt ?? shift.completed_at;
-      const when = finished ? `<t:${finished}:R>` : 'in progress';
-      return `${label} — ${performance} pts, ${total} chips (${result}) • ${when}`;
-    }).slice(0, 6);
-    embed.addFields({
-      name: say('Recent Shifts', 'Recent Shifts'),
-      value: lines.join('\n')
-    });
-  } else {
-    embed.addFields({
-      name: say('Recent Shifts', 'Recent Shifts'),
-      value: say('No shifts recorded yet. Start one with `/job start <job>`.', 'No shifts recorded yet. Use `/job start <job>` to begin.')
-    });
-  }
-
+  const recentLines = formatRecentShiftLines(shifts, say, { limit: 3, jobId: job.id });
+  embed.addFields({
+    name: say('Recent Shifts', 'Recent Shifts'),
+    value: recentLines.join('\n')
+  });
   return embed;
+}
+
+function chunkButtons(buttons) {
+  const rows = [];
+  let bucket = [];
+  for (const button of buttons) {
+    bucket.push(button);
+    if (bucket.length === 5) {
+      rows.push(new ActionRowBuilder().addComponents(...bucket));
+      bucket = [];
+    }
+  }
+  if (bucket.length) {
+    rows.push(new ActionRowBuilder().addComponents(...bucket));
+  }
+  return rows;
+}
+
+function buildJobStatusComponents(userId, selectedJobId = null, kittenMode = false, viewerId = null) {
+  const buttons = [];
+  buttons.push(
+    new ButtonBuilder()
+      .setCustomId(`jobstatus|${userId}|${viewerId ?? userId}|main`)
+      .setLabel('Main')
+      .setStyle(selectedJobId ? ButtonStyle.Secondary : ButtonStyle.Primary)
+  );
+  for (const job of listJobs()) {
+    const isActive = job.id === selectedJobId;
+    const button = new ButtonBuilder()
+      .setCustomId(`jobstatus|${userId}|${viewerId ?? userId}|job|${job.id}`)
+      .setLabel(job.displayName)
+      .setStyle(isActive ? ButtonStyle.Primary : ButtonStyle.Secondary);
+    if (job.emojiKey) {
+      button.setEmoji(emoji(job.emojiKey));
+    }
+    buttons.push(button);
+  }
+  const rows = chunkButtons(buttons);
+  if (selectedJobId && (!viewerId || viewerId === userId)) {
+    const say = buildSay(kittenMode);
+    const startButton = new ButtonBuilder()
+      .setCustomId(`jobstatus|${userId}|${viewerId ?? userId}|start|${selectedJobId}`)
+      .setLabel(say('Start Shift', 'Start Shift'))
+      .setStyle(ButtonStyle.Success);
+    rows.push(new ActionRowBuilder().addComponents(startButton));
+  }
+  return rows;
+}
+
+export function buildJobStatusPayload({
+  kittenMode,
+  status,
+  profiles,
+  shifts,
+  userId,
+  nowSeconds,
+  jobId = null,
+  viewerId = null
+}) {
+  const normalizedJobId = jobId ? String(jobId).trim().toLowerCase() : null;
+  const job = normalizedJobId ? getJobById(normalizedJobId) : null;
+  const profile = job ? profiles?.get(job.id) ?? null : null;
+  const embed = job
+    ? buildJobStatusJobEmbed(kittenMode, status, profile, job, shifts, nowSeconds, userId)
+    : buildJobStatusMainEmbed(kittenMode, status, shifts, nowSeconds, userId);
+  const components = buildJobStatusComponents(userId, job?.id ?? null, kittenMode, viewerId);
+  const imageKey = job ? (JOB_STATUS_IMAGES[job.id] || JOB_STATUS_IMAGES.main) : JOB_STATUS_IMAGES.main;
+  const files = [];
+  const asset = jobAssetPath(imageKey);
+  if (asset && imageKey) {
+    embed.setThumbnail(`attachment://${imageKey}`);
+    files.push({ attachment: asset, name: imageKey });
+  }
+  const payload = { embeds: [embed], components };
+  if (files.length) {
+    payload.files = files;
+  }
+  return payload;
 }
 
 export default async function handleJob(interaction, ctx) {
@@ -193,11 +298,23 @@ export default async function handleJob(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
   const say = buildSay(kittenMode);
 
-  let subcommand = 'overview';
-  try {
-    subcommand = interaction.options.getSubcommand(false) ?? 'overview';
-  } catch {
-    subcommand = 'overview';
+  const userOption = typeof interaction.options?.getUser === 'function'
+    ? interaction.options.getUser('user')
+    : null;
+
+  let action = interaction.options?.getString?.('action') || null;
+  if (action) {
+    action = action.toLowerCase();
+  } else {
+    try {
+      const sub = interaction.options.getSubcommand(false);
+      action = sub ? sub.toLowerCase() : null;
+    } catch {
+      action = null;
+    }
+  }
+  if (!action || action === 'overview' || action === 'main') {
+    action = 'status';
   }
 
   if (!guildId) {
@@ -215,15 +332,31 @@ export default async function handleJob(interaction, ctx) {
   }
 
   const now = Math.floor(Date.now() / 1000);
-  const status = await getJobStatusForUser(guildId, userId);
+  const selfStatus = await getJobStatusForUser(guildId, userId);
 
-  if (subcommand === 'overview') {
-    const profiles = await fetchProfiles(guildId, userId);
-    const embed = buildOverviewEmbed(kittenMode, status, profiles, now);
-    return interaction.reply({ embeds: [embed], ephemeral: true });
+  if (action === 'status') {
+    const targetId = userOption?.id ?? userId;
+    const targetStatus = targetId === userId
+      ? selfStatus
+      : await getJobStatusForUser(guildId, targetId);
+    const profiles = await fetchProfiles(guildId, targetId);
+    const shifts = await listJobShiftsForUser(guildId, targetId, 6);
+    const payload = buildJobStatusPayload({
+      kittenMode,
+      status: targetStatus,
+      profiles,
+      shifts,
+      userId: targetId,
+      nowSeconds: now,
+      viewerId: userId
+    });
+    if (targetId === userId) {
+      return interaction.reply({ ...payload });
+    }
+    return interaction.reply({ ...payload, ephemeral: true });
   }
 
-  if (subcommand === 'cancel') {
+  if (action === 'cancel') {
     const result = await cancelActiveShiftForUser(guildId, userId);
     if (!result.cancelled) {
       return interaction.reply({
@@ -234,8 +367,14 @@ export default async function handleJob(interaction, ctx) {
     return interaction.reply({ content: result.message, ephemeral: true });
   }
 
-  if (subcommand === 'start') {
-    const jobId = interaction.options.getString('job', true);
+  if (action === 'start') {
+    const jobId = interaction.options.getString('job');
+    if (!jobId) {
+      return interaction.reply({
+        content: `${emoji('question')} ${say('Name the job you want to run, Kitten.', 'Pick a job to start a shift.')}`,
+        ephemeral: true
+      });
+    }
     const started = await startJobShift(interaction, ctx, jobId);
     if (!started) {
       const payload = { content: `${emoji('warning')} ${say('Something went wrong starting that shift.', 'Couldn’t start the shift. Try again shortly.')}` };
@@ -247,7 +386,7 @@ export default async function handleJob(interaction, ctx) {
     return;
   }
 
-  if (subcommand === 'reset') {
+  if (action === 'reset') {
     if (!(await ctx.isAdmin(interaction))) {
       return interaction.reply({
         content: `${emoji('warning')} ${say('Only my headliners can use this reset lever, Kitten.', 'Only administrators can run this reset.')}`,
@@ -265,7 +404,7 @@ export default async function handleJob(interaction, ctx) {
       cooldown_reason: null,
       earned_today: 0,
       cap_reset_at: null,
-      shift_streak_count: 0,
+      shift_streak_count: JOB_SHIFT_STREAK_LIMIT,
       shift_cooldown_expires_at: 0
     });
 
@@ -283,7 +422,7 @@ export default async function handleJob(interaction, ctx) {
     });
   }
 
-  if (subcommand === 'resetstats') {
+  if (action === 'resetstats') {
     if (!(await ctx.isAdmin(interaction))) {
       return interaction.reply({
         content: `${emoji('warning')} ${say('Only my headliners can reset stats, Kitten.', 'Only administrators can reset job stats.')}`,
@@ -315,7 +454,7 @@ export default async function handleJob(interaction, ctx) {
       daily_earning_cap: null,
       earned_today: 0,
       cap_reset_at: null,
-      shift_streak_count: 0,
+      shift_streak_count: JOB_SHIFT_STREAK_LIMIT,
       shift_cooldown_expires_at: 0
     });
 
@@ -330,18 +469,26 @@ export default async function handleJob(interaction, ctx) {
     });
   }
 
-  if (subcommand === 'stats') {
+  if (action === 'stats') {
     const target = interaction.options.getUser('user') ?? interaction.user;
     const targetId = target.id;
     const targetStatus = await getJobStatusForUser(guildId, targetId);
     const profiles = await fetchProfiles(guildId, targetId);
     const shifts = await listJobShiftsForUser(guildId, targetId, 6);
-    const embed = buildStatsEmbed(kittenMode, targetStatus, profiles, shifts, now, target);
-    return interaction.reply({ embeds: [embed] });
+    const payload = buildJobStatusPayload({
+      kittenMode,
+      status: targetStatus,
+      profiles,
+      shifts,
+      userId: targetId,
+      nowSeconds: now,
+      viewerId: userId
+    });
+    return interaction.reply(payload);
   }
 
   return interaction.reply({
-    content: `${emoji('warning')} ${say('That job action isn’t recognized yet, Kitten.', 'Unknown job subcommand.')}`,
+    content: `${emoji('warning')} ${say('That job action isn’t recognized yet, Kitten.', 'Unknown job action.')}`,
     ephemeral: true
   });
 }

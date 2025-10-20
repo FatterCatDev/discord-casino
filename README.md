@@ -240,9 +240,10 @@ Adjust the username and service as needed.
 - Treat `.env` (and any JSON credential files) as secrets: rotate your Discord bot token immediately if it’s ever checked into Git or shared.
 - Run `npm run api:keys` to manage API tokens; rotate and delete unused tokens regularly.
 
-### Keep Cloud SQL Proxy running
-- Systemd (recommended on servers): copy `scripts/systemd/cloud-sql-proxy.service` to `/etc/systemd/system/`, then `sudo systemctl daemon-reload && sudo systemctl enable --now cloud-sql-proxy`.
-- PM2 (no sudo; persists after you close the shell): `npx pm2 start ecosystem-proxy.config.js && npx pm2 save`. For boot persistence: `pm2 startup` (may require sudo) then re-run the displayed command.
+### DigitalOcean Postgres (managed)
+- Grab the connection string and CA certificate from the DigitalOcean control panel (Databases → your cluster → `Connection details`). Save the certificate as `./do-root-ca.crt` (or similar).
+- Update `.env` with `DB_DRIVER=pg`, `DATABASE_URL=<digitalocean URL>`, `PGSSLMODE=require`, and either `DATABASE_CA_CERT_PATH=./do-root-ca.crt` or paste the certificate into `DATABASE_CA_CERT`.
+- Run `npm run sql:migrate` after setting `DATABASE_URL` to initialize the schema remotely. No proxy or extra daemon is required—the bot connects directly over TLS.
 
 ### Run the bot as a systemd service
 1) Copy the unit file and enable it:
@@ -254,8 +255,7 @@ Adjust the username and service as needed.
    - `journalctl -u discord-casino -f`
 3) Ensure your `.env` contains required vars (see `.env.example`):
    - `DISCORD_TOKEN`, `CLIENT_ID`, `GUILD_ID`, etc.
-   - For Postgres: `DB_DRIVER=pg`, `DATABASE_URL=...`
-   - Proxy should also be enabled via the separate `cloud-sql-proxy.service`.
+   - For Postgres: `DB_DRIVER=pg`, `DATABASE_URL=...`, `PGSSLMODE=require`, and your DigitalOcean CA certificate (`DATABASE_CA_CERT_PATH` or `DATABASE_CA_CERT`).
 
 ## HTTP API
 

@@ -1,4 +1,5 @@
 import crypto from 'node:crypto';
+import { existsSync, readFileSync } from 'node:fs';
 import 'dotenv/config';
 
 let Pool;
@@ -8,8 +9,29 @@ try { ({ Pool } = await import('pg')); } catch {
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.PGSSLMODE ? { rejectUnauthorized: false } : undefined
+  ssl: buildSslConfig()
 });
+
+function buildSslConfig() {
+  const mode = (process.env.PGSSLMODE || '').toLowerCase();
+  if (!mode || mode === 'disable') return undefined;
+
+  const inlineCert = process.env.DATABASE_CA_CERT;
+  if (inlineCert) {
+    return { ca: inlineCert.replace(/\\n/g, '\n') };
+  }
+
+  const certPath = process.env.DATABASE_CA_CERT_PATH || process.env.PGSSLROOTCERT;
+  if (certPath && existsSync(certPath)) {
+    return { ca: readFileSync(certPath, 'utf8') };
+  }
+
+  if (mode === 'verify-full' || mode === 'verify-ca') {
+    throw new Error(`PGSSLMODE=${mode} requires a CA certificate. Set DATABASE_CA_CERT, DATABASE_CA_CERT_PATH, or PGSSLROOTCERT.`);
+  }
+
+  return { rejectUnauthorized: false };
+}
 
 const DEFAULT_GUILD_ID = process.env.PRIMARY_GUILD_ID || process.env.GUILD_ID || 'global';
 const ECONOMY_SCOPE = (process.env.ECONOMY_SCOPE || 'global').toLowerCase();
@@ -515,6 +537,11 @@ export async function getCasinoNetworth(guildId) {
 export async function getGlobalPlayerCount() {
   const row = await q1('SELECT COUNT(DISTINCT discord_id) AS n FROM users');
   return Number(row?.n || 0);
+}
+
+export async function listAllUserIds() {
+  const rows = await q('SELECT DISTINCT discord_id FROM users ORDER BY discord_id ASC');
+  return rows.map(row => String(row.discord_id));
 }
 
 export async function addToHouse(guildId, amount, reason, adminId) {

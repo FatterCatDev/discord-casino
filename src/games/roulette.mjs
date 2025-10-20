@@ -2,6 +2,7 @@ import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelec
 import { chipsAmount } from './format.mjs';
 import { buildPlayerBalanceField, keyFor, setActiveSession, buildTimeoutField, sendGameMessage } from './session.mjs';
 import { emoji } from '../lib/emojis.mjs';
+import { applyEmbedThumbnail, buildAssetAttachment } from '../lib/assets.mjs';
 
 export const rouletteSessions = new Map();
 export const ROULETTE_RED = new Set([1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36]);
@@ -20,6 +21,7 @@ export const ROULETTE_TYPES = [
   { v: 'column3', label: 'Column 3 (2:1)' },
   { v: 'straight', label: 'Straight (single pocket) (35:1)' }
 ];
+const ROULETTE_ASSET = 'roulette.png';
 
 export function roulettePayoutMult(type) {
   return ({
@@ -72,6 +74,7 @@ export async function rouletteSummaryEmbed(state) {
   e.setDescription(lines);
   try { e.addFields(await buildPlayerBalanceField(state.guildId, state.userId)); } catch {}
   try { e.addFields(buildTimeoutField(state.guildId, state.userId)); } catch {}
+  applyEmbedThumbnail(e, ROULETTE_ASSET);
   return e;
 }
 
@@ -93,7 +96,10 @@ export async function showRouletteTypePrompt(interaction) {
     new ButtonBuilder().setCustomId('rou|cancel').setLabel('Cancel').setStyle(ButtonStyle.Secondary)
   );
   // Use shared helper to reply/update and remember message reference for session finalization
-  return sendGameMessage(interaction, { embeds: [embed], components: [row, controls] });
+  const payload = { embeds: [embed], components: [row, controls] };
+  const art = buildAssetAttachment(ROULETTE_ASSET);
+  if (art) payload.files = [art];
+  return sendGameMessage(interaction, payload);
 }
 
 export async function startRouletteSession(interaction) {

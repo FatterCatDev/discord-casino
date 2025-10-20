@@ -6,6 +6,7 @@ import { sessionLineFor, setActiveSession, recordSessionGame, buildTimeoutField,
 import { emoji } from '../lib/emojis.mjs';
 import { withInsufficientFundsTip } from '../lib/fundsTip.mjs';
 import { scheduleInteractionAck } from '../lib/interactionAck.mjs';
+import { applyEmbedThumbnail, buildAssetAttachment } from '../lib/assets.mjs';
 
 // Symbols & pays (per 3/4/5 on a payline)
 export const SLOTS_SYMBOLS = {
@@ -106,6 +107,7 @@ export function buildSlotsPaytableEmbed() {
 
 // Per-user session state for house net tracking
 export const slotSessions = new Map(); // key -> { lastBet, houseNet }
+const SLOTS_ASSET = 'slots.png';
 
 // Spin — build a 3x5 window from the strips
 export function spinSlots() {
@@ -284,12 +286,12 @@ export async function runSlotsSpin(interaction, bet, key) {
     new ButtonBuilder().setCustomId(`slots|again|${bet}|${interaction.user.id}`).setLabel('Spin Again').setEmoji('🔁').setStyle(ButtonStyle.Secondary),
     new ButtonBuilder().setCustomId(`slots|paytable|${interaction.user.id}`).setLabel('Pay Table').setEmoji('📜').setStyle(ButtonStyle.Primary)
   );
+  applyEmbedThumbnail(e, SLOTS_ASSET);
   const response = { embeds: [e], components: [again] };
+  const art = buildAssetAttachment(SLOTS_ASSET);
+  if (art) response.files = [art];
   // Ensure we track the message reference for session finalization on expiry
   setActiveSession(interaction.guild.id, interaction.user.id, 'slots', 'Slots');
-<<<<<<< HEAD
   cancelAutoAck();
-=======
->>>>>>> 4060006534002359355f885f429b8ca075370128
   return sendGameMessage(interaction, response, 'auto');
 }

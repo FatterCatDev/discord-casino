@@ -1,7 +1,7 @@
 [Unit]
 Description=Discord Casino Bot
-After=network-online.target cloud-sql-proxy.service
-Wants=network-online.target cloud-sql-proxy.service
+After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=simple
