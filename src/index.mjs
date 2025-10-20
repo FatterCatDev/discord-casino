@@ -117,6 +117,10 @@ const REVIEW_PROMPT_MESSAGE = [
   "If you're enjoying Semuta Casino Bot, please consider leaving a review on Top.gg!",
   'https://top.gg/bot/1415454565687492780#reviews'
 ].join('\n');
+const REVIEW_PROMPT_SUPPORT_MESSAGE = [
+  '🏠 Our support team and main game floor live in the Semuta hub.',
+  'Join us anytime: discord.gg/semutaofdune'
+].join('\n');
 
 function buildWelcomePromptEmbed({ status = null, bonusJustGranted = false, bonusError = null } = {}) {
   const chipsText = formatChips(WELCOME_BONUS_AMOUNT);
@@ -758,6 +762,11 @@ async function maybeSendReviewPrompt(interaction, stats) {
 
   try {
     await interaction.user.send(REVIEW_PROMPT_MESSAGE);
+    try {
+      await interaction.user.send(REVIEW_PROMPT_SUPPORT_MESSAGE);
+    } catch (supportErr) {
+      console.error(`Failed to send review prompt support link to ${userId}`, supportErr);
+    }
     try {
       await markUserInteractionReviewPrompt(userId, { status: 'sent', timestamp: nowSec });
     } catch (markErr) {

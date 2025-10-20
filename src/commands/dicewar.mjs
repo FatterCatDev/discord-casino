@@ -33,8 +33,20 @@ async function inCasinoCategory(interaction, kittenMode) {
       else catId = ch?.parentId || null;
     } catch {}
     if (!catId || catId !== casino_category_id) {
-      const categoryLabel = await formatCasinoCategory(interaction, casino_category_id);
-      return { ok: false, reason: say(`❌ Bring me to ${categoryLabel} before we clash dice, Kitten.`, `❌ Use this inside ${categoryLabel}.`) };
+      const { label: categoryLabel, exampleChannelMention } = await formatCasinoCategory(interaction, casino_category_id);
+      const kittenHint = exampleChannelMention
+        ? ` Run it in ${exampleChannelMention} inside that lounge for me.`
+        : ' Run it in one of the text lounges there for me.';
+      const neutralHint = exampleChannelMention
+        ? ` Try ${exampleChannelMention} inside that category.`
+        : ' Choose any casino text channel inside that category.';
+      return {
+        ok: false,
+        reason: say(
+          `❌ Bring me to ${categoryLabel} before we clash dice, Kitten.${kittenHint}`,
+          `❌ Run this in one of the text channels inside ${categoryLabel}.${neutralHint}`
+        )
+      };
     }
     return { ok: true };
   } catch {
