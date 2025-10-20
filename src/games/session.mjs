@@ -129,8 +129,8 @@ export function hasActiveExpired(guildId, userId, type) {
 }
 
 // Build the session end summary embed
-export async function buildSessionEndEmbed(guildId, userId) {
-  const s = getActiveSession(guildId, userId) || {};
+export async function buildSessionEndEmbed(guildId, userId, sessionOverride = null) {
+  const s = sessionOverride || getActiveSession(guildId, userId) || {};
   const game = s.gameLabel || (s.type ? String(s.type).toUpperCase() : 'Game');
   const e = new EmbedBuilder().setColor(0x2b2d31);
   try {
@@ -189,7 +189,7 @@ export async function endActiveSessionForUser(interaction, cause = 'new_command'
     const s = activeSessions.get(k);
     if (!s) return;
     // Update UI to session summary before logging
-    await finalizeSessionUIByIds(interaction.client, guildId, userId);
+    await finalizeSessionUIByIds(interaction.client, guildId, userId, s);
     // Clean up per-game state; treat as loss where stakes already moved to house
     if (s.type === 'ridebus') {
       const st = ridebusGames.get(k);
@@ -218,7 +218,10 @@ export async function endActiveSessionForUser(interaction, cause = 'new_command'
 // Shared: Game sessions — track active sessions, UI message refs, timeouts, and summary embeds.
       try { await postGameSessionEndByIds(interaction.client, guildId, userId, { game: 'Dice War', houseNet: (s.houseNet || 0) }); } catch {}
     }
-    clearActiveSession(guildId, userId);
+    const current = activeSessions.get(k);
+    if (!current || current === s) {
+      clearActiveSession(guildId, userId);
+    }
   } catch (e) {
     console.error('endActiveSessionForUser error:', e);
   }

@@ -144,15 +144,15 @@ export async function postGameSessionEndByIds(client, guildId, userId, { game, h
   } catch (e) { console.error('postGameSessionEndByIds error:', e); }
 }
 
-export async function finalizeSessionUIByIds(client, guildId, userId) {
+export async function finalizeSessionUIByIds(client, guildId, userId, sessionOverride = null) {
   try {
-    const s = activeSessions.get(`${guildId}:${userId}`);
+    const s = sessionOverride || activeSessions.get(`${guildId}:${userId}`);
     if (!s?.msgChannelId || !s?.msgId) return;
     const ch = await client.channels.fetch(s.msgChannelId).catch(() => null);
     if (!ch || !ch.isTextBased()) return;
     const msg = await ch.messages.fetch(s.msgId).catch(() => null);
     if (!msg) return;
-    const { embed, asset } = await buildSessionEndEmbed(guildId, userId);
+    const { embed, asset } = await buildSessionEndEmbed(guildId, userId, s);
     let payload = { embeds: [embed], components: [] };
     if (asset) payload.files = [asset];
     try {
@@ -178,7 +178,7 @@ export async function sweepExpiredSessions(client) {
       const [guildId, userId] = parseKey(key);
       if (!guildId || !userId) { activeSessions.delete(key); continue; }
       try {
-        await finalizeSessionUIByIds(client, guildId, userId);
+        await finalizeSessionUIByIds(client, guildId, userId, s);
         if (s.type === 'ridebus') {
           const st = ridebusGames.get(key);
           const chipsStake = st?.chipsStake || 0;
