@@ -186,6 +186,34 @@ CREATE TABLE IF NOT EXISTS job_shifts (
   result_state TEXT NOT NULL DEFAULT 'PENDING',
   metadata_json TEXT NOT NULL DEFAULT '{}'
 );
+CREATE TABLE IF NOT EXISTS user_interaction_stats (
+  user_id TEXT PRIMARY KEY,
+  total_interactions INTEGER NOT NULL DEFAULT 0,
+  first_interaction_at INTEGER NOT NULL,
+  last_interaction_at INTEGER NOT NULL,
+  last_guild_id TEXT,
+  last_channel_id TEXT,
+  last_type TEXT,
+  last_key TEXT,
+  last_locale TEXT,
+  last_metadata_json TEXT,
+  review_prompt_attempted_at INTEGER,
+  review_prompt_sent_at INTEGER,
+  review_prompt_status TEXT,
+  review_prompt_last_error TEXT
+);
+CREATE TABLE IF NOT EXISTS user_interaction_events (
+  id INTEGER PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  interaction_type TEXT,
+  interaction_key TEXT,
+  guild_id TEXT,
+  channel_id TEXT,
+  locale TEXT,
+  metadata_json TEXT,
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_user_interaction_events_user ON user_interaction_events (user_id, created_at DESC);
 `);
 
 // Migration: add credits column if missing
@@ -474,6 +502,67 @@ function safeParseJson(value) {
   }
 }
 
+function normalizeInteractionStats(row) {
+  if (!row) return null;
+  return {
+    user_id: row.user_id,
+    total_interactions: Number(row.total_interactions || 0),
+    first_interaction_at: row.first_interaction_at != null ? Number(row.first_interaction_at) : null,
+    last_interaction_at: row.last_interaction_at != null ? Number(row.last_interaction_at) : null,
+    last_guild_id: row.last_guild_id || null,
+    last_channel_id: row.last_channel_id || null,
+    last_type: row.last_type || null,
+    last_key: row.last_key || null,
+    last_locale: row.last_locale || null,
+    last_metadata_json: row.last_metadata_json || null,
+    review_prompt_attempted_at: row.review_prompt_attempted_at != null ? Number(row.review_prompt_attempted_at) : null,
+    review_prompt_sent_at: row.review_prompt_sent_at != null ? Number(row.review_prompt_sent_at) : null,
+    review_prompt_status: row.review_prompt_status || null,
+    review_prompt_last_error: row.review_prompt_last_error || null
+  };
+}
+
+const recordUserInteractionTx = db.transaction(details => {
+  const now = Math.floor(Date.now() / 1000);
+  const meta = details?.metadata;
+  const payload = {
+    user_id: String(details.userId),
+    interaction_type: details.interactionType || null,
+    interaction_key: details.interactionKey || null,
+    guild_id: details.guildId ? String(details.guildId) : null,
+    channel_id: details.channelId ? String(details.channelId) : null,
+    locale: details.locale || null,
+    metadata_json: meta == null ? null : (typeof meta === 'string' ? meta : JSON.stringify(meta)),
+    created_at: now,
+    now
+  };
+  insertInteractionEventStmt.run(payload);
+  upsertInteractionStatStmt.run(payload);
+  return normalizeInteractionStats(getInteractionStatStmt.get(payload.user_id));
+});
+
+export function recordUserInteraction(details = {}) {
+  if (!details || !details.userId) return null;
+  return recordUserInteractionTx(details);
+}
+
+export function getUserInteractionStats(userId) {
+  if (!userId) return null;
+  return normalizeInteractionStats(getInteractionStatStmt.get(String(userId)));
+}
+
+export function markUserInteractionReviewPrompt(userId, { status = 'sent', error = null, timestamp = Math.floor(Date.now() / 1000) } = {}) {
+  if (!userId) return null;
+  const ts = Number.isFinite(timestamp) ? Math.floor(timestamp) : Math.floor(Date.now() / 1000);
+  markInteractionReviewPromptStmt.run({
+    user_id: String(userId),
+    ts,
+    status: status || null,
+    error: error || null
+  });
+  return getUserInteractionStats(userId);
+}
+
 const getGuildSettingsStmt = db.prepare('SELECT log_channel_id, cash_log_channel_id, request_channel_id, update_channel_id, request_cooldown_sec, logging_enabled, max_ridebus_bet, casino_category_id, holdem_rake_bps, holdem_rake_cap, kitten_mode_enabled FROM guild_settings WHERE guild_id = ?');
 const ensureGuildSettingsStmt = db.prepare('INSERT OR IGNORE INTO guild_settings (guild_id) VALUES (?)');
 const upsertGuildSettingsStmt = db.prepare(`
@@ -513,6 +602,52 @@ const getApiKeyStmt = db.prepare('SELECT id, guild_id, scopes FROM api_keys WHER
 const insertApiKeyStmt = db.prepare('INSERT INTO api_keys (token, guild_id, scopes) VALUES (?, ?, ?)');
 const deleteApiKeyStmt = db.prepare('DELETE FROM api_keys WHERE token = ?');
 const listApiKeysStmt = db.prepare('SELECT id, token, guild_id, scopes FROM api_keys ORDER BY id DESC');
+
+// User interaction logging
+const insertInteractionEventStmt = db.prepare(`
+  INSERT INTO user_interaction_events (
+    user_id,
+    interaction_type,
+    interaction_key,
+    guild_id,
+    channel_id,
+    locale,
+    metadata_json,
+    created_at
+  ) VALUES (@user_id, @interaction_type, @interaction_key, @guild_id, @channel_id, @locale, @metadata_json, @created_at)
+`);
+const upsertInteractionStatStmt = db.prepare(`
+  INSERT INTO user_interaction_stats (
+    user_id,
+    total_interactions,
+    first_interaction_at,
+    last_interaction_at,
+    last_guild_id,
+    last_channel_id,
+    last_type,
+    last_key,
+    last_locale,
+    last_metadata_json
+  ) VALUES (@user_id, 1, @now, @now, @guild_id, @channel_id, @interaction_type, @interaction_key, @locale, @metadata_json)
+  ON CONFLICT(user_id) DO UPDATE SET
+    total_interactions = user_interaction_stats.total_interactions + 1,
+    last_interaction_at = excluded.last_interaction_at,
+    last_guild_id = COALESCE(excluded.last_guild_id, user_interaction_stats.last_guild_id),
+    last_channel_id = COALESCE(excluded.last_channel_id, user_interaction_stats.last_channel_id),
+    last_type = excluded.last_type,
+    last_key = excluded.last_key,
+    last_locale = COALESCE(excluded.last_locale, user_interaction_stats.last_locale),
+    last_metadata_json = excluded.last_metadata_json
+`);
+const getInteractionStatStmt = db.prepare('SELECT * FROM user_interaction_stats WHERE user_id = ?');
+const markInteractionReviewPromptStmt = db.prepare(`
+  UPDATE user_interaction_stats
+  SET review_prompt_attempted_at = @ts,
+      review_prompt_status = @status,
+      review_prompt_sent_at = CASE WHEN @status = 'sent' THEN @ts ELSE review_prompt_sent_at END,
+      review_prompt_last_error = @error
+  WHERE user_id = @user_id
+`);
 
 // Active requests
 const getActiveReqStmt = db.prepare('SELECT guild_id, user_id, message_id, type, amount, status FROM active_requests WHERE guild_id = ? AND user_id = ?');

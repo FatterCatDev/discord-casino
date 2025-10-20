@@ -254,6 +254,41 @@ async function ensureOnboardingTable() {
   await q('CREATE INDEX IF NOT EXISTS idx_user_onboarding_ack ON user_onboarding (guild_id, acknowledged_at)');
 }
 
+async function ensureInteractionTables() {
+  await q(`
+    CREATE TABLE IF NOT EXISTS user_interaction_stats (
+      user_id TEXT PRIMARY KEY,
+      total_interactions BIGINT NOT NULL DEFAULT 0,
+      first_interaction_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      last_interaction_at TIMESTAMP NOT NULL DEFAULT NOW(),
+      last_guild_id TEXT,
+      last_channel_id TEXT,
+      last_type TEXT,
+      last_key TEXT,
+      last_locale TEXT,
+      last_metadata_json TEXT,
+      review_prompt_attempted_at TIMESTAMP,
+      review_prompt_sent_at TIMESTAMP,
+      review_prompt_status TEXT,
+      review_prompt_last_error TEXT
+    )
+  `);
+  await q(`
+    CREATE TABLE IF NOT EXISTS user_interaction_events (
+      id BIGSERIAL PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      interaction_type TEXT,
+      interaction_key TEXT,
+      guild_id TEXT,
+      channel_id TEXT,
+      locale TEXT,
+      metadata_json TEXT,
+      created_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+  await q('CREATE INDEX IF NOT EXISTS idx_user_interaction_events_user ON user_interaction_events (user_id, created_at DESC)');
+}
+
 async function mergeEconomyToGlobalScope() {
   if (!USE_GLOBAL_ECONOMY) return;
   const gid = ECONOMY_GUILD_ID;
@@ -311,6 +346,7 @@ await mergeEconomyToGlobalScope();
 await ensureAccessControlTables();
 await ensureJobTables();
 await ensureOnboardingTable();
+await ensureInteractionTables();
 
 try {
   if (await tableExists('guild_settings') && !(await tableHasColumn('guild_settings', 'kitten_mode_enabled'))) {
@@ -381,6 +417,155 @@ function mapVoteRow(row) {
     earned_at: Number(row.earned_at || 0),
     metadata: safeParseJson(row.metadata_json)
   };
+}
+
+const INSERT_INTERACTION_EVENT_SQL = `
+  INSERT INTO user_interaction_events (
+    user_id,
+    interaction_type,
+    interaction_key,
+    guild_id,
+    channel_id,
+    locale,
+    metadata_json,
+    created_at
+  ) VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())
+`;
+
+const UPSERT_INTERACTION_STAT_SQL = `
+  INSERT INTO user_interaction_stats (
+    user_id,
+    total_interactions,
+    first_interaction_at,
+    last_interaction_at,
+    last_guild_id,
+    last_channel_id,
+    last_type,
+    last_key,
+    last_locale,
+    last_metadata_json
+  ) VALUES ($1, 1, NOW(), NOW(), $2, $3, $4, $5, $6, $7)
+  ON CONFLICT (user_id) DO UPDATE SET
+    total_interactions = user_interaction_stats.total_interactions + 1,
+    last_interaction_at = NOW(),
+    last_guild_id = COALESCE(EXCLUDED.last_guild_id, user_interaction_stats.last_guild_id),
+    last_channel_id = COALESCE(EXCLUDED.last_channel_id, user_interaction_stats.last_channel_id),
+    last_type = EXCLUDED.last_type,
+    last_key = EXCLUDED.last_key,
+    last_locale = COALESCE(EXCLUDED.last_locale, user_interaction_stats.last_locale),
+    last_metadata_json = EXCLUDED.last_metadata_json
+  RETURNING
+    user_id,
+    total_interactions,
+    EXTRACT(EPOCH FROM first_interaction_at) AS first_interaction_at,
+    EXTRACT(EPOCH FROM last_interaction_at) AS last_interaction_at,
+    last_guild_id,
+    last_channel_id,
+    last_type,
+    last_key,
+    last_locale,
+    last_metadata_json,
+    EXTRACT(EPOCH FROM review_prompt_attempted_at) AS review_prompt_attempted_at,
+    EXTRACT(EPOCH FROM review_prompt_sent_at) AS review_prompt_sent_at,
+    review_prompt_status,
+    review_prompt_last_error
+`;
+
+const SELECT_INTERACTION_STAT_SQL = `
+  SELECT
+    user_id,
+    total_interactions,
+    EXTRACT(EPOCH FROM first_interaction_at) AS first_interaction_at,
+    EXTRACT(EPOCH FROM last_interaction_at) AS last_interaction_at,
+    last_guild_id,
+    last_channel_id,
+    last_type,
+    last_key,
+    last_locale,
+    last_metadata_json,
+    EXTRACT(EPOCH FROM review_prompt_attempted_at) AS review_prompt_attempted_at,
+    EXTRACT(EPOCH FROM review_prompt_sent_at) AS review_prompt_sent_at,
+    review_prompt_status,
+    review_prompt_last_error
+  FROM user_interaction_stats
+  WHERE user_id = $1
+`;
+
+const MARK_REVIEW_PROMPT_SQL = `
+  UPDATE user_interaction_stats
+  SET review_prompt_attempted_at = TO_TIMESTAMP($2),
+      review_prompt_status = $3,
+      review_prompt_sent_at = CASE WHEN $3 = 'sent' THEN TO_TIMESTAMP($2) ELSE review_prompt_sent_at END,
+      review_prompt_last_error = $4
+  WHERE user_id = $1
+  RETURNING
+    user_id,
+    total_interactions,
+    EXTRACT(EPOCH FROM first_interaction_at) AS first_interaction_at,
+    EXTRACT(EPOCH FROM last_interaction_at) AS last_interaction_at,
+    last_guild_id,
+    last_channel_id,
+    last_type,
+    last_key,
+    last_locale,
+    last_metadata_json,
+    EXTRACT(EPOCH FROM review_prompt_attempted_at) AS review_prompt_attempted_at,
+    EXTRACT(EPOCH FROM review_prompt_sent_at) AS review_prompt_sent_at,
+    review_prompt_status,
+    review_prompt_last_error
+`;
+
+function normalizeInteractionStats(row) {
+  if (!row) return null;
+  return {
+    user_id: row.user_id,
+    total_interactions: Number(row.total_interactions || 0),
+    first_interaction_at: row.first_interaction_at != null ? Number(row.first_interaction_at) : null,
+    last_interaction_at: row.last_interaction_at != null ? Number(row.last_interaction_at) : null,
+    last_guild_id: row.last_guild_id || null,
+    last_channel_id: row.last_channel_id || null,
+    last_type: row.last_type || null,
+    last_key: row.last_key || null,
+    last_locale: row.last_locale || null,
+    last_metadata_json: row.last_metadata_json || null,
+    review_prompt_attempted_at: row.review_prompt_attempted_at != null ? Number(row.review_prompt_attempted_at) : null,
+    review_prompt_sent_at: row.review_prompt_sent_at != null ? Number(row.review_prompt_sent_at) : null,
+    review_prompt_status: row.review_prompt_status || null,
+    review_prompt_last_error: row.review_prompt_last_error || null
+  };
+}
+
+export async function recordUserInteraction(details = {}) {
+  if (!details || !details.userId) return null;
+  const userId = String(details.userId);
+  const guildId = details.guildId ? String(details.guildId) : null;
+  const channelId = details.channelId ? String(details.channelId) : null;
+  const interactionType = details.interactionType || null;
+  const interactionKey = details.interactionKey || null;
+  const locale = details.locale || null;
+  const metadataRaw = details.metadata;
+  const metadata = metadataRaw == null ? null : (typeof metadataRaw === 'string' ? metadataRaw : JSON.stringify(metadataRaw));
+
+  const row = await tx(async c => {
+    await c.query(INSERT_INTERACTION_EVENT_SQL, [userId, interactionType, interactionKey, guildId, channelId, locale, metadata]);
+    const { rows } = await c.query(UPSERT_INTERACTION_STAT_SQL, [userId, guildId, channelId, interactionType, interactionKey, locale, metadata]);
+    return rows[0] || null;
+  });
+
+  return normalizeInteractionStats(row);
+}
+
+export async function getUserInteractionStats(userId) {
+  if (!userId) return null;
+  const row = await q1(SELECT_INTERACTION_STAT_SQL, [String(userId)]);
+  return normalizeInteractionStats(row);
+}
+
+export async function markUserInteractionReviewPrompt(userId, { status = 'sent', error = null, timestamp = Math.floor(Date.now() / 1000) } = {}) {
+  if (!userId) return null;
+  const ts = Number.isFinite(timestamp) ? Math.floor(timestamp) : Math.floor(Date.now() / 1000);
+  const row = await q1(MARK_REVIEW_PROMPT_SQL, [String(userId), ts, status || null, error || null]);
+  return normalizeInteractionStats(row);
 }
 
 async function recordTxn(guildId, account, delta, reason, adminId, currency = 'CHIPS') {
