@@ -10,6 +10,7 @@ import 'dotenv/config';
 import {
   getUserBalances,
   transferFromHouseToUser,
+  mintChips,
   getHouseBalance,
   getModerators,
   getAdmins,
@@ -618,6 +619,7 @@ function buildCommandContext(interaction, extras = {}) {
     getUserBalances: (userId) => getUserBalances(guildId, userId),
     burnCredits: (userId, amount, reason, adminId) => burnCredits(guildId, userId, amount, reason, adminId),
     getHouseBalance: () => getHouseBalance(guildId),
+    mintChips: (userId, amount, reason, adminId) => mintChips(guildId, userId, amount, reason, adminId),
     transferFromHouseToUser: (userId, amount, reason, adminId) => transferFromHouseToUser(guildId, userId, amount, reason, adminId),
     takeFromUserToHouse: (userId, amount, reason, adminId) => takeFromUserToHouse(guildId, userId, amount, reason, adminId),
     // Session helpers and state

@@ -5,7 +5,8 @@ import {
   ensureJobProfile,
   updateJobProfile,
   createJobShift,
-  completeJobShift
+  completeJobShift,
+  mintChips
 } from '../db/db.auto.mjs';
 import { getJobStatusForUser, recordShiftCompletion, JOB_SHIFT_STREAK_LIMIT, JOB_SHIFT_RECHARGE_SECONDS } from './status.mjs';
 import { getJobById } from './registry.mjs';
@@ -1346,8 +1347,8 @@ function buildMetadata(session, outcome) {
 }
 
 async function payoutHouse(ctx, guildId, userId, basePay, tipAmount) {
-  let remainingBase = Math.max(0, basePay);
-  let remainingTip = Math.max(0, tipAmount);
+  const remainingBase = Math.max(0, basePay);
+  const remainingTip = Math.max(0, tipAmount);
   if (remainingBase === 0 && remainingTip === 0) {
     return { status: 'NO_PAYOUT', basePaid: 0, tipPaid: 0 };
   }
@@ -1356,22 +1357,32 @@ async function payoutHouse(ctx, guildId, userId, basePay, tipAmount) {
   let basePaid = 0;
   let tipPaid = 0;
 
+  const mint = async (amount, reason) => {
+    if (!amount) return;
+    if (typeof ctx?.mintChips === 'function') {
+      return ctx.mintChips(userId, amount, reason, null);
+    }
+    return mintChips(guildId, userId, amount, reason, null);
+  };
+
   try {
     if (remainingBase > 0) {
-      await ctx.transferFromHouseToUser(userId, remainingBase, 'JOB_SHIFT_PAY', null);
+      await mint(remainingBase, 'JOB_SHIFT_PAY');
       basePaid = remainingBase;
     }
   } catch (err) {
-    status = err?.message === 'INSUFFICIENT_HOUSE' ? 'HOUSE_INSUFFICIENT' : 'ERROR';
+    console.error('job shift base mint failed', err);
+    status = 'ERROR';
     return { status, basePaid: 0, tipPaid: 0, error: err };
   }
 
   if (remainingTip > 0) {
     try {
-      await ctx.transferFromHouseToUser(userId, remainingTip, 'JOB_SHIFT_TIP', null);
+      await mint(remainingTip, 'JOB_SHIFT_TIP');
       tipPaid = remainingTip;
     } catch (err) {
-      status = err?.message === 'INSUFFICIENT_HOUSE' ? 'TIP_SKIPPED' : 'ERROR';
+      console.error('job shift tip mint failed', err);
+      status = 'TIP_SKIPPED';
       tipPaid = 0;
     }
   }
@@ -1386,14 +1397,8 @@ function clampScore(value) {
 function formatPayoutText(ctx, kittenMode, totals, payoutResult) {
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
   const fmt = ctx.chipsAmount || (amount => new Intl.NumberFormat('en-US').format(amount));
-  if (payoutResult.status === 'HOUSE_INSUFFICIENT') {
-    return say(
-      `House bank is low — no chips paid this time (score ${totals.performanceScore}).`,
-      `House bank couldn’t cover the payout. No chips were paid this run.`
-    );
-  }
   if (payoutResult.status === 'ERROR') {
-    return say('Unexpected payout error. No chips transferred.', 'Unexpected payout error prevented a payout.');
+    return say('Unexpected minting error. No chips transferred.', 'Unexpected minting error prevented a payout.');
   }
   const lines = [];
   const hasExplicitCap = totals && Object.prototype.hasOwnProperty.call(totals, 'maxBasePay');
@@ -1411,7 +1416,7 @@ function formatPayoutText(ctx, kittenMode, totals, payoutResult) {
   lines.push(`${emoji('sparkles')} Tip: **${fmt(payoutResult.tipPaid)}** (${totals.tipPercent}%)`);
   lines.push(`${emoji('moneyWings')} Total: **${fmt(payoutResult.basePaid + payoutResult.tipPaid)}**`);
   if (payoutResult.status === 'TIP_SKIPPED') {
-    lines.push(say('Tip skipped — house balance dipped mid-transfer.', 'Tip skipped — house balance dipped mid-transfer.'));
+    lines.push(say('Tip mint skipped — fluff your staff so they can retry soon.', 'Tip mint failed — logged for review.'));
   }
   return lines.join('\n');
 }
@@ -1472,16 +1477,12 @@ async function finalizeShift(interaction, ctx, session) {
     const statusNotes = {
       SUCCESS: { kitten: '', normal: '' },
       TIP_SKIPPED: {
-        kitten: ' — Tip skipped; the vault clenched mid-transfer.',
-        normal: ' — Tip skipped; house balance dipped mid-transfer.'
-      },
-      HOUSE_INSUFFICIENT: {
-        kitten: ' — Vault couldn’t cover the payout; nothing moved.',
-        normal: ' — House couldn’t cover the payout; no chips transferred.'
+        kitten: ' — Tip mint hiccup; logging for a retry.',
+        normal: ' — Tip mint failed; logged for review.'
       },
       ERROR: {
-        kitten: ' — Transfer error logged for review.',
-        normal: ' — Transfer error logged for review.'
+        kitten: ' — Mint error logged for review.',
+        normal: ' — Mint error logged for review.'
       }
     };
     const statusKey = payoutResult.status || 'SUCCESS';
@@ -1497,7 +1498,7 @@ async function finalizeShift(interaction, ctx, session) {
           `Performance: **${performanceScore} / 100**`,
           `Base Tribute: **${formatAmount(payoutResult.basePaid)}**`,
           `Tip Sprinkle (${tipPercent}%): **${formatAmount(payoutResult.tipPaid)}**`,
-          `House Transfer: **${formatAmount(totalPaid)}**${totalLineSuffix}`
+          `Minted Tribute: **${formatAmount(totalPaid)}**${totalLineSuffix}`
         ]
       : [
           `${emoji('briefcase')} **Job Shift Settled**`,
@@ -1505,7 +1506,7 @@ async function finalizeShift(interaction, ctx, session) {
           `Performance: **${performanceScore} / 100**`,
           `Base Pay: **${formatAmount(payoutResult.basePaid)}**`,
           `Tip (${tipPercent}%): **${formatAmount(payoutResult.tipPaid)}**`,
-          `Total Paid: **${formatAmount(totalPaid)}**${totalLineSuffix}`
+          `Chips Minted: **${formatAmount(totalPaid)}**${totalLineSuffix}`
         ];
     try {
       await ctx.postCashLog(interaction, logLines);
@@ -1538,12 +1539,18 @@ async function finalizeShift(interaction, ctx, session) {
     payoutStatus: payoutResult.status,
     shiftStatusField,
     payoutText,
-    extraNotes: payoutResult.status === 'HOUSE_INSUFFICIENT'
+    extraNotes: payoutResult.status === 'TIP_SKIPPED'
       ? [
           session.kittenMode
-            ? `${emoji('warning')} House bank ran low. Try again once the vault is topped off.`
-            : `${emoji('warning')} House balance dropped below the payout. Ask an admin to top it off.`
+            ? `${emoji('warning')} Tip mint hiccup — the base pay landed, the tip will be retried soon.`
+            : `${emoji('warning')} Tip mint hiccup; the base pay landed, but staff will review the tip.`
         ]
+      : payoutResult.status === 'ERROR'
+        ? [
+            session.kittenMode
+              ? `${emoji('warning')} Minting error — no chips moved. Staff has been pinged.`
+              : `${emoji('warning')} Minting error prevented a payout. Staff has been notified.`
+          ]
       : undefined
   });
 
