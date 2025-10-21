@@ -57,13 +57,15 @@ async function inCasinoCategory(interaction, kittenMode) {
 export async function playDiceWar(interaction, ctx, bet) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
-  const cancelAutoAck = scheduleInteractionAck(interaction, { timeout: DICEWAR_ACK_TIMEOUT_MS, mode: 'reply' });
+  const isButton = typeof interaction?.isButton === 'function' && interaction.isButton();
+  const cancelAutoAck = scheduleInteractionAck(interaction, { timeout: DICEWAR_ACK_TIMEOUT_MS, mode: isButton ? 'update' : 'reply' });
   let deferred = false;
-  const deferReplyOnce = async () => {
+  const deferInteractionOnce = async () => {
     if (!deferred && !interaction.deferred && !interaction.replied) {
       cancelAutoAck();
-      if (typeof interaction.deferReply === 'function') {
-        await interaction.deferReply().catch(() => {});
+      const deferFn = isButton ? interaction.deferUpdate : interaction.deferReply;
+      if (typeof deferFn === 'function') {
+        await deferFn.call(interaction).catch(() => {});
       }
       deferred = true;
     }
@@ -124,7 +126,7 @@ export async function playDiceWar(interaction, ctx, bet) {
 
   // Take chip stake from user to house
   if (chipStake > 0) {
-    await deferReplyOnce();
+    await deferInteractionOnce();
     try {
       await takeFromUserToHouse(guildId, interaction.user.id, chipStake, 'dice war buy-in (chips)', interaction.user.id);
     }
@@ -141,7 +143,7 @@ export async function playDiceWar(interaction, ctx, bet) {
   if (playerWins) {
     const winAmount = bet * (doubleWin ? 2 : 1);
     payout = chipStake + winAmount; // return chipStake + winnings
-    await deferReplyOnce();
+    await deferInteractionOnce();
     try {
       await transferFromHouseToUser(guildId, interaction.user.id, payout, 'dice war win', null);
     }
@@ -202,12 +204,13 @@ export async function playDiceWar(interaction, ctx, bet) {
     new ButtonBuilder().setCustomId(`dice|again|${bet}|${interaction.user.id}`).setLabel(say('Play Again, Kitten', 'Play Again')).setEmoji('🎲').setStyle(ButtonStyle.Secondary)
   );
 
-  await deferReplyOnce();
+  await deferInteractionOnce();
   cancelAutoAck();
   const payload = { embeds: [e], components: [again] };
   const art = buildAssetAttachment(DICE_WAR_ASSET);
   if (art) payload.files = [art];
-  return ctx.sendGameMessage(interaction, payload);
+  const mode = isButton ? 'update' : 'auto';
+  return ctx.sendGameMessage(interaction, payload, mode);
 }
 
 export default async function handleDiceWar(interaction, ctx) {
