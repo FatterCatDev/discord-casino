@@ -1,19 +1,20 @@
 # Semuta Casino Bot – Privacy Policy
 
-_Last updated: October 15, 2025_
+_Last updated: October 22, 2025_
 
 Semuta Casino (“the Bot”) is a Discord application that tracks virtual casino gameplay. This Privacy Policy explains what data we collect, how we use it, and the choices available to you.
 
-## 1. Data We Collect
-When you use the Bot, we store the following information:
-- **Discord identifiers**: user IDs, guild IDs, and usernames at the time of the interaction.
-- **Economy records**: chip and credit balances, transaction history, buy-in/cash-out requests, and house ledger movements.
-- **Gameplay data**: active session metadata, job progress, shift history, and minigame results required to settle wagers.
-- **Request workflow data**: request status, moderator actions, and erasure ticket notes (used solely to validate the request).
-- **Vote reward metadata**: vote source, reward amounts, timestamps, and external webhook IDs.
-- **Timestamps & technical logs**: message IDs, interaction IDs, and error logs needed to operate and debug the Bot.
+**At a glance:** we store your Discord IDs, cross-guild wallet balances, gameplay history, vote rewards, staff request tickets, and technical logs so the casino economy works. Submit `/request type:Erase Account Data notes:<reason>` to have that information purged.
 
-We do **not** collect email addresses, passwords, IP addresses, or payment details.
+## 1. Data We Collect
+We store information in the categories below whenever you interact with the Bot:
+- **Identity & guild metadata:** Discord user IDs, guild IDs, usernames, and discriminator data captured at the time of an interaction. We do not collect email addresses, passwords, phone numbers, IP addresses, or payment details.
+- **Economy & reward records:** chip and credit balances, transaction history, buy-in and cash-out requests, House ledger adjustments, vote reward entries (including external vote IDs and webhook payload metadata), and daily spin timestamps.
+- **Gameplay & progression data:** session state, game results, streak counts, job progress (stamina, ranks, shift history, performance scores), leaderboard positions, and moderation decisions tied to your account.
+- **Request workflow data:** `/request` ticket contents, attachments, moderator actions, verification notes, and request timestamps for buy-ins, cash-outs, or privacy requests.
+- **Technical & safety logs:** interaction IDs, message IDs, command payloads, error traces, and security events used to operate, troubleshoot, and secure the Bot. Some commands may send DMs; we log the fact that a DM was sent, not its contents.
+
+Information you provide to moderators outside the Bot (for example, screenshots in a Discord ticket) is governed by that server’s policies; it is not automatically ingested unless staff record it in a `/request`.
 
 ## 2. How We Use the Data
 We process stored data to:
@@ -44,6 +45,12 @@ We rely on your consent and your continued use of the Bot to process data. If yo
 - **Corrections**: If data is inaccurate (e.g. due to a bug), notify a moderator; they may adjust balances or reverse sessions.
 - **Opt-out**: Stop using the Bot and request erasure to remove your data.
 
+### Requesting Data Removal
+1. Run `/request type:Erase Account Data notes:<reason>` in any guild that hosts the Bot. Include enough detail for moderators to verify your identity (for example, confirming your Discord tag or recent activity).
+2. A moderator will review the ticket, confirm ownership, and approve or deny the request. They may contact you for additional verification.
+3. Once approved, the Bot deletes wallet balances, transactions, job progress, vote reward entries, request history, and staff role assignments tied to your Discord ID. Anonymous aggregate stats (for example, total chips in circulation) may be retained for operational reporting.
+4. You will receive confirmation in the request channel when the purge completes.
+
 ## 7. Security
 - Databases run in WAL mode (SQLite) or hosted Postgres with access control. Files are stored in secured directories on the host machine.
 - Access is limited to the project maintainers; credentials are stored in environment variables rather than source control.
@@ -56,6 +63,6 @@ The Bot is intended for users aged 18 and older. If we learn that someone under 
 We may update this Privacy Policy when systems or legal requirements change. Material updates will be announced via the Bot’s update channel or project repository.
 
 ## 10. Contact
-For privacy questions or requests, submit `/request type:Erase Account Data` with details or contact the economy owner (Discord ID `94915805375889408`).
+For privacy questions or requests, submit `/request type:Erase Account Data` with details or contact the economy owner (Discord ID `94915805375889408` or @fattercatdev).
 
 By using Semuta Casino you acknowledge this Privacy Policy and consent to the described processing of your data.
