@@ -158,6 +158,27 @@ Required
 - `CLIENT_ID` – Application (client) ID
 - `GUILD_ID` – Primary guild ID for database defaults and API helpers
 
+Optional (for OAuth login)
+- `DISCORD_CLIENT_ID` – OAuth client ID (defaults to `CLIENT_ID` if omitted)
+- `DISCORD_CLIENT_SECRET` – OAuth client secret used during code exchange
+- `DISCORD_REDIRECT_URI` – Callback URL Discord redirects to after login
+- `DISCORD_OAUTH_SCOPES` – Space-separated scopes (defaults to `identify`)
+- `AUTH_SESSION_SECRET` – HMAC secret for signing encrypted session cookies
+- `AUTH_SESSION_MAX_AGE` – Session lifetime in seconds (defaults to 7 days)
+- `AUTH_COOKIE_NAME` – Cookie name for the signed session (default `semuta_session`)
+- `AUTH_COOKIE_DOMAIN` – Domain attribute for the session cookie
+- `AUTH_COOKIE_SECURE` – Set `false` only for plain HTTP during local dev
+- `OAUTH_SUCCESS_REDIRECT` – URL to send users to after successful login
+- `OAUTH_FAILURE_REDIRECT` – URL for error cases (falls back to success URL)
+- `FRONTEND_BASE_URL` – Used as success redirect fallback
+- `CORS_ORIGINS` – Comma-separated list of origins allowed to send credentials
+
+### OAuth Endpoints
+- `GET /auth/discord` – Redirects users to Discord’s authorization page
+- `GET /auth/discord/callback` – Handles the OAuth code exchange, stores the session cookie, and redirects to the configured success URL
+- `POST /auth/logout` – Clears the session cookie
+- `GET /api/me` – Returns `{ authenticated: boolean, user: {...} }` so the front-end can display avatar and Discord ID
+
 Optional
 - `DB_PATH` – SQLite file path (default `./casino.db`)
 - `OWNER_USER_IDS` – Comma‑separated user IDs with OWNER override for maintenance commands

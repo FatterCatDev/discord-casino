@@ -2,15 +2,283 @@ import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
+import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { lookupApiKey } from '../db/db.auto.mjs';
 import { recordTopggVote, recordDiscordBotListVote, isDiscordBotListWebhookEnabled, verifyDblSignature } from '../services/votes.mjs';
 
 const app = express();
 app.use(helmet());
-app.use(cors());
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || '')
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean);
+const enableCredentialCors = ALLOWED_ORIGINS.length > 0;
+app.use(
+    cors({
+        origin(origin, callback) {
+            if (!origin || ALLOWED_ORIGINS.length === 0) return callback(null, true);
+            if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+            return callback(new Error('Not allowed by CORS'));
+        },
+        credentials: enableCredentialCors,
+    }),
+);
 app.use(express.json());
 app.set('trust proxy', 1);
 app.use(rateLimit({ windowMs: 60_000, max: 120 })); // 120 req/min per IP
+
+const DISCORD_CLIENT_ID = (process.env.DISCORD_CLIENT_ID || process.env.CLIENT_ID || '').trim();
+const DISCORD_CLIENT_SECRET = (process.env.DISCORD_CLIENT_SECRET || '').trim();
+const DISCORD_REDIRECT_URI = (process.env.DISCORD_REDIRECT_URI || '').trim();
+const DISCORD_OAUTH_SCOPES = (process.env.DISCORD_OAUTH_SCOPES || 'identify').trim() || 'identify';
+const AUTH_SESSION_SECRET = (process.env.AUTH_SESSION_SECRET || '').trim();
+const AUTH_COOKIE_NAME = process.env.AUTH_COOKIE_NAME || 'semuta_session';
+const AUTH_COOKIE_DOMAIN = (process.env.AUTH_COOKIE_DOMAIN || '').trim() || undefined;
+const AUTH_COOKIE_SECURE = (process.env.AUTH_COOKIE_SECURE || 'true').toLowerCase() !== 'false';
+const AUTH_SESSION_MAX_AGE =
+    Number.parseInt(process.env.AUTH_SESSION_MAX_AGE || '', 10) || 60 * 60 * 24 * 7; // 7 days
+const OAUTH_SUCCESS_REDIRECT =
+    (process.env.OAUTH_SUCCESS_REDIRECT || process.env.FRONTEND_BASE_URL || '').trim() || '/';
+const OAUTH_FAILURE_REDIRECT = (process.env.OAUTH_FAILURE_REDIRECT || OAUTH_SUCCESS_REDIRECT).trim();
+const OAUTH_STATE_COOKIE = `${AUTH_COOKIE_NAME}_state`;
+
+const oauthEnabled =
+    DISCORD_CLIENT_ID && DISCORD_CLIENT_SECRET && DISCORD_REDIRECT_URI && AUTH_SESSION_SECRET;
+
+if (!oauthEnabled) {
+    console.warn(
+        '[api] Discord OAuth disabled – missing DISCORD_CLIENT_ID, DISCORD_CLIENT_SECRET, DISCORD_REDIRECT_URI, or AUTH_SESSION_SECRET',
+    );
+}
+
+function hmacSign(value) {
+    return createHmac('sha256', AUTH_SESSION_SECRET).update(value).digest('base64url');
+}
+
+function constantTimeEquals(a, b) {
+    const bufA = Buffer.from(a);
+    const bufB = Buffer.from(b);
+    if (bufA.length !== bufB.length) return false;
+    return timingSafeEqual(bufA, bufB);
+}
+
+function setCookie(
+    res,
+    name,
+    value,
+    { maxAge, httpOnly, secure, sameSite = 'Lax', path = '/', domain } = {},
+) {
+    const parts = [`${name}=${value}`];
+    if (maxAge !== undefined) parts.push(`Max-Age=${maxAge}`);
+    if (domain) parts.push(`Domain=${domain}`);
+    if (path) parts.push(`Path=${path}`);
+    if (httpOnly) parts.push('HttpOnly');
+    if (secure ?? AUTH_COOKIE_SECURE) parts.push('Secure');
+    if (sameSite) parts.push(`SameSite=${sameSite}`);
+
+    const existing = res.getHeader('Set-Cookie');
+    if (existing) {
+        const arr = Array.isArray(existing) ? existing : [existing];
+        arr.push(parts.join('; '));
+        res.setHeader('Set-Cookie', arr);
+    } else {
+        res.setHeader('Set-Cookie', parts.join('; '));
+    }
+}
+
+function clearCookie(res, name) {
+    setCookie(res, name, '', { maxAge: 0, httpOnly: true, domain: AUTH_COOKIE_DOMAIN });
+}
+
+function getCookies(req) {
+    const header = req.headers.cookie;
+    if (!header) return {};
+    return header.split(';').reduce((acc, pair) => {
+        const index = pair.indexOf('=');
+        if (index === -1) return acc;
+        const key = pair.slice(0, index).trim();
+        const value = pair.slice(index + 1).trim();
+        if (key) acc[key] = value;
+        return acc;
+    }, {});
+}
+
+function encodeSession(user) {
+    const payload = {
+        user,
+        exp: Date.now() + AUTH_SESSION_MAX_AGE * 1000,
+    };
+    const payloadString = Buffer.from(JSON.stringify(payload)).toString('base64url');
+    const signature = hmacSign(payloadString);
+    return `${payloadString}.${signature}`;
+}
+
+function decodeSession(token) {
+    if (!token || !AUTH_SESSION_SECRET) return null;
+    const [payloadString, signature] = token.split('.');
+    if (!payloadString || !signature) return null;
+    const expected = hmacSign(payloadString);
+    if (!constantTimeEquals(signature, expected)) return null;
+    try {
+        const payload = JSON.parse(Buffer.from(payloadString, 'base64url').toString('utf8'));
+        if (!payload?.exp || Date.now() > payload.exp) return null;
+        return payload;
+    } catch {
+        return null;
+    }
+}
+
+function getSession(req) {
+    const cookies = getCookies(req);
+    if (!cookies[AUTH_COOKIE_NAME]) return null;
+    return decodeSession(cookies[AUTH_COOKIE_NAME]);
+}
+
+function setSession(res, user) {
+    const token = encodeSession(user);
+    setCookie(res, AUTH_COOKIE_NAME, token, {
+        maxAge: AUTH_SESSION_MAX_AGE,
+        httpOnly: true,
+        domain: AUTH_COOKIE_DOMAIN,
+    });
+}
+
+function clearSession(res) {
+    clearCookie(res, AUTH_COOKIE_NAME);
+}
+
+function generateState(res) {
+    const raw = randomBytes(24).toString('base64url');
+    const signed = `${raw}.${hmacSign(raw)}`;
+    setCookie(res, OAUTH_STATE_COOKIE, signed, {
+        maxAge: 300,
+        httpOnly: true,
+        domain: AUTH_COOKIE_DOMAIN,
+    });
+    return raw;
+}
+
+function validateState(req, res, incoming) {
+    if (!incoming) return false;
+    const cookies = getCookies(req);
+    const stored = cookies[OAUTH_STATE_COOKIE];
+    clearCookie(res, OAUTH_STATE_COOKIE);
+    if (!stored) return false;
+    const [raw, signature] = stored.split('.');
+    if (!raw || !signature) return false;
+    const expected = hmacSign(raw);
+    if (!constantTimeEquals(signature, expected)) return false;
+    if (!constantTimeEquals(raw, incoming)) return false;
+    return true;
+}
+
+function buildAvatarUrl(userId, avatarHash) {
+    if (!userId || !avatarHash) return null;
+    const format = avatarHash.startsWith('a_') ? 'gif' : 'png';
+    return `https://cdn.discordapp.com/avatars/${userId}/${avatarHash}.${format}`;
+}
+
+app.get('/auth/discord', (req, res) => {
+    if (!oauthEnabled) return res.status(501).json({ error: 'oauth_disabled' });
+    const state = generateState(res);
+    const params = new URLSearchParams({
+        client_id: DISCORD_CLIENT_ID,
+        redirect_uri: DISCORD_REDIRECT_URI,
+        response_type: 'code',
+        scope: DISCORD_OAUTH_SCOPES,
+        state,
+        prompt: 'consent',
+    });
+    res.redirect(`https://discord.com/oauth2/authorize?${params.toString()}`);
+});
+
+app.get('/auth/discord/callback', async (req, res) => {
+    if (!oauthEnabled) return res.status(501).json({ error: 'oauth_disabled' });
+    const { code, error, state } = req.query;
+
+    if (error) {
+        console.warn('[auth] Discord returned error', error);
+        clearSession(res);
+        return res.redirect(`${OAUTH_FAILURE_REDIRECT}?error=${encodeURIComponent(error)}`);
+    }
+
+    if (typeof code !== 'string' || !code) {
+        clearSession(res);
+        return res.redirect(`${OAUTH_FAILURE_REDIRECT}?error=missing_code`);
+    }
+
+    if (!validateState(req, res, String(state || ''))) {
+        clearSession(res);
+        return res.redirect(`${OAUTH_FAILURE_REDIRECT}?error=invalid_state`);
+    }
+
+    try {
+        const tokenParams = new URLSearchParams({
+            client_id: DISCORD_CLIENT_ID,
+            client_secret: DISCORD_CLIENT_SECRET,
+            grant_type: 'authorization_code',
+            code,
+            redirect_uri: DISCORD_REDIRECT_URI,
+        });
+
+        const tokenResponse = await fetch('https://discord.com/api/oauth2/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: tokenParams.toString(),
+        });
+
+        if (!tokenResponse.ok) {
+            const details = await tokenResponse.text();
+            console.error('[auth] Token exchange failed', tokenResponse.status, details);
+            clearSession(res);
+            return res.redirect(`${OAUTH_FAILURE_REDIRECT}?error=token_exchange_failed`);
+        }
+
+        const tokenData = await tokenResponse.json();
+        const userResponse = await fetch('https://discord.com/api/users/@me', {
+            headers: { Authorization: `Bearer ${tokenData.access_token}` },
+        });
+
+        if (!userResponse.ok) {
+            const details = await userResponse.text();
+            console.error('[auth] Failed to fetch user profile', userResponse.status, details);
+            clearSession(res);
+            return res.redirect(`${OAUTH_FAILURE_REDIRECT}?error=user_fetch_failed`);
+        }
+
+        const profile = await userResponse.json();
+        const user = {
+            id: profile.id,
+            username: profile.username,
+            global_name: profile.global_name ?? null,
+            discriminator: profile.discriminator ?? null,
+            avatar: profile.avatar ?? null,
+            avatar_url: buildAvatarUrl(profile.id, profile.avatar ?? null),
+        };
+
+        setSession(res, user);
+        return res.redirect(OAUTH_SUCCESS_REDIRECT);
+    } catch (err) {
+        console.error('[auth] Discord OAuth callback error:', err);
+        clearSession(res);
+        return res.redirect(`${OAUTH_FAILURE_REDIRECT}?error=server_error`);
+    }
+});
+
+app.post('/auth/logout', (req, res) => {
+    clearSession(res);
+    res.status(204).end();
+});
+
+app.get('/api/me', (req, res) => {
+    if (!oauthEnabled) return res.json({ authenticated: false, user: null });
+    const session = getSession(req);
+    if (!session) {
+        clearSession(res);
+        return res.json({ authenticated: false, user: null });
+    }
+    return res.json({ authenticated: true, user: session.user });
+});
 
 // Auth middleware: Authorization: Bearer <token>
 function auth(requiredScopes = []) {
