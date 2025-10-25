@@ -423,6 +423,7 @@ const upsertDailySpinStmt = db.prepare(`
 
 const ensureUserStmt = db.prepare('INSERT OR IGNORE INTO users (guild_id, discord_id) VALUES (?, ?)');
 const getUserStmt = db.prepare('SELECT chips, credits FROM users WHERE guild_id = ? AND discord_id = ?');
+const findUserGuildStmt = db.prepare('SELECT guild_id FROM users WHERE discord_id = ? ORDER BY updated_at DESC LIMIT 1');
 const addChipsStmt = db.prepare('UPDATE users SET chips = chips + ?, updated_at = CURRENT_TIMESTAMP WHERE guild_id = ? AND discord_id = ?');
 const addCreditsStmt = db.prepare('UPDATE users SET credits = credits + ?, updated_at = CURRENT_TIMESTAMP WHERE guild_id = ? AND discord_id = ?');
 const getUserOnboardingStmt = db.prepare('SELECT acknowledged_at, chips_granted FROM user_onboarding WHERE guild_id = ? AND user_id = ?');
@@ -1638,7 +1639,19 @@ export function getPendingVoteRewards(discordId) {
 export function redeemVoteRewards(guildId, discordId, options = {}) {
   const userId = String(discordId || '').trim();
   if (!userId) throw new Error('VOTE_REWARD_USER_REQUIRED');
-  const gid = resolveGuildId(guildId);
+  let guildHint = guildId;
+  if (typeof guildHint === 'string') {
+    guildHint = guildHint.trim();
+    if (!guildHint) guildHint = null;
+  }
+  if (!USE_GLOBAL_ECONOMY) {
+    const needsLookup = !guildHint || guildHint === DEFAULT_GUILD_ID;
+    if (needsLookup) {
+      const existing = findUserGuildStmt.get(userId);
+      if (existing?.guild_id) guildHint = existing.guild_id;
+    }
+  }
+  const gid = resolveGuildId(guildHint);
   const reason = options?.reason ? String(options.reason) : 'vote reward';
   const adminId = options?.adminId ? String(options.adminId) : null;
   const limit = Number.isInteger(options?.limit) && options.limit > 0 ? options.limit : null;

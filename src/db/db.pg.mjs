@@ -880,7 +880,22 @@ export async function getPendingVoteRewards(discordId) {
 export async function redeemVoteRewards(guildId, discordId, options = {}) {
   const userId = String(discordId || '').trim();
   if (!userId) throw new Error('VOTE_REWARD_USER_REQUIRED');
-  const gid = resolveGuildId(guildId);
+  let guildHint = guildId;
+  if (typeof guildHint === 'string') {
+    guildHint = guildHint.trim();
+    if (!guildHint) guildHint = null;
+  }
+  if (!USE_GLOBAL_ECONOMY) {
+    const needsLookup = !guildHint || guildHint === DEFAULT_GUILD_ID;
+    if (needsLookup) {
+      const existing = await q1(
+        'SELECT guild_id FROM users WHERE discord_id = $1 ORDER BY updated_at DESC LIMIT 1',
+        [userId]
+      );
+      if (existing?.guild_id) guildHint = existing.guild_id;
+    }
+  }
+  const gid = resolveGuildId(guildHint);
   const reason = options?.reason ? String(options.reason) : 'vote reward';
   const adminId = options?.adminId ? String(options.adminId) : null;
   const limit = Number.isInteger(options?.limit) && options.limit > 0 ? options.limit : null;

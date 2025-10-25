@@ -21,6 +21,19 @@ const EXTRA_SITES = parseExtraSites(process.env.VOTE_EXTRA_LINKS);
 const BUILT_SITES = buildVoteSites();
 const SITE_LOOKUP = new Map(BUILT_SITES.map(site => [site.id, site]));
 
+export function normalizeWebhookToken(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const lowered = raw.toLowerCase();
+  const prefixes = ['bearer ', 'token ', 'topgg ', 'bot ', 'key ', 'basic '];
+  for (const prefix of prefixes) {
+    if (lowered.startsWith(prefix)) {
+      return raw.slice(prefix.length).trim();
+    }
+  }
+  return raw;
+}
+
 function toPositiveInt(value, fallback) {
   const num = Number(value);
   if (Number.isInteger(num) && num > 0) return num;
@@ -248,8 +261,9 @@ export function isDiscordBotListWebhookEnabled() {
 
 export function verifyDblSignature(token) {
   if (!DBL_WEBHOOK_SECRET) return false;
-  if (!token) return false;
-  return String(token).trim() === DBL_WEBHOOK_SECRET;
+  const normalized = normalizeWebhookToken(token);
+  if (!normalized) return false;
+  return normalized === DBL_WEBHOOK_SECRET;
 }
 
 export async function recordDiscordBotListVote(payload = {}) {

@@ -1,10 +1,11 @@
+import 'dotenv/config';
 import express from 'express';
 import helmet from 'helmet';
 import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { lookupApiKey } from '../db/db.auto.mjs';
-import { recordTopggVote, recordDiscordBotListVote, isDiscordBotListWebhookEnabled, verifyDblSignature } from '../services/votes.mjs';
+import { recordTopggVote, recordDiscordBotListVote, isDiscordBotListWebhookEnabled, verifyDblSignature, normalizeWebhookToken } from '../services/votes.mjs';
 
 const app = express();
 app.use(helmet());
@@ -13,16 +14,35 @@ const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || '')
     .map(origin => origin.trim())
     .filter(Boolean);
 const enableCredentialCors = ALLOWED_ORIGINS.length > 0;
-app.use(
-    cors({
-        origin(origin, callback) {
-            if (!origin || ALLOWED_ORIGINS.length === 0) return callback(null, true);
-            if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
-            return callback(new Error('Not allowed by CORS'));
-        },
-        credentials: enableCredentialCors,
-    }),
-);
+const corsMiddleware = cors({
+    origin(origin, callback) {
+        if (!origin || ALLOWED_ORIGINS.length === 0) return callback(null, true);
+        if (ALLOWED_ORIGINS.includes(origin)) return callback(null, true);
+        return callback(new Error('Not allowed by CORS'));
+    },
+    credentials: enableCredentialCors,
+});
+function isWebhookPath(pathname) {
+    if (!pathname) return false;
+    return pathname.startsWith('/api/v1/webhooks/');
+}
+function isWebhookPreflight(req) {
+    return req.method === 'OPTIONS' && isWebhookPath(req.path || '');
+}
+app.use((req, res, next) => {
+    if (isWebhookPreflight(req)) {
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+        res.setHeader(
+            'Access-Control-Allow-Headers',
+            req.headers['access-control-request-headers'] || 'authorization,content-type'
+        );
+        return res.status(204).end();
+    }
+    if (isWebhookPath(req.path)) return next();
+    return corsMiddleware(req, res, next);
+});
+app.use(express.urlencoded({ extended: false }));
 app.use(express.json());
 app.set('trust proxy', 1);
 app.use(rateLimit({ windowMs: 60_000, max: 120 })); // 120 req/min per IP
@@ -423,11 +443,14 @@ const TOPGG_WEBHOOK_TOKEN = (process.env.TOPGG_WEBHOOK_AUTH || process.env.TOPGG
 app.post('/api/v1/webhooks/topgg', async (req, res) => {
     console.log('[topgg webhook]', new Date().toISOString(), req.headers['user-agent'], req.body);
     if (!TOPGG_WEBHOOK_TOKEN) return res.status(501).json({ error: 'topgg_webhook_disabled' });
-    const header = String(req.headers.authorization || '').trim();
-    const token = header.startsWith('Bearer ') ? header.slice(7).trim() : header;
-    if (!token || token !== TOPGG_WEBHOOK_TOKEN) return res.status(401).json({ error: 'invalid_token' });
+    const token = normalizeWebhookToken(req.headers.authorization);
+    if (!token || token !== TOPGG_WEBHOOK_TOKEN) {
+        console.warn('[topgg webhook] invalid token', req.headers['user-agent']);
+        return res.status(401).json({ error: 'invalid_token' });
+    }
     try {
         const result = await recordTopggVote(req.body || {});
+        res.setHeader('Access-Control-Allow-Origin', '*');
         res.json({ ok: true, ...result });
     } catch (err) {
         if (err?.message === 'TOPGG_USER_REQUIRED') return res.status(400).json({ error: 'missing_user' });
@@ -438,11 +461,15 @@ app.post('/api/v1/webhooks/topgg', async (req, res) => {
 
 app.post('/api/v1/webhooks/dbl', async (req, res) => {
     if (!isDiscordBotListWebhookEnabled()) return res.status(501).json({ error: 'dbl_webhook_disabled' });
-    const header = String(req.headers.authorization || '').trim();
-    const token = header.startsWith('Bearer ') ? header.slice(7).trim() : header;
-    if (!verifyDblSignature(token)) return res.status(401).json({ error: 'invalid_token' });
+    const token = normalizeWebhookToken(req.headers.authorization);
+    if (!verifyDblSignature(token)) {
+        console.warn('[dbl webhook] invalid token', req.headers['user-agent']);
+        return res.status(401).json({ error: 'invalid_token' });
+    }
     try {
+        console.log('[dbl webhook]', new Date().toISOString(), req.headers['user-agent'], req.body);
         const recorded = await recordDiscordBotListVote(req.body || {});
+        res.setHeader('Access-Control-Allow-Origin', '*');
         res.json({ ok: true, recorded: recorded.length });
     } catch (err) {
         console.error('[api] discordbotlist webhook error:', err);
