@@ -7,7 +7,7 @@ const GENERATORS = {
   bouncer: generateBouncerStages
 };
 
-export function generateStagesForJob(jobId, count = 5) {
+export function generateStagesForJob(jobId, count = 1) {
   const generator = GENERATORS[jobId];
   if (!generator) throw new Error(`Unknown job generator: ${jobId}`);
   return generator(count);

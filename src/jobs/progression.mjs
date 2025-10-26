@@ -2,7 +2,7 @@ import crypto from 'node:crypto';
 
 export const JOB_PAYOUT_DIVISOR = 5;
 
-export const JOB_SHIFT_STAGE_COUNT = 5;
+export const JOB_SHIFT_STAGE_COUNT = 1;
 
 // XP thresholds to reach the next rank (Rank 1 -> 2 etc.)
 export const XP_THRESHOLDS = [

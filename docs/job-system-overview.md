@@ -19,7 +19,7 @@ The job system lets every player earn chips and experience (XP) through skill-ba
 | --- | --- |
 | **Stamina** | You start with **5 charges**. Each shift consumes one. Charges regenerate every 2 hours while below cap. `/job reset` (admin) instantly refills to five. |
 | **Stamina Cooldown** | When charges drop below five, a regen timer starts. `/job` shows remaining time and <t:…:R> tags. |
-| **Shift** | A five-stage minigame tailored to your job. Complete all stages for max XP and chips; failure still grants partial info but reduces score. |
+| **Shift** | A single-scene minigame tailored to your job. Nail the scenario for max XP and chips; failure still grants partial info but reduces score. |
 | **Performance Score** | 0–100 points calculated from accuracy, speed, and penalties. Determines XP + base pay. |
 | **Rank & XP** | Every job tracks rank 1–10. XP to next rank decreases as you earn; promotions increase max base pay. |
 | **Tips** | Random bonus (0–20%) rolled at settlement. Higher performance improves average payouts. |
@@ -69,11 +69,11 @@ The panel is interactive: selecting different buttons triggers instant updates w
 ### ♠️ Card Dealer
 - Evaluate three seats against a community board and choose the winner (or split).
 - Speed bonus: <15 s = 20 pts, <30 s = 18 pts, <40 s = 15 pts; longer times reduce score linearly.
-- Three attempts per table before the stage busts.
+- Three attempts per table before the shift busts.
 
 ### 🚪 Bouncer
 - Review guest checklist (age, dress code, wristband, guest list) and approve/deny the right patrons.
-- Select all valid guests with the dropdown. Three mistakes end the stage.
+- Select all valid guests with the dropdown. Three mistakes end the shift.
 - Feedback recap highlights where you succeeded or missed requirements.
 
 ---
@@ -93,7 +93,7 @@ Incomplete or cancelled shifts still record metadata to the ledger (e.g., `CANCE
 ## Best Practices
 
 - **Pace yourself:** Watch the stamina meter before launching marathon sessions. The panel shows cooldown return times.
-- **Stay accurate:** Each job allows three attempts per stage; rushing misclicks eats attempts faster than waiting a second.
+- **Stay accurate:** Each job allows three attempts per shift; rushing misclicks eats attempts faster than waiting a second.
 - **Coordinate events:** Admins can use `/job reset` to top off participants before contests or double-pay nights.
 - **Check the panel first:** `/job` gives immediate context—no need to remember your current cooldown or last shift.
 
@@ -102,7 +102,7 @@ Incomplete or cancelled shifts still record metadata to the ledger (e.g., `CANCE
 ### Quick Start for Players
 1. Run `/job` and tap the role you want.
 2. Hit **Start Shift** from the panel or use `/job start job:<id>`.
-3. Complete all five stages, watching the embed for instructions and feedback.
+3. Complete the single scenario, watching the embed for instructions and feedback.
 4. Review the completion embed for XP, payout, and stamina updates.
 5. Rinse and repeat when stamina regenerates—or ask an admin for a reset.
 

@@ -706,9 +706,11 @@ const updateJobProfileStmt = db.prepare(`
   WHERE guild_id = ? AND user_id = ? AND job_id = ?
 `);
 
+const DEFAULT_SHIFT_STREAK_COUNT = 5;
+
 const ensureJobStatusStmt = db.prepare(`
   INSERT OR IGNORE INTO job_status (guild_id, user_id, active_job, job_switch_available_at, cooldown_reason, daily_earning_cap, earned_today, cap_reset_at, shift_streak_count, shift_cooldown_expires_at, updated_at)
-  VALUES (?, ?, 'none', 0, NULL, NULL, 0, NULL, 0, 0, strftime('%s','now'))
+  VALUES (?, ?, 'none', 0, NULL, NULL, 0, NULL, ${DEFAULT_SHIFT_STREAK_COUNT}, 0, strftime('%s','now'))
 `);
 const selectJobStatusStmt = db.prepare(`
   SELECT active_job, job_switch_available_at, cooldown_reason, daily_earning_cap, earned_today, cap_reset_at, shift_streak_count, shift_cooldown_expires_at, updated_at
@@ -1375,7 +1377,7 @@ function normalizeJobStatusRow(guildId, userId, row = null) {
     daily_earning_cap: toNullableInt(row?.daily_earning_cap),
     earned_today: toInt(row?.earned_today, 0),
     cap_reset_at: toNullableInt(row?.cap_reset_at),
-    shift_streak_count: toInt(row?.shift_streak_count, 0),
+    shift_streak_count: toInt(row?.shift_streak_count ?? DEFAULT_SHIFT_STREAK_COUNT, DEFAULT_SHIFT_STREAK_COUNT),
     shift_cooldown_expires_at: toInt(row?.shift_cooldown_expires_at, 0),
     updated_at: toInt(row?.updated_at, 0)
   };
@@ -1404,7 +1406,7 @@ export function setJobStatus(guildId, userId, patch = {}) {
     daily_earning_cap: patch.daily_earning_cap === undefined ? (current.daily_earning_cap ?? null) : patch.daily_earning_cap,
     earned_today: toInt(patch.earned_today ?? current.earned_today, 0),
     cap_reset_at: patch.cap_reset_at === undefined ? (current.cap_reset_at ?? null) : patch.cap_reset_at,
-    shift_streak_count: toInt(patch.shift_streak_count ?? current.shift_streak_count, 0),
+    shift_streak_count: toInt(patch.shift_streak_count ?? current.shift_streak_count ?? DEFAULT_SHIFT_STREAK_COUNT, DEFAULT_SHIFT_STREAK_COUNT),
     shift_cooldown_expires_at: toInt(patch.shift_cooldown_expires_at ?? current.shift_cooldown_expires_at, 0)
   };
   updateJobStatusStmt.run(

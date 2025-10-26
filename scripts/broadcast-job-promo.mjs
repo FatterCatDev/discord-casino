@@ -9,7 +9,7 @@ const FALLBACK_MESSAGE = [
   '💼 **Semuta Casino Job System Is Live**',
   '',
   '• Run `/job` to open the new control panel, swap careers, and launch shifts anywhere you play.',
-  '• Bartender, Card Dealer, and Bouncer shifts now stream live updates, art, and five-stage challenges straight into your DMs.',
+  '• Bartender, Card Dealer, and Bouncer shifts now stream live updates, art, and single-stage challenges straight into your DMs.',
   '• Stamina carries across every guild. Charges regen every 2 hours, and admins can top you off for marathons or events.',
   '• Performance grades unlock rank promotions, bigger base pay, and random tip bonuses—score high to climb the global ladder.',
   '',

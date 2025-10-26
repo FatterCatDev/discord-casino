@@ -333,27 +333,19 @@ function buildPartyStage(index, checklist, guests) {
   };
 }
 
-export function generateBouncerStages(count = 5) {
+export function generateBouncerStages(count = 1) {
   const stages = [];
   const usedNames = new Set();
+  const total = Math.max(1, Math.trunc(count));
 
-  for (let i = 0; i < count; i += 1) {
+  for (let i = 0; i < total; i += 1) {
     const checklist = generateChecklist();
-    const [minSize, maxSizeExclusive] = (() => {
-      if (i === 0 || i === 1) return [1, 3];
-      if (i === 2 || i === 3) return [3, 5];
-      if (i === 4) return [5, 7];
-      return [3, 5];
-    })();
-    const size = crypto.randomInt(minSize, maxSizeExclusive);
-    if (size <= 1) {
-      const guestName = sampleName(usedNames);
-      const guest = buildGuest(guestName, checklist);
-      stages.push(buildSingleStage(i, checklist, guest));
-    } else {
-      const guests = Array.from({ length: size }, () => buildGuest(sampleName(usedNames), checklist));
-      stages.push(buildPartyStage(i, checklist, guests));
-    }
+    const guestCount = crypto.randomInt(2, 6); // 2–5 guests inclusive
+    const guests = Array.from({ length: guestCount }, () => buildGuest(sampleName(usedNames), checklist));
+    const stage = buildPartyStage(i, checklist, guests);
+    stage.title = `Checkpoint ${i + 1} (${guestCount} Guests)`;
+    stage.difficulty = guestCount <= 3 ? 'medium' : 'hard';
+    stages.push(stage);
   }
 
   return stages;

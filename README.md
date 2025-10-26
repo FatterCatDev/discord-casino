@@ -1,6 +1,6 @@
 # Discord Casino Bot
 
-Last update: 1.1.3
+Last update: 1.1.4
 
 Invite Bot to your server:
 https://discord.com/oauth2/authorize?client_id=1415454565687492780
@@ -12,7 +12,7 @@ Discord bot for a lightweight casino economy with two currencies and multiple mi
 
 Balances are global: the House bank and user wallets follow players across every guild where the bot runs. Every chip or credit change writes to the same shared ledger—per-server economies are no longer supported. The economy owner (Discord ID `94915805375889408`) retains ultimate control over minting and burning.
 
-Includes slash commands for balances, leaderboards, admin operations, cash/request workflows, logging, a five-stage job system, and the following games: Ride the Bus, Blackjack, Slots, Roulette, Dice War, Horse Race, and a Texas Hold’em table.
+Includes slash commands for balances, leaderboards, admin operations, cash/request workflows, logging, a single-stage job system, and the following games: Ride the Bus, Blackjack, Slots, Roulette, Dice War, Horse Race, and a Texas Hold’em table.
 
 > **Note on UI Icons:** For any player-facing components (buttons, select menus, interactive text), use standard Unicode emojis or plain text. Avoid referencing custom server emojis in interactive UI so the controls render consistently across guilds.
 
@@ -79,7 +79,7 @@ All games except Texas Hold’em use Credits‑first staking: your bet draws fro
 
 Run `/job` inside any guild to open the career board. Shifts, XP, ranks, and cooldowns now follow you globally, so progress carries across every server where you play.
 
-- **Shift flow:** every shift is a five-stage interactive sequence. Completing each prompt on time advances the run; timing out or cancelling ends the attempt and breaks the streak.
+- **Shift flow:** every shift is a single interactive scenario. Respond before the timer to succeed; timing out or cancelling ends the attempt and breaks the streak.
 - **Stamina:** each shift costs one stamina point (max stack of five). You regenerate one stamina every two hours while below the cap.
 - **Burst limits:** players can clear up to five shifts in a burst before stamina triggers a six-hour rest timer.
 - **Rewards:** performance grades award Chips and XP. XP promotes you through job ranks and increases the chip bonus earned at the end of a successful shift.

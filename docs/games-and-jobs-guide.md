@@ -56,28 +56,28 @@ Semuta Casino packs the Discord Casino Bot with fast-paced minigames, global lea
 
 ### Global Job Overview
 - **Command hub:** `/job`
-- **Purpose:** Earn steady chips and XP through five-stage minigames that persist across every server using the bot.
+- **Purpose:** Earn steady chips and XP through single-stage minigames that persist across every server using the bot.
 - **Stamina:** You start with five charges. Each shift consumes one charge; charges regenerate every two hours while under the cap. `/job reset` (admin) can refill you for events.
 - **Ranks & XP:** Each job tracks ranks 1–10 with XP thresholds. Higher ranks raise base payouts and tip ceilings.
 - **Rewards:** After each shift you receive base pay, bonus tips (0–20%), and XP. The bot logs settlements to the configured cash log if enabled.
-- **Session flow:** Launch a shift from the `/job` panel or `/job start job:<id>`, complete all five stages, and review the completion embed for score, earnings, and stamina. Inactivity ends the shift and records an incomplete run.
+- **Session flow:** Launch a shift from the `/job` panel or `/job start job:<id>`, complete the single scenario, and review the completion embed for score, earnings, and stamina. Inactivity ends the shift and records an incomplete run.
 
 ### Bartender
 - **Launch command:** `/job start job:bartender`
 - **Minigame:** Build cocktails by selecting the correct ingredients and finishing technique (shake or stir) before time penalties stack.
-- **Scoring:** Each order offers up to 20 points. Penalties trigger at 5s (−1), 7s (−2), and 15s (−5). Three mistakes end the stage.
+- **Scoring:** Each order is worth up to 100 performance points (scaled from 20). Penalties trigger at 5 s (−1), 7 s (−2), and 15 s (−5). Three mistakes zero the run.
 - **Tips to win:** Read the recipe embed carefully, keep a steady pace, and aim for perfect builds to maximise tip potential.
 
 ### Card Dealer
 - **Launch command:** `/job start job:dealer`
 - **Minigame:** Evaluate three player hands against a community board and choose the winner or call a split.
-- **Scoring:** Answer quickly for bonus points—under 15s earns 20 points, 15–30s earns 18, 30–40s earns 15, and it scales down afterward. You have three attempts per table before the stage busts.
+- **Scoring:** Answer quickly for bonus points—under 15 s earns the full value, 15–30 s drops to 18, 30–40 s to 15, and it scales down afterward. You have up to three attempts before the shift busts.
 - **Tips to win:** Memorise hand rankings, weigh kickers, and double-check splits to avoid penalties.
 
 ### Bouncer
 - **Launch command:** `/job start job:bouncer`
 - **Minigame:** Review a guest checklist (age, dress code, wristband, guest list) and accept or reject the right patrons using a multi-select prompt.
-- **Scoring:** Three mistakes end the stage; accuracy and speed boost the final performance score.
+- **Scoring:** Three mistakes end the shift; accuracy and speed boost the final performance score.
 - **Tips to win:** Cross-reference every requirement, especially wristbands and dress codes, before making a call.
 
 ## Helpful Commands & Resources

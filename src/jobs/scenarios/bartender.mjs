@@ -108,7 +108,7 @@ function buildMenu() {
   return shuffle(menu);
 }
 
-export function generateBartenderShift(stageCount = 5) {
+export function generateBartenderShift(stageCount = 1) {
   const menu = buildMenu();
   const stages = [];
   for (let i = 0; i < stageCount; i += 1) {

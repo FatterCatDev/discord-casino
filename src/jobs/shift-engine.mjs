@@ -1020,7 +1020,7 @@ function buildBouncerStageComponents(session, stage) {
     .setCustomId(`jobshift|${session.sessionId}|approve`)
     .setPlaceholder('Select guests to admit')
     .setMinValues(0)
-    .setMaxValues(Math.min(4, stage.guests.length))
+    .setMaxValues(Math.max(1, Math.min(25, stage.guests.length)))
     .addOptions(stage.guests.map((guest, idx) => ({
       label: guest.name,
       value: guest.name,
@@ -1635,18 +1635,23 @@ async function handleCorrect(interaction, ctx, session, stage, stageState) {
   const elapsedMs = Date.now() - stageState.startedAtMs;
   const bartenderStage = isBartenderStage(stage, session);
   const dealerStage = session.jobId === 'dealer';
+  const totalStages = Math.max(1, session.stages.length);
+  const stageMaxScore = Math.max(1, Math.round(100 / totalStages));
+  const scaleScore = value => Math.max(0, Math.round((Number(value) || 0) * stageMaxScore / 20));
   let totalScore;
   let recordDetails = stage.details || null;
   let recordBase = 0;
   let recordBonus = 0;
   if (bartenderStage) {
     const penalties = Math.max(0, Math.floor(stageState.penalties || 0));
-    totalScore = Math.max(0, 20 - penalties);
+    const rawScore = Math.max(0, 20 - penalties);
+    totalScore = clampScore(scaleScore(rawScore));
     recordBase = totalScore;
     recordDetails = `Time penalties: -${penalties} pts`;
   } else if (dealerStage) {
     const elapsedSeconds = elapsedMs / 1000;
-    totalScore = calculateDealerScore(elapsedMs);
+    const rawScore = calculateDealerScore(elapsedMs);
+    totalScore = clampScore(scaleScore(rawScore));
     recordBase = totalScore;
     recordBonus = 0;
     const timeSummary = `Time: ${formatSeconds(elapsedSeconds)}s`;
@@ -1662,9 +1667,10 @@ async function handleCorrect(interaction, ctx, session, stage, stageState) {
       if (elapsedMs <= 6000) bonus = 2;
       else if (elapsedMs <= 10000) bonus = 1;
     }
-    totalScore = Math.min(20, baseScore + bonus);
-    recordBase = baseScore;
-    recordBonus = bonus;
+    const rawTotal = Math.min(20, baseScore + bonus);
+    totalScore = clampScore(scaleScore(rawTotal));
+    recordBase = scaleScore(baseScore);
+    recordBonus = scaleScore(bonus);
   }
   session.totalScore = clampScore(session.totalScore + totalScore);
   const lastAttempt = stageState.attemptsLog.at(-1);

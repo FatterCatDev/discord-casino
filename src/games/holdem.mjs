@@ -1,7 +1,8 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelType, PermissionFlagsBits } from 'discord.js';
 import crypto from 'node:crypto';
-import { postGameLogByIds } from './logging.mjs';
-import { getGuildSettings, ensureHoldemTable, createHoldemHand, escrowAdd, escrowReturn, escrowCommit, escrowCreditMany, settleRake, finalizeHoldemHand, getEscrowBalance, getUserBalances } from '../db/db.auto.mjs';
+import { postGameLog, postGameLogByIds } from './logging.mjs';
+import { getGuildSettings, ensureHoldemTable, createHoldemHand, escrowAdd, escrowReturn, escrowCommit, escrowCreditMany, settleRake, finalizeHoldemHand, getEscrowBalance, getUserBalances, getHouseBalance } from '../db/db.auto.mjs';
+import { chipsAmount, chipsAmountSigned } from './format.mjs';
 import { emoji } from '../lib/emojis.mjs';
 import { withInsufficientFundsTip } from '../lib/fundsTip.mjs';
 import { applyEmbedThumbnail, buildAssetAttachment } from '../lib/assets.mjs';
@@ -1037,6 +1038,7 @@ async function scheduleNextHand(client, state, result, ms = 10000) {
     if (Number.isFinite(result?.rake) && result.rake > 0) {
       const fmt = new Intl.NumberFormat('en-US');
       const anyUser = (state.seats.find(s => s?.userId)?.userId) || state.hostId || '0';
+      state.houseRakeTotal = (state.houseRakeTotal || 0) + Math.trunc(result.rake);
       postGameLogByIds(client, state.guildId, anyUser, [
         `♣ Holdem Rake: **${fmt.format(result.rake)}**`,
         `Table: <#${state.msgChannelId || state.channelId}>`
@@ -1146,7 +1148,8 @@ export async function hostTable(interaction, ctx, { sb, bb, min, max, cap, rakeB
     toAct: null,
     phase: 'LOBBY',
     needAction: [],
-    tempChannel: true
+    tempChannel: true,
+    houseRakeTotal: 0
     ,originMsgId: null
     ,originMsgChannelId: null
   };
@@ -1233,7 +1236,12 @@ export async function joinTable(interaction, ctx, buyin) {
     const msg = withInsufficientFundsTip('❌ Could not process buy-in (insufficient Chips?).', state?.kittenMode === true);
     return interaction.reply({ content: msg, ephemeral: true });
   }
-  state.seats.push(emptySeat(interaction.user.id, buyin));
+  const seat = emptySeat(interaction.user.id, buyin);
+  seat.buyInTotal = buyin;
+  seat.initialBuyIn = buyin;
+  seat.joinedAt = Date.now();
+  seat.rakeSnapshot = Number(state.houseRakeTotal || 0);
+  state.seats.push(seat);
   try { if (state.closeTimer) { clearTimeout(state.closeTimer); state.closeTimer = null; } } catch {}
   if (state.phase === 'CLOSED') { state.phase = 'LOBBY'; }
   // Update main table card if we have it
@@ -1260,6 +1268,30 @@ export async function leaveTable(interaction, ctx) {
       refunded = bal;
     }
   } catch {}
+  const totalBuyIn = Number.isFinite(seat?.buyInTotal) ? Math.trunc(seat.buyInTotal) : Number.isFinite(seat?.initialBuyIn) ? Math.trunc(seat.initialBuyIn) : Math.trunc(refunded || seat?.stack || 0);
+  const playerNet = Math.trunc(refunded - totalBuyIn);
+  const houseNetForSeat = Math.trunc((state.houseRakeTotal || 0) - (seat?.rakeSnapshot || 0));
+  let playerBalance = null;
+  let houseBalance = null;
+  try {
+    const { chips } = await getUserBalances(guildId, interaction.user.id);
+    playerBalance = Math.trunc(chips || 0);
+  } catch {}
+  try {
+    houseBalance = Math.trunc(await getHouseBalance(guildId));
+  } catch {}
+  try {
+    const tableChannelId = state.msgChannelId || state.channelId;
+    const lines = [
+      `${emoji('pokerSpade')} **Hold’em Table Leave**`,
+      `Table: <#${tableChannelId}>`,
+      `Chips Net: **${chipsAmountSigned(playerNet)}**`,
+      `House Net: **${chipsAmountSigned(houseNetForSeat)}**`,
+      playerBalance !== null ? `Player Balance: **${chipsAmount(playerBalance)}**` : null,
+      houseBalance !== null ? `House Balance: **${chipsAmount(houseBalance)}**` : null
+    ].filter(Boolean);
+    await postGameLog(interaction, lines);
+  } catch (e) { console.error('holdem leave log error:', e); }
   state.seats.splice(idx, 1);
   // If <= 1 player left, go back to lobby UI and transfer ownership
   if (state.seats.length <= 1) {
@@ -1328,6 +1360,7 @@ export async function rebuyAtTable(interaction, ctx, amount) {
     const msg = withInsufficientFundsTip('❌ Could not process rebuy (insufficient Chips?).', state?.kittenMode === true);
     return interaction.reply({ content: msg, ephemeral: true });
   }
+  seat.buyInTotal = (seat.buyInTotal || 0) + amount;
   seat.stack = newStack;
   const embed = buildTableEmbed(state);
   const row = tableButtons(state);
@@ -1623,7 +1656,12 @@ export async function onHoldemJoinModal(interaction, ctx) {
     const msg = withInsufficientFundsTip('❌ Could not process buy-in (insufficient Chips?).', state?.kittenMode === true);
     return interaction.reply({ content: msg, ephemeral: true });
   }
-  state.seats.push(emptySeat(interaction.user.id, buyin));
+  const seat = emptySeat(interaction.user.id, buyin);
+  seat.buyInTotal = buyin;
+  seat.initialBuyIn = buyin;
+  seat.joinedAt = Date.now();
+  seat.rakeSnapshot = Number(state.houseRakeTotal || 0);
+  state.seats.push(seat);
   // Update the main table card
   await updateTableCard(interaction.client, state);
   return interaction.reply({ content: `✅ Seated with **${buyin}**.`, ephemeral: true });

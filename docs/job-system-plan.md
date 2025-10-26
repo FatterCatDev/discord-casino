@@ -2,7 +2,7 @@
 
 ## 1. Finalize Design Specs
 - Document the three launch roles (Bartender, Card Dealer, Bouncer) with lore blurbs, kitten-mode variants, and descriptions of player fantasy.
-- Confirm shift pacing: players can chain up to five shifts back-to-back with no downtime, then enter a 6-hour cooldown before the next burst; target session length remains 60-120 seconds built from five interactive stages.
+- Confirm shift pacing: players can chain up to five shifts back-to-back with no downtime, then enter a 6-hour cooldown before the next burst; target session length remains 45-60 seconds built around a single interactive scenario.
 - Lock the 10-rank ladder (Novice, Trainee, Apprentice, Junior Specialist, Specialist, Senior Specialist, Expert, Veteran, Elite, Master).
 - Publish the XP curve with exponential rank-up thresholds: `xp_to_next(rank) = round(100 * r^(rank-1))` where `r ~ 2.18048`, yielding the sequence `[100, 218, 475, 1,037, 2,261, 4,929, 10,748, 23,435, 51,100]` (total 94,303 XP) and confirm the Rank 10 max pay cap of 100,000 chips.
 - Define the performance grade scale (e.g., Poor <50, Good >=70, Flawless >=95) and its messaging in both personas.
@@ -140,167 +140,75 @@
 - Once stable, deploy migrations, redeploy commands, and push release notes highlighting the new system.
 - After launch, gather telemetry (shift counts, payout distributions) to tune difficulty, tips, and anti-abuse thresholds.
 
-## Dealer Shift: Five-Stage "Best Hand Call"
+## Dealer Shift: Single-Stage "Best Hand Call"
 
 ### Structure
-- Each shift runs across five rounds (stages). Every stage shows the five-card board plus three two-card hands.
-- Players must identify the winner (A/B/C) or the correct split (A+B, A+C, B+C, or all three if forced).
+- Each shift presents one fully revealed community board with three competing seats.
+- Players identify the winning seat (A/B/C) or the valid split (A+B, A+C, B+C, or all three if necessary) using select buttons.
 
-### Scoring Per Stage
-- Base points: 0-18 depending on output.
-- Correct answer on first tap earns the full 18.
-- A second attempt (if allowed) drops to 9; third attempt yields 0 and ends the stage.
-- Speed bonus: up to +2.
-  - Respond within the first 6 seconds -> +2.
-  - Respond within 6-10 seconds -> +1.
-  - After 10 seconds -> +0 (still eligible for the 18 base if correct).
-- Maximum per stage: 20 points.
-
-### Shift Totals
-- Five stages x 20 max = 100-point ceiling.
-- Perfect performance (all five correct on first try with the speed bonus) grants 100 performance points and 100 XP.
-- Partial credit (e.g., one slow answer) scales XP linearly: `xp = performanceScore`.
-
-### Difficulty Mix
-- Stage 1: obvious winner (e.g., straight vs. pair) to ease players in.
-- Stage 2: medium difficulty (two big hands, kicker decides).
-- Stage 3: potential split (identical full houses or straight on board); ensures split buttons see use.
-- Stage 4: advanced read (flush vs. flush, kicker matters; or a sneaky straight from wheel cards).
-- Stage 5: high-stakes finale-could be a rare triple split or a strong hand requiring kicker awareness.
+### Scoring
+- Base score mirrors the classic flow: first-attempt correct answers earn 18 base points, a second attempt drops to 9, and a third misses out completely.
+- A speed bonus of up to +2 applies: respond in under 6 seconds for +2, under 10 seconds for +1, otherwise +0.
+- The stage total (0–20) is scaled to the 0–100 performance range; a flawless, fast answer yields the full 100.
 
 ### Timing & Flow
-- Prompt phase: 4-5 seconds reveal before inputs unlock.
-- Decision window: 18 seconds overall. Timer bar or countdown in embed helps.
-- Immediate feedback after each stage: show all hand ranks and the correct outcome, plus total points so far.
+- Reveal the board for 4–5 seconds before controls unlock.
+- Decision window: 18 seconds with a visible timer bar.
+- Immediate post-shift recap lists hand strengths, the correct outcome, and the performance score.
 
 ### Edge Handling
-- Timeout counts as incorrect: 0 base, no speed bonus.
-- Optional second-chance mode only if you want to give recovering players a shot: lock to one retry per stage with half credit.
-- Record stage-level stats so `/job stats` can highlight toughest scenarios and average reaction time.
+- Timeouts count as incorrect (0 base, no bonus).
+- All answer attempts and timings are logged so `/job stats` can surface toughest boards and average reaction speeds.
 
-### Summary
-- This revised pacing keeps the shift within ~90 seconds, rewards accuracy and quick thinking equally, and makes the 100 XP payout feel earned without being punishing.
-
-## Bartender Shift: Five-Stage "Rush Service"
+## Bartender Shift: Single-Stage "Rush Service"
 
 ### Concept
-- You are behind the bar during a busy night. Every stage presents a cocktail order you must build in the right sequence. Each recipe lists 3-5 steps (ingredients, shake/stir, garnish). You follow prompts using buttons/selects, racing a timer.
+- You are behind the bar during a busy night. Each shift drops one cocktail ticket that must be built in the correct sequence before the patron loses patience.
 
-### Shift Structure
-- Five sequential stages per shift, escalating in complexity.
-- Player sees the order ticket after a brief "order up" reveal. Ingredients appear either as text lists or icon cards.
-- Player must place components in correct order; some stages include mini-events (double orders, rush modifiers, picky VIP).
+### Structure
+- One order per shift, pulled from a recipe registry with difficulty tags and kitten-mode copy.
+- Ingredients, techniques, and garnish actions appear as buttons/select options. Some recipes inject twists (substitutions, double shakes, garnish swaps).
 
-### Stage Scoring
-- Base points: 0-18 per stage.
-- Perfect sequence on first try (no mistakes) yields 18.
-- One misstep but corrected before finishing reduces base to 9.
-- Two or more mistakes zero the stage and you move on after a short penalty.
-- Speed bonus: up to +2 based on completion time from when inputs unlock.
-  - Finish within 6 seconds -> +2.
-  - Finish within 6-10 seconds -> +1.
-  - Beyond 10 seconds -> +0.
-- Maximum per stage: 20, so five perfect stages = 100 points.
+### Scoring
+- Base points: 18 for a flawless build on the first try, 9 after a corrected mistake, 0 if the drink falls apart.
+- Speed bonus: finish within 6 seconds for +2, within 10 seconds for +1, otherwise +0.
+- The combined total scales to the 0–100 performance range; perfect execution hits 100.
 
-### Stage Flow
-- Order Reveal (3-4 seconds): show drink name, flavor notes, and a quick kitten-mode quip.
-- Input Phase (15-18 seconds): ingredients appear on buttons/select options. Player taps/fills them one by one in order; UI confirms placements or flashes if incorrect.
-- Result Reveal: display whether the drink was perfect, acceptable, or botched, plus flavor commentary and the stage score.
+### Flow
+- Order Reveal (3–4 seconds): show drink name, notes, and kitten-mode flavor.
+- Build Phase (up to 18 seconds): player selects steps in order; incorrect picks flash and consume the flawless streak.
+- Result Reveal: showcase success/failure commentary, time taken, and the performance score.
 
-### Stage Difficulty Curve
-- Stage 1: straightforward classic (e.g., "Old Fashioned": sugar -> bitters -> whiskey -> stir -> orange twist).
-- Stage 2: introduce a technique (shake vs. stir) and a garnish to test attention.
-- Stage 3: VIP request - two drinks in parallel. Player alternates steps (system prompts which drink needs the next ingredient).
-- Stage 4: Rush hour - the bar queue introduces a "substitution" event (e.g., menu change mid-build). Player must slot the replacement ingredient without restarting.
-- Stage 5: Signature cocktail with 5+ steps and a temperature cue (e.g., "dry shake, add ice, shake again, double strain, garnish"), testing order memory.
-
-### Interaction Mechanics
-- Buttons represent available actions; once chosen, the option greys out. Wrong choice triggers a quick vibration effect and either deducts points asynchronously or consumes the first-chance perfect streak.
-- Some steps (e.g., "shake for 10 seconds") might require a timed hold or confirmation; incorporate a mini progress bar for flair.
-- Provide a "recipe card" hint by spending a small future penalty (optional toggle). Using the hint locks base score to 9 max.
-
-### Anti-Abuse & Error Handling
-- Timeouts treat the drink as botched (0 base, no speed bonus); shift continues to next stage.
-- Log every mistake type for analytics (misordered ingredient, missed technique, timeout) so balancing adjustments are data-driven.
-- Detect repeated instant-fail patterns and surface an in-game warning or temporary slowdown to deter macro abuse.
-
-### Feedback & Flavor
-- After each stage, embed shows:
-  - Drink image/emojis.
-  - Steps completed, highlight missteps, time taken, and stage score.
-  - House reaction: e.g., "Guest tips generously!" or "Patron sends it back...".
-- Kitten-mode adds playful banter ("You worked that shaker like a dream, Kitten!").
-
-### Integration Notes
-- Maintain a recipe registry with metadata (ingredients, order, difficulty tags, copy text, kitten-mode variations).
-- Store stage state in the session so replays/resumes know which step the player is on if interactions hiccup.
-- After five stages, compute total score (0-100), convert directly to XP, roll tip bonus, deduct house payout, and log shift summary.
+### Variation & Safeguards
+- Recipes rotate between simple classics, technique-heavy signatures, and VIP curveballs.
+- Optional "recipe card" hint halves the achievable base score.
+- Timeouts zero the shift; analytics log mistake types for balancing.
 
 ### Summary
-- This bartending gauntlet mirrors the dealer minigame's pacing while emphasizing memory plus quick execution, matching the 100-point performance model and keeping shifts lively.
+- This quick-fire build captures the original rush energy while fitting the single-stage format, rewarding sharp memory and decisive execution.
 
-## Bouncer Shift: Five-Stage "Queue Control"
+## Bouncer Shift: Single-Stage "Queue Control"
 
 ### Premise
-- You are working the velvet rope on a busy night. Each stage shows a line of guests with IDs and behavior cues. Decide who gets in - or who must be turned away - while keeping the queue moving.
+- You are working the velvet rope on a busy night. One lineup of guests approaches with mixed credentials—decide who gets in without letting the queue explode.
 
-### Shift Layout
-- Five stages per shift, each a mini-scenario with 3-5 queued guests.
-- Players review each guest's profile (name, age, attire, membership status, notes) and cross-check against venue rules.
-- Mixed in are random events - fake IDs, VIP arrivals, rowdy patrons - that demand different responses.
+### Structure
+- One scenario per shift featuring 2–5 guests and a rules briefing (age limit, dress code, VIP wristbands, bans).
+- Guests disclose name, age, attire, wristband color, and guest-list status; some scenarios inject fake IDs, VIP overrides, or crowd caps.
 
-### Stage Scoring
-- Each stage is worth up to 18 base points plus a 2-point speed bonus.
-- Base scoring splits across the queue: every correct admit/deny is worth proportional points (e.g., 18 / guest count). Wrong calls zero that slice.
-- If the player issues a "secondary check" (see below) and corrects themselves before committing, halve the points for that guest.
-- Speed bonus applies if the entire queue is processed quickly:
-  - Finish the stage within 20 seconds -> +2.
-  - Finish within 30 seconds -> +1.
-  - Beyond 30 seconds -> +0.
-- Total shift perfect score: 100 (five flawless stages with speed bonus).
+### Scoring
+- Base score (18) is divided among each guest’s decision. Correct admit/deny keeps that slice; mistakes zero it.
+- Using an escalation/secondary check halves the slice but can save points.
+- Speed bonus: clear the entire queue within 20 seconds for +2, within 30 seconds for +1, otherwise +0. Total scales to 0–100.
 
-### Stage Flow
-- Briefing (3-4 seconds): display nightly rules or special alerts (e.g., "Under 21 must be denied", "VIPs have gold wristbands").
-- Queue Processing (up to 30 seconds): guests appear one at a time. Player chooses among:
-  - Admit
-  - Deny
-  - Escalate (call manager / request secondary check)
-- Result Summary: show correct decision, reasoning, and stage score breakdown.
-
-### Guest Data & Mechanics
-- Each guest card includes: age, ID photo vs. live photo (subtle differences), membership indicator, dress code compliance, behavioral tag (calm, aggressive), and extras (e.g., "plus one", "already inside earlier").
-- Randomized rule list per shift: combination of age limits, dress code, banned individuals, maximum crowd count, etc.
-- Fake ID detection: mismatched details (birth date vs. issue date), suspicious hologram notes, or names on a ban list.
-- VIP exceptions: certain guests override standard rules if recognized or accompanied by a host; missing them costs significant points.
-- Escalate option: reveals a hint or double-check result after a short delay. If used, any resulting points are halved; denies speed bonus for that stage.
-
-### Special Event Stages
-- Stage 1: introductory - simple age/dress decisions.
-- Stage 2: introduces fake IDs or mismatched attire to teach spotting.
-- Stage 3: crowd limit reached; player must deny even otherwise valid guests once capacity hits max.
-- Stage 4: VIP suite night - allow only approved list; others need reservations.
-- Stage 5: security alert - watch for a specific banned guest in disguise; includes a multi-step escalation option.
-
-### Interaction Handling
-- Buttons for admit/deny/escalate; escalate opens a modal or follow-up with additional info (manager response).
-- If player hesitates beyond 10 seconds on a guest, flash a warning ("Queue growing impatient!") and deduct a small time penalty from base points.
-- Allow a "review guest" button to re-read profile, but it consumes precious time (encourages quick decisions).
-
-### Feedback & Copy
-- After each stage, show:
-  - Who was rightly/wrongly admitted or denied, with rationale.
-  - Patron reactions (grateful VIP, angry denied guest) for flavor and kitten-mode quips.
-  - Stage score, speed bonus, and cumulative total.
-- Kitten-mode versions add playful tone ("You sniffed out that fake like a pro, Kitten!").
+### Flow
+- Briefing (3–4 seconds) sets nightly rules.
+- Decision Phase (up to 30 seconds): select which guests to admit via multi-select. Confirm with **Continue**.
+- Result Summary: recap every guest, highlight misses, and explain the final score.
 
 ### Safeguards & Analytics
-- Track misclassification counts, timeouts, and overuse of escalations to tune difficulty.
-- Prevent farming by enforcing the 8-hour shift cooldown and logging patterns of repeated instant decisions.
-- If the player times out on the entire stage, assign 0 base/bonus and move on; log as "queue collapse" for stats.
-
-### Post-Shift Wrap-up
-- Sum all stage points to performance score (0-100), award equal XP, then roll tip bonus and payout from house.
-- Store each guest decision (timestamp, choice, correctness, escalation use) in the shift log for auditing and balancing.
+- Timeouts treat the queue as collapsed (0 base, no bonus).
+- Logs capture decision accuracy, escalations, and timing to tune difficulty and detect abuse.
 
 ### Summary
-- This bouncer/security design emphasizes observation, rule adherence, and quick judgement, complements the dealer and bartender challenges, and slots neatly into the existing 5-stage/100-point shift framework.
+- The single-stage lineup keeps the observation puzzle intact while matching the new pacing—quick reads, sharp rule recall, and decisive calls earn perfect marks.

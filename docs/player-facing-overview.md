@@ -29,7 +29,7 @@ The Discord Casino Bot turns any server into a cross-guild casino lounge with a 
 - **Texas Hold’em** – Host a private table with automatic channel setup, turn timers, side pots, and rake readouts.
 
 ## Jobs & Progression
-- Three launch jobs—Bartender, Dealer, and Bouncer—deliver five-stage skill tests that pay chips based on accuracy and speed.
+- Three launch jobs—Bartender, Dealer, and Bouncer—deliver single-stage skill tests that pay chips based on accuracy and speed.
 - Stamina charges regenerate every two hours. Spend them wisely to push for perfect scores and higher XP.
 - Each job tracks its own rank ladder. Promotions unlock heftier guaranteed payouts and better tip ceilings.
 - The `/job` panel shows stamina, recent shifts, role-specific stats, and quick-start buttons so you can jump into your next shift instantly.

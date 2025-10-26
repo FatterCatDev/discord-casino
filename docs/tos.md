@@ -11,7 +11,7 @@ Semuta Casino (the “Bot”) is a Discord application that delivers virtual cas
 
 ## 2. Service Description
 - The Bot powers Semuta Casino’s shared economy, including Chips, Credits, global leaderboards, buy-in/cash-out requests, and the house vault operated by the economy owner.
-- Entertainment features include slash-command games (Ride the Bus, Blackjack, Slots, Roulette, Dice War, Horse Race, Texas Hold’em), the five-stage job system (Bartender, Dealer, Bouncer), daily and vote rewards, and logging dashboards for moderators.
+- Entertainment features include slash-command games (Ride the Bus, Blackjack, Slots, Roulette, Dice War, Horse Race, Texas Hold’em), the single-stage job system (Bartender, Dealer, Bouncer), daily and vote rewards, and logging dashboards for moderators.
 - Sessions, payouts, and job rewards are calculated automatically. Gameplay data, session summaries, and request updates may be posted to configured log channels for transparency.
 - Maintain access to Discord’s API and to the Bot itself is not guaranteed. Features may change, pause, or be removed at the maintainers’ discretion.
 

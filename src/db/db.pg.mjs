@@ -1275,8 +1275,10 @@ function nullableInt(value) {
   return Math.trunc(num);
 }
 
+const DEFAULT_SHIFT_STREAK_COUNT = 5;
+
 async function ensureJobStatusRow(guildId, userId) {
-  await q('INSERT INTO job_status (guild_id, user_id) VALUES ($1, $2) ON CONFLICT (guild_id, user_id) DO NOTHING', [guildId, userId]);
+  await q('INSERT INTO job_status (guild_id, user_id, shift_streak_count) VALUES ($1, $2, $3) ON CONFLICT (guild_id, user_id) DO NOTHING', [guildId, userId, DEFAULT_SHIFT_STREAK_COUNT]);
 }
 
 function normalizeJobStatusRow(guildId, userId, row = {}) {
@@ -1289,7 +1291,7 @@ function normalizeJobStatusRow(guildId, userId, row = {}) {
     daily_earning_cap: nullableInt(row?.daily_earning_cap),
     earned_today: intValue(row?.earned_today, 0),
     cap_reset_at: nullableInt(row?.cap_reset_at),
-    shift_streak_count: intValue(row?.shift_streak_count, 0),
+    shift_streak_count: intValue(row?.shift_streak_count ?? DEFAULT_SHIFT_STREAK_COUNT, DEFAULT_SHIFT_STREAK_COUNT),
     shift_cooldown_expires_at: intValue(row?.shift_cooldown_expires_at, 0),
     updated_at: intValue(row?.updated_at, 0)
   };
@@ -1324,7 +1326,7 @@ export async function setJobStatus(guildId, userId, patch = {}) {
     daily_earning_cap: patch.daily_earning_cap === undefined ? (current.daily_earning_cap ?? null) : patch.daily_earning_cap,
     earned_today: intValue(patch.earned_today ?? current.earned_today, 0),
     cap_reset_at: patch.cap_reset_at === undefined ? (current.cap_reset_at ?? null) : patch.cap_reset_at,
-    shift_streak_count: intValue(patch.shift_streak_count ?? current.shift_streak_count, 0),
+    shift_streak_count: intValue(patch.shift_streak_count ?? current.shift_streak_count ?? DEFAULT_SHIFT_STREAK_COUNT, DEFAULT_SHIFT_STREAK_COUNT),
     shift_cooldown_expires_at: intValue(patch.shift_cooldown_expires_at ?? current.shift_cooldown_expires_at, 0)
   };
   await q(

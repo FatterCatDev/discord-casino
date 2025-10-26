@@ -175,8 +175,8 @@ export function buildHelpSections({ kittenMode = false, isMod = false, isSetupAd
     menuEmoji: '💼',
     color: DEFAULT_COLOR,
     description: say(
-      'Each shift is a five-stage performance. Spend stamina to work up to five back-to-back, then rest those paws for six hours.',
-      'Each shift runs five stages. Stamina refills every few hours while you’re below cap, so pace your streaks.'
+      'Each shift is a single quick challenge. Spend stamina to chain up to five back-to-back, then rest those paws for six hours.',
+      'Each shift is a single quick challenge. Stamina refills every few hours while you’re below cap, so pace your streaks.'
     ),
     groups: [
       {
@@ -194,8 +194,8 @@ export function buildHelpSections({ kittenMode = false, isMod = false, isSetupAd
             emoji: emoji('sparkles'),
             cmd: '/job start job:<id>',
             desc: say(
-              'Pick a role and sprint through a five-stage shift for XP, streak rewards, and chip payouts — stamina required.',
-              'Pick a role and run a five-stage shift for XP, streak rewards, and chip payouts. Each shift spends stamina.'
+              'Pick a role and tackle a one-stage shift for XP, streak rewards, and chip payouts — stamina required.',
+              'Pick a role and tackle a one-stage shift for XP, streak rewards, and chip payouts. Each shift spends stamina.'
             )
           },
           {
@@ -244,8 +244,8 @@ export function buildHelpSections({ kittenMode = false, isMod = false, isSetupAd
             emoji: emoji('map'),
             cmd: say('Stage Flow', 'Stage Flow'),
             desc: say(
-              'Each shift has five interactive stages; missing the timer flops the run and ends the streak.',
-              'Each shift has five interactive stages; timing out ends the run and breaks the streak.'
+              'Each shift has one interactive scene; miss the timer and the run flops, ending the streak.',
+              'Each shift has one interactive scene; timing out ends the run and breaks the streak.'
             )
           }
         ]

@@ -31,6 +31,14 @@ async function ensureStatusRecord(guildId, userId, status, nowSeconds) {
   const updates = {};
   let changed = false;
 
+  if (charges <= 0 && nextRechargeAt === 0 && !reason) {
+    charges = JOB_SHIFT_STREAK_LIMIT;
+    updates.shift_streak_count = charges;
+    updates.shift_cooldown_expires_at = 0;
+    updates.cooldown_reason = null;
+    changed = true;
+  }
+
   if (reason.startsWith('SHIFT_STREAK')) {
     updates.cooldown_reason = null;
     changed = true;
