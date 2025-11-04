@@ -98,6 +98,12 @@ CREATE TABLE IF NOT EXISTS vote_rewards (
   claimed_at INTEGER,
   claim_guild_id TEXT
 );
+CREATE TABLE IF NOT EXISTS bot_status_snapshots (
+  id TEXT PRIMARY KEY,
+  guild_count INTEGER NOT NULL DEFAULT 0,
+  player_count INTEGER NOT NULL DEFAULT 0,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 CREATE TABLE IF NOT EXISTS active_requests (
   guild_id TEXT NOT NULL,
   user_id TEXT NOT NULL,
@@ -475,6 +481,15 @@ const countDistinctUsersStmt = db.prepare('SELECT COUNT(DISTINCT discord_id) AS 
 const listAllUserIdsStmt = db.prepare('SELECT DISTINCT discord_id FROM users ORDER BY discord_id ASC');
 const resetUsersStmt = db.prepare('UPDATE users SET chips = 0, credits = 100, updated_at = CURRENT_TIMESTAMP WHERE guild_id = ?');
 const resetHouseExactStmt = db.prepare('UPDATE guild_house SET chips = 0, updated_at = CURRENT_TIMESTAMP WHERE guild_id = ?');
+const upsertBotStatusSnapshotStmt = db.prepare(`
+  INSERT INTO bot_status_snapshots (id, guild_count, player_count, updated_at)
+  VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+  ON CONFLICT(id) DO UPDATE SET
+    guild_count = excluded.guild_count,
+    player_count = excluded.player_count,
+    updated_at = CURRENT_TIMESTAMP
+`);
+const getBotStatusSnapshotStmt = db.prepare('SELECT guild_count, player_count, updated_at FROM bot_status_snapshots WHERE id = ?');
 
 function resolveGuildId(guildId) {
   if (USE_GLOBAL_ECONOMY) return ECONOMY_GUILD_ID;
@@ -1435,6 +1450,23 @@ export function resetAllBalances(guildId) {
     return { guildId: gid, usersBefore, usersUpdated, house: houseRow(gid).chips };
   });
   return run();
+}
+
+export function setBotStatusSnapshot({ guildCount, playerCount }) {
+  const guilds = Number.isFinite(Number(guildCount)) ? Number(guildCount) : 0;
+  const players = Number.isFinite(Number(playerCount)) ? Number(playerCount) : 0;
+  upsertBotStatusSnapshotStmt.run('global', guilds, players);
+  return { guildCount: guilds, playerCount: players };
+}
+
+export function getBotStatusSnapshot() {
+  const row = getBotStatusSnapshotStmt.get('global');
+  if (!row) return null;
+  return {
+    guildCount: Number(row.guild_count || 0),
+    playerCount: Number(row.player_count || 0),
+    updatedAt: row.updated_at ? new Date(row.updated_at) : null,
+  };
 }
 
 export function getHouseBalance(guildId) {

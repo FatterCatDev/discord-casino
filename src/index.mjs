@@ -20,7 +20,9 @@ import {
   grantUserOnboardingBonus,
   markUserOnboardingAcknowledged,
   recordUserInteraction,
-  markUserInteractionReviewPrompt
+  markUserInteractionReviewPrompt,
+  getGlobalPlayerCount,
+  setBotStatusSnapshot
 } from './db/db.auto.mjs';
 import { formatChips, chipsAmount } from './games/format.mjs';
 import {
@@ -316,6 +318,17 @@ const client = new Client({
 client.botVersion = BOT_VERSION;
 client.pushUpdateAnnouncement = (guildId, details = {}) => pushUpdateAnnouncement(client, guildId, details);
 
+async function pushBotStatusSnapshot(reason = 'manual') {
+  if (!client?.isReady?.()) return;
+  try {
+    const guildCount = client.guilds.cache.size;
+    const playerCount = await getGlobalPlayerCount();
+    await setBotStatusSnapshot({ guildCount, playerCount });
+  } catch (err) {
+    console.error('[metrics] failed to update bot status snapshot', reason, err);
+  }
+}
+
 const OWNER_USER_SET = new Set(OWNER_USER_IDS);
 const GUILD_WELCOME_WINDOW_MS = 5 * 60 * 1000;
 const guildWelcomeSent = new Set();
@@ -446,6 +459,11 @@ async function isModerator(interaction) {
 
 client.once(Events.ClientReady, c => {
   console.log(`Ready! Logged in as ${c.user.tag}`);
+  pushBotStatusSnapshot('ready').catch(() => {});
+  const botStatusIntervalMs = Math.max(30_000, Number(process.env.BOT_STATUS_SNAPSHOT_INTERVAL_MS || 120_000));
+  setInterval(() => {
+    pushBotStatusSnapshot('interval').catch(() => {});
+  }, botStatusIntervalMs);
   // Periodically sweep inactive game sessions and finalize them
   setInterval(() => { sweepExpiredSessionsMod(client).catch(() => {}); }, 15 * 1000);
   // On startup, sweep orphan Hold'em table channels under the casino category
@@ -527,6 +545,11 @@ client.on(Events.GuildCreate, async (guild) => {
   } catch (err) {
     console.error(`Failed to process guildCreate welcome for guild ${guild?.id}`, err);
   }
+  pushBotStatusSnapshot('guild_create').catch(() => {});
+});
+
+client.on(Events.GuildDelete, (guild) => {
+  pushBotStatusSnapshot('guild_delete').catch(() => {});
 });
 
 client.on(Events.GuildAuditLogEntryCreate, async (entry, guild) => {

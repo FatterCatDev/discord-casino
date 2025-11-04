@@ -289,6 +289,17 @@ async function ensureInteractionTables() {
   await q('CREATE INDEX IF NOT EXISTS idx_user_interaction_events_user ON user_interaction_events (user_id, created_at DESC)');
 }
 
+async function ensureBotStatusTable() {
+  await q(`
+    CREATE TABLE IF NOT EXISTS bot_status_snapshots (
+      id TEXT PRIMARY KEY,
+      guild_count INTEGER NOT NULL DEFAULT 0,
+      player_count INTEGER NOT NULL DEFAULT 0,
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+}
+
 async function mergeEconomyToGlobalScope() {
   if (!USE_GLOBAL_ECONOMY) return;
   const gid = ECONOMY_GUILD_ID;
@@ -347,6 +358,7 @@ await ensureAccessControlTables();
 await ensureJobTables();
 await ensureOnboardingTable();
 await ensureInteractionTables();
+await ensureBotStatusTable();
 
 try {
   if (await tableExists('guild_settings') && !(await tableHasColumn('guild_settings', 'kitten_mode_enabled'))) {
@@ -1546,6 +1558,29 @@ export async function resetAllBalances(guildId) {
     await c.query('UPDATE guild_house SET chips = 0, updated_at = NOW() WHERE guild_id = $1', [gid]);
     return { guildId: gid, usersBefore: before, usersUpdated: updated.rowCount || 0, house: 0 };
   });
+}
+
+export async function setBotStatusSnapshot({ guildCount, playerCount }) {
+  const guilds = Number.isFinite(Number(guildCount)) ? Number(guildCount) : 0;
+  const players = Number.isFinite(Number(playerCount)) ? Number(playerCount) : 0;
+  await q(
+    `INSERT INTO bot_status_snapshots (id, guild_count, player_count, updated_at)
+     VALUES ('global', $1, $2, NOW())
+     ON CONFLICT (id)
+     DO UPDATE SET guild_count = EXCLUDED.guild_count, player_count = EXCLUDED.player_count, updated_at = NOW()`,
+    [guilds, players]
+  );
+  return { guildCount: guilds, playerCount: players };
+}
+
+export async function getBotStatusSnapshot() {
+  const row = await q1('SELECT guild_count, player_count, updated_at FROM bot_status_snapshots WHERE id = $1', ['global']);
+  if (!row) return null;
+  return {
+    guildCount: Number(row.guild_count || 0),
+    playerCount: Number(row.player_count || 0),
+    updatedAt: row.updated_at ? new Date(row.updated_at) : null,
+  };
 }
 
 export const __DB_DRIVER = 'pg';

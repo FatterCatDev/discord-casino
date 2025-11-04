@@ -11,7 +11,7 @@ import {
   setJobStatus
 } from '../db/db.auto.mjs';
 import { rankTitle } from '../jobs/ranks.mjs';
-import { xpToNextForRank } from '../jobs/progression.mjs';
+import { xpToNextForRank, maxBasePayForRank } from '../jobs/progression.mjs';
 import { startJobShift, cancelActiveShiftForUser } from '../jobs/shift-engine.mjs';
 
 const JOB_STATUS_COLORS = {
@@ -113,6 +113,18 @@ function profileSummaryLines(job, profile, say) {
   return lines.join('\n');
 }
 
+function buildPayTableLines(profile) {
+  const currentRank = Math.max(1, Math.min(10, Number(profile?.rank ?? 1) || 1));
+  const chipsIcon = emoji('chips');
+  const formatter = new Intl.NumberFormat('en-US');
+  return Array.from({ length: 10 }, (_, idx) => {
+    const rank = idx + 1;
+    const rankLabel = rank === currentRank ? `**Rank ${rank}**` : `Rank ${rank}`;
+    const payAmount = formatter.format(maxBasePayForRank(rank));
+    return `${rankLabel} — ${chipsIcon} ${payAmount}`;
+  });
+}
+
 export async function fetchProfiles(guildId, userId) {
   const existing = await listJobProfilesForUser(guildId, userId);
   const map = new Map(existing.map(p => [p.jobId || p.job_id, p]));
@@ -199,17 +211,9 @@ function buildJobStatusJobEmbed(kittenMode, status, profile, job, shifts, nowSec
       }
     );
 
-  if (Array.isArray(job.highlights) && job.highlights.length) {
-    embed.addFields({
-      name: say('Highlights', 'Highlights'),
-      value: job.highlights.map(item => `• ${item}`).join('\n')
-    });
-  }
-
-  const recentLines = formatRecentShiftLines(shifts, say, { limit: 3, jobId: job.id });
   embed.addFields({
-    name: say('Recent Shifts', 'Recent Shifts'),
-    value: recentLines.join('\n')
+    name: say('Pay Table', 'Pay Table'),
+    value: buildPayTableLines(profile).join('\n')
   });
   return embed;
 }

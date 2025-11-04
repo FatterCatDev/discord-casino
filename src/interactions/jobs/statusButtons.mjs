@@ -76,6 +76,10 @@ export default async function handleJobStatusButtons(interaction, ctx) {
   try {
     await interaction.update(payloadData);
   } catch (err) {
+    if (err?.code === 10062) {
+      console.warn('job status button interaction token expired', err);
+      return true;
+    }
     console.error('job status button update failed', err);
     if (!interaction.replied && !interaction.deferred) {
       await interaction.reply({
