@@ -219,6 +219,13 @@ CREATE TABLE IF NOT EXISTS user_interaction_events (
   metadata_json TEXT,
   created_at INTEGER NOT NULL
 );
+CREATE TABLE IF NOT EXISTS user_news_settings (
+  user_id TEXT PRIMARY KEY,
+  news_opt_in INTEGER NOT NULL DEFAULT 1,
+  last_delivered_at INTEGER,
+  last_digest TEXT,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 CREATE INDEX IF NOT EXISTS idx_user_interaction_events_user ON user_interaction_events (user_id, created_at DESC);
 `);
 
@@ -413,13 +420,11 @@ try {
   }
 } catch {}
 
-const getModUsersStmt = db.prepare('SELECT user_id FROM mod_users WHERE guild_id = ?');
+const getAllModUsersStmt = db.prepare('SELECT DISTINCT user_id FROM mod_users');
 const insertModUserStmt = db.prepare('INSERT OR IGNORE INTO mod_users (guild_id, user_id) VALUES (?, ?)');
-const removeModUserStmt = db.prepare('DELETE FROM mod_users WHERE guild_id = ? AND user_id = ?');
 
-const getAdminUsersStmt = db.prepare('SELECT user_id FROM admin_users WHERE guild_id = ?');
+const getAllAdminUsersStmt = db.prepare('SELECT DISTINCT user_id FROM admin_users');
 const insertAdminUserStmt = db.prepare('INSERT OR IGNORE INTO admin_users (guild_id, user_id) VALUES (?, ?)');
-const removeAdminUserStmt = db.prepare('DELETE FROM admin_users WHERE guild_id = ? AND user_id = ?');
 const getDailySpinStmt = db.prepare('SELECT last_ts FROM daily_spin_last WHERE guild_id = ? AND user_id = ?');
 const upsertDailySpinStmt = db.prepare(`
   INSERT INTO daily_spin_last (guild_id, user_id, last_ts)
@@ -436,6 +441,20 @@ const getUserOnboardingStmt = db.prepare('SELECT acknowledged_at, chips_granted 
 const ensureUserOnboardingStmt = db.prepare('INSERT OR IGNORE INTO user_onboarding (guild_id, user_id) VALUES (?, ?)');
 const updateUserOnboardingGrantStmt = db.prepare('UPDATE user_onboarding SET chips_granted = ?, updated_at = CURRENT_TIMESTAMP WHERE guild_id = ? AND user_id = ?');
 const acknowledgeUserOnboardingStmt = db.prepare('UPDATE user_onboarding SET acknowledged_at = ?, updated_at = CURRENT_TIMESTAMP WHERE guild_id = ? AND user_id = ? AND acknowledged_at IS NULL');
+const getUserNewsSettingsStmt = db.prepare('SELECT news_opt_in, last_delivered_at, last_digest FROM user_news_settings WHERE user_id = ?');
+const setUserNewsOptInStmt = db.prepare(`
+  INSERT INTO user_news_settings (user_id, news_opt_in, updated_at)
+  VALUES (?, ?, CURRENT_TIMESTAMP)
+  ON CONFLICT(user_id) DO UPDATE SET news_opt_in = excluded.news_opt_in, updated_at = CURRENT_TIMESTAMP
+`);
+const recordUserNewsDeliveryStmt = db.prepare(`
+  INSERT INTO user_news_settings (user_id, news_opt_in, last_delivered_at, last_digest, updated_at)
+  VALUES (?, 1, ?, ?, CURRENT_TIMESTAMP)
+  ON CONFLICT(user_id) DO UPDATE SET
+    last_delivered_at = excluded.last_delivered_at,
+    last_digest = excluded.last_digest,
+    updated_at = CURRENT_TIMESTAMP
+`);
 
 const ensureHouseStmt = db.prepare('INSERT OR IGNORE INTO guild_house (guild_id) VALUES (?)');
 const getHouseStmt = db.prepare('SELECT chips FROM guild_house WHERE guild_id = ?');
@@ -765,37 +784,37 @@ function canonicalGuildId(guildId) {
 }
 
 export function getModerators(guildId) {
-  const gid = canonicalGuildId(guildId);
-  return getModUsersStmt.all(gid).map(r => r.user_id);
+  const ids = getAllModUsersStmt.all().map(r => String(r.user_id));
+  return ids;
 }
 
 export function addModerator(guildId, userId) {
   const gid = canonicalGuildId(guildId);
   insertModUserStmt.run(gid, String(userId));
-  return getModerators(gid);
+  return getModerators();
 }
 
 export function removeModerator(guildId, userId) {
-  const gid = canonicalGuildId(guildId);
-  removeModUserStmt.run(gid, String(userId));
-  return getModerators(gid);
+  const id = String(userId);
+  deleteModUserAllStmt.run(id);
+  return getModerators();
 }
 
 export function getAdmins(guildId) {
-  const gid = canonicalGuildId(guildId);
-  return getAdminUsersStmt.all(gid).map(r => r.user_id);
+  const ids = getAllAdminUsersStmt.all().map(r => String(r.user_id));
+  return ids;
 }
 
 export function addAdmin(guildId, userId) {
   const gid = canonicalGuildId(guildId);
   insertAdminUserStmt.run(gid, String(userId));
-  return getAdmins(gid);
+  return getAdmins();
 }
 
 export function removeAdmin(guildId, userId) {
-  const gid = canonicalGuildId(guildId);
-  removeAdminUserStmt.run(gid, String(userId));
-  return getAdmins(gid);
+  const id = String(userId);
+  deleteAdminUserAllStmt.run(id);
+  return getAdmins();
 }
 
 export function getLastDailySpinAt(guildId, userId) {
@@ -1489,6 +1508,55 @@ export function getGlobalPlayerCount() {
 export function listAllUserIds() {
   const rows = listAllUserIdsStmt.all();
   return rows.map(row => String(row.discord_id));
+}
+
+export function getUserNewsSettings(userId) {
+  const uid = String(userId || '').trim();
+  if (!uid) {
+    return {
+      userId: null,
+      newsOptIn: true,
+      lastDeliveredAt: null,
+      lastDigest: null
+    };
+  }
+  const row = getUserNewsSettingsStmt.get(uid);
+  if (!row) {
+    return {
+      userId: uid,
+      newsOptIn: true,
+      lastDeliveredAt: null,
+      lastDigest: null
+    };
+  }
+  let lastDeliveredAt = null;
+  if (row.last_delivered_at !== null && row.last_delivered_at !== undefined) {
+    const parsed = Number(row.last_delivered_at);
+    lastDeliveredAt = Number.isFinite(parsed) ? Math.trunc(parsed) : null;
+  }
+  return {
+    userId: uid,
+    newsOptIn: !!row.news_opt_in,
+    lastDeliveredAt,
+    lastDigest: row.last_digest || null
+  };
+}
+
+export function setUserNewsOptIn(userId, optIn) {
+  const uid = String(userId || '').trim();
+  if (!uid) throw new Error('NEWS_USER_REQUIRED');
+  const flag = optIn ? 1 : 0;
+  setUserNewsOptInStmt.run(uid, flag);
+  return getUserNewsSettings(uid);
+}
+
+export function markUserNewsDelivered(userId, digest, deliveredAt = nowSeconds()) {
+  const uid = String(userId || '').trim();
+  if (!uid) throw new Error('NEWS_USER_REQUIRED');
+  const ts = toInt(deliveredAt, nowSeconds());
+  const normalizedDigest = digest ? String(digest).slice(0, 255) : null;
+  recordUserNewsDeliveryStmt.run(uid, ts, normalizedDigest);
+  return getUserNewsSettings(uid);
 }
 
 export function getUserBalances(guildId, discordId) {

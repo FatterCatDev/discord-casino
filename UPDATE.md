@@ -1,11 +1,12 @@
 # Pending Update
 
-version: 1.1.5
+version: 1.1.6
 
 ## Changes
 
-- Job pages now show a rank 1–10 pay table with the player's current rank highlighted instead of Highlights/Recent Shifts.
+<!-- Add one bullet per noteworthy change below. Example: - Improved chip payout handling -->
 
 ## Bug Fixes
 
-- Gracefully skip Discord `10062` errors on stale job status buttons to avoid noisy stack traces.
+<!-- Add one bullet per bug fix below. Example: - Fixed crash when playing blackjack in DMs -->
+

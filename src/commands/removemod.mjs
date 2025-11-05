@@ -18,8 +18,8 @@ export default async function handleRemoveMod(interaction, ctx) {
     const roster = await removeModerator(guildId, target.id);
     const list = roster.length ? roster.map(id => `<@${id}>`).join(', ') : say('_none remain_', '_none_');
     const message = say(
-      `✅ <@${target.id}> is no longer among my moderators.\nCurrent roster: ${list}`,
-      `✅ Removed <@${target.id}> from moderators.\nCurrent moderators: ${list}`
+      `✅ <@${target.id}> is no longer among my global moderators.\nGlobal moderators: ${list}`,
+      `✅ Removed <@${target.id}> from global moderators.\nGlobal moderators: ${list}`
     );
     return interaction.reply({ content: message, ephemeral: true });
   } catch (err) {

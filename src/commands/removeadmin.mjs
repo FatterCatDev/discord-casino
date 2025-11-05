@@ -18,8 +18,8 @@ export default async function handleRemoveAdmin(interaction, ctx) {
     const roster = await removeAdmin(guildId, target.id);
     const list = roster.length ? roster.map(id => `<@${id}>`).join(', ') : say('_none remain_', '_none_');
     const message = say(
-      `✅ <@${target.id}> has been released from administrator duties.\nCurrent administrators: ${list}`,
-      `✅ Removed <@${target.id}> from administrators.\nCurrent administrators: ${list}`
+      `✅ <@${target.id}> has been released from global administrator duties.\nGlobal administrators: ${list}`,
+      `✅ Removed <@${target.id}> from global administrators.\nGlobal administrators: ${list}`
     );
     return interaction.reply({ content: message, ephemeral: true });
   } catch (err) {

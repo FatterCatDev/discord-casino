@@ -18,8 +18,8 @@ export default async function handleAddMod(interaction, ctx) {
     const roster = await addModerator(guildId, target.id);
     const list = roster.length ? roster.map(id => `<@${id}>`).join(', ') : say('_none yet_', '_none_');
     const message = say(
-      `✅ <@${target.id}> now wears my moderator collar.\nCurrent roster: ${list}`,
-      `✅ Added <@${target.id}> as a moderator.\nCurrent moderators: ${list}`
+      `✅ <@${target.id}> now wears my moderator collar everywhere.\nGlobal moderators: ${list}`,
+      `✅ Added <@${target.id}> as a global moderator.\nGlobal moderators: ${list}`
     );
     return interaction.reply({ content: message, ephemeral: true });
   } catch (err) {

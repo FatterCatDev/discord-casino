@@ -289,6 +289,18 @@ async function ensureInteractionTables() {
   await q('CREATE INDEX IF NOT EXISTS idx_user_interaction_events_user ON user_interaction_events (user_id, created_at DESC)');
 }
 
+async function ensureNewsSettingsTable() {
+  await q(`
+    CREATE TABLE IF NOT EXISTS user_news_settings (
+      user_id TEXT PRIMARY KEY,
+      news_opt_in BOOLEAN NOT NULL DEFAULT true,
+      last_delivered_at BIGINT,
+      last_digest TEXT,
+      updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+    )
+  `);
+}
+
 async function ensureBotStatusTable() {
   await q(`
     CREATE TABLE IF NOT EXISTS bot_status_snapshots (
@@ -359,6 +371,7 @@ await ensureJobTables();
 await ensureOnboardingTable();
 await ensureInteractionTables();
 await ensureBotStatusTable();
+await ensureNewsSettingsTable();
 
 try {
   if (await tableExists('guild_settings') && !(await tableHasColumn('guild_settings', 'kitten_mode_enabled'))) {
@@ -593,35 +606,31 @@ function canonicalGuildId(guildId) {
 }
 
 export async function getModerators(guildId) {
-  const gid = canonicalGuildId(guildId);
-  const rows = await q('SELECT user_id FROM mod_users WHERE guild_id = $1', [gid]);
-  return rows.map(r => r.user_id);
+  const rows = await q('SELECT DISTINCT user_id FROM mod_users', []);
+  return rows.map(r => String(r.user_id));
 }
 export async function addModerator(guildId, userId) {
   const gid = canonicalGuildId(guildId);
   await q('INSERT INTO mod_users (guild_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [gid, String(userId)]);
-  return getModerators(gid);
+  return getModerators();
 }
 export async function removeModerator(guildId, userId) {
-  const gid = canonicalGuildId(guildId);
-  await q('DELETE FROM mod_users WHERE guild_id = $1 AND user_id = $2', [gid, String(userId)]);
-  return getModerators(gid);
+  await q('DELETE FROM mod_users WHERE user_id = $1', [String(userId)]);
+  return getModerators();
 }
 
 export async function getAdmins(guildId) {
-  const gid = canonicalGuildId(guildId);
-  const rows = await q('SELECT user_id FROM admin_users WHERE guild_id = $1', [gid]);
-  return rows.map(r => r.user_id);
+  const rows = await q('SELECT DISTINCT user_id FROM admin_users', []);
+  return rows.map(r => String(r.user_id));
 }
 export async function addAdmin(guildId, userId) {
   const gid = canonicalGuildId(guildId);
   await q('INSERT INTO admin_users (guild_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [gid, String(userId)]);
-  return getAdmins(gid);
+  return getAdmins();
 }
 export async function removeAdmin(guildId, userId) {
-  const gid = canonicalGuildId(guildId);
-  await q('DELETE FROM admin_users WHERE guild_id = $1 AND user_id = $2', [gid, String(userId)]);
-  return getAdmins(gid);
+  await q('DELETE FROM admin_users WHERE user_id = $1', [String(userId)]);
+  return getAdmins();
 }
 
 export async function getLastDailySpinAt(guildId, userId) {
@@ -739,6 +748,77 @@ export async function getGlobalPlayerCount() {
 export async function listAllUserIds() {
   const rows = await q('SELECT DISTINCT discord_id FROM users ORDER BY discord_id ASC');
   return rows.map(row => String(row.discord_id));
+}
+
+export async function getUserNewsSettings(userId) {
+  const uid = String(userId || '').trim();
+  if (!uid) {
+    return {
+      userId: null,
+      newsOptIn: true,
+      lastDeliveredAt: null,
+      lastDigest: null
+    };
+  }
+  const row = await q1('SELECT news_opt_in, last_delivered_at, last_digest FROM user_news_settings WHERE user_id = $1', [uid]);
+  if (!row) {
+    return {
+      userId: uid,
+      newsOptIn: true,
+      lastDeliveredAt: null,
+      lastDigest: null
+    };
+  }
+  let lastDeliveredAt = null;
+  if (row.last_delivered_at !== null && row.last_delivered_at !== undefined) {
+    const parsed = Number(row.last_delivered_at);
+    lastDeliveredAt = Number.isFinite(parsed) ? Math.trunc(parsed) : null;
+  }
+  const newsOptIn = row.news_opt_in === null || row.news_opt_in === undefined
+    ? true
+    : (
+      row.news_opt_in === true ||
+      row.news_opt_in === 1 ||
+      row.news_opt_in === '1' ||
+      row.news_opt_in === 't' ||
+      row.news_opt_in === 'true'
+    );
+  return {
+    userId: uid,
+    newsOptIn,
+    lastDeliveredAt,
+    lastDigest: row.last_digest || null
+  };
+}
+
+export async function setUserNewsOptIn(userId, optIn) {
+  const uid = String(userId || '').trim();
+  if (!uid) throw new Error('NEWS_USER_REQUIRED');
+  const flag = !!optIn;
+  await q(
+    `INSERT INTO user_news_settings (user_id, news_opt_in, updated_at)
+     VALUES ($1, $2, NOW())
+     ON CONFLICT (user_id) DO UPDATE SET news_opt_in = EXCLUDED.news_opt_in, updated_at = NOW()`,
+    [uid, flag]
+  );
+  return getUserNewsSettings(uid);
+}
+
+export async function markUserNewsDelivered(userId, digest, deliveredAt = Math.floor(Date.now() / 1000)) {
+  const uid = String(userId || '').trim();
+  if (!uid) throw new Error('NEWS_USER_REQUIRED');
+  const ts = Math.trunc(Number(deliveredAt) || Math.floor(Date.now() / 1000));
+  const normalizedDigest = digest ? String(digest).slice(0, 255) : null;
+  await q(
+    `INSERT INTO user_news_settings (user_id, news_opt_in, last_delivered_at, last_digest, updated_at)
+     VALUES ($1, true, $2, $3, NOW())
+     ON CONFLICT (user_id) DO UPDATE SET
+       last_delivered_at = EXCLUDED.last_delivered_at,
+       last_digest = EXCLUDED.last_digest,
+       updated_at = NOW()`,
+    [uid, ts, normalizedDigest]
+  );
+  return getUserNewsSettings(uid);
 }
 
 export async function addToHouse(guildId, amount, reason, adminId) {

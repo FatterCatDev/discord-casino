@@ -276,6 +276,18 @@ const commands = [
     ]
   },
   {
+    name: 'news',
+    description: 'Review casino news and toggle personal alerts.',
+    options: [
+      {
+        name: 'enabled',
+        description: 'Turn news alerts on (true) or off (false).',
+        type: 5,
+        required: false
+      }
+    ]
+  },
+  {
     name: 'addmod',
     description: 'Add a user as casino moderator (admin only).',
     options: [

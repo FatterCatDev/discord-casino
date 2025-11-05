@@ -22,7 +22,9 @@ import {
   recordUserInteraction,
   markUserInteractionReviewPrompt,
   getGlobalPlayerCount,
-  setBotStatusSnapshot
+  setBotStatusSnapshot,
+  getUserNewsSettings,
+  markUserNewsDelivered
 } from './db/db.auto.mjs';
 import { formatChips, chipsAmount } from './games/format.mjs';
 import {
@@ -51,6 +53,7 @@ import { holdemTables } from './games/holdem.mjs';
 import { bjHandValue as bjHandValueMod, cardValueForSplit as cardValueForSplitMod, canAffordExtra as canAffordExtraMod } from './games/blackjack.mjs';
 import { kittenizeTextContent, kittenizeReplyArg } from './services/persona.mjs';
 import { BOT_VERSION, pushUpdateAnnouncement } from './services/updates.mjs';
+import { getActiveNews, newsDigest } from './services/news.mjs';
 import { emoji } from './lib/emojis.mjs';
 
 // Slash command handlers (modularized)
@@ -94,6 +97,7 @@ import cmdResetAllBalance from './commands/resetallbalance.mjs';
 import cmdSetCasinoCategory from './commands/setcasinocategory.mjs';
 import cmdKittenMode from './commands/kittenmode.mjs';
 import cmdVote from './commands/vote.mjs';
+import cmdNews from './commands/news.mjs';
 
 // Interaction handlers
 import onHelpSelect from './interactions/helpSelect.mjs';
@@ -124,6 +128,8 @@ const REVIEW_PROMPT_SUPPORT_MESSAGE = [
   '🏠 Our support team and main game floor live in the Semuta hub.',
   'Join us anytime: discord.gg/semutaofdune'
 ].join('\n');
+
+const NEWS_COOLDOWN_SECONDS = 7 * 24 * 60 * 60;
 
 function buildWelcomePromptEmbed({ status = null, bonusJustGranted = false, bonusError = null } = {}) {
   const chipsText = formatChips(WELCOME_BONUS_AMOUNT);
@@ -413,18 +419,17 @@ function hasOwnerOverride(userId) {
 
 async function adminsForGuild(guildId) {
   const ids = await getAdmins(guildId);
-  return ids.map(id => String(id));
+  return Array.from(new Set(ids.map(id => String(id))));
 }
 
 async function moderatorsForGuild(guildId) {
   const ids = await getModerators(guildId);
-  return ids.map(id => String(id));
+  return Array.from(new Set(ids.map(id => String(id))));
 }
 
 async function hasAdminAccess(guildId, userId) {
   if (!userId) return false;
   if (hasOwnerOverride(userId)) return true;
-  if (!guildId) return false;
   const admins = await adminsForGuild(guildId);
   return admins.includes(String(userId));
 }
@@ -432,7 +437,6 @@ async function hasAdminAccess(guildId, userId) {
 async function hasModeratorAccess(guildId, userId) {
   if (!userId) return false;
   if (await hasAdminAccess(guildId, userId)) return true;
-  if (!guildId) return false;
   const moderators = await moderatorsForGuild(guildId);
   return moderators.includes(String(userId));
 }
@@ -832,6 +836,64 @@ function queueInteractionLogging(interaction) {
   })();
 }
 
+async function maybeSendNewsReminder(interaction) {
+  try {
+    if (!interaction || typeof interaction.isChatInputCommand !== 'function') return;
+    if (!interaction.isChatInputCommand()) return;
+    if (interaction.commandName === 'news') return;
+    if (typeof interaction.inGuild === 'function' && !interaction.inGuild()) return;
+    const userId = interaction.user?.id;
+    if (!userId) return;
+    const active = await getActiveNews();
+    if (!active || !active.body) return;
+    const settings = await getUserNewsSettings(userId);
+    if (settings?.newsOptIn === false) return;
+    const digest = newsDigest(active) || null;
+    const nowSec = Math.floor(Date.now() / 1000);
+    const lastSentRaw = settings?.lastDeliveredAt;
+    const lastSentSec = Number.isFinite(Number(lastSentRaw))
+      ? Math.trunc(Number(lastSentRaw))
+      : 0;
+    const lastDigest = settings?.lastDigest || null;
+    const seenRecently = lastSentSec > 0 && (nowSec - lastSentSec) < NEWS_COOLDOWN_SECONDS;
+    if (seenRecently && (!digest || lastDigest === digest)) return;
+    if (!(interaction.deferred || interaction.replied)) return;
+    if (interaction.deferred && !interaction.replied) {
+      await new Promise(resolve => setTimeout(resolve, 350));
+    }
+
+    const rangeLabel = active.endDate
+      ? `${active.startDate} → ${active.endDate}`
+      : active.startDate;
+    const header = active.title ? `📰 **${active.title}**` : '📰 **Casino News**';
+    const lines = [
+      header,
+      rangeLabel ? `Dates: ${rangeLabel}` : null,
+      '',
+      active.body,
+      '',
+      'Use `/news enabled:false` to pause these updates.'
+    ].filter(Boolean);
+
+    let delivered = false;
+    try {
+      await interaction.followUp({
+        content: lines.join('\n'),
+        ephemeral: true
+      });
+      delivered = true;
+    } catch (err) {
+      if (err?.code !== 40060) throw err;
+    }
+
+    if (delivered) {
+      await markUserNewsDelivered(userId, digest, nowSec);
+    }
+  } catch (err) {
+    console.error('Failed to send news reminder', err);
+  }
+}
+
 const commandHandlers = {
   ping: cmdPing,
   status: cmdStatus,
@@ -872,7 +934,8 @@ const commandHandlers = {
   resetallbalance: cmdResetAllBalance,
   setcasinocategory: cmdSetCasinoCategory,
   kittenmode: cmdKittenMode,
-  vote: cmdVote
+  vote: cmdVote,
+  news: cmdNews
 };
 
 client.on(Events.InteractionCreate, async interaction => {
@@ -908,7 +971,9 @@ client.on(Events.InteractionCreate, async interaction => {
       const handler = commandHandlers[interaction.commandName];
       if (typeof handler === 'function') {
         const ctx = buildCommandContext(interaction, ctxExtras);
-        return handler(interaction, ctx);
+        const result = await handler(interaction, ctx);
+        await maybeSendNewsReminder(interaction);
+        return result;
       }
       // Fallback if no handler registered
       return interaction.reply({ content: '❌ Unknown command.', ephemeral: true });

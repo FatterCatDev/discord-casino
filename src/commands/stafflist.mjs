@@ -32,13 +32,13 @@ export default async function handleStaffList(interaction, ctx) {
   const modText = fmtList(modOnly, say('_No dedicated moderators yet_', '_No moderators configured_'));
 
   const embed = new EmbedBuilder()
-    .setTitle(say(`${emoji('busts')} Casino Staff Roster`, `${emoji('busts')} Casino Staff`))
+    .setTitle(say(`${emoji('busts')} Global Casino Staff`, `${emoji('busts')} Global Casino Staff`))
     .setColor(0xF5A623)
     .addFields(
-      { name: say(`${emoji('crown')} Administrators`, `${emoji('crown')} Administrators`), value: adminText, inline: false },
-      { name: say(`${emoji('shield')} Moderators`, `${emoji('shield')} Moderators`), value: modText, inline: false }
+      { name: say(`${emoji('crown')} Global Administrators`, `${emoji('crown')} Global Administrators`), value: adminText, inline: false },
+      { name: say(`${emoji('shield')} Global Moderators`, `${emoji('shield')} Global Moderators`), value: modText, inline: false }
     )
-    .setFooter({ text: say('Use /addmod or /addadmin to adjust this roster, Kitten.', 'Use /addmod or /addadmin to manage staff.') })
+    .setFooter({ text: say('Use /addmod or /addadmin to adjust the global roster, Kitten.', 'Use /addmod or /addadmin to manage global staff.') })
     .setTimestamp(new Date());
 
   return interaction.editReply({ embeds: [embed] });

@@ -28,7 +28,11 @@ function chunkMessageContent(content, limit = 2000) {
   return chunks;
 }
 
-export async function pushUpdateAnnouncement(client, guildId, { content, mentionEveryone = false } = {}) {
+export async function pushUpdateAnnouncement(
+  client,
+  guildId,
+  { content, mentionEveryone = false, mentionRoleId = null } = {}
+) {
   if (!client) throw new Error('UPDATE_PUSH_MISSING_CLIENT');
   if (!guildId) throw new Error('UPDATE_PUSH_MISSING_GUILD');
   if (!content || !content.trim()) throw new Error('UPDATE_PUSH_MISSING_CONTENT');
@@ -54,17 +58,25 @@ export async function pushUpdateAnnouncement(client, guildId, { content, mention
     ? content.flatMap(value => chunkMessageContent(String(value)))
     : chunkMessageContent(String(content));
 
+  const normalizedRoleId = mentionRoleId ? String(mentionRoleId).trim() : null;
+  if (normalizedRoleId && !/^\d{5,}$/.test(normalizedRoleId)) {
+    throw new Error('UPDATE_PUSH_INVALID_ROLE_ID');
+  }
+
   if (!chunks.length) throw new Error('UPDATE_PUSH_MISSING_CONTENT');
 
   const results = [];
   for (let idx = 0; idx < chunks.length; idx++) {
     const chunk = chunks[idx];
-    const payload = {
-      content: idx === 0 && mentionEveryone ? `@everyone\n${chunk}` : chunk
-    };
-    if (idx === 0 && mentionEveryone) {
+    const payload = {};
+    if (idx === 0 && normalizedRoleId) {
+      payload.content = `<@&${normalizedRoleId}>\n${chunk}`;
+      payload.allowedMentions = { roles: [normalizedRoleId] };
+    } else if (idx === 0 && mentionEveryone) {
+      payload.content = `@everyone\n${chunk}`;
       payload.allowedMentions = { parse: ['everyone'] };
     } else {
+      payload.content = chunk;
       payload.allowedMentions = { parse: [] };
     }
     // Ensure chunk is within Discord limit after mention prefix

@@ -18,8 +18,8 @@ export default async function handleAddAdmin(interaction, ctx) {
     const roster = await addAdmin(guildId, target.id);
     const list = roster.length ? roster.map(id => `<@${id}>`).join(', ') : say('_none yet_', '_none_');
     const message = say(
-      `✅ <@${target.id}> now shares my authority.\nCurrent administrators: ${list}`,
-      `✅ Added <@${target.id}> as an administrator.\nCurrent administrators: ${list}`
+      `✅ <@${target.id}> now shares my authority everywhere.\nGlobal administrators: ${list}`,
+      `✅ Added <@${target.id}> as a global administrator.\nGlobal administrators: ${list}`
     );
     return interaction.reply({ content: message, ephemeral: true });
   } catch (err) {

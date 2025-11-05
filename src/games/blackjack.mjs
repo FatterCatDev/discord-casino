@@ -141,7 +141,9 @@ export async function startBlackjack(interaction, table, bet) {
       } catch { return interaction.reply({ content: '⚠️ Payout failed.', ephemeral: true }); }
     }
     try {
-      await burnCredits(state.guildId, state.userId, state.creditsStake, 'blackjack loss (dealer BJ)', null);
+      if (state.creditsStake > 0) {
+        await burnCredits(state.guildId, state.userId, state.creditsStake, 'blackjack loss (dealer BJ)', null);
+      }
       addHouseNet(state.guildId, state.userId, 'blackjack', state.chipsStake);
       try { recordSessionGame(state.guildId, state.userId, -state.chipsStake); } catch {}
       const row = bjPlayAgainRow(state.table, state.bet, state.userId);

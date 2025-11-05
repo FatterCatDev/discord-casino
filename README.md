@@ -1,6 +1,6 @@
 # Discord Casino Bot
 
-Last update: 1.1.4
+Last update: 1.1.5
 
 Invite Bot to your server:
 https://discord.com/oauth2/authorize?client_id=1415454565687492780

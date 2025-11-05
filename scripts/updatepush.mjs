@@ -14,6 +14,7 @@ const ROOT = path.resolve(__dirname, '..');
 const UPDATE_PATH = path.join(ROOT, 'UPDATE.md');
 const README_PATH = path.join(ROOT, 'README.md');
 const STATUS_HEADING_REGEX = /^#\s*(?:pending\s+update|update)\b.*$/im;
+const UPDATE_ROLE_ID = '1426725492538478593';
 
 function setUpdateStatus(content, status) {
   if (status !== 'pending' && status !== 'update') {
@@ -72,12 +73,12 @@ function parseUpdateFile(text) {
   return { version, changes, details };
 }
 
-const INSTALL_LINK = 'https://top.gg/bot/1415454565687492780';
+const BOT_HOME_URL = 'https://semutacasino.com/';
 
 function appendInstallLink(content) {
-  if (!content || content.includes(INSTALL_LINK)) return content;
+  if (!content || content.includes(BOT_HOME_URL)) return content;
   const separator = content.endsWith('\n') ? '' : '\n\n';
-  return `${content}${separator}${emoji('link')} Invite the bot: ${INSTALL_LINK}`;
+  return `${content}${separator}${emoji('link')} Home page: ${BOT_HOME_URL}`;
 }
 
 async function recordLastUpdateVersion(version) {
@@ -172,7 +173,7 @@ async function main() {
         }
         await pushUpdateAnnouncement(client, guildId, {
           content: messageContent,
-          mentionEveryone: true
+          mentionRoleId: UPDATE_ROLE_ID
         });
         console.log(`Update announcement sent for guild ${guildId}`);
         successCount += 1;
