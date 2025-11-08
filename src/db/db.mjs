@@ -490,7 +490,10 @@ const listPendingVoteUsersStmt = db.prepare(`
 const topUsersStmt = db.prepare(`
   SELECT discord_id, chips
   FROM users
-  WHERE guild_id = ? AND chips > 0
+  WHERE guild_id = ?
+    AND chips > 0
+    AND discord_id NOT IN (SELECT user_id FROM admin_users)
+    AND discord_id NOT IN (SELECT user_id FROM mod_users)
   ORDER BY chips DESC, created_at ASC
   LIMIT ?
 `);

@@ -722,7 +722,14 @@ export async function getTopUsers(guildId, limit = 10) {
   const gid = resolveGuildId(guildId);
   const n = Math.max(1, Math.min(25, Number(limit) || 10));
   const rows = await q(
-    'SELECT discord_id, chips FROM users WHERE guild_id = $1 AND chips > 0 ORDER BY chips DESC, created_at ASC LIMIT $2',
+    `SELECT discord_id, chips
+     FROM users
+     WHERE guild_id = $1
+       AND chips > 0
+       AND discord_id NOT IN (SELECT user_id FROM admin_users)
+       AND discord_id NOT IN (SELECT user_id FROM mod_users)
+     ORDER BY chips DESC, created_at ASC
+     LIMIT $2`,
     [gid, n]
   );
   return rows.map(r => ({ discord_id: r.discord_id, chips: Number(r.chips || 0) }));

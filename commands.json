@@ -8,6 +8,7 @@
   { "name": "holdem", "description": "Create a Texas Hold’em table with preset stakes." },
   { "name": "request", "description": "Request a buy-in or cash-out from casino staff." },
   { "name": "roulette", "description": "Play American Roulette with interactive bet setup." },
+  { "name": "8ball", "description": "Only the #1 High Roller can shake the 8-ball for answers." },
   { "name": "setrequestchannel", "description": "Choose the channel where /request submissions are posted." },
   { "name": "setupdatech", "description": "Choose the channel where update announcements are posted." },
   { "name": "requesttimer", "description": "Set the cooldown between /request submissions in seconds." },

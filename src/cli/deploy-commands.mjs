@@ -85,6 +85,13 @@ const commands = [
     options: []
   },
   {
+    name: '8ball',
+    description: 'Only the #1 High Roller can ask the 8-ball for guidance.',
+    options: [
+      { name: 'question', description: 'Ask your question (must end with a ?)', type: 3, required: true }
+    ]
+  },
+  {
     name: 'setrequestchannel',
     description: 'Set the channel where requests will be posted (admin only).',
     options: [

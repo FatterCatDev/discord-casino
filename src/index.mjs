@@ -54,6 +54,7 @@ import { bjHandValue as bjHandValueMod, cardValueForSplit as cardValueForSplitMo
 import { kittenizeTextContent, kittenizeReplyArg } from './services/persona.mjs';
 import { BOT_VERSION, pushUpdateAnnouncement } from './services/updates.mjs';
 import { getActiveNews, newsDigest } from './services/news.mjs';
+import { startLeaderboardChampionWatcher, claimChampionNotice } from './services/championRole.mjs';
 import { emoji } from './lib/emojis.mjs';
 
 // Slash command handlers (modularized)
@@ -98,6 +99,7 @@ import cmdSetCasinoCategory from './commands/setcasinocategory.mjs';
 import cmdKittenMode from './commands/kittenmode.mjs';
 import cmdVote from './commands/vote.mjs';
 import cmdNews from './commands/news.mjs';
+import cmdEightBall from './commands/eightball.mjs';
 
 // Interaction handlers
 import onHelpSelect from './interactions/helpSelect.mjs';
@@ -531,6 +533,7 @@ client.once(Events.ClientReady, c => {
 
   sweepVoteRewards().catch(() => {});
   setInterval(() => { sweepVoteRewards().catch(() => {}); }, intervalMs);
+  startLeaderboardChampionWatcher(client);
 
 });
 
@@ -894,6 +897,44 @@ async function maybeSendNewsReminder(interaction) {
   }
 }
 
+async function maybeSendChampionNotice(interaction) {
+  try {
+    if (!interaction?.user?.id) return;
+    const notice = claimChampionNotice(interaction.user.id);
+    if (!notice) return;
+    const fmt = new Intl.NumberFormat('en-US');
+    let content = '';
+    if (notice.type === 'gained') {
+      const amount = fmt.format(Math.max(0, Number(notice.chips || 0)));
+      content = `${emoji('trophy')} You just claimed the #1 leaderboard spot with **${amount}** chips! Keep the streak going.`;
+    } else if (notice.type === 'lost') {
+      const dethronedBy = notice.dethronedBy ? ` by <@${notice.dethronedBy}>` : '';
+      content = `${emoji('chartDown')} You lost the #1 leaderboard spot${dethronedBy}. Time to win it back!`;
+    } else {
+      return;
+    }
+
+    if (typeof interaction.isRepliable === 'function' && interaction.isRepliable()) {
+      try {
+        if (interaction.deferred || interaction.replied) {
+          await interaction.followUp({ content, ephemeral: true });
+          return;
+        }
+      } catch (err) {
+        console.warn('Champion notice follow-up failed', err);
+      }
+    }
+
+    try {
+      await interaction.user.send(content);
+    } catch (err) {
+      console.warn(`Champion notice DM failed for ${interaction.user.id}`, err);
+    }
+  } catch (err) {
+    console.error('maybeSendChampionNotice failed', err);
+  }
+}
+
 const commandHandlers = {
   ping: cmdPing,
   status: cmdStatus,
@@ -935,7 +976,8 @@ const commandHandlers = {
   setcasinocategory: cmdSetCasinoCategory,
   kittenmode: cmdKittenMode,
   vote: cmdVote,
-  news: cmdNews
+  news: cmdNews,
+  '8ball': cmdEightBall
 };
 
 client.on(Events.InteractionCreate, async interaction => {
@@ -1148,6 +1190,8 @@ client.on(Events.InteractionCreate, async interaction => {
     } catch (followErr) {
       console.error('Failed to send error response:', followErr);
     }
+  } finally {
+    await maybeSendChampionNotice(interaction);
   }
 });
 

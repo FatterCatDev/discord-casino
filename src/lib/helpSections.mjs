@@ -2,7 +2,7 @@ import { emoji } from './emojis.mjs';
 
 const DEFAULT_COLOR = 0x5865F2;
 
-export function buildHelpSections({ kittenMode = false, isMod = false, isSetupAdmin = false } = {}) {
+export function buildHelpSections({ kittenMode = false, isMod = false, isServerAdmin = false, isBotAdmin = false } = {}) {
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
   const sections = [];
   const categories = [];
@@ -159,6 +159,19 @@ export function buildHelpSections({ kittenMode = false, isMod = false, isSetupAd
             )
           }
         ]
+      },
+      {
+        label: say(`${emoji('trophy')} Champion Perks`, `${emoji('trophy')} Champion Perks`),
+        items: [
+          {
+            emoji: '🎱',
+            cmd: '/8ball question:<text?>',
+            desc: say(
+              'Only the reigning #1 High Roller may ask me for a yes/no omen in public.',
+              'Only the #1 High Roller can command the 8-ball for yes/no/maybe guidance.'
+            )
+          }
+        ]
       }
     ]
   };
@@ -254,20 +267,20 @@ export function buildHelpSections({ kittenMode = false, isMod = false, isSetupAd
   };
   categories.push(jobs);
 
-  if (isSetupAdmin) {
+  if (isServerAdmin || isBotAdmin) {
     categories.push({
-      id: 'setup',
+      id: 'server-admins',
       summary: say(
         'Wire up channels, logs, and access before the crowds rush in.',
         'Wire up categories, logs, and access so the casino runs smoothly.'
       ),
-      label: `${emoji('hammerWrench')} Setup`,
-      menuLabel: 'Setup',
+      label: `${emoji('hammerWrench')} Server Admins`,
+      menuLabel: 'Server Admins',
       menuEmoji: '🛠',
       color: DEFAULT_COLOR,
       description: say(
-        'Lay the foundation so every lounge, log, and role works like velvet.',
-        'Configure channels and roles so every command lands where it should.'
+        'Lay the foundation so every lounge, log, and request flows like velvet.',
+        'Configure the casino category plus log channels so commands land exactly where they should.'
       ),
       groups: [
         {
@@ -299,26 +312,10 @@ export function buildHelpSections({ kittenMode = false, isMod = false, isSetupAd
             },
             {
               emoji: emoji('keycap4'),
-              cmd: '/setrequestchannel channel:<#channel>',
-              desc: say(
-                'Route /request pleas to a staffed lounge.',
-                'Choose where /request tickets land for review.'
-              )
-            },
-            {
-              emoji: emoji('keycap5'),
               cmd: '/setupdatech channel:<#channel>',
               desc: say(
                 'Optional: send my update purrs to a spotlight channel.',
                 'Optional: channel for update announcements.'
-              )
-            },
-            {
-              emoji: emoji('keycap6'),
-              cmd: '/addadmin user:<@User>',
-              desc: say(
-                'Crown your inner circle, then add moderators with `/addmod`.',
-                'Seed your admin list, then add moderators via `/addmod`.'
               )
             }
           ]
@@ -327,7 +324,7 @@ export function buildHelpSections({ kittenMode = false, isMod = false, isSetupAd
     });
   }
 
-  if (isMod || isSetupAdmin) {
+  if (isMod || isBotAdmin) {
     categories.push({
       id: 'moderation',
       summary: say(
@@ -442,7 +439,7 @@ export function buildHelpSections({ kittenMode = false, isMod = false, isSetupAd
     });
   }
 
-  if (isSetupAdmin) {
+  if (isBotAdmin) {
     categories.push({
       id: 'admin',
       summary: say(
@@ -458,51 +455,6 @@ export function buildHelpSections({ kittenMode = false, isMod = false, isSetupAd
         'Tune the casino’s configuration, roles, and table limits.'
       ),
       groups: [
-        {
-          label: say(`${emoji('construction')} Salon Setup`, `${emoji('construction')} Setup & Channels`),
-          items: [
-            {
-              emoji: emoji('folder'),
-              cmd: '/setcasinocategory category:<#Category>',
-              desc: say(
-                'Choose where my casino lounges live. (Admin only)',
-                'Set the casino category. (Admin only)'
-              )
-            },
-            {
-              emoji: emoji('scroll'),
-              cmd: '/setgamelogchannel channel:<#channel>',
-              desc: say(
-                'Point game logs to the proper parlor. (Admin only)',
-                'Set the game log channel. (Admin only)'
-              )
-            },
-            {
-              emoji: emoji('briefcase'),
-              cmd: '/setcashlog channel:<#channel>',
-              desc: say(
-                'Decide where chip and credit ledgers are whispered. (Admin only)',
-                'Set the cash log channel. (Admin only)'
-              )
-            },
-            {
-              emoji: emoji('mailbox'),
-              cmd: '/setrequestchannel channel:<#channel>',
-              desc: say(
-                'Pick the room where requests arrive. (Admin only)',
-                'Set the request channel. (Admin only)'
-              )
-            },
-            {
-              emoji: emoji('announcementChannel'),
-              cmd: '/setupdatech channel:<#channel>',
-              desc: say(
-                'Tell me where to preen and announce new delights. (Admin only)',
-                'Set the update announcement channel. (Admin only)'
-              )
-            }
-          ]
-        },
         {
           label: say(`${emoji('theater')} Persona`, `${emoji('theater')} Personality`),
           items: [
@@ -549,6 +501,19 @@ export function buildHelpSections({ kittenMode = false, isMod = false, isSetupAd
               desc: say(
                 'Dismiss an admin from that circle. (Admin only)',
                 'Remove an administrator. (Admin only)'
+              )
+            }
+          ]
+        },
+        {
+          label: say(`${emoji('requestEnvelope')} Intake`, `${emoji('requestEnvelope')} Requests Intake`),
+          items: [
+            {
+              emoji: emoji('mailbox'),
+              cmd: '/setrequestchannel channel:<#channel>',
+              desc: say(
+                'Inside my primary guild only: choose the lounge where every /request lands. (Bot admin only)',
+                'Inside the primary guild only: set the intake channel for buy-in, cash-out, and erasure requests. (Bot admin only)'
               )
             }
           ]

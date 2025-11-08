@@ -7,12 +7,12 @@ const DEFAULT_SECTION_ID = 'overview';
 export default async function handleHelpSelect(interaction, ctx) {
   const selectedId = interaction.values?.[0] || DEFAULT_SECTION_ID;
   const perms = interaction.memberPermissions ?? interaction.member?.permissions;
-  const hasDiscordAdmin = perms?.has?.(PermissionFlagsBits.Administrator);
+  const isServerAdmin = !!perms?.has?.(PermissionFlagsBits.Administrator);
+  const isBotAdmin = await ctx.isAdmin(interaction);
   const isMod = await ctx.isModerator(interaction);
-  const isSetupAdmin = hasDiscordAdmin || await ctx.isAdmin(interaction);
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
 
-  const sections = buildHelpSections({ kittenMode, isMod, isSetupAdmin });
+  const sections = buildHelpSections({ kittenMode, isMod, isServerAdmin, isBotAdmin });
   const fallbackDescription = kittenMode
     ? 'Use the menu below to sample another flavor or return to the overview.'
     : 'Use the menu below to switch categories or jump back to the overview.';
