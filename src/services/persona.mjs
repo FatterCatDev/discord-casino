@@ -2,77 +2,102 @@ import { EmbedBuilder } from 'discord.js';
 import { emoji } from '../lib/emojis.mjs';
 
 const KISS_PREFIX = emoji('kiss');
+const CUSTOM_EMOJI_REGEX = /<a?:[A-Za-z0-9_]+:[0-9]+>/g;
+
+function preserveCustomEmojis(text, transformer) {
+  if (typeof transformer !== 'function') return text;
+  if (typeof text !== 'string' || !text.length) return transformer(text);
+
+  const placeholders = [];
+  const safeText = text.replace(CUSTOM_EMOJI_REGEX, (match) => {
+    const token = `__KITTEN_EMOJI_${placeholders.length}__`;
+    placeholders.push(match);
+    return token;
+  });
+
+  let transformed = transformer(safeText);
+  if (!placeholders.length || typeof transformed !== 'string') return transformed;
+
+  placeholders.forEach((emojiToken, index) => {
+    const token = `__KITTEN_EMOJI_${index}__`;
+    transformed = transformed.split(token).join(emojiToken);
+  });
+  return transformed;
+}
 
 export function kittenizeTextContent(text, opts = {}) {
   const { addPrefix = true, addSuffix = true } = opts;
   if (typeof text !== 'string' || !text.length) return text;
-  let result = text.replace(/<@([0-9]+)>/g, (match, id, offset, str) => {
-    const sliceStart = Math.max(0, offset - 7);
-    const prefix = str.slice(sliceStart, offset);
-    if (/Kitten\s$/i.test(prefix)) return match;
-    return `Kitten <@${id}>`;
-  });
-  const personaTweaks = [
-    { regex: /You do not have permission/gi, replace: 'You do not have permission, Kitten' },
-    { regex: /You don’t have permission/gi, replace: 'You don’t have permission, Kitten' },
-    { regex: /Your request has been submitted/gi, replace: 'Your request is tucked away, Kitten' },
-    { regex: /Your request/gi, replace: 'Your request, Kitten' },
-    { regex: /Your balance/gi, replace: 'Your balance, Kitten' },
-    { regex: /Please wait/gi, replace: 'Please wait for me, Kitten' },
-    { regex: /Thank you/gi, replace: 'Thank you, Kitten' },
-    { regex: /Hold on/gi, replace: 'Hold on for me, Kitten' },
-    { regex: /\bYou\b(?!, Kitten)(?!\s*<@)/g, replace: 'You, Kitten' },
-    { regex: /\byou\b(?!, Kitten)(?!\s*<@)/g, replace: 'you, Kitten' },
-    { regex: /\bYour\b(?!, Kitten)/g, replace: 'Your, Kitten' },
-    { regex: /\byour\b(?!, Kitten)/g, replace: 'your, Kitten' },
-    { regex: /\bHouse keeps pot\b/gi, replace: 'The house keeps the pot, Kitten' },
-    { regex: /\bHouse keeps your bet\b/gi, replace: 'The house keeps your bet, Kitten' },
-    { regex: /\bHouse keeps the pot\b/gi, replace: 'The house keeps the pot, Kitten' },
-    { regex: /\bHouse cannot cover\b/gi, replace: 'The house cannot cover it, Kitten' },
-    { regex: /\bHouse could not pay out\b/gi, replace: 'The house could not pay out, Kitten' },
-    { regex: /\bOnly the original player\b/gi, replace: 'Only the original Kitten' },
-    { regex: /Use `\/ridebus` to start a new one\./gi, replace: 'Use `/ridebus` whenever you crave another thrill, Kitten.' },
-    { regex: /Use `\/request`/gi, replace: 'Use `/request`, Kitten' },
-    { regex: /Use `\/holdem`/gi, replace: 'Use `/holdem`, Kitten' },
-    { regex: /\*\*WIN!\*\*/g, replace: '**WIN, Kitten!**' },
-    { regex: /\*\*CASH OUT!\*\*/g, replace: '**CASH OUT, Kitten!**' },
-    { regex: /\*\*Wrong!\*\*/g, replace: '**Wrong, Kitten!**' },
-    { regex: /\*\*LOSS\*\*/g, replace: '**LOSS, Kitten**' },
-    { regex: /\bsession expired\b/gi, replace: 'session cooled off, Kitten' },
-    { regex: /Server:(?!\s*Kitten)/gi, replace: 'Server, Kitten:' },
-    { regex: /Player:(?!\s*Kitten)/gi, replace: 'Player, Kitten:' },
-    { regex: /Actor:(?!\s*Kitten)/gi, replace: 'Actor, Kitten:' },
-    { regex: /Game Log(?!, Kitten)/gi, replace: 'Game Log, Kitten' },
-    { regex: /Cash Log(?!, Kitten)/gi, replace: 'Cash Log, Kitten' },
-    { regex: /Game Session End(?!, Kitten)/gi, replace: 'Game Session End, Kitten' },
-    { regex: /House Balance(?!, Kitten)/gi, replace: 'House Balance, Kitten' },
-    { regex: /House Net(?!, Kitten)/gi, replace: 'House Net, Kitten' },
-    { regex: /Chips:(?!\s*Kitten)/gi, replace: 'Chips, Kitten:' },
-    { regex: /Credits:(?!\s*Kitten)/gi, replace: 'Credits, Kitten:' },
-    { regex: /Amount:(?!\s*Kitten)/gi, replace: 'Amount, Kitten:' },
-    { regex: /Reason:(?!\s*Kitten)/gi, replace: 'Reason, Kitten:' },
-    { regex: /Requester(?!, Kitten)/gi, replace: 'Requester, Kitten' }
-  ];
-  for (const tweak of personaTweaks) {
-    result = result.replace(tweak.regex, tweak.replace);
-  }
-  if (addPrefix && !result.trim().startsWith(KISS_PREFIX)) {
-    result = `${KISS_PREFIX} ${result}`;
-  }
-  const trimmed = result.trim();
-  if (addSuffix && !trimmed.includes('\n')) {
-    const suffixes = [
-      ' Be a good Kitten for me.',
-      ' Stay indulgent for me, Kitten.',
-      ' Keep purring for me, Kitten.'
+
+  return preserveCustomEmojis(text, (safeText) => {
+    let result = safeText.replace(/<@([0-9]+)>/g, (match, id, offset, str) => {
+      const sliceStart = Math.max(0, offset - 7);
+      const prefix = str.slice(sliceStart, offset);
+      if (/Kitten\s$/i.test(prefix)) return match;
+      return `Kitten <@${id}>`;
+    });
+    const personaTweaks = [
+      { regex: /You do not have permission/gi, replace: 'You do not have permission, Kitten' },
+      { regex: /You don’t have permission/gi, replace: 'You don’t have permission, Kitten' },
+      { regex: /Your request has been submitted/gi, replace: 'Your request is tucked away, Kitten' },
+      { regex: /Your request/gi, replace: 'Your request, Kitten' },
+      { regex: /Your balance/gi, replace: 'Your balance, Kitten' },
+      { regex: /Please wait/gi, replace: 'Please wait for me, Kitten' },
+      { regex: /Thank you/gi, replace: 'Thank you, Kitten' },
+      { regex: /Hold on/gi, replace: 'Hold on for me, Kitten' },
+      { regex: /\bYou\b(?!, Kitten)(?!\s*<@)/g, replace: 'You, Kitten' },
+      { regex: /\byou\b(?!, Kitten)(?!\s*<@)/g, replace: 'you, Kitten' },
+      { regex: /\bYour\b(?!, Kitten)/g, replace: 'Your, Kitten' },
+      { regex: /\byour\b(?!, Kitten)/g, replace: 'your, Kitten' },
+      { regex: /\bHouse keeps pot\b/gi, replace: 'The house keeps the pot, Kitten' },
+      { regex: /\bHouse keeps your bet\b/gi, replace: 'The house keeps your bet, Kitten' },
+      { regex: /\bHouse keeps the pot\b/gi, replace: 'The house keeps the pot, Kitten' },
+      { regex: /\bHouse cannot cover\b/gi, replace: 'The house cannot cover it, Kitten' },
+      { regex: /\bHouse could not pay out\b/gi, replace: 'The house could not pay out, Kitten' },
+      { regex: /\bOnly the original player\b/gi, replace: 'Only the original Kitten' },
+      { regex: /Use `\/ridebus` to start a new one\./gi, replace: 'Use `/ridebus` whenever you crave another thrill, Kitten.' },
+      { regex: /Use `\/request`/gi, replace: 'Use `/request`, Kitten' },
+      { regex: /Use `\/holdem`/gi, replace: 'Use `/holdem`, Kitten' },
+      { regex: /\*\*WIN!\*\*/g, replace: '**WIN, Kitten!**' },
+      { regex: /\*\*CASH OUT!\*\*/g, replace: '**CASH OUT, Kitten!**' },
+      { regex: /\*\*Wrong!\*\*/g, replace: '**Wrong, Kitten!**' },
+      { regex: /\*\*LOSS\*\*/g, replace: '**LOSS, Kitten**' },
+      { regex: /\bsession expired\b/gi, replace: 'session cooled off, Kitten' },
+      { regex: /Server:(?!\s*Kitten)/gi, replace: 'Server, Kitten:' },
+      { regex: /Player:(?!\s*Kitten)/gi, replace: 'Player, Kitten:' },
+      { regex: /Actor:(?!\s*Kitten)/gi, replace: 'Actor, Kitten:' },
+      { regex: /Game Log(?!, Kitten)/gi, replace: 'Game Log, Kitten' },
+      { regex: /Cash Log(?!, Kitten)/gi, replace: 'Cash Log, Kitten' },
+      { regex: /Game Session End(?!, Kitten)/gi, replace: 'Game Session End, Kitten' },
+      { regex: /House Balance(?!, Kitten)/gi, replace: 'House Balance, Kitten' },
+      { regex: /House Net(?!, Kitten)/gi, replace: 'House Net, Kitten' },
+      { regex: /Chips:(?!\s*Kitten)/gi, replace: 'Chips, Kitten:' },
+      { regex: /Credits:(?!\s*Kitten)/gi, replace: 'Credits, Kitten:' },
+      { regex: /Amount:(?!\s*Kitten)/gi, replace: 'Amount, Kitten:' },
+      { regex: /Reason:(?!\s*Kitten)/gi, replace: 'Reason, Kitten:' },
+      { regex: /Requester(?!, Kitten)/gi, replace: 'Requester, Kitten' }
     ];
-    if (!/(Kitten|darling|sweetheart)[.!?]$/i.test(trimmed)) {
-      const base = trimmed.replace(/[.!?]+$/, '');
-      const suffix = suffixes[base.length % suffixes.length];
-      result = result.replace(trimmed, `${base}${suffix}`);
+    for (const tweak of personaTweaks) {
+      result = result.replace(tweak.regex, tweak.replace);
     }
-  }
-  return result;
+    if (addPrefix && !result.trim().startsWith(KISS_PREFIX)) {
+      result = `${KISS_PREFIX} ${result}`;
+    }
+    const trimmed = result.trim();
+    if (addSuffix && !trimmed.includes('\n')) {
+      const suffixes = [
+        ' Be a good Kitten for me.',
+        ' Stay indulgent for me, Kitten.',
+        ' Keep purring for me, Kitten.'
+      ];
+      if (!/(Kitten|darling|sweetheart)[.!?]$/i.test(trimmed)) {
+        const base = trimmed.replace(/[.!?]+$/, '');
+        const suffix = suffixes[base.length % suffixes.length];
+        result = result.replace(trimmed, `${base}${suffix}`);
+      }
+    }
+    return result;
+  });
 }
 
 export function kittenizeReplyArg(arg) {
