@@ -1,6 +1,6 @@
 import { getGuildSettings, getUserBalances, getHouseBalance } from '../db/db.auto.mjs';
 import { chipsAmount, chipsAmountSigned } from './format.mjs';
-import { buildSessionEndEmbed, activeSessions, ACTIVE_TIMEOUT_MS, burnUpToCredits } from './session.mjs';
+import { buildSessionEndEmbed, activeSessions, ACTIVE_TIMEOUT_MS, burnUpToCredits, refundChipsStake } from './session.mjs';
 import { ridebusGames } from './ridebus.mjs';
 import { blackjackGames } from './blackjack.mjs';
 import { rouletteSessions } from './roulette.mjs';
@@ -183,8 +183,11 @@ export async function sweepExpiredSessions(client) {
           const st = ridebusGames.get(key);
           const chipsStake = st?.chipsStake || 0;
           if (st) { try { await burnUpToCredits(guildId, userId, Number(st.creditsStake) || 0, 'ridebus expired (timer)'); } catch {} }
+          if (chipsStake > 0) {
+            await refundChipsStake(guildId, userId, chipsStake, 'ridebus refund (expired)');
+          }
           ridebusGames.delete(key);
-          await postGameSessionEndByIds(client, guildId, userId, { game: 'Ride the Bus', houseNet: (s.houseNet || 0) + chipsStake });
+          await postGameSessionEndByIds(client, guildId, userId, { game: 'Ride the Bus', houseNet: (s.houseNet || 0) });
         } else if (s.type === 'blackjack') {
           const st = blackjackGames.get(key);
           let chipsStake = 0;
@@ -193,8 +196,11 @@ export async function sweepExpiredSessions(client) {
             else chipsStake = st.chipsStake || 0;
             try { await burnUpToCredits(guildId, userId, Number(st.creditsStake) || 0, 'blackjack expired (timer)'); } catch {}
           }
+          if (chipsStake > 0) {
+            await refundChipsStake(guildId, userId, chipsStake, 'blackjack refund (expired)');
+          }
           blackjackGames.delete(key);
-          await postGameSessionEndByIds(client, guildId, userId, { game: 'Blackjack', houseNet: (s.houseNet || 0) + chipsStake });
+          await postGameSessionEndByIds(client, guildId, userId, { game: 'Blackjack', houseNet: (s.houseNet || 0) });
         } else if (s.type === 'roulette') {
           rouletteSessions.delete(key);
           await postGameSessionEndByIds(client, guildId, userId, { game: 'Roulette', houseNet: (s.houseNet || 0) });

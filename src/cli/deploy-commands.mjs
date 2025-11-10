@@ -50,6 +50,17 @@ const commands = [
     ]
   },
   {
+    name: 'cartel',
+    description: 'Show your cartel overview and navigate via buttons.'
+  },
+  {
+    name: 'cartelreset',
+    description: 'Reset a player\'s cartel holdings to zero (admin only).',
+    options: [
+      { name: 'user', description: 'Player to reset', type: 6, required: true }
+    ]
+  },
+  {
     name: 'dicewar',
     description: 'Dice War: 2d6 vs house; doubles double pot on win (ties house).',
     options: [
@@ -153,6 +164,27 @@ const commands = [
     options: [
       { name: 'game', description: 'Which game', type: 3, required: true, choices: [ { name: 'Ride the Bus', value: 'Ride the Bus' } ] },
       { name: 'amount', description: 'Maximum bet', type: 4, required: true, min_value: 1 }
+    ]
+  },
+  {
+    name: 'setcartelshare',
+    description: 'Set the cartel share price (admin only).',
+    options: [
+      { name: 'price', description: 'Share price in chips', type: 4, required: true, min_value: 1 }
+    ]
+  },
+  {
+    name: 'setcartelrate',
+    description: 'Set the Semuta share production rate (grams of Semuta per share per hour, admin only).',
+    options: [
+      { name: 'grams', description: 'Grams of Semuta per share per hour', type: 10, required: true, min_value: 0.001 }
+    ]
+  },
+  {
+    name: 'setcartelxp',
+    description: 'Set the cartel XP awarded per gram of Semuta sold (admin only).',
+    options: [
+      { name: 'xp', description: 'XP per gram of Semuta sold', type: 10, required: true, min_value: 0 }
     ]
   },
 

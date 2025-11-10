@@ -1,5 +1,5 @@
 import { EmbedBuilder } from 'discord.js';
-import { getUserBalances, burnCredits } from '../db/db.auto.mjs';
+import { getUserBalances, burnCredits, markUserFirstGameWin, transferFromHouseToUser } from '../db/db.auto.mjs';
 import { chipsAmount, chipsAmountSigned } from './format.mjs';
 import { finalizeSessionUIByIds, postGameSessionEndByIds } from './logging.mjs';
 import { ridebusGames } from './ridebus.mjs';
@@ -53,9 +53,86 @@ export function addPlayerNetAndGame(guildId, userId, delta) {
     if (Number.isFinite(delta)) s.playerNet = (s.playerNet || 0) + Math.trunc(delta);
   } catch {}
 }
+
+function storeInteraction(interaction) {
+  try {
+    const guildId = interaction?.guild?.id;
+    const userId = interaction?.user?.id;
+    if (!guildId || !userId) return;
+    const session = activeSessions.get(activeKey(guildId, userId));
+    if (!session) return;
+    session.lastInteraction = interaction;
+  } catch {}
+}
+
+async function maybeSendCartelNotice(interaction) {
+  try {
+    const guildId = interaction?.guild?.id;
+    const userId = interaction?.user?.id;
+    if (!guildId || !userId) return;
+    const session = activeSessions.get(activeKey(guildId, userId));
+    if (!session?.pendingCartelNotice) return;
+    session.pendingCartelNotice = false;
+    const message = buildCartelPitchMessage(interaction.guild?.name || null);
+    await interaction.followUp({ content: message, ephemeral: true }).catch(err => {
+      console.error('Failed to send Semuta cartel follow-up', err);
+    });
+  } catch (err) {
+    console.error('Failed to process Semuta cartel follow-up', err);
+  }
+}
+
+async function handleInteractionPostResponse(interaction) {
+  if (!interaction) return;
+  storeInteraction(interaction);
+  await maybeSendCartelNotice(interaction);
+}
+
+export async function refundChipsStake(guildId, userId, amount, reason = 'game refund') {
+  const refund = Math.max(0, Math.trunc(Number(amount) || 0));
+  if (refund <= 0) return 0;
+  try {
+    await transferFromHouseToUser(guildId, userId, refund, reason, null);
+    return refund;
+  } catch (err) {
+    console.error('Failed to refund chips stake', { guildId, userId, refund, reason }, err);
+    return 0;
+  }
+}
+
+function queueCartelPitch(guildId, userId) {
+  try {
+    const ts = Math.floor(Date.now() / 1000);
+    Promise.resolve(markUserFirstGameWin(guildId, userId, ts))
+      .then(shouldNotify => {
+        if (!shouldNotify) return null;
+        const session = activeSessions.get(activeKey(guildId, userId));
+        if (!session) return null;
+        session.pendingCartelNotice = true;
+        return null;
+      })
+      .catch(err => console.error('Semuta cartel pitch scheduling failed', err));
+  } catch (err) {
+    console.error('Semuta cartel pitch scheduling failed', err);
+  }
+}
+
+function buildCartelPitchMessage(guildName = null) {
+  const header = `${emoji('semuta_cartel')} **Semuta Cartel Dispatch**`;
+  const locationLine = guildName
+    ? `Word of your first score in **${guildName}** just hit our comms.`
+    : 'Word of your first score on the casino floor just hit our comms.';
+  const pitchLine = 'We have a chip-making opportunity that keeps paying even when you walk away from the tables.';
+  const callToAction = 'Use `/cartel` to open the Semuta board and let our dealers build passive income for you.';
+  return [header, locationLine, pitchLine, callToAction].join('\n');
+}
+
 export function recordSessionGame(guildId, userId, deltaChips) {
   try {
     addPlayerNetAndGame(guildId, userId, deltaChips);
+    if (Number(deltaChips) > 0) {
+      queueCartelPitch(guildId, userId);
+    }
   } catch {}
 }
 export function setActiveMessageRef(guildId, userId, channelId, messageId) {
@@ -71,24 +148,29 @@ export async function sendGameMessage(interaction, payload, mode = 'auto') {
   if (mode === 'update' || (mode === 'auto' && interaction.isButton && interaction.isButton())) {
     if (interaction.deferred || interaction.replied) {
       const res = await interaction.editReply(payload);
+      await handleInteractionPostResponse(interaction);
       try { setActiveMessageRef(interaction.guild.id, interaction.user.id, res.channelId, res.id); } catch {}
       return res;
     }
     const res = await interaction.update(payload);
+    await handleInteractionPostResponse(interaction);
     try { setActiveMessageRef(interaction.guild.id, interaction.user.id, interaction.channelId, interaction.message.id); } catch {}
     return res;
   }
   if (mode === 'followUp') {
     const msg = await interaction.followUp(payload);
+    await handleInteractionPostResponse(interaction);
     try { setActiveMessageRef(interaction.guild.id, interaction.user.id, msg.channelId, msg.id); } catch {}
     return msg;
   }
   if (interaction.deferred || interaction.replied) {
     const res = await interaction.editReply(payload);
+    await handleInteractionPostResponse(interaction);
     try { setActiveMessageRef(interaction.guild.id, interaction.user.id, res.channelId, res.id); } catch {}
     return res;
   }
   await interaction.reply(payload);
+  await handleInteractionPostResponse(interaction);
   try {
     const msg = await interaction.fetchReply();
     setActiveMessageRef(interaction.guild.id, interaction.user.id, msg.channelId, msg.id);
@@ -194,7 +276,10 @@ export async function endActiveSessionForUser(interaction, cause = 'new_command'
     if (s.type === 'ridebus') {
       const st = ridebusGames.get(k);
       if (st) { try { await burnUpToCredits(guildId, userId, Number(st.creditsStake) || 0, `ridebus expired (${cause})`); } catch {} }
-      const net = (s.houseNet || 0) + (st?.chipsStake || 0);
+      if (st?.chipsStake) {
+        await refundChipsStake(guildId, userId, st.chipsStake, `ridebus refund (${cause})`);
+      }
+      const net = (s.houseNet || 0);
       try { await postGameSessionEndByIds(interaction.client, guildId, userId, { game: 'Ride the Bus', houseNet: net }); } catch {}
       ridebusGames.delete(k);
     } else if (s.type === 'blackjack') {
@@ -203,7 +288,10 @@ export async function endActiveSessionForUser(interaction, cause = 'new_command'
       const chipsStake = st && st.split && Array.isArray(st.hands)
         ? (st.hands?.[0]?.chipsStake || 0) + (st.hands?.[1]?.chipsStake || 0)
         : (st?.chipsStake || 0);
-      const net = (s.houseNet || 0) + chipsStake;
+      if (chipsStake > 0) {
+        await refundChipsStake(guildId, userId, chipsStake, `blackjack refund (${cause})`);
+      }
+      const net = (s.houseNet || 0);
       try { await postGameSessionEndByIds(interaction.client, guildId, userId, { game: 'Blackjack', houseNet: net }); } catch {}
       blackjackGames.delete(k);
     } else if (s.type === 'roulette') {

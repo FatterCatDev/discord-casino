@@ -267,6 +267,104 @@ export function buildHelpSections({ kittenMode = false, isMod = false, isServerA
   };
   categories.push(jobs);
 
+  const cartel = {
+    id: 'semuta-cartel',
+    summary: say(
+      'Master the Semuta passive flow—invest shares, sell stash, and keep your runners paid.',
+      'Master the Semuta cartel loop—invest shares, sell stash, and keep dealers paid.'
+    ),
+    label: `${emoji('semuta_cartel')} Semuta Cartel`,
+    menuLabel: say('Semuta Cartel', 'Semuta Cartel'),
+    menuEmoji: emoji('semuta_cartel'),
+    color: DEFAULT_COLOR,
+    description: say(
+      'Open `/cartel` to watch your stash, warehouse, and dealer empire grow—every button on that board drives the passive income machine.',
+      'Use `/cartel` to monitor stash, warehouse, and dealer production—the buttons on that board control the entire passive income system.'
+    ),
+    groups: [
+      {
+        label: say(`${emoji('newspaper')} Overview & Shares`, `${emoji('newspaper')} Overview & Shares`),
+        items: [
+          {
+            emoji: emoji('semuta'),
+            cmd: '/cartel',
+            desc: say(
+              'Summon the Semuta dashboard with buttons for investing, selling stash, collecting warehouse chips, dealers, and ranks.',
+              'Opens the Semuta dashboard with buttons for investing, selling stash, collecting warehouse chips, dealers, and ranks.'
+            )
+          },
+          {
+            emoji: emoji('sparkles'),
+            cmd: 'Invest button (inside /cartel)',
+            desc: say(
+              'Pop the modal to buy shares at your guild’s live price; more shares mean faster Semuta ticks.',
+              'Opens a modal to buy shares at the current guild price; more shares boost Semuta production.'
+            )
+          },
+          {
+            emoji: emoji('flask'),
+            cmd: 'Sell Stash button (inside /cartel)',
+            desc: say(
+              'Turn stored grams of Semuta into chips by entering an amount or typing ALL.',
+              'Convert stash grams of Semuta into chips—enter an amount or type ALL.'
+            )
+          },
+          {
+            emoji: emoji('banknotes'),
+            cmd: 'Collect Warehouse button (inside /cartel)',
+            desc: say(
+              'Empty overflow Semuta into chips once the warehouse fills up.',
+              'Move warehouse overflow into chips whenever you’re ready.'
+            )
+          }
+        ]
+      },
+      {
+        label: say(`${emoji('dealers')} Dealers & Upkeep`, `${emoji('dealers')} Dealers & Upkeep`),
+        items: [
+          {
+            emoji: emoji('dealers'),
+            cmd: 'Dealers button (inside /cartel)',
+            desc: say(
+              'Swap between List, Hire, and Upkeep tabs to recruit, rename, or fire your distributors.',
+              'Switch between List, Hire, and Upkeep tabs to recruit, manage, or fire dealers.'
+            )
+          },
+          {
+            emoji: emoji('cashStack'),
+            cmd: 'Collect Chips button (Dealers view)',
+            desc: say(
+              'Claims every dealer’s pending chip payout and grants cartel XP.',
+              'Collects all pending dealer chips at once and awards cartel XP.'
+            )
+          },
+          {
+            emoji: emoji('alarmClock'),
+            cmd: 'Upkeep buttons (Dealers view)',
+            desc: say(
+              'Settle overdue routes right from the embed—enter any chip amount to buy more time.',
+              'Pay upkeep directly from the embed—enter chip amounts to extend dealer routes.'
+            )
+          }
+        ]
+      },
+      {
+        label: say(`${emoji('trophy')} Ranks & Mods`, `${emoji('trophy')} Ranks & Moderation`),
+        items: [
+          {
+            emoji: emoji('medalGold'),
+            cmd: 'Ranks button (inside /cartel)',
+            desc: say(
+              'View the XP ladder, see where you sit, and plan the grind to unlock more dealer slots.',
+              'Shows the XP ladder, highlighting your current rank so you know what’s next.'
+            )
+          }
+        ]
+      }
+    ]
+  };
+  categories.push(cartel);
+
   if (isServerAdmin || isBotAdmin) {
     categories.push({
       id: 'server-admins',
@@ -319,7 +417,7 @@ export function buildHelpSections({ kittenMode = false, isMod = false, isServerA
               )
             }
           ]
-        }
+        },
       ]
     });
   }
@@ -464,6 +562,19 @@ export function buildHelpSections({ kittenMode = false, isMod = false, isServerA
               desc: say(
                 'Invite or dismiss my sultry persona. (Admin only)',
                 'Toggle the Kitten persona. (Admin only)'
+              )
+            }
+          ]
+        },
+        {
+          label: say(`${emoji('semuta_cartel')} Semuta Cartel`, `${emoji('semuta_cartel')} Semuta Cartel`),
+          items: [
+            {
+              emoji: emoji('hammerWrench'),
+              cmd: '/setcartelshare • /setcartelrate • /setcartelxp • /cartelreset',
+              desc: say(
+                'Admins only: tune share price/output, adjust XP per gram of Semuta, or reset a player if needed.',
+                'Admins only: tune share price and rate, change XP per gram of Semuta, or reset a player’s cartel profile.'
               )
             }
           ]

@@ -64,6 +64,7 @@ export const getBotStatusSnapshot = pick('getBotStatusSnapshot');
 export const getUserNewsSettings = pick('getUserNewsSettings');
 export const setUserNewsOptIn = pick('setUserNewsOptIn');
 export const markUserNewsDelivered = pick('markUserNewsDelivered');
+export const markUserFirstGameWin = pick('markUserFirstGameWin');
 export const addToHouse = pick('addToHouse');
 export const removeFromHouse = pick('removeFromHouse');
 export const transferFromHouseToUser = pick('transferFromHouseToUser');
@@ -97,6 +98,34 @@ export const createJobShift = pick('createJobShift');
 export const completeJobShift = pick('completeJobShift');
 export const getJobShiftById = pick('getJobShiftById');
 export const listJobShiftsForUser = pick('listJobShiftsForUser');
+
+// Cartel passive system
+export const getCartelPool = pick('getCartelPool');
+export const listCartelGuildIds = pick('listCartelGuildIds');
+export const setCartelSharePrice = pick('setCartelSharePrice');
+export const setCartelShareRate = pick('setCartelShareRate');
+export const listCartelInvestors = pick('listCartelInvestors');
+export const getCartelInvestor = pick('getCartelInvestor');
+export const cartelAddShares = pick('cartelAddShares');
+export const cartelSetHoldings = pick('cartelSetHoldings');
+export const cartelSetRankAndXp = pick('cartelSetRankAndXp');
+export const cartelSetAutoSellRule = pick('cartelSetAutoSellRule');
+export const cartelResetInvestor = pick('cartelResetInvestor');
+export const cartelApplyProduction = pick('cartelApplyProduction');
+export const cartelUpdatePoolTick = pick('cartelUpdatePoolTick');
+export const recordCartelTransaction = pick('recordCartelTransaction');
+export const cartelCreateDealer = pick('cartelCreateDealer');
+export const listCartelDealers = pick('listCartelDealers');
+export const listCartelDealersForUser = pick('listCartelDealersForUser');
+export const getCartelDealer = pick('getCartelDealer');
+export const cartelSetDealerStatus = pick('cartelSetDealerStatus');
+export const cartelSetDealerUpkeep = pick('cartelSetDealerUpkeep');
+export const cartelRecordDealerSale = pick('cartelRecordDealerSale');
+export const cartelDeleteDealer = pick('cartelDeleteDealer');
+export const cartelDeleteDealersForUser = pick('cartelDeleteDealersForUser');
+export const cartelAddDealerPending = pick('cartelAddDealerPending');
+export const cartelClearDealerPending = pick('cartelClearDealerPending');
+export const setCartelXpPerGram = pick('setCartelXpPerGram');
 
 // Hold'em escrow and hands
 export const ensureHoldemTable = pick('ensureHoldemTable');

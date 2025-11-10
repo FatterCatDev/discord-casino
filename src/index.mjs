@@ -56,6 +56,8 @@ import { BOT_VERSION, pushUpdateAnnouncement } from './services/updates.mjs';
 import { getActiveNews, newsDigest } from './services/news.mjs';
 import { startLeaderboardChampionWatcher, claimChampionNotice } from './services/championRole.mjs';
 import { emoji } from './lib/emojis.mjs';
+import { startCartelWorker as startCartelWorkerMod } from './cartel/service.mjs';
+import { startTopggStatsPoster } from './services/topgg.mjs';
 
 // Slash command handlers (modularized)
 import cmdPing from './commands/ping.mjs';
@@ -100,6 +102,28 @@ import cmdKittenMode from './commands/kittenmode.mjs';
 import cmdVote from './commands/vote.mjs';
 import cmdNews from './commands/news.mjs';
 import cmdEightBall from './commands/eightball.mjs';
+import cmdCartel, {
+  handleCartelOverviewRefresh,
+  handleCartelRankTable,
+  handleCartelGuide,
+  handleCartelDealersView,
+  handleCartelDealerHireTier,
+  handleCartelDealerUpkeep,
+  handleCartelDealerFire,
+  handleCartelDealerFireAll,
+  handleCartelDealerUpkeepModal,
+  handleCartelInvestButton,
+  handleCartelInvestModal,
+  handleCartelSellPrompt,
+  handleCartelSellModal,
+  handleCartelCollectPrompt,
+  handleCartelCollectModal,
+  handleCartelDealerCollect
+} from './commands/cartel.mjs';
+import cmdSetCartelShare from './commands/setcartelshare.mjs';
+import cmdCartelReset from './commands/cartelreset.mjs';
+import cmdSetCartelRate from './commands/setcartelrate.mjs';
+import cmdSetCartelXp from './commands/setcartelxp.mjs';
 
 // Interaction handlers
 import onHelpSelect from './interactions/helpSelect.mjs';
@@ -132,6 +156,14 @@ const REVIEW_PROMPT_SUPPORT_MESSAGE = [
 ].join('\n');
 
 const NEWS_COOLDOWN_SECONDS = 7 * 24 * 60 * 60;
+
+let topggPoster = null;
+
+function triggerTopggStats(reason = 'manual') {
+  if (topggPoster?.trigger) {
+    topggPoster.trigger(reason).catch(() => {});
+  }
+}
 
 function buildWelcomePromptEmbed({ status = null, bonusJustGranted = false, bonusError = null } = {}) {
   const chipsText = formatChips(WELCOME_BONUS_AMOUNT);
@@ -534,6 +566,17 @@ client.once(Events.ClientReady, c => {
   sweepVoteRewards().catch(() => {});
   setInterval(() => { sweepVoteRewards().catch(() => {}); }, intervalMs);
   startLeaderboardChampionWatcher(client);
+  try {
+    const timer = startCartelWorkerMod();
+    if (typeof timer?.unref === 'function') timer.unref();
+  } catch (err) {
+    console.error('Failed to start cartel worker', err);
+  }
+  try {
+    topggPoster = startTopggStatsPoster(client);
+  } catch (err) {
+    console.error('Failed to start top.gg stats poster', err);
+  }
 
 });
 
@@ -553,10 +596,12 @@ client.on(Events.GuildCreate, async (guild) => {
     console.error(`Failed to process guildCreate welcome for guild ${guild?.id}`, err);
   }
   pushBotStatusSnapshot('guild_create').catch(() => {});
+  triggerTopggStats('guild_create');
 });
 
 client.on(Events.GuildDelete, (guild) => {
   pushBotStatusSnapshot('guild_delete').catch(() => {});
+  triggerTopggStats('guild_delete');
 });
 
 client.on(Events.GuildAuditLogEntryCreate, async (entry, guild) => {
@@ -972,11 +1017,16 @@ const commandHandlers = {
   horserace: cmdHorseRace,
   setrake: cmdSetRake,
   setmaxbet: cmdSetMaxBet,
+  setcartelshare: cmdSetCartelShare,
+  setcartelxp: cmdSetCartelXp,
+  setcartelrate: cmdSetCartelRate,
   resetallbalance: cmdResetAllBalance,
   setcasinocategory: cmdSetCasinoCategory,
+  cartelreset: cmdCartelReset,
   kittenmode: cmdKittenMode,
   vote: cmdVote,
   news: cmdNews,
+  cartel: cmdCartel,
   '8ball': cmdEightBall
 };
 
@@ -1052,6 +1102,62 @@ client.on(Events.InteractionCreate, async interaction => {
         console.error(`Failed to acknowledge welcome bonus for ${userId} in ${guildId}`, err);
         return interaction.reply({ content: '❌ I hit an error while confirming that bonus. Please try again in a moment.', ephemeral: true }).catch(() => {});
       }
+    }
+    else if (interaction.isButton() && interaction.customId === 'cartel|refresh') {
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelOverviewRefresh(interaction, ctx);
+    }
+    else if (interaction.isButton() && interaction.customId === 'cartel|ranks') {
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelRankTable(interaction, ctx);
+    }
+    else if (interaction.isButton() && interaction.customId === 'cartel|guide') {
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelGuide(interaction, ctx);
+    }
+    else if (interaction.isButton() && interaction.customId === 'cartel|invest') {
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelInvestButton(interaction, ctx);
+    }
+    else if (interaction.isButton() && interaction.customId === 'cartel|sell|prompt') {
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelSellPrompt(interaction, ctx);
+    }
+    else if (interaction.isButton() && interaction.customId === 'cartel|collect|prompt') {
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelCollectPrompt(interaction, ctx);
+    }
+    else if (interaction.isButton() && interaction.customId === 'cartel|overview') {
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelOverviewRefresh(interaction, ctx);
+    }
+    else if (interaction.isButton() && interaction.customId.startsWith('cartel|dealers|view|')) {
+      const view = interaction.customId.split('|').pop();
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelDealersView(interaction, ctx, view);
+    }
+    else if (interaction.isButton() && interaction.customId.startsWith('cartel|dealers|hire|tier|')) {
+      const tierId = Number(interaction.customId.split('|').pop());
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelDealerHireTier(interaction, ctx, tierId);
+    }
+    else if (interaction.isButton() && interaction.customId.startsWith('cartel|dealers|upkeep|')) {
+      const dealerId = interaction.customId.substring('cartel|dealers|upkeep|'.length);
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelDealerUpkeep(interaction, ctx, dealerId);
+    }
+    else if (interaction.isButton() && interaction.customId === 'cartel|dealers|fire_all') {
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelDealerFireAll(interaction, ctx);
+    }
+    else if (interaction.isButton() && interaction.customId === 'cartel|dealers|collect') {
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelDealerCollect(interaction, ctx);
+    }
+    else if (interaction.isButton() && interaction.customId.startsWith('cartel|dealers|fire|dealer|')) {
+      const dealerId = interaction.customId.substring('cartel|dealers|fire|dealer|'.length);
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelDealerFire(interaction, ctx, dealerId);
     }
     else if (interaction.isButton() && interaction.customId.startsWith('jobstatus|')) {
       const ctx = buildCommandContext(interaction, ctxExtras);
@@ -1132,6 +1238,27 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 
     // Request reject modal submits
+    else if (interaction.isModalSubmit() && interaction.customId.startsWith('cartel|dealers|upkeep_modal|')) {
+      const dealerId = interaction.customId.substring('cartel|dealers|upkeep_modal|'.length);
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelDealerUpkeepModal(interaction, ctx, dealerId);
+    }
+    else if (interaction.isModalSubmit() && interaction.customId.startsWith('cartel|collect|modal|')) {
+      const messageId = interaction.customId.substring('cartel|collect|modal|'.length);
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelCollectModal(interaction, ctx, messageId);
+    }
+    else if (interaction.isModalSubmit() && interaction.customId.startsWith('cartel|sell|modal|')) {
+      const messageId = interaction.customId.substring('cartel|sell|modal|'.length);
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelSellModal(interaction, ctx, messageId);
+    }
+    else if (interaction.isModalSubmit() && interaction.customId.startsWith('cartel|invest|modal')) {
+      const parts = interaction.customId.split('|');
+      const sourceMessageId = parts.length > 3 ? parts[3] : '0';
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelInvestModal(interaction, ctx, sourceMessageId);
+    }
     else if (interaction.isModalSubmit() && interaction.customId.startsWith('req|rejmodal|')) {
       if (!(await isModerator(interaction))) return interaction.reply({ content: '❌ Moderators only.', ephemeral: true });
       const ctx = buildCommandContext(interaction, ctxExtras);

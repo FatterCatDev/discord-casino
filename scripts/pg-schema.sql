@@ -12,6 +12,7 @@ CREATE TABLE IF NOT EXISTS users (
   discord_id  TEXT UNIQUE NOT NULL,
   chips       BIGINT NOT NULL DEFAULT 0,
   credits     BIGINT NOT NULL DEFAULT 0,
+  first_game_win_at BIGINT,
   created_at  timestamptz NOT NULL DEFAULT now(),
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
@@ -144,3 +145,72 @@ CREATE TABLE IF NOT EXISTS holdem_commits (
   amount    BIGINT NOT NULL,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+-- Cartel passive income system
+CREATE TABLE IF NOT EXISTS cartel_pool (
+  guild_id TEXT PRIMARY KEY,
+  total_shares BIGINT NOT NULL DEFAULT 0,
+  base_rate_mg_per_hour BIGINT NOT NULL DEFAULT 180000,
+  share_price BIGINT NOT NULL DEFAULT 100,
+  share_rate_mg_per_hour BIGINT NOT NULL DEFAULT 100,
+  xp_per_gram_sold BIGINT NOT NULL DEFAULT 2,
+  carryover_mg BIGINT NOT NULL DEFAULT 0,
+  last_tick_at BIGINT,
+  event_state TEXT,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
+CREATE TABLE IF NOT EXISTS cartel_investors (
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  shares BIGINT NOT NULL DEFAULT 0,
+  stash_mg BIGINT NOT NULL DEFAULT 0,
+  warehouse_mg BIGINT NOT NULL DEFAULT 0,
+  rank INTEGER NOT NULL DEFAULT 1,
+  rank_xp BIGINT NOT NULL DEFAULT 0,
+  auto_sell_rule TEXT,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  PRIMARY KEY (guild_id, user_id),
+  CHECK (shares >= 0),
+  CHECK (stash_mg >= 0),
+  CHECK (warehouse_mg >= 0)
+);
+CREATE INDEX IF NOT EXISTS idx_cartel_investors_guild ON cartel_investors(guild_id);
+
+CREATE TABLE IF NOT EXISTS cartel_transactions (
+  id BIGSERIAL PRIMARY KEY,
+  guild_id TEXT NOT NULL,
+  user_id TEXT,
+  type TEXT NOT NULL,
+  amount_chips BIGINT NOT NULL DEFAULT 0,
+  amount_mg BIGINT NOT NULL DEFAULT 0,
+  metadata_json TEXT,
+  created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_cartel_tx_guild_time ON cartel_transactions(guild_id, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS cartel_dealers (
+  dealer_id TEXT PRIMARY KEY,
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  tier INTEGER NOT NULL,
+  trait TEXT,
+  display_name TEXT,
+  status TEXT NOT NULL DEFAULT 'ACTIVE',
+  hourly_sell_cap_mg BIGINT NOT NULL,
+  price_multiplier_bps INTEGER NOT NULL,
+  upkeep_cost BIGINT NOT NULL,
+  upkeep_interval_seconds INTEGER NOT NULL DEFAULT 3600,
+  upkeep_due_at BIGINT NOT NULL,
+  bust_until BIGINT,
+  last_sold_at BIGINT,
+  lifetime_sold_mg BIGINT NOT NULL DEFAULT 0,
+  pending_chips BIGINT NOT NULL DEFAULT 0,
+  pending_mg BIGINT NOT NULL DEFAULT 0,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS idx_cartel_dealers_guild ON cartel_dealers(guild_id);
+CREATE INDEX IF NOT EXISTS idx_cartel_dealers_user ON cartel_dealers(guild_id, user_id);

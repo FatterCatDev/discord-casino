@@ -1,6 +1,6 @@
 # Discord Casino Bot
 
-Last update: 1.1.5
+Last update: 1.2.1
 
 Invite Bot to your server:
 https://discord.com/oauth2/authorize?client_id=1415454565687492780
@@ -187,6 +187,8 @@ Optional
 - `TOPGG_WEBHOOK_AUTH` – Shared secret for the Top.gg webhook endpoint (enables vote rewards)
 - `TOPGG_VOTE_URL` – Override the vote link shown in `/vote` (defaults to `https://top.gg/bot/<CLIENT_ID>/vote`)
 - `TOPGG_BOT_ID` – Bot ID for building the default Top.gg vote link (falls back to `CLIENT_ID`)
+- `TOPGG_API_TOKEN` – REST token from Top.gg; enables automatic server count posting
+- `TOPGG_POST_INTERVAL_SECONDS` – How often to push stats to Top.gg (defaults to 1800 seconds; minimum 300)
 - `DBL_VOTE_URL` – Override the DiscordBotList vote link shown in `/vote` (defaults to `https://discordbotlist.com/bots/<CLIENT_ID>/upvote`)
 - `DBL_BOT_ID` – Bot ID for building the default DiscordBotList vote link (falls back to `CLIENT_ID`)
 - `DBL_WEBHOOK_AUTH` – Shared secret for the DiscordBotList vote webhook endpoint

@@ -10,6 +10,13 @@ const DEFAULT_GUILD_ID = process.env.PRIMARY_GUILD_ID || process.env.GUILD_ID ||
 const ECONOMY_SCOPE = (process.env.ECONOMY_SCOPE || 'global').toLowerCase();
 const ECONOMY_GUILD_ID = process.env.GLOBAL_ECONOMY_ID || DEFAULT_GUILD_ID;
 const USE_GLOBAL_ECONOMY = ECONOMY_SCOPE !== 'guild';
+const MG_PER_GRAM = 1000;
+const CARTEL_DEFAULT_BASE_RATE_GRAMS_PER_HOUR = Math.max(1, Number(process.env.CARTEL_BASE_RATE_GRAMS_PER_HOUR || 180));
+const CARTEL_DEFAULT_BASE_RATE_MG_PER_HOUR = Math.round(CARTEL_DEFAULT_BASE_RATE_GRAMS_PER_HOUR * MG_PER_GRAM);
+const CARTEL_DEFAULT_SHARE_RATE_GRAMS_PER_HOUR = Math.max(0.001, Number(process.env.CARTEL_SHARE_RATE_GRAMS_PER_HOUR || 0.10));
+const CARTEL_DEFAULT_SHARE_RATE_MG_PER_HOUR = Math.round(CARTEL_DEFAULT_SHARE_RATE_GRAMS_PER_HOUR * MG_PER_GRAM);
+const CARTEL_DEFAULT_XP_PER_GRAM_SOLD = Math.max(0, Number(process.env.CARTEL_XP_PER_GRAM_SOLD || 2));
+const CARTEL_DEFAULT_SHARE_PRICE = Math.max(1, Math.floor(Number(process.env.CARTEL_SHARE_PRICE || 100)));
 
 // --- SCHEMA & MIGRATIONS ---
 db.exec(`
@@ -40,6 +47,7 @@ CREATE TABLE IF NOT EXISTS users (
   discord_id TEXT NOT NULL,
   chips INTEGER NOT NULL DEFAULT 0,
   credits INTEGER NOT NULL DEFAULT 0,
+  first_game_win_at INTEGER,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (guild_id, discord_id)
@@ -208,6 +216,70 @@ CREATE TABLE IF NOT EXISTS user_interaction_stats (
   review_prompt_status TEXT,
   review_prompt_last_error TEXT
 );
+CREATE TABLE IF NOT EXISTS cartel_pool (
+  guild_id TEXT PRIMARY KEY,
+  total_shares INTEGER NOT NULL DEFAULT 0,
+  base_rate_mg_per_hour INTEGER NOT NULL DEFAULT 180000,
+  share_price INTEGER NOT NULL DEFAULT ${CARTEL_DEFAULT_SHARE_PRICE},
+  share_rate_mg_per_hour INTEGER NOT NULL DEFAULT ${CARTEL_DEFAULT_SHARE_RATE_MG_PER_HOUR},
+  xp_per_gram_sold INTEGER NOT NULL DEFAULT ${CARTEL_DEFAULT_XP_PER_GRAM_SOLD},
+  carryover_mg INTEGER NOT NULL DEFAULT 0,
+  last_tick_at INTEGER,
+  event_state TEXT,
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+  updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+);
+CREATE TABLE IF NOT EXISTS cartel_investors (
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  shares INTEGER NOT NULL DEFAULT 0,
+  stash_mg INTEGER NOT NULL DEFAULT 0,
+  warehouse_mg INTEGER NOT NULL DEFAULT 0,
+  rank INTEGER NOT NULL DEFAULT 1,
+  rank_xp INTEGER NOT NULL DEFAULT 0,
+  auto_sell_rule TEXT,
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+  updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+  PRIMARY KEY (guild_id, user_id),
+  CHECK (shares >= 0),
+  CHECK (stash_mg >= 0),
+  CHECK (warehouse_mg >= 0)
+);
+CREATE TABLE IF NOT EXISTS cartel_transactions (
+  id INTEGER PRIMARY KEY,
+  guild_id TEXT NOT NULL,
+  user_id TEXT,
+  type TEXT NOT NULL,
+  amount_chips INTEGER NOT NULL DEFAULT 0,
+  amount_mg INTEGER NOT NULL DEFAULT 0,
+  metadata_json TEXT,
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+);
+CREATE INDEX IF NOT EXISTS idx_cartel_investors_guild ON cartel_investors (guild_id);
+CREATE INDEX IF NOT EXISTS idx_cartel_transactions_guild_time ON cartel_transactions (guild_id, created_at DESC);
+CREATE TABLE IF NOT EXISTS cartel_dealers (
+  dealer_id TEXT PRIMARY KEY,
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  tier INTEGER NOT NULL,
+  trait TEXT,
+  display_name TEXT,
+  status TEXT NOT NULL DEFAULT 'ACTIVE',
+  hourly_sell_cap_mg INTEGER NOT NULL,
+  price_multiplier_bps INTEGER NOT NULL,
+  upkeep_cost INTEGER NOT NULL,
+  upkeep_interval_seconds INTEGER NOT NULL DEFAULT 3600,
+  upkeep_due_at INTEGER NOT NULL,
+  bust_until INTEGER,
+  last_sold_at INTEGER,
+  lifetime_sold_mg INTEGER NOT NULL DEFAULT 0,
+  pending_chips INTEGER NOT NULL DEFAULT 0,
+  pending_mg INTEGER NOT NULL DEFAULT 0,
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+  updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+);
+CREATE INDEX IF NOT EXISTS idx_cartel_dealers_guild ON cartel_dealers (guild_id);
+CREATE INDEX IF NOT EXISTS idx_cartel_dealers_user ON cartel_dealers (guild_id, user_id);
 CREATE TABLE IF NOT EXISTS user_interaction_events (
   id INTEGER PRIMARY KEY,
   user_id TEXT NOT NULL,
@@ -233,6 +305,10 @@ CREATE INDEX IF NOT EXISTS idx_user_interaction_events_user ON user_interaction_
 try { db.prepare(`SELECT credits FROM users LIMIT 1`).get(); } catch {
   db.exec(`ALTER TABLE users ADD COLUMN credits INTEGER NOT NULL DEFAULT 0`);
 }
+// Migration: add first_game_win_at to users if missing
+try { db.prepare(`SELECT first_game_win_at FROM users LIMIT 1`).get(); } catch {
+  db.exec(`ALTER TABLE users ADD COLUMN first_game_win_at INTEGER`);
+}
 // Migration: add currency column if missing
 try { db.prepare(`SELECT currency FROM transactions LIMIT 1`).get(); } catch {
   db.exec(`ALTER TABLE transactions ADD COLUMN currency TEXT NOT NULL DEFAULT 'CHIPS'`);
@@ -256,6 +332,33 @@ try { db.prepare(`SELECT update_channel_id FROM guild_settings LIMIT 1`).get(); 
 // Migration: add request_cooldown_sec to guild_settings if missing
 try { db.prepare(`SELECT request_cooldown_sec FROM guild_settings LIMIT 1`).get(); } catch {
   db.exec(`ALTER TABLE guild_settings ADD COLUMN request_cooldown_sec INTEGER NOT NULL DEFAULT 0`);
+}
+// Migration: add display_name to cartel_dealers if missing
+try { db.prepare(`SELECT display_name FROM cartel_dealers LIMIT 1`).get(); } catch {
+  db.exec(`ALTER TABLE cartel_dealers ADD COLUMN display_name TEXT`);
+}
+
+// Migration: add share_price to cartel_pool if missing
+try { db.prepare(`SELECT share_price FROM cartel_pool LIMIT 1`).get(); } catch {
+  db.exec(`ALTER TABLE cartel_pool ADD COLUMN share_price INTEGER NOT NULL DEFAULT ${CARTEL_DEFAULT_SHARE_PRICE}`);
+}
+
+// Migration: add share_rate_mg_per_hour to cartel_pool if missing
+try { db.prepare(`SELECT share_rate_mg_per_hour FROM cartel_pool LIMIT 1`).get(); } catch {
+  db.exec(`ALTER TABLE cartel_pool ADD COLUMN share_rate_mg_per_hour INTEGER NOT NULL DEFAULT ${CARTEL_DEFAULT_SHARE_RATE_MG_PER_HOUR}`);
+}
+
+// Migration: add xp_per_gram_sold to cartel_pool if missing
+try { db.prepare(`SELECT xp_per_gram_sold FROM cartel_pool LIMIT 1`).get(); } catch {
+  db.exec(`ALTER TABLE cartel_pool ADD COLUMN xp_per_gram_sold INTEGER NOT NULL DEFAULT ${CARTEL_DEFAULT_XP_PER_GRAM_SOLD}`);
+}
+
+// Migration: add pending columns to cartel_dealers if missing
+try { db.prepare(`SELECT pending_chips FROM cartel_dealers LIMIT 1`).get(); } catch {
+  db.exec(`ALTER TABLE cartel_dealers ADD COLUMN pending_chips INTEGER NOT NULL DEFAULT 0`);
+}
+try { db.prepare(`SELECT pending_mg FROM cartel_dealers LIMIT 1`).get(); } catch {
+  db.exec(`ALTER TABLE cartel_dealers ADD COLUMN pending_mg INTEGER NOT NULL DEFAULT 0`);
 }
 // Migration: add casino_category_id to guild_settings if missing
 try { db.prepare(`SELECT casino_category_id FROM guild_settings LIMIT 1`).get(); } catch {
@@ -293,14 +396,15 @@ function migrateUsersToGuildScoped() {
       discord_id TEXT NOT NULL,
       chips INTEGER NOT NULL DEFAULT 0,
       credits INTEGER NOT NULL DEFAULT 0,
+      first_game_win_at INTEGER,
       created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
       PRIMARY KEY (guild_id, discord_id)
     );
   `);
   const insertLegacy = db.prepare(`
-    INSERT INTO users_tmp (guild_id, discord_id, chips, credits, created_at, updated_at)
-    SELECT @guild, discord_id, chips, credits, created_at, updated_at FROM users
+    INSERT INTO users_tmp (guild_id, discord_id, chips, credits, first_game_win_at, created_at, updated_at)
+    SELECT @guild, discord_id, chips, credits, NULL, created_at, updated_at FROM users
   `);
   const migrate = db.transaction(() => {
     insertLegacy.run({ guild: ECONOMY_GUILD_ID });
@@ -358,21 +462,23 @@ function mergeEconomyToGlobalScope() {
       SELECT discord_id,
              COALESCE(SUM(chips), 0) AS chips,
              COALESCE(SUM(credits), 0) AS credits,
+             MIN(first_game_win_at) AS first_game_win_at,
              MIN(created_at) AS created_at,
              MAX(updated_at) AS updated_at
       FROM users
       GROUP BY discord_id
     `).all();
     const deleteUsersStmt = db.prepare('DELETE FROM users');
-    const insertUserStmt = db.prepare('INSERT INTO users (guild_id, discord_id, chips, credits, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)');
+    const insertUserStmt = db.prepare('INSERT INTO users (guild_id, discord_id, chips, credits, first_game_win_at, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)');
     const mergeUsers = db.transaction(() => {
       deleteUsersStmt.run();
       for (const row of aggregated) {
         const chips = Number(row?.chips || 0);
         const credits = Number(row?.credits || 0);
+        const firstGameWinAt = row?.first_game_win_at != null ? Number(row.first_game_win_at) : null;
         const createdAt = row?.created_at || new Date().toISOString();
         const updatedAt = row?.updated_at || createdAt;
-        insertUserStmt.run(gid, row.discord_id, chips, credits, String(createdAt), String(updatedAt));
+        insertUserStmt.run(gid, row.discord_id, chips, credits, firstGameWinAt != null ? Math.trunc(firstGameWinAt) : null, String(createdAt), String(updatedAt));
       }
     });
     mergeUsers();
@@ -433,7 +539,14 @@ const upsertDailySpinStmt = db.prepare(`
 `);
 
 const ensureUserStmt = db.prepare('INSERT OR IGNORE INTO users (guild_id, discord_id) VALUES (?, ?)');
-const getUserStmt = db.prepare('SELECT chips, credits FROM users WHERE guild_id = ? AND discord_id = ?');
+const getUserStmt = db.prepare('SELECT chips, credits, first_game_win_at FROM users WHERE guild_id = ? AND discord_id = ?');
+const setFirstGameWinStmt = db.prepare(`
+  UPDATE users
+  SET first_game_win_at = COALESCE(first_game_win_at, ?),
+      updated_at = CURRENT_TIMESTAMP
+  WHERE guild_id = ? AND discord_id = ?
+    AND first_game_win_at IS NULL
+`);
 const findUserGuildStmt = db.prepare('SELECT guild_id FROM users WHERE discord_id = ? ORDER BY updated_at DESC LIMIT 1');
 const addChipsStmt = db.prepare('UPDATE users SET chips = chips + ?, updated_at = CURRENT_TIMESTAMP WHERE guild_id = ? AND discord_id = ?');
 const addCreditsStmt = db.prepare('UPDATE users SET credits = credits + ?, updated_at = CURRENT_TIMESTAMP WHERE guild_id = ? AND discord_id = ?');
@@ -477,6 +590,168 @@ const markVoteRewardClaimedStmt = db.prepare(`
   UPDATE vote_rewards
   SET claimed_at = ?, claim_guild_id = ?
   WHERE id = ?
+`);
+const ensureCartelPoolStmt = db.prepare(`
+  INSERT INTO cartel_pool (guild_id, base_rate_mg_per_hour, share_price, share_rate_mg_per_hour, xp_per_gram_sold)
+  VALUES (?, ?, ?, ?, ?)
+  ON CONFLICT(guild_id) DO NOTHING
+`);
+const getCartelPoolStmt = db.prepare(`
+  SELECT guild_id, total_shares, base_rate_mg_per_hour, share_price, share_rate_mg_per_hour, xp_per_gram_sold, carryover_mg, last_tick_at, event_state
+  FROM cartel_pool
+  WHERE guild_id = ?
+`);
+const updateCartelPoolSharesStmt = db.prepare(`
+  UPDATE cartel_pool
+  SET total_shares = total_shares + ?, updated_at = CURRENT_TIMESTAMP
+  WHERE guild_id = ?
+`);
+const setCartelPoolTickStmt = db.prepare(`
+  UPDATE cartel_pool
+  SET last_tick_at = ?, carryover_mg = ?, updated_at = CURRENT_TIMESTAMP
+  WHERE guild_id = ?
+`);
+const setCartelSharePriceStmt = db.prepare(`
+  UPDATE cartel_pool
+  SET share_price = ?, updated_at = CURRENT_TIMESTAMP
+  WHERE guild_id = ?
+`);
+const setCartelShareRateStmt = db.prepare(`
+  UPDATE cartel_pool
+  SET share_rate_mg_per_hour = ?, updated_at = CURRENT_TIMESTAMP
+  WHERE guild_id = ?
+`);
+const setCartelXpPerGramStmt = db.prepare(`
+  UPDATE cartel_pool
+  SET xp_per_gram_sold = ?, updated_at = CURRENT_TIMESTAMP
+  WHERE guild_id = ?
+`);
+const listCartelGuildIdsStmt = db.prepare(`
+  SELECT guild_id FROM (
+    SELECT DISTINCT guild_id FROM cartel_pool
+    UNION
+    SELECT DISTINCT guild_id FROM cartel_investors
+    UNION
+    SELECT DISTINCT guild_id FROM cartel_dealers
+  )
+`);
+const ensureCartelInvestorStmt = db.prepare(`
+  INSERT INTO cartel_investors (guild_id, user_id)
+  VALUES (?, ?)
+  ON CONFLICT(guild_id, user_id) DO NOTHING
+`);
+const getCartelInvestorStmt = db.prepare(`
+  SELECT guild_id, user_id, shares, stash_mg, warehouse_mg, rank, rank_xp, auto_sell_rule, created_at, updated_at
+  FROM cartel_investors
+  WHERE guild_id = ? AND user_id = ?
+`);
+const listCartelInvestorsStmt = db.prepare(`
+  SELECT guild_id, user_id, shares, stash_mg, warehouse_mg, rank, rank_xp, auto_sell_rule, created_at, updated_at
+  FROM cartel_investors
+  WHERE guild_id = ?
+`);
+const addCartelInvestorSharesStmt = db.prepare(`
+  UPDATE cartel_investors
+  SET shares = shares + ?, updated_at = CURRENT_TIMESTAMP
+  WHERE guild_id = ? AND user_id = ?
+`);
+const setCartelInvestorStateStmt = db.prepare(`
+  UPDATE cartel_investors
+  SET stash_mg = ?, warehouse_mg = ?, rank = ?, rank_xp = ?, updated_at = CURRENT_TIMESTAMP
+  WHERE guild_id = ? AND user_id = ?
+`);
+const setCartelInvestorHoldingsStmt = db.prepare(`
+  UPDATE cartel_investors
+  SET stash_mg = ?, warehouse_mg = ?, updated_at = CURRENT_TIMESTAMP
+  WHERE guild_id = ? AND user_id = ?
+`);
+const setCartelInvestorRankStmt = db.prepare(`
+  UPDATE cartel_investors
+  SET rank = ?, rank_xp = ?, updated_at = CURRENT_TIMESTAMP
+  WHERE guild_id = ? AND user_id = ?
+`);
+const setCartelInvestorAutoRuleStmt = db.prepare(`
+  UPDATE cartel_investors
+  SET auto_sell_rule = ?, updated_at = CURRENT_TIMESTAMP
+  WHERE guild_id = ? AND user_id = ?
+`);
+const resetCartelInvestorStmt = db.prepare(`
+  UPDATE cartel_investors
+  SET shares = 0,
+      stash_mg = 0,
+      warehouse_mg = 0,
+      rank = 1,
+      rank_xp = 0,
+      auto_sell_rule = NULL,
+      updated_at = CURRENT_TIMESTAMP
+  WHERE guild_id = ? AND user_id = ?
+`);
+const recordCartelTxnStmt = db.prepare(`
+  INSERT INTO cartel_transactions (guild_id, user_id, type, amount_chips, amount_mg, metadata_json)
+  VALUES (?, ?, ?, ?, ?, ?)
+`);
+const clearCartelDealerPendingTx = db.transaction((guildId, entries = []) => {
+  for (const entry of entries) {
+    const chips = Math.max(0, Math.floor(Number(entry.pending_chips || entry.chips || 0)));
+    const mg = Math.max(0, Math.floor(Number(entry.pending_mg || entry.mg || 0)));
+    if (!chips && !mg) continue;
+    clearCartelDealerPendingStmt.run(chips, mg, guildId, entry.dealer_id);
+  }
+});
+const insertCartelDealerStmt = db.prepare(`
+  INSERT INTO cartel_dealers (dealer_id, guild_id, user_id, tier, trait, display_name, status, hourly_sell_cap_mg, price_multiplier_bps, upkeep_cost, upkeep_interval_seconds, upkeep_due_at, bust_until, last_sold_at, lifetime_sold_mg, pending_chips, pending_mg)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0)
+`);
+const deleteCartelDealerStmt = db.prepare(`
+  DELETE FROM cartel_dealers
+  WHERE guild_id = ? AND dealer_id = ?
+`);
+const deleteCartelDealersForUserStmt = db.prepare(`
+  DELETE FROM cartel_dealers
+  WHERE guild_id = ? AND user_id = ?
+`);
+const listCartelDealersStmt = db.prepare(`
+  SELECT dealer_id, guild_id, user_id, tier, trait, display_name, status, hourly_sell_cap_mg, price_multiplier_bps, upkeep_cost, upkeep_interval_seconds, upkeep_due_at, bust_until, last_sold_at, lifetime_sold_mg, pending_chips, pending_mg, created_at, updated_at
+  FROM cartel_dealers
+  WHERE guild_id = ?
+`);
+const listCartelDealersForUserStmt = db.prepare(`
+  SELECT dealer_id, guild_id, user_id, tier, trait, display_name, status, hourly_sell_cap_mg, price_multiplier_bps, upkeep_cost, upkeep_interval_seconds, upkeep_due_at, bust_until, last_sold_at, lifetime_sold_mg, pending_chips, pending_mg, created_at, updated_at
+  FROM cartel_dealers
+  WHERE guild_id = ? AND user_id = ?
+  ORDER BY created_at ASC
+`);
+const getCartelDealerStmt = db.prepare(`
+  SELECT dealer_id, guild_id, user_id, tier, trait, display_name, status, hourly_sell_cap_mg, price_multiplier_bps, upkeep_cost, upkeep_interval_seconds, upkeep_due_at, bust_until, last_sold_at, lifetime_sold_mg, pending_chips, pending_mg, created_at, updated_at
+  FROM cartel_dealers
+  WHERE guild_id = ? AND dealer_id = ?
+`);
+const updateCartelDealerStatusStmt = db.prepare(`
+  UPDATE cartel_dealers
+  SET status = ?, updated_at = CURRENT_TIMESTAMP
+  WHERE guild_id = ? AND dealer_id = ?
+`);
+const updateCartelDealerUpkeepStmt = db.prepare(`
+  UPDATE cartel_dealers
+  SET upkeep_due_at = ?, status = ?, updated_at = CURRENT_TIMESTAMP
+  WHERE guild_id = ? AND dealer_id = ?
+`);
+const updateCartelDealerSaleStmt = db.prepare(`
+  UPDATE cartel_dealers
+  SET last_sold_at = ?, lifetime_sold_mg = lifetime_sold_mg + ?, updated_at = CURRENT_TIMESTAMP
+  WHERE guild_id = ? AND dealer_id = ?
+`);
+const addCartelDealerPendingStmt = db.prepare(`
+  UPDATE cartel_dealers
+  SET pending_chips = pending_chips + ?, pending_mg = pending_mg + ?, updated_at = CURRENT_TIMESTAMP
+  WHERE guild_id = ? AND dealer_id = ?
+`);
+const clearCartelDealerPendingStmt = db.prepare(`
+  UPDATE cartel_dealers
+  SET pending_chips = MAX(0, pending_chips - ?),
+      pending_mg = MAX(0, pending_mg - ?),
+      updated_at = CURRENT_TIMESTAMP
+  WHERE guild_id = ? AND dealer_id = ?
 `);
 const listPendingVoteUsersStmt = db.prepare(`
   SELECT discord_user_id
@@ -526,6 +801,21 @@ function ensureGuildHouse(guildId) {
   ensureHouseStmt.run(guildId);
 }
 
+function ensureCartelPool(guildId) {
+  ensureCartelPoolStmt.run(
+    guildId,
+    CARTEL_DEFAULT_BASE_RATE_MG_PER_HOUR,
+    CARTEL_DEFAULT_SHARE_PRICE,
+    CARTEL_DEFAULT_SHARE_RATE_MG_PER_HOUR,
+    CARTEL_DEFAULT_XP_PER_GRAM_SOLD
+  );
+}
+
+function ensureCartelInvestor(guildId, userId) {
+  ensureCartelPool(guildId);
+  ensureCartelInvestorStmt.run(guildId, userId);
+}
+
 function houseRow(guildId) {
   ensureGuildHouse(guildId);
   return getHouseStmt.get(guildId) || { chips: 0 };
@@ -557,6 +847,62 @@ function normalizeInteractionStats(row) {
     review_prompt_sent_at: row.review_prompt_sent_at != null ? Number(row.review_prompt_sent_at) : null,
     review_prompt_status: row.review_prompt_status || null,
     review_prompt_last_error: row.review_prompt_last_error || null
+  };
+}
+
+function normalizeCartelPool(row) {
+  if (!row) return null;
+  return {
+    guild_id: row.guild_id,
+    total_shares: Number(row.total_shares || 0),
+    base_rate_mg_per_hour: Number(row.base_rate_mg_per_hour || CARTEL_DEFAULT_BASE_RATE_MG_PER_HOUR),
+    share_price: Number(row.share_price || CARTEL_DEFAULT_SHARE_PRICE),
+    share_rate_mg_per_hour: Number(row.share_rate_mg_per_hour || CARTEL_DEFAULT_SHARE_RATE_MG_PER_HOUR),
+    xp_per_gram_sold: Number(row.xp_per_gram_sold || CARTEL_DEFAULT_XP_PER_GRAM_SOLD),
+    carryover_mg: Number(row.carryover_mg || 0),
+    last_tick_at: row.last_tick_at !== null && row.last_tick_at !== undefined ? Number(row.last_tick_at) : null,
+    event_state: safeParseJson(row.event_state) ?? null
+  };
+}
+
+function normalizeCartelInvestor(row) {
+  if (!row) return null;
+  return {
+    guild_id: row.guild_id,
+    user_id: row.user_id,
+    shares: Number(row.shares || 0),
+    stash_mg: Number(row.stash_mg || 0),
+    warehouse_mg: Number(row.warehouse_mg || 0),
+    rank: Math.max(1, Number(row.rank || 1)),
+    rank_xp: Math.max(0, Number(row.rank_xp || 0)),
+    auto_sell_rule: safeParseJson(row.auto_sell_rule) ?? null,
+    created_at: row.created_at !== null && row.created_at !== undefined ? Number(row.created_at) : null,
+    updated_at: row.updated_at !== null && row.updated_at !== undefined ? Number(row.updated_at) : null
+  };
+}
+
+function normalizeCartelDealer(row) {
+  if (!row) return null;
+  return {
+    dealer_id: row.dealer_id,
+    guild_id: row.guild_id,
+    user_id: row.user_id,
+    tier: Number(row.tier ?? 1),
+    trait: row.trait || null,
+    display_name: row.display_name || null,
+    status: row.status || 'ACTIVE',
+    hourly_sell_cap_mg: Number(row.hourly_sell_cap_mg || 0),
+    price_multiplier_bps: Number(row.price_multiplier_bps || 10000),
+    upkeep_cost: Number(row.upkeep_cost || 0),
+    upkeep_interval_seconds: Number(row.upkeep_interval_seconds || 3600),
+    upkeep_due_at: row.upkeep_due_at !== null && row.upkeep_due_at !== undefined ? Number(row.upkeep_due_at) : null,
+    bust_until: row.bust_until !== null && row.bust_until !== undefined ? Number(row.bust_until) : null,
+    last_sold_at: row.last_sold_at !== null && row.last_sold_at !== undefined ? Number(row.last_sold_at) : null,
+    lifetime_sold_mg: Number(row.lifetime_sold_mg || 0),
+    pending_chips: Number(row.pending_chips || 0),
+    pending_mg: Number(row.pending_mg || 0),
+    created_at: row.created_at !== null && row.created_at !== undefined ? Number(row.created_at) : null,
+    updated_at: row.updated_at !== null && row.updated_at !== undefined ? Number(row.updated_at) : null
   };
 }
 
@@ -1562,6 +1908,16 @@ export function markUserNewsDelivered(userId, digest, deliveredAt = nowSeconds()
   return getUserNewsSettings(uid);
 }
 
+export function markUserFirstGameWin(guildId, userId, occurredAt = nowSeconds()) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) throw new Error('USER_REQUIRED');
+  ensureGuildUser(gid, uid);
+  const ts = toInt(occurredAt, nowSeconds());
+  const result = setFirstGameWinStmt.run(ts, gid, uid);
+  return result?.changes > 0;
+}
+
 export function getUserBalances(guildId, discordId) {
   const gid = resolveGuildId(guildId);
   ensureGuildUser(gid, discordId);
@@ -1910,4 +2266,276 @@ export function gameLoseWithCredits(guildId, discordId, amount, detail) {
 
 export function gameWinWithCredits(guildId, discordId, amount, detail) {
   return transferFromHouseToUser(guildId, discordId, amount, `game win (credits)${detail ? ': ' + detail : ''}`, null);
+}
+
+// --- Cartel Passive System ---
+export function getCartelPool(guildId) {
+  const gid = resolveGuildId(guildId);
+  ensureCartelPool(gid);
+  const row = getCartelPoolStmt.get(gid);
+  return normalizeCartelPool(row) || {
+    guild_id: gid,
+    total_shares: 0,
+    base_rate_mg_per_hour: CARTEL_DEFAULT_BASE_RATE_MG_PER_HOUR,
+    share_price: CARTEL_DEFAULT_SHARE_PRICE,
+    share_rate_mg_per_hour: CARTEL_DEFAULT_SHARE_RATE_MG_PER_HOUR,
+    xp_per_gram_sold: CARTEL_DEFAULT_XP_PER_GRAM_SOLD,
+    carryover_mg: 0,
+    last_tick_at: null,
+    event_state: null
+  };
+}
+
+export function setCartelSharePrice(guildId, sharePrice) {
+  const gid = resolveGuildId(guildId);
+  const price = Math.max(1, Math.floor(Number(sharePrice || 0)));
+  if (!Number.isInteger(price) || price <= 0) throw new Error('CARTEL_SHARE_PRICE_INVALID');
+  ensureCartelPool(gid);
+  setCartelSharePriceStmt.run(price, gid);
+  return getCartelPool(gid);
+}
+
+export function setCartelShareRate(guildId, shareRateMgPerHour) {
+  const gid = resolveGuildId(guildId);
+  const rate = Math.max(1, Math.floor(Number(shareRateMgPerHour || 0)));
+  ensureCartelPool(gid);
+  setCartelShareRateStmt.run(rate, gid);
+  return getCartelPool(gid);
+}
+
+export function setCartelXpPerGram(guildId, xpPerGram) {
+  const gid = resolveGuildId(guildId);
+  const rate = Math.max(0, Number(xpPerGram || 0));
+  ensureCartelPool(gid);
+  setCartelXpPerGramStmt.run(rate, gid);
+  return getCartelPool(gid);
+}
+
+export function listCartelInvestors(guildId) {
+  const gid = resolveGuildId(guildId);
+  ensureCartelPool(gid);
+  const rows = listCartelInvestorsStmt.all(gid) || [];
+  return rows.map(normalizeCartelInvestor).filter(Boolean);
+}
+
+export function getCartelInvestor(guildId, userId) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) return null;
+  ensureCartelInvestor(gid, uid);
+  const row = getCartelInvestorStmt.get(gid, uid);
+  return normalizeCartelInvestor(row);
+}
+
+export function cartelAddShares(guildId, userId, deltaShares) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  const shares = Number(deltaShares || 0);
+  if (!uid) throw new Error('CARTEL_USER_REQUIRED');
+  if (!Number.isInteger(shares) || shares <= 0) throw new Error('CARTEL_INVALID_SHARES');
+  const run = db.transaction(() => {
+    ensureCartelInvestor(gid, uid);
+    updateCartelPoolSharesStmt.run(shares, gid);
+    addCartelInvestorSharesStmt.run(shares, gid, uid);
+  });
+  run();
+  return getCartelInvestor(gid, uid);
+}
+
+export function cartelSetHoldings(guildId, userId, stashMg, warehouseMg) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) throw new Error('CARTEL_USER_REQUIRED');
+  const stash = Math.max(0, Math.floor(Number(stashMg || 0)));
+  const warehouse = Math.max(0, Math.floor(Number(warehouseMg || 0)));
+  ensureCartelInvestor(gid, uid);
+  setCartelInvestorHoldingsStmt.run(stash, warehouse, gid, uid);
+  return getCartelInvestor(gid, uid);
+}
+
+export function cartelSetRankAndXp(guildId, userId, rank, rankXp) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) throw new Error('CARTEL_USER_REQUIRED');
+  const r = Math.max(1, Math.min(10, Number(rank || 1)));
+  const xp = Math.max(0, Math.floor(Number(rankXp || 0)));
+  ensureCartelInvestor(gid, uid);
+  setCartelInvestorRankStmt.run(r, xp, gid, uid);
+  return getCartelInvestor(gid, uid);
+}
+
+export function cartelSetAutoSellRule(guildId, userId, rule) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) throw new Error('CARTEL_USER_REQUIRED');
+  const payload = rule == null ? null : JSON.stringify(rule);
+  ensureCartelInvestor(gid, uid);
+  setCartelInvestorAutoRuleStmt.run(payload, gid, uid);
+  return getCartelInvestor(gid, uid);
+}
+
+export function cartelResetInvestor(guildId, userId) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) throw new Error('CARTEL_USER_REQUIRED');
+  const run = db.transaction(() => {
+    ensureCartelInvestor(gid, uid);
+    const current = getCartelInvestorStmt.get(gid, uid);
+    const shares = Number(current?.shares || 0);
+    if (shares) {
+      updateCartelPoolSharesStmt.run(-shares, gid);
+    }
+    resetCartelInvestorStmt.run(gid, uid);
+    deleteCartelDealersForUserStmt.run(gid, uid);
+    return normalizeCartelInvestor(getCartelInvestorStmt.get(gid, uid));
+  });
+  return run();
+}
+
+export function cartelAddDealerPending(guildId, dealerId, chipsDelta, mgDelta) {
+  const gid = resolveGuildId(guildId);
+  const did = String(dealerId || '').trim();
+  if (!did) return;
+  const chips = Math.floor(Number(chipsDelta || 0));
+  const mg = Math.floor(Number(mgDelta || 0));
+  if (!chips && !mg) return;
+  addCartelDealerPendingStmt.run(chips, mg, gid, did);
+}
+
+export function cartelClearDealerPending(guildId, entries = []) {
+  const gid = resolveGuildId(guildId);
+  clearCartelDealerPendingTx(gid, Array.isArray(entries) ? entries : []);
+}
+
+export function cartelApplyProduction(guildId, updates = [], { lastTickAt = null, carryoverMg = null } = {}) {
+  const gid = resolveGuildId(guildId);
+  const list = Array.isArray(updates) ? updates : [];
+  const run = db.transaction(() => {
+    ensureCartelPool(gid);
+    if (lastTickAt !== null || carryoverMg !== null) {
+      const lt = lastTickAt !== null && lastTickAt !== undefined ? Number(lastTickAt) : null;
+      const co = carryoverMg !== null && carryoverMg !== undefined
+        ? Math.max(0, Math.floor(Number(carryoverMg)))
+        : 0;
+      setCartelPoolTickStmt.run(lt, co, gid);
+    }
+    for (const entry of list) {
+      if (!entry || !entry.userId) continue;
+      const uid = String(entry.userId);
+      ensureCartelInvestor(gid, uid);
+      const stash = Math.max(0, Math.floor(Number(entry.stashMg ?? entry.stash_mg ?? 0)));
+      const warehouse = Math.max(0, Math.floor(Number(entry.warehouseMg ?? entry.warehouse_mg ?? 0)));
+      const rank = Math.max(1, Math.min(10, Number(entry.rank ?? 1)));
+      const rankXp = Math.max(0, Math.floor(Number(entry.rankXp ?? entry.rank_xp ?? 0)));
+      setCartelInvestorStateStmt.run(stash, warehouse, rank, rankXp, gid, uid);
+    }
+  });
+  run();
+}
+
+export function cartelUpdatePoolTick(guildId, lastTickAt, carryoverMg = 0) {
+  const gid = resolveGuildId(guildId);
+  ensureCartelPool(gid);
+  const lt = lastTickAt !== null && lastTickAt !== undefined ? Number(lastTickAt) : null;
+  const co = Math.max(0, Math.floor(Number(carryoverMg || 0)));
+  setCartelPoolTickStmt.run(lt, co, gid);
+  return getCartelPool(gid);
+}
+
+export function recordCartelTransaction(guildId, userId, type, amountChips, amountMg, metadata = null) {
+  const gid = resolveGuildId(guildId);
+  const uid = userId ? String(userId) : null;
+  const chips = Math.floor(Number(amountChips || 0));
+  const mg = Math.floor(Number(amountMg || 0));
+  const meta = metadata ? JSON.stringify(metadata) : null;
+  recordCartelTxnStmt.run(gid, uid, String(type || 'UNKNOWN'), chips, mg, meta);
+}
+
+export function cartelCreateDealer(guildId, dealerId, userId, payload) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) throw new Error('CARTEL_USER_REQUIRED');
+  insertCartelDealerStmt.run(
+    dealerId,
+    gid,
+    uid,
+    Math.max(0, Number(payload?.tier ?? 0)),
+    payload?.trait || null,
+    payload?.display_name || null,
+    payload?.status || 'ACTIVE',
+    Math.max(0, Math.floor(Number(payload?.hourly_sell_cap_mg || 0))),
+    Math.max(1, Math.floor(Number(payload?.price_multiplier_bps || 10000))),
+    Math.max(0, Math.floor(Number(payload?.upkeep_cost || 0))),
+    Math.max(60, Math.floor(Number(payload?.upkeep_interval_seconds || 3600))),
+    Math.max(0, Math.floor(Number(payload?.upkeep_due_at || 0))),
+    payload?.bust_until ? Math.floor(Number(payload?.bust_until)) : null,
+    payload?.last_sold_at ? Math.floor(Number(payload?.last_sold_at)) : null
+  );
+  return getCartelDealer(gid, dealerId);
+}
+
+export function cartelDeleteDealer(guildId, dealerId) {
+  const gid = resolveGuildId(guildId);
+  if (!dealerId) return 0;
+  return deleteCartelDealerStmt.run(gid, dealerId).changes;
+}
+
+export function cartelDeleteDealersForUser(guildId, userId) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) return 0;
+  return deleteCartelDealersForUserStmt.run(gid, uid).changes;
+}
+
+export function listCartelGuildIds() {
+  const rows = listCartelGuildIdsStmt.all() || [];
+  return rows
+    .map(row => String(row?.guild_id || '').trim())
+    .filter(Boolean);
+}
+
+export function listCartelDealers(guildId) {
+  const gid = resolveGuildId(guildId);
+  const rows = listCartelDealersStmt.all(gid) || [];
+  return rows.map(normalizeCartelDealer).filter(Boolean);
+}
+
+export function listCartelDealersForUser(guildId, userId) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) return [];
+  const rows = listCartelDealersForUserStmt.all(gid, uid) || [];
+  return rows.map(normalizeCartelDealer).filter(Boolean);
+}
+
+export function getCartelDealer(guildId, dealerId) {
+  const gid = resolveGuildId(guildId);
+  if (!dealerId) return null;
+  const row = getCartelDealerStmt.get(gid, dealerId);
+  return normalizeCartelDealer(row);
+}
+
+export function cartelSetDealerStatus(guildId, dealerId, status) {
+  const gid = resolveGuildId(guildId);
+  if (!dealerId) throw new Error('CARTEL_DEALER_REQUIRED');
+  updateCartelDealerStatusStmt.run(String(status || 'ACTIVE'), gid, dealerId);
+  return getCartelDealer(gid, dealerId);
+}
+
+export function cartelSetDealerUpkeep(guildId, dealerId, upkeepDueAt, status = null) {
+  const gid = resolveGuildId(guildId);
+  if (!dealerId) throw new Error('CARTEL_DEALER_REQUIRED');
+  const due = upkeepDueAt !== null && upkeepDueAt !== undefined ? Math.floor(Number(upkeepDueAt)) : 0;
+  const statusValue = status || 'ACTIVE';
+  updateCartelDealerUpkeepStmt.run(due, statusValue, gid, dealerId);
+  return getCartelDealer(gid, dealerId);
+}
+
+export function cartelRecordDealerSale(guildId, dealerId, mgSold, soldAtSeconds) {
+  const gid = resolveGuildId(guildId);
+  if (!dealerId) throw new Error('CARTEL_DEALER_REQUIRED');
+  const mg = Math.max(0, Math.floor(Number(mgSold || 0)));
+  const ts = Math.floor(Number(soldAtSeconds || Date.now() / 1000));
+  updateCartelDealerSaleStmt.run(ts, mg, gid, dealerId);
+  return getCartelDealer(gid, dealerId);
 }
