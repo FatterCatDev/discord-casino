@@ -1,7 +1,28 @@
 import { MG_PER_GRAM, CARTEL_MAX_RANK } from './constants.mjs';
 
 const STASH_CAP_BY_RANK = [100, 175, 275, 400, 600, 850, 1150, 1550, 2000, 2500];
-const XP_TO_NEXT_BY_RANK = [196, 391, 783, 1566, 3131, 6262, 12524, 25049, 50098, 0];
+const XP_CURVE_START = 150;
+const XP_CURVE_END = 1_210_560;
+
+function buildXpCurve() {
+  const steps = Math.max(1, CARTEL_MAX_RANK - 1);
+  const ratio = steps > 1 ? Math.pow(XP_CURVE_END / XP_CURVE_START, 1 / (steps - 1)) : 1;
+  const values = [];
+  for (let idx = 0; idx < steps; idx += 1) {
+    if (idx === 0) {
+      values.push(XP_CURVE_START);
+    } else if (idx === steps - 1) {
+      values.push(XP_CURVE_END);
+    } else {
+      const raw = XP_CURVE_START * (ratio ** idx);
+      values.push(Math.max(XP_CURVE_START, Math.round(raw)));
+    }
+  }
+  values.push(0); // Max rank has no further XP requirement.
+  return values;
+}
+
+const XP_TO_NEXT_BY_RANK = buildXpCurve();
 
 export function stashCapForRank(rank) {
   const idx = Math.min(STASH_CAP_BY_RANK.length - 1, Math.max(1, Number(rank) || 1) - 1);

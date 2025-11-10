@@ -57,6 +57,7 @@ export class CartelError extends Error {
 
 const PROD_WEIGHT_BASE = 10_000;
 const DEALER_PRICE_SCALE = 10_000;
+const CHIP_VALUE_UNIT = MG_PER_GRAM * DEALER_PRICE_SCALE;
 const SECONDS_PER_HOUR = 3600;
 const DEFAULT_SHARE_RATE_MG_PER_HOUR = Math.max(1, Math.round(CARTEL_DEFAULT_SHARE_RATE_GRAMS_PER_HOUR * MG_PER_GRAM));
 
@@ -357,6 +358,71 @@ export async function cartelSell(guildId, userId, grams) {
   };
 }
 
+export async function cartelReserveStashForSale(guildId, userId, mgAmount) {
+  const mgToReserve = Math.floor(Number(mgAmount || 0));
+  ensurePositiveAmount(mgToReserve, 'CARTEL_AMOUNT_REQUIRED', 'Enter at least 1g to sell.');
+  const investor = await getCartelInvestor(guildId, userId);
+  const currentStash = Number(investor?.stash_mg || 0);
+  if (currentStash < mgToReserve) {
+    throw new CartelError('CARTEL_NOT_ENOUGH_STASH', 'You do not have that much Semuta in your stash.');
+  }
+  const newStash = currentStash - mgToReserve;
+  const warehouse = Number(investor?.warehouse_mg || 0);
+  await cartelSetHoldings(guildId, userId, newStash, warehouse);
+  return { reservedMg: mgToReserve };
+}
+
+export async function cartelRefundStashForSale(guildId, userId, mgAmount) {
+  const mgToRefund = Math.floor(Number(mgAmount || 0));
+  if (mgToRefund <= 0) return { refundedMg: 0, overflowMg: 0 };
+  let investor = await getCartelInvestor(guildId, userId);
+  investor = await autoRankIfNeeded(guildId, investor);
+  const currentStash = Number(investor?.stash_mg || 0);
+  const warehouse = Number(investor?.warehouse_mg || 0);
+  const capMg = stashCapMgForRank(investor.rank);
+  let newStash = currentStash + mgToRefund;
+  let overflowMg = 0;
+  if (capMg > 0 && newStash > capMg) {
+    overflowMg = newStash - capMg;
+    newStash = capMg;
+  }
+  const newWarehouse = warehouse + overflowMg;
+  await cartelSetHoldings(guildId, userId, newStash, newWarehouse);
+  return { refundedMg: mgToRefund - overflowMg, overflowMg };
+}
+
+export async function cartelPayoutReservedSale(guildId, userId, mgAmount) {
+  const mgToPayout = Math.floor(Number(mgAmount || 0));
+  ensurePositiveAmount(mgToPayout, 'CARTEL_AMOUNT_REQUIRED', 'Enter at least 1g to sell.');
+  const pool = await getCartelPool(guildId);
+  let investor = await getCartelInvestor(guildId, userId);
+  investor = await autoRankIfNeeded(guildId, investor);
+  const payout = Math.floor((mgToPayout / MG_PER_GRAM) * CARTEL_BASE_PRICE_PER_GRAM);
+  try {
+    await transferFromHouseToUser(guildId, userId, payout, 'cartel sale (mini-game)');
+  } catch (err) {
+    if (isDbError(err, 'INSUFFICIENT_HOUSE')) {
+      throw new CartelError('CARTEL_HOUSE_EMPTY', 'The house bank is too low to cover that sale. Try again soon.');
+    }
+    throw err;
+  }
+  const gramsSold = mgToGrams(mgToPayout);
+  const xpRate = xpPerGramSold(pool);
+  const xpGain = Math.floor(gramsSold * xpRate);
+  const rankState = await applyXpGain(guildId, investor, xpGain);
+  await recordCartelTransaction(guildId, userId, 'SELL', payout, mgToPayout, {
+    grams: gramsSold,
+    pricePerGram: CARTEL_BASE_PRICE_PER_GRAM,
+    mode: 'MINIGAME'
+  });
+  return {
+    gramsSold,
+    payout,
+    rank: rankState.rank,
+    rankXp: rankState.rankXp
+  };
+}
+
 export async function cartelCollect(guildId, userId, grams) {
   const mgRequested = gramsToMg(grams);
   ensurePositiveAmount(mgRequested, 'CARTEL_AMOUNT_REQUIRED', 'Enter at least 1g to collect.');
@@ -366,7 +432,8 @@ export async function cartelCollect(guildId, userId, grams) {
     throw new CartelError('CARTEL_NOT_ENOUGH_WAREHOUSE', 'You do not have that much Semuta in storage.');
   }
   const gramsRequested = mgToGrams(mgRequested);
-  let fee = Math.ceil((gramsRequested * CARTEL_WAREHOUSE_FEE_BPS) / 10_000);
+  const collectValueChips = gramsRequested * CARTEL_BASE_PRICE_PER_GRAM;
+  let fee = Math.ceil((collectValueChips * CARTEL_WAREHOUSE_FEE_BPS) / 10_000);
   if (fee < 0) fee = 0;
   if (fee > 0) {
     try {
@@ -455,19 +522,24 @@ export async function runDealerAutoSales(
     const hourlyCapMg = Math.max(0, Number(dealer.hourly_sell_cap_mg || 0));
     const tickQuotaMg = Math.floor((hourlyCapMg * intervalSeconds) / 3600);
     if (tickQuotaMg <= 0) continue;
-    if (stashMg < tickQuotaMg) {
-      // Not enough Semuta to cover this tick's quota; try again next tick.
+    const mgToSell = Math.min(stashMg, tickQuotaMg);
+    if (mgToSell <= 0) {
+      // Nothing left to move this tick; try again on the next pass.
       continue;
     }
-    const mgToSell = Math.min(stashMg, tickQuotaMg);
-    const payout = dealerPayoutForMg(mgToSell, dealer.price_multiplier_bps);
-    if (payout <= 0) continue;
+    const multiplierBps = Math.max(1, Number(dealer.price_multiplier_bps || DEALER_PRICE_SCALE));
+    const remainderUnits = Math.max(0, Math.floor(Number(dealer.chip_remainder_units || 0)));
+    const saleValueUnits = Math.floor(mgToSell) * CARTEL_BASE_PRICE_PER_GRAM * multiplierBps;
+    const totalValueUnits = remainderUnits + saleValueUnits;
+    const payout = Math.floor(totalValueUnits / CHIP_VALUE_UNIT);
+    const nextRemainderUnits = totalValueUnits - payout * CHIP_VALUE_UNIT;
     const newStash = stashMg - mgToSell;
     investor.stash_mg = newStash;
     await cartelSetHoldings(guildId, dealer.user_id, newStash, Number(investor.warehouse_mg || 0));
-    await cartelRecordDealerSale(guildId, dealer.dealer_id, mgToSell, nowSeconds);
+    await cartelRecordDealerSale(guildId, dealer.dealer_id, mgToSell, nowSeconds, nextRemainderUnits);
     dealer.last_sold_at = nowSeconds;
     dealer.lifetime_sold_mg += mgToSell;
+    dealer.chip_remainder_units = nextRemainderUnits;
     cartelAddDealerPending(guildId, dealer.dealer_id, payout, mgToSell);
     dealer.pending_chips = Number(dealer.pending_chips || 0) + payout;
     dealer.pending_mg = Number(dealer.pending_mg || 0) + mgToSell;
@@ -765,8 +837,13 @@ export function buildRankTableEmbed(highlightRank = null) {
     .setColor(0x8e44ad)
     .setTitle(`${emoji('sparkles')} Cartel Rank XP`);
   const lines = table.map(entry => {
-    const xpText = `${fmt.format(Math.max(0, Number(entry.xpToReach || 0)))} XP`;
-    const baseLine = `**Rank ${entry.rank}** — XP Needed: ${xpText}, Stash Cap: ${fmt.format(entry.stashCap)}g`;
+    const xpToNext = Math.max(0, Number(entry.xpToNext || 0));
+    const xpToReach = Math.max(0, Number(entry.xpToReach || 0));
+    const stashCap = fmt.format(entry.stashCap);
+    const xpNeededText = xpToNext > 0
+      ? `${fmt.format(xpToNext)} XP to Rank ${entry.rank + 1} (total ${fmt.format(xpToReach)} XP)`
+      : 'MAX Rank';
+    const baseLine = `**Rank ${entry.rank}** — ${xpNeededText}, Stash Cap: ${stashCap}g`;
     if (highlightRank && entry.rank === Number(highlightRank)) {
       return `> ${emoji('sparkles')} ${baseLine}`;
     }

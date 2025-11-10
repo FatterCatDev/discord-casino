@@ -116,6 +116,7 @@ import cmdCartel, {
   handleCartelInvestModal,
   handleCartelSellPrompt,
   handleCartelSellModal,
+  handleCartelSellMiniGameMove,
   handleCartelCollectPrompt,
   handleCartelCollectModal,
   handleCartelDealerCollect
@@ -1122,6 +1123,13 @@ client.on(Events.InteractionCreate, async interaction => {
     else if (interaction.isButton() && interaction.customId === 'cartel|sell|prompt') {
       const ctx = buildCommandContext(interaction, ctxExtras);
       return handleCartelSellPrompt(interaction, ctx);
+    }
+    else if (interaction.isButton() && interaction.customId.startsWith('cartel|sell|minigame|move|')) {
+      const parts = interaction.customId.split('|');
+      const direction = parts[4];
+      const sessionId = parts[5] || '';
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelSellMiniGameMove(interaction, ctx, direction, sessionId);
     }
     else if (interaction.isButton() && interaction.customId === 'cartel|collect|prompt') {
       const ctx = buildCommandContext(interaction, ctxExtras);

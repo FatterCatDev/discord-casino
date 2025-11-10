@@ -209,8 +209,11 @@ CREATE TABLE IF NOT EXISTS cartel_dealers (
   lifetime_sold_mg BIGINT NOT NULL DEFAULT 0,
   pending_chips BIGINT NOT NULL DEFAULT 0,
   pending_mg BIGINT NOT NULL DEFAULT 0,
+  chip_remainder_units BIGINT NOT NULL DEFAULT 0,
   created_at timestamptz NOT NULL DEFAULT now(),
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_cartel_dealers_guild ON cartel_dealers(guild_id);
 CREATE INDEX IF NOT EXISTS idx_cartel_dealers_user ON cartel_dealers(guild_id, user_id);
+ALTER TABLE cartel_dealers
+  ADD COLUMN IF NOT EXISTS chip_remainder_units BIGINT NOT NULL DEFAULT 0;

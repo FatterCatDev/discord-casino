@@ -1,10 +1,10 @@
+import crypto from 'node:crypto';
 import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
 import { emoji } from '../lib/emojis.mjs';
 import {
   getCartelOverview,
   getCartelSharePrice,
   cartelInvest,
-  cartelSell,
   cartelCollect,
   cartelAbandon,
   listUserDealers,
@@ -19,7 +19,10 @@ import {
   calculateDealerUpkeepChipsPerHour,
   dealerUpkeepPercentForTier,
   dealerPayoutForMg,
-  collectDealerChips
+  collectDealerChips,
+  cartelReserveStashForSale,
+  cartelRefundStashForSale,
+  cartelPayoutReservedSale
 } from '../cartel/service.mjs';
 import {
   CARTEL_DEFAULT_SHARE_PRICE,
@@ -28,7 +31,9 @@ import {
   CARTEL_MIN_TICK_SECONDS,
   CARTEL_MAX_RANK,
   CARTEL_DEALER_TIERS,
-  CARTEL_DEALER_NAME_POOL
+  CARTEL_DEALER_NAME_POOL,
+  CARTEL_DEFAULT_XP_PER_GRAM_SOLD,
+  MG_PER_GRAM
 } from '../cartel/constants.mjs';
 import { xpToNextForRank } from '../cartel/progression.mjs';
 
@@ -38,6 +43,17 @@ const xpFormatter = new Intl.NumberFormat('en-US');
 const CARTEL_LOG_CHANNEL_ID = process.env.CARTEL_LOG_CHANNEL_ID || '1413043107137585242';
 const SECONDS_PER_HOUR = 3600;
 const SECONDS_PER_DAY = 86_400;
+const SELL_MINIGAME_TICKS = 20;
+const SELL_MINIGAME_ROWS = 5;
+const SELL_MINIGAME_LANES = 3;
+const SELL_MINIGAME_INTERVAL_MS = 1000;
+const SELL_MINIGAME_PLAYER_EMOJI = '🏃';
+const SELL_MINIGAME_POLICE_EMOJI = '🚓';
+const SELL_MINIGAME_POTHOLE_EMOJI = '🕳️';
+const SELL_MINIGAME_EMPTY_EMOJI = '       ';
+const SELL_MINIGAME_SESSIONS = new Map();
+const SELL_MINIGAME_MOVE_LEFT_ID = 'cartel|sell|minigame|move|left';
+const SELL_MINIGAME_MOVE_RIGHT_ID = 'cartel|sell|minigame|move|right';
 const CARTEL_REFRESH_CUSTOM_ID = 'cartel|refresh';
 const CARTEL_RANKS_CUSTOM_ID = 'cartel|ranks';
 const CARTEL_OVERVIEW_CUSTOM_ID = 'cartel|overview';
@@ -234,8 +250,38 @@ async function notifyCartelButtonError(interaction, error) {
   return interaction.followUp(withAutoEphemeral(interaction, { content: '⚠️ Something went wrong running that cartel action. Please try again in a moment.' }));
 }
 
-async function ensureCartelAccess() {
-  return true;
+const CARTEL_FOREIGN_PANEL_MESSAGE = '🚫 That cartel panel belongs to someone else. Run `/cartel` to open your own view.';
+
+async function resolveCartelPanelOwner(interaction, sourceMessageId = null) {
+  if (!interaction) return null;
+  if (typeof interaction.isChatInputCommand === 'function' && interaction.isChatInputCommand()) {
+    return interaction.user?.id || null;
+  }
+  const messageOwner = interaction?.message?.interaction?.user?.id;
+  if (messageOwner) return messageOwner;
+  if (sourceMessageId && sourceMessageId !== '0') {
+    const target = await fetchMessageById(interaction, sourceMessageId);
+    if (target?.interaction?.user?.id) {
+      return target.interaction.user.id;
+    }
+  }
+  return interaction.user?.id || null;
+}
+
+async function ensureCartelAccess(interaction, _ctx, options = {}) {
+  const ownerId = await resolveCartelPanelOwner(interaction, options?.sourceMessageId || null);
+  if (!ownerId || ownerId === interaction.user?.id) {
+    return true;
+  }
+  const payload = { content: CARTEL_FOREIGN_PANEL_MESSAGE, ephemeral: true };
+  try {
+    if (interaction.deferred || interaction.replied) {
+      await interaction.followUp(payload);
+    } else if (typeof interaction.reply === 'function') {
+      await interaction.reply(payload);
+    }
+  } catch {}
+  return false;
 }
 
 function formatPercent(value) {
@@ -289,11 +335,35 @@ function formatDuration(seconds) {
   return `${minutes}m`;
 }
 
- 
+function joinSections(lines = []) {
+  return lines
+    .filter(line => {
+      if (line == null) return false;
+      if (typeof line === 'string') return line.trim().length > 0;
+      return Boolean(line);
+    })
+    .join('\n');
+}
+
+const SECTION_DIVIDER_LINE = '────────────';
+
+function dividerField() {
+  return { name: '\u200b', value: SECTION_DIVIDER_LINE };
+}
+
+function withSectionDividers(fields = []) {
+  const cleaned = fields.filter(field => field && typeof field === 'object');
+  if (cleaned.length <= 1) return cleaned;
+  const result = [];
+  cleaned.forEach((field, idx) => {
+    if (idx > 0) result.push(dividerField());
+    result.push(field);
+  });
+  return result;
+}
 
 function buildOverviewEmbed(overview, chipsFmt) {
   const { investor, metrics, totals, pool, nextTickAt } = overview;
-  const xpRate = Math.max(0, Number(metrics?.xpPerGram ?? 0));
   const hourlyValue = metrics.hourlyGrams * CARTEL_BASE_PRICE_PER_GRAM;
   const dailyValue = metrics.dailyGrams * CARTEL_BASE_PRICE_PER_GRAM;
   const tickSeconds = CARTEL_MIN_TICK_SECONDS;
@@ -302,50 +372,44 @@ function buildOverviewEmbed(overview, chipsFmt) {
   const nextTickLine = nextTickAt
     ? `<t:${nextTickAt}:R>`
     : 'Pending first production tick';
-  const sharePrice = Math.max(1, Math.floor(Number(metrics?.sharePrice || pool?.share_price || CARTEL_DEFAULT_SHARE_PRICE)));
-  const shareRateGramPerHour = gramsFormatter.format(mgToGrams(metrics?.perShareRateMg || 0));
-  const description = [
-    `${emoji('semuta_cartel')} Semuta is a pile of pale blue crystals that the cartel refines for passive chip income.`,
-    `${emoji('cashStack')} Share price: **${chipsFmt(sharePrice)}** · Customer rate: **${CARTEL_BASE_PRICE_PER_GRAM} chips/g**`,
-    `${emoji('semuta')} Share rate: **${shareRateGramPerHour}g of Semuta / share / hr**`,
-    `${emoji('spark')} XP gain = Semuta sold × **${xpRate.toLocaleString('en-US', { maximumFractionDigits: 2 })} XP/g**.`,
-    `${emoji('hourglass')} Production per tick = share rate × total shares × your pool share % × tick length.`
-  ].join('\n');
+  const description = `${emoji('semuta')} Semuta is a pile of pale blue crystals that the cartel refines for passive chip income.`;
+
+  const fields = [
+    {
+      name: 'Your Holdings',
+      value: joinSections([
+        `${emoji('cashStack')} Shares: **${Number(investor?.shares || 0).toLocaleString('en-US')}**`,
+        `${emoji('semuta')} Stash: **${gramsFormatter.format(metrics.stashGrams)}g of Semuta** / ${gramsFormatter.format(metrics.stashCapGrams)}g of Semuta cap`,
+        `${emoji('vault')} Warehouse (overflow): **${gramsFormatter.format(metrics.warehouseGrams)}g of Semuta**`,
+        buildRankProgressLine(investor)
+      ])
+    },
+    {
+      name: 'Production Estimates',
+      value: joinSections([
+        `${emoji('hourglass')} Tick (~${tickDurationLabel}): **${gramsFormatter.format(tickGramsValue)}g of Semuta**`,
+        `${emoji('alarmClock')} Hourly: **${gramsFormatter.format(metrics.hourlyGrams)}g of Semuta** (~${chipsFmt(Math.round(hourlyValue))})`,
+        `${emoji('calendar')} Daily: **${gramsFormatter.format(metrics.dailyGrams)}g of Semuta** (~${chipsFmt(Math.round(dailyValue))})`,
+        `${emoji('pie')} Pool share: **${formatPercent(metrics.sharePercent)}**`
+      ])
+    },
+    {
+      name: 'Cartel Pool',
+      value: joinSections([
+        `${emoji('busts')} Investors: **${totals.investors}**`,
+        `${emoji('chipCard')} Shares outstanding: **${Number(pool?.total_shares || 0).toLocaleString('en-US')}**`,
+        `${emoji('hourglassFlow')} Next tick: ${nextTickLine}`,
+        `${emoji('balanceScale')} Warehouse fee: **${(CARTEL_WAREHOUSE_FEE_BPS / 100).toFixed(2)}%**`
+      ])
+    }
+  ];
 
   return new EmbedBuilder()
     .setColor(0x2ecc71)
     .setTitle(`${emoji('semuta_cartel')} Semuta Cartel Overview`)
     .setThumbnail(`attachment://${SEMUTA_IMAGE_NAME}`)
     .setDescription(description)
-    .addFields(
-      {
-        name: 'Your Holdings',
-        value: [
-          `${emoji('cashStack')} Shares: **${Number(investor?.shares || 0).toLocaleString('en-US')}**`,
-          `${emoji('semuta')} Stash: **${gramsFormatter.format(metrics.stashGrams)}g of Semuta** / ${gramsFormatter.format(metrics.stashCapGrams)}g of Semuta cap`,
-          `${emoji('vault')} Warehouse (overflow): **${gramsFormatter.format(metrics.warehouseGrams)}g of Semuta**`,
-          buildRankProgressLine(investor)
-        ].join('\n')
-      },
-      {
-        name: 'Production Estimates',
-        value: [
-          `${emoji('hourglass')} Tick (~${tickDurationLabel}): **${gramsFormatter.format(tickGramsValue)}g of Semuta**`,
-          `${emoji('alarmClock')} Hourly: **${gramsFormatter.format(metrics.hourlyGrams)}g of Semuta** (~${chipsFmt(Math.round(hourlyValue))})`,
-          `${emoji('calendar')} Daily: **${gramsFormatter.format(metrics.dailyGrams)}g of Semuta** (~${chipsFmt(Math.round(dailyValue))})`,
-          `${emoji('pie')} Pool share: **${formatPercent(metrics.sharePercent)}**`
-        ].join('\n')
-      },
-      {
-        name: 'Cartel Pool',
-        value: [
-          `${emoji('busts')} Investors: **${totals.investors}**`,
-          `${emoji('chipCard')} Shares outstanding: **${Number(pool?.total_shares || 0).toLocaleString('en-US')}**`,
-          `${emoji('hourglassFlow')} Next tick: ${nextTickLine}`,
-          `${emoji('balanceScale')} Warehouse fee: **${(CARTEL_WAREHOUSE_FEE_BPS / 100).toFixed(2)}%**`
-        ].join('\n')
-      }
-    )
+    .addFields(...withSectionDividers(fields))
     .setFooter({ text: 'Grow your Semuta stash, then sell the pale blue crystals for passive chips.' });
 }
 
@@ -400,39 +464,55 @@ function buildOverviewComponents(mode = 'overview') {
   return rows;
 }
 
-function buildCartelGuideEmbed() {
+function buildCartelGuideEmbed(overview = null, chipsFmt = amount => `${amount} chips`) {
+  const sharePrice = Math.max(
+    1,
+    Math.floor(Number(overview?.metrics?.sharePrice || overview?.pool?.share_price || CARTEL_DEFAULT_SHARE_PRICE))
+  );
+  const shareRateGramPerHour = gramsFormatter.format(mgToGrams(overview?.metrics?.perShareRateMg || 0));
+  const xpRate = Math.max(0, Number(overview?.metrics?.xpPerGram ?? CARTEL_DEFAULT_XP_PER_GRAM_SOLD));
   const embed = new EmbedBuilder()
     .setColor(0x3498db)
     .setTitle(`${emoji('books')} Semuta Loot Guide`)
     .setThumbnail(`attachment://${SEMUTA_IMAGE_NAME}`)
     .setDescription('How to convert pale blue Semuta into steady chip loot—follow this lightweight loop.');
-  embed.addFields(
+  const fields = [
+    {
+      name: `${emoji('chipCard')} Economy Snapshot`,
+      value: joinSections([
+        `${emoji('cashStack')} Share price: **${chipsFmt(sharePrice)}** · Customer rate: **${CARTEL_BASE_PRICE_PER_GRAM} chips/g**`,
+        `${emoji('semuta')} Share rate: **${shareRateGramPerHour}g of Semuta / share / hr**`,
+        `${emoji('spark')} XP gain = Semuta sold × **${xpRate.toLocaleString('en-US', { maximumFractionDigits: 2 })} XP/g**.`,
+        `${emoji('hourglass')} Production per tick = share rate × total shares × your pool share % × tick length.`
+      ])
+    },
     {
       name: `${emoji('sparkles')} Bootstrapping`,
-      value: [
+      value: joinSections([
         `${emoji('cashStack')} Invest chips through the **Invest** button to buy Semuta shares and raise your hourly output.`,
         `${emoji('semuta')} Keep stash space clear—overflow rolls into the warehouse with a small fee, but every gram still pays.`,
         `${emoji('medalGold')} Rank up by collecting and selling; higher ranks unlock more dealer slots and stash cap.`
-      ].join('\n')
+      ])
     },
     {
       name: `${emoji('hourglassFlow')} Daily Loot Loop`,
-      value: [
+      value: joinSections([
         `1. **Sell Stash** to turn ready grams of Semuta into chips (enter a number or type ALL).`,
         `2. **Collect Warehouse** when overflow stacks up so none of your Semuta sits idle.`,
         `3. **Hire Dealers** on the List tab and keep their upkeep timers paid so they auto-sell stash for you.`,
         `4. **Collect Chips** from dealers to scoop passive payouts plus cartel XP.`
-      ].join('\n')
+      ])
     },
     {
       name: `${emoji('spark')} Quick Tips`,
-      value: [
+      value: joinSections([
         `${emoji('alarmClock')} Production ticks roughly every few minutes—use **Refresh** to see the latest Semuta stash math.`,
         `${emoji('hammerWrench')} Admins can tune share price, rate, and XP live with \`/setcartelshare\`, \`/setcartelrate\`, and \`/setcartelxp\`.`,
         `${emoji('package')} Warehouse fees are minor, but stash space is free. Sell regularly to keep the blue crystals flowing.`
-      ].join('\n')
+      ])
     }
-  );
+  ];
+  embed.addFields(...withSectionDividers(fields));
   embed.setFooter({ text: 'Use the buttons below to jump straight into each action.' });
   return embed;
 }
@@ -457,7 +537,13 @@ function formatRelativeTs(ts) {
 }
 
 function mgToGrams(mg) {
-  return Number(mg || 0) / 1000;
+  return Number(mg || 0) / MG_PER_GRAM;
+}
+
+function gramsToMg(grams) {
+  const value = Number(grams);
+  if (!Number.isFinite(value) || value <= 0) return 0;
+  return Math.max(0, Math.floor(value * MG_PER_GRAM));
 }
 
 function trimDealerName(name) {
@@ -558,11 +644,12 @@ function buildDealerProspectEmbed(
     .setTitle(`${emoji('newspaper')} Dealer Recruitment Board`)
     .setThumbnail(`attachment://${DEALERS_IMAGE_NAME}`)
     .setDescription('Meet the five Semuta distributors. Use the buttons below to recruit them once you hit the required rank.');
+  const fields = [];
   const capKnown = Number.isFinite(dealerCap);
   if (capKnown) {
     const capReached = dealerCount >= dealerCap;
     const capLine = `${dealerCount} / ${dealerCap} slots used${capReached ? ` — ${emoji('warning')} Cap reached` : ''}`;
-    embed.addFields({
+    fields.push({
       name: `${emoji('clipboard')} Dealer Slots`,
       value: capLine
     });
@@ -570,7 +657,7 @@ function buildDealerProspectEmbed(
     const line = dealerCount > 0
       ? `${dealerCount} active ${dealerCount === 1 ? 'dealer' : 'dealers'}`
       : 'No active dealers yet.';
-    embed.addFields({
+    fields.push({
       name: `${emoji('clipboard')} Dealer Slots`,
       value: line
     });
@@ -595,12 +682,15 @@ function buildDealerProspectEmbed(
         ? `${emoji('lock')} Reach Rank ${tier.requiredRank} to unlock this dealer.`
         : `${emoji('whiteCheck')} Ready to hire now.`
     ];
-    const value = locked ? lines.map(line => `> ${line}`).join('\n') : lines.join('\n');
+    const value = locked ? lines.map(line => `> ${line}`).join('\n>\n') : joinSections(lines);
     const tierEmoji = dealerTierEmoji(tier.id);
-    embed.addFields({
+    fields.push({
       name: `${locked ? emoji('lock') : tierEmoji} ${tier.name} — “${contactName}”`,
       value
     });
+  }
+  if (fields.length) {
+    embed.addFields(...withSectionDividers(fields));
   }
   return { embed, names: workingNames };
 }
@@ -618,6 +708,7 @@ function buildOwnedDealersEmbed(dealers, chipsFmt) {
   if (totalPending > 0) {
     embed.setDescription(`${emoji('cashStack')} Pending chips: **${chipsFmt(totalPending)}**`);
   }
+  const fields = [];
   for (const dealer of dealers) {
     const tierName = dealer.tierInfo?.name || `Tier ${dealer.tier}`;
     const contactName = typeof dealer.display_name === 'string' && dealer.display_name.trim()
@@ -635,9 +726,9 @@ function buildOwnedDealersEmbed(dealers, chipsFmt) {
     const headerParts = [`${tierName}`];
     if (contactName) headerParts.push(`“${contactName}”`);
     headerParts.push(`ID \`${shortDealerId(dealer.dealer_id)}\``);
-    embed.addFields({
+    fields.push({
       name: `${tierEmoji} ${headerParts.join(' • ')}`,
-      value: [
+      value: joinSections([
         `${statusIcon}`,
         `${emoji('alarmClock')} ${gramsFormatter.format(mgToGrams(dealer.hourly_sell_cap_mg))}g of Semuta/hr @ ${multiplier}×`,
         `${emoji('cashStack')} Upkeep: ${formatPercentDisplay(upkeepPercent)} (~${chipsFmt(Math.round(upkeepRate))}/hr)`,
@@ -645,8 +736,11 @@ function buildOwnedDealersEmbed(dealers, chipsFmt) {
         `${emoji('semuta')} Lifetime sold: ${gramsFormatter.format(mgToGrams(dealer.lifetime_sold_mg))}g of Semuta · ${chipsFmt(dealerPayoutForMg(dealer.lifetime_sold_mg, dealer.price_multiplier_bps))}`,
         `${emoji('cashStack')} Pending payout: ${chipsFmt(Number(dealer.pending_chips || 0))}`,
         `${emoji('spark')} Last sale: ${dealer.last_sold_at ? formatRelativeTs(dealer.last_sold_at) : 'never'}`
-      ].join('\n')
+      ])
     });
+  }
+  if (fields.length) {
+    embed.addFields(...withSectionDividers(fields));
   }
   return embed;
 }
@@ -662,6 +756,7 @@ function buildDealerUpkeepEmbed(dealers, chipsFmt) {
     return embed;
   }
   const now = Math.floor(Date.now() / 1000);
+  const fields = [];
   for (const dealer of dealers) {
     const tierName = dealer.tierInfo?.name || `Tier ${dealer.tier}`;
     const contactName = typeof dealer.display_name === 'string' && dealer.display_name.trim()
@@ -675,16 +770,19 @@ function buildDealerUpkeepEmbed(dealers, chipsFmt) {
     const headerParts = [`${tierName}`];
     if (contactName) headerParts.push(`“${contactName}”`);
     headerParts.push(`ID \`${shortDealerId(dealer.dealer_id)}\``);
-    embed.addFields({
+    fields.push({
       name: `${tierEmoji} ${headerParts.join(' • ')}`,
-      value: [
+      value: joinSections([
         `${emoji('briefcase')} Rate: ${formatPercentDisplay(upkeepPercent)} (~${chipsFmt(Math.round(upkeepRate))}/hr)`,
         `${emoji('alarmClock')} ${dueAt ? `Due ${formatRelativeTs(dueAt)}` : 'Upkeep timer not set'}`,
         overdue
           ? `${emoji('warning')} Payment overdue — press the button below to settle now.`
           : `${emoji('whiteCheck')} Route is paid up.`
-      ].join('\n')
+      ])
     });
+  }
+  if (fields.length) {
+    embed.addFields(...withSectionDividers(fields));
   }
   return embed;
 }
@@ -979,8 +1077,10 @@ export async function handleCartelGuide(interaction, ctx) {
     }
   } catch {}
   try {
+    const chipsFmt = getChipsFormatter(ctx);
+    const overview = await getCartelOverview(interaction.guild?.id, interaction.user.id);
     const payload = {
-      embeds: [buildCartelGuideEmbed()],
+      embeds: [buildCartelGuideEmbed(overview, chipsFmt)],
       components: buildOverviewComponents('guide'),
       files: [buildSemutaImageAttachment()]
     };
@@ -1250,13 +1350,16 @@ export async function handleCartelDealerUpkeepModal(interaction, ctx, dealerId) 
 }
 
 export async function handleCartelInvestModal(interaction, ctx, sourceMessageId = '0') {
-  const allowed = await ensureCartelAccess(interaction, ctx);
+  const allowed = await ensureCartelAccess(interaction, ctx, { sourceMessageId });
   if (!allowed) return;
   try {
     const chipsFmt = getChipsFormatter(ctx);
     const rawValue = interaction.fields.getTextInputValue(CARTEL_INVEST_MODAL_INPUT_ID);
     const numeric = Math.floor(Number((rawValue || '').replace(/[,\s]/g, '')));
-    await interaction.deferReply();
+    const isBotAdmin = typeof ctx?.isAdmin === 'function'
+      ? await ctx.isAdmin(interaction)
+      : false;
+    await interaction.deferReply({ ephemeral: Boolean(isBotAdmin) });
     const result = await cartelInvest(interaction.guild?.id, interaction.user.id, numeric);
     const message = result.remainder > 0
       ? `${emoji('cashStack')} Bought **${result.shares.toLocaleString('en-US')}** shares for **${chipsFmt(result.spend)}**. ${result.remainder} chips were too small for another share and remain in your wallet.`
@@ -1309,9 +1412,14 @@ export async function handleCartelSellPrompt(interaction, ctx) {
 }
 
 export async function handleCartelSellModal(interaction, ctx, messageId) {
-  const allowed = await ensureCartelAccess(interaction, ctx);
+  const allowed = await ensureCartelAccess(interaction, ctx, { sourceMessageId: messageId });
   if (!allowed) return;
   const chipsFmt = getChipsFormatter(ctx);
+  let cachedOverview = null;
+  const guildId = interaction.guild?.id;
+  let mgToSell = 0;
+  let reservationCompleted = false;
+  let miniGameStarted = false;
   try {
     const rawValue = (interaction.fields.getTextInputValue(CARTEL_SELL_MODAL_INPUT_ID) || '').trim();
     if (!rawValue) {
@@ -1319,8 +1427,8 @@ export async function handleCartelSellModal(interaction, ctx, messageId) {
     }
     let grams;
     if (rawValue.toLowerCase() === 'all') {
-      const overview = await getCartelOverview(interaction.guild?.id, interaction.user.id);
-      grams = Math.floor(Number(overview?.metrics?.stashGrams || 0));
+      cachedOverview = await getCartelOverview(interaction.guild?.id, interaction.user.id);
+      grams = Math.floor(Number(cachedOverview?.metrics?.stashGrams || 0));
       if (grams <= 0) {
         throw new CartelError('CARTEL_NOT_ENOUGH_STASH', 'You have no Semuta in your stash to sell.');
       }
@@ -1330,22 +1438,28 @@ export async function handleCartelSellModal(interaction, ctx, messageId) {
         throw new CartelError('CARTEL_AMOUNT_REQUIRED', 'Enter at least 1 gram of Semuta to sell.');
       }
     }
-    await interaction.deferReply();
-    const result = await cartelSell(interaction.guild?.id, interaction.user.id, grams);
-    const content = `${emoji('moneyBag')} Sold **${gramsFormatter.format(result.gramsSold)}g** of Semuta for **${chipsFmt(result.payout)}**.`;
-    await interaction.editReply({ content });
-    if (messageId && messageId !== '0') {
-      const targetMessage = await fetchMessageById(interaction, messageId);
-      if (targetMessage) {
-        const overviewPayload = await buildOverviewPayload(interaction, ctx);
-        await applyOverviewToMessage(targetMessage, overviewPayload);
-      }
+    const playerOverview = cachedOverview || await getCartelOverview(guildId, interaction.user.id);
+    const stashMg = Number(playerOverview?.investor?.stash_mg || 0);
+    mgToSell = gramsToMg(grams);
+    if (stashMg < mgToSell) {
+      throw new CartelError('CARTEL_NOT_ENOUGH_STASH', 'You do not have that much Semuta in your stash.');
     }
-    await logCartelActivity(
-      interaction,
-      `Sold ${gramsFormatter.format(result.gramsSold)}g of Semuta for ${chipsFmt(result.payout)}.`
-    );
+    await cartelReserveStashForSale(guildId, interaction.user.id, mgToSell);
+    reservationCompleted = true;
+    await interaction.deferReply({ ephemeral: true });
+    await startSellMiniGame(interaction, ctx, {
+      guildId,
+      userId: interaction.user.id,
+      sourceMessageId: messageId,
+      mgToSell,
+      gramsRequested: grams,
+      chipsFmt
+    });
+    miniGameStarted = true;
   } catch (error) {
+    if (reservationCompleted && !miniGameStarted && mgToSell > 0) {
+      await cartelRefundStashForSale(guildId, interaction.user.id, mgToSell).catch(() => {});
+    }
     if (interaction.deferred || interaction.replied) {
       const content = error instanceof CartelError
         ? `⚠️ ${error.message || 'Action failed.'}`
@@ -1378,7 +1492,7 @@ export async function handleCartelCollectPrompt(interaction, ctx) {
 }
 
 export async function handleCartelCollectModal(interaction, ctx, messageId) {
-  const allowed = await ensureCartelAccess(interaction, ctx);
+  const allowed = await ensureCartelAccess(interaction, ctx, { sourceMessageId: messageId });
   if (!allowed) return;
   const chipsFmt = getChipsFormatter(ctx);
   try {
@@ -1430,5 +1544,351 @@ export async function handleCartelCollectModal(interaction, ctx, messageId) {
       console.error('Cartel collect modal failed', error);
       await interaction.reply(withAutoEphemeral(interaction, { content: '⚠️ Something went wrong while collecting. Please try again.' })).catch(() => {});
     }
+  }
+}
+
+function buildSellMiniGameComponents(session, disabled = false) {
+  const left = new ButtonBuilder()
+    .setCustomId(`${SELL_MINIGAME_MOVE_LEFT_ID}|${session.sessionId}`)
+    .setEmoji('⬅️')
+    .setStyle(ButtonStyle.Secondary)
+    .setDisabled(disabled);
+  const right = new ButtonBuilder()
+    .setCustomId(`${SELL_MINIGAME_MOVE_RIGHT_ID}|${session.sessionId}`)
+    .setEmoji('➡️')
+    .setStyle(ButtonStyle.Secondary)
+    .setDisabled(disabled);
+  return [new ActionRowBuilder().addComponents(left, right)];
+}
+
+function renderSellMiniGameBoard(session) {
+  const rows = Array.from({ length: SELL_MINIGAME_ROWS }, () => Array(SELL_MINIGAME_LANES).fill(SELL_MINIGAME_EMPTY_EMOJI));
+  for (const obstacle of session.obstacles) {
+    if (obstacle.row >= 0 && obstacle.row < SELL_MINIGAME_ROWS) {
+      const emojiChar = obstacle.type === 'POLICE' ? SELL_MINIGAME_POLICE_EMOJI : SELL_MINIGAME_POTHOLE_EMOJI;
+      rows[obstacle.row][obstacle.lane] = emojiChar;
+    }
+  }
+  rows[SELL_MINIGAME_ROWS - 1][session.playerLane] = SELL_MINIGAME_PLAYER_EMOJI;
+  return rows.map(row => row.join(' ')).join('\n');
+}
+
+function buildSellMiniGameEmbed(session, { gameOver = false, resultTitle = null, resultDescription = null } = {}) {
+  const gramsReady = gramsFormatter.format(mgToGrams(Math.max(0, session.mgRemaining)));
+  const board = renderSellMiniGameBoard(session);
+  const boardDisplay = board.replace(/ {2,}/g, spaces => spaces.split('').join('\u200B'));
+  const description = gameOver
+    ? (resultDescription || session.lastEvent || 'Route closed.')
+    : `${SELL_MINIGAME_PLAYER_EMOJI} Use the buttons below to dodge ${SELL_MINIGAME_POLICE_EMOJI}/${SELL_MINIGAME_POTHOLE_EMOJI} for ${SELL_MINIGAME_TICKS} ticks.`;
+  const embed = new EmbedBuilder()
+    .setColor(gameOver ? 0x1abc9c : 0xf39c12)
+    .setTitle(resultTitle || `${emoji('semuta_cartel')} Sell Run`)
+    .setDescription(description)
+    .addFields(
+      {
+        name: 'Route',
+        value: boardDisplay
+      },
+      {
+        name: 'Status',
+        value: joinSections([
+          `Tick: **${session.tick}/${session.totalTicks}**`,
+          `${emoji('semuta')} Semuta ready: **${gramsReady}g**`,
+          `${emoji('warning')} Pothole hits: **${session.halvedHits}**`
+        ])
+      },
+      {
+        name: 'Legend',
+        value: `${SELL_MINIGAME_PLAYER_EMOJI} You · ${SELL_MINIGAME_POLICE_EMOJI} Police (lose all) · ${SELL_MINIGAME_POTHOLE_EMOJI} Pothole (halve stash)`
+      }
+    );
+  if (session.lastEvent && !gameOver) {
+    embed.addFields({ name: 'Last Event', value: session.lastEvent });
+  }
+  return embed;
+}
+
+async function startSellMiniGame(interaction, ctx, { guildId, userId, sourceMessageId, mgToSell, gramsRequested, chipsFmt }) {
+  const sessionId = crypto.randomUUID();
+  const session = {
+    sessionId,
+    interaction,
+    ctx,
+    guildId,
+    userId,
+    sourceMessageId,
+    mgInitial: mgToSell,
+    mgRemaining: mgToSell,
+    gramsRequested,
+    playerLane: 1,
+    obstacles: [],
+    tick: 0,
+    totalTicks: SELL_MINIGAME_TICKS,
+    busted: false,
+    halvedHits: 0,
+    lastEvent: null,
+    timer: null,
+    chipsFmt,
+    ended: false,
+    lastObstacleSpawnTick: null,
+    reservationActive: true
+  };
+  SELL_MINIGAME_SESSIONS.set(sessionId, session);
+  try {
+    await interaction.editReply({
+      content: null,
+      embeds: [buildSellMiniGameEmbed(session)],
+      components: buildSellMiniGameComponents(session)
+    });
+    const replyMessage = await interaction.fetchReply().catch(() => null);
+    session.messageId = replyMessage?.id || null;
+    scheduleSellMiniGameTick(session);
+  } catch (err) {
+    SELL_MINIGAME_SESSIONS.delete(sessionId);
+    throw err;
+  }
+}
+
+function scheduleSellMiniGameTick(session) {
+  if (session.timer) {
+    clearInterval(session.timer);
+  }
+  session.timer = setInterval(() => {
+    advanceSellMiniGameTick(session).catch(err => {
+      console.error('Sell mini-game tick failed', err);
+      finishSellMiniGame(session, { outcome: 'error', error: err }).catch(() => {});
+    });
+  }, SELL_MINIGAME_INTERVAL_MS);
+  if (typeof session.timer.unref === 'function') {
+    session.timer.unref();
+  }
+}
+
+async function advanceSellMiniGameTick(session) {
+  if (session.ended) return;
+  if (session.isTickProcessing) return;
+  session.isTickProcessing = true;
+  try {
+    session.tick += 1;
+    for (const obstacle of session.obstacles) {
+      obstacle.row += 1;
+    }
+    const collisions = session.obstacles.filter(obstacle => obstacle.row >= SELL_MINIGAME_ROWS - 1 && obstacle.lane === session.playerLane);
+    for (const obstacle of collisions) {
+      const result = handleSellMiniGameCollision(session, obstacle);
+      if (result === 'police') {
+        await finishSellMiniGame(session, { outcome: 'police' });
+        return;
+      }
+      if (result === 'empty') {
+        await finishSellMiniGame(session, { outcome: 'empty' });
+        return;
+      }
+    }
+    session.obstacles = session.obstacles.filter(obstacle => obstacle.row < SELL_MINIGAME_ROWS - 1 || obstacle.lane !== session.playerLane);
+    session.obstacles = session.obstacles.filter(obstacle => obstacle.row < SELL_MINIGAME_ROWS);
+    if (session.tick > 1 && shouldSpawnSellMiniGameObstacles(session)) {
+      spawnSellMiniGameObstacles(session);
+      session.lastObstacleSpawnTick = session.tick;
+    }
+    await updateSellMiniGameMessage(session);
+    if (session.tick >= session.totalTicks) {
+      await finishSellMiniGame(session, { outcome: 'success' });
+    }
+  } finally {
+    session.isTickProcessing = false;
+  }
+}
+
+function spawnSellMiniGameObstacles(session) {
+  const availableLanes = [0, 1, 2];
+  shuffleArray(availableLanes);
+  const spawnCount = Math.floor(Math.random() * 2) + 1;
+  const lanesToUse = availableLanes.slice(0, Math.min(spawnCount, availableLanes.length - 1));
+  if (!lanesToUse.includes(session.playerLane) && lanesToUse.length < availableLanes.length - 1) {
+    lanesToUse.push(availableLanes.find(lane => lane !== session.playerLane && !lanesToUse.includes(lane)));
+  }
+  const finalLanes = new Set(lanesToUse.slice(0, Math.min(2, lanesToUse.length)));
+  for (const lane of finalLanes) {
+    const type = Math.random() < 0.35 ? 'POLICE' : 'POTHOLE';
+    session.obstacles.push({ lane, row: 0, type });
+  }
+}
+
+function shouldSpawnSellMiniGameObstacles(session) {
+  if (session.lastObstacleSpawnTick == null) return true;
+  return (session.tick - session.lastObstacleSpawnTick) >= 3;
+}
+
+function handleSellMiniGameCollision(session, obstacle) {
+  if (obstacle.type === 'POLICE') {
+    session.busted = true;
+    session.lastEvent = `${SELL_MINIGAME_POLICE_EMOJI} ${emoji('policeLight')} The law caught you!`;
+    return 'police';
+  }
+  session.mgRemaining = Math.max(0, Math.floor(session.mgRemaining / 2));
+  session.halvedHits += 1;
+  session.lastEvent = `${SELL_MINIGAME_POTHOLE_EMOJI} Hit a pothole! Shipment halved.`;
+  if (session.mgRemaining <= 0) {
+    return 'empty';
+  }
+  return 'pothole';
+}
+
+async function updateSellMiniGameMessage(session, { gameOver = false, resultTitle = null, resultDescription = null, disableControls = false } = {}) {
+  if (!session.interaction) return;
+  try {
+    await session.interaction.editReply({
+      embeds: [buildSellMiniGameEmbed(session, { gameOver, resultTitle, resultDescription })],
+      components: buildSellMiniGameComponents(session, disableControls)
+    });
+  } catch (err) {
+    console.error('Failed to update sell mini-game message', err);
+  }
+}
+
+function forfeitSellMiniGameShipment(session) {
+  if (!session) return;
+  session.reservationActive = false;
+  session.mgRemaining = 0;
+}
+
+async function refundSellMiniGameShipment(session, amountMg) {
+  if (!session) return;
+  const mgSource = amountMg ?? session.mgRemaining ?? 0;
+  const mgToRefund = Math.max(0, Math.floor(Number(mgSource)));
+  if (mgToRefund <= 0) {
+    session.reservationActive = false;
+    session.mgRemaining = 0;
+    return;
+  }
+  try {
+    await cartelRefundStashForSale(session.guildId, session.userId, mgToRefund);
+  } catch (err) {
+    console.error('Failed to refund sell mini-game stash', err);
+  } finally {
+    session.reservationActive = false;
+    session.mgRemaining = Math.max(0, session.mgRemaining - mgToRefund);
+  }
+}
+
+async function finishSellMiniGame(session, { outcome, error = null }) {
+  if (session.ended) return;
+  session.ended = true;
+  if (session.timer) {
+    clearInterval(session.timer);
+    session.timer = null;
+  }
+  SELL_MINIGAME_SESSIONS.delete(session.sessionId);
+  if (outcome === 'police') {
+    forfeitSellMiniGameShipment(session);
+    await updateSellMiniGameMessage(session, {
+      gameOver: true,
+      resultTitle: `${SELL_MINIGAME_POLICE_EMOJI} Busted!`,
+      resultDescription: 'The police seized your shipment. No sale completed.',
+      disableControls: true
+    });
+    return;
+  }
+  if (outcome === 'empty') {
+    forfeitSellMiniGameShipment(session);
+    await updateSellMiniGameMessage(session, {
+      gameOver: true,
+      resultTitle: `${SELL_MINIGAME_POTHOLE_EMOJI} Shipment Ruined`,
+      resultDescription: 'Repeated potholes destroyed your Semuta. Nothing left to sell.',
+      disableControls: true
+    });
+    return;
+  }
+  if (outcome === 'error') {
+    await refundSellMiniGameShipment(session);
+    await updateSellMiniGameMessage(session, {
+      gameOver: true,
+      resultTitle: `${emoji('warning')} Sell Run Failed`,
+      resultDescription: 'Something went wrong during the sell mini-game. Please try again soon.',
+      disableControls: true
+    });
+    return;
+  }
+  const gramsToSell = mgToGrams(session.mgRemaining);
+  if (gramsToSell <= 0) {
+    forfeitSellMiniGameShipment(session);
+    await updateSellMiniGameMessage(session, {
+      gameOver: true,
+      resultTitle: `${emoji('warning')} No Semuta Sold`,
+      resultDescription: 'There was no Semuta remaining to sell.',
+      disableControls: true
+    });
+    return;
+  }
+  try {
+    const result = await cartelPayoutReservedSale(session.guildId, session.userId, session.mgRemaining);
+    forfeitSellMiniGameShipment(session);
+    const content = `${emoji('moneyBag')} Sold **${gramsFormatter.format(result.gramsSold)}g** of Semuta for **${session.chipsFmt(result.payout)}** after surviving the route.`;
+    await session.interaction.editReply({
+      content,
+      embeds: [buildSellMiniGameEmbed(session, {
+        gameOver: true,
+        resultTitle: `${emoji('whiteCheck')} Delivery Complete`,
+        resultDescription: 'Nice driving—the shipment made it through!'
+      })],
+      components: buildSellMiniGameComponents(session, true)
+    });
+    await logCartelActivity(
+      session.interaction,
+      `Sold ${gramsFormatter.format(result.gramsSold)}g of Semuta for ${session.chipsFmt(result.payout)} after the mini-game.`
+    );
+    if (session.sourceMessageId && session.sourceMessageId !== '0') {
+      const targetMessage = await fetchMessageById(session.interaction, session.sourceMessageId);
+      if (targetMessage) {
+        const overviewPayload = await buildOverviewPayload(session.interaction, session.ctx);
+        await applyOverviewToMessage(targetMessage, overviewPayload);
+      }
+    }
+  } catch (err) {
+    await refundSellMiniGameShipment(session);
+    const content = err instanceof CartelError
+      ? `⚠️ ${err.message || 'Action failed after the mini-game.'}`
+      : '⚠️ Something went wrong while finalizing the sale.';
+    console.error('Sell mini-game finalize failed', err);
+    await session.interaction.editReply({
+      content,
+      embeds: [buildSellMiniGameEmbed(session, {
+        gameOver: true,
+        resultTitle: `${emoji('warning')} Sale Failed`,
+        resultDescription: 'The run ended, but the sale could not be completed.'
+      })],
+      components: buildSellMiniGameComponents(session, true)
+    });
+  }
+}
+
+export async function handleCartelSellMiniGameMove(interaction, ctx, direction, sessionId) {
+  const session = SELL_MINIGAME_SESSIONS.get(sessionId);
+  if (!session) {
+    await interaction.reply({ content: 'That sell run has already ended.', ephemeral: true }).catch(() => {});
+    return;
+  }
+  const allowed = await ensureCartelAccess(interaction, ctx);
+  if (!allowed) return;
+  if (session.ended) {
+    await interaction.reply({ content: 'This sell run is over.', ephemeral: true }).catch(() => {});
+    return;
+  }
+  if (!interaction.deferred && !interaction.replied) {
+    await interaction.deferUpdate().catch(() => {});
+  }
+  if (direction === 'left') {
+    session.playerLane = Math.max(0, session.playerLane - 1);
+  } else if (direction === 'right') {
+    session.playerLane = Math.min(SELL_MINIGAME_LANES - 1, session.playerLane + 1);
+  }
+  await updateSellMiniGameMessage(session);
+}
+
+function shuffleArray(arr) {
+  for (let i = arr.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
   }
 }

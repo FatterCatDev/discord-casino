@@ -275,6 +275,7 @@ CREATE TABLE IF NOT EXISTS cartel_dealers (
   lifetime_sold_mg INTEGER NOT NULL DEFAULT 0,
   pending_chips INTEGER NOT NULL DEFAULT 0,
   pending_mg INTEGER NOT NULL DEFAULT 0,
+  chip_remainder_units INTEGER NOT NULL DEFAULT 0,
   created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
 );
@@ -320,6 +321,10 @@ try { db.prepare(`SELECT max_ridebus_bet FROM guild_settings LIMIT 1`).get(); } 
 // Migration: add cash_log_channel_id to guild_settings if missing
 try { db.prepare(`SELECT cash_log_channel_id FROM guild_settings LIMIT 1`).get(); } catch {
   db.exec(`ALTER TABLE guild_settings ADD COLUMN cash_log_channel_id TEXT`);
+}
+// Migration: add chip_remainder_units to cartel_dealers if missing
+try { db.prepare(`SELECT chip_remainder_units FROM cartel_dealers LIMIT 1`).get(); } catch {
+  db.exec(`ALTER TABLE cartel_dealers ADD COLUMN chip_remainder_units INTEGER NOT NULL DEFAULT 0`);
 }
 // Migration: add request_channel_id to guild_settings if missing
 try { db.prepare(`SELECT request_channel_id FROM guild_settings LIMIT 1`).get(); } catch {
@@ -699,8 +704,8 @@ const clearCartelDealerPendingTx = db.transaction((guildId, entries = []) => {
   }
 });
 const insertCartelDealerStmt = db.prepare(`
-  INSERT INTO cartel_dealers (dealer_id, guild_id, user_id, tier, trait, display_name, status, hourly_sell_cap_mg, price_multiplier_bps, upkeep_cost, upkeep_interval_seconds, upkeep_due_at, bust_until, last_sold_at, lifetime_sold_mg, pending_chips, pending_mg)
-  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0)
+  INSERT INTO cartel_dealers (dealer_id, guild_id, user_id, tier, trait, display_name, status, hourly_sell_cap_mg, price_multiplier_bps, upkeep_cost, upkeep_interval_seconds, upkeep_due_at, bust_until, last_sold_at, lifetime_sold_mg, pending_chips, pending_mg, chip_remainder_units)
+  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, 0, 0, 0)
 `);
 const deleteCartelDealerStmt = db.prepare(`
   DELETE FROM cartel_dealers
@@ -711,18 +716,18 @@ const deleteCartelDealersForUserStmt = db.prepare(`
   WHERE guild_id = ? AND user_id = ?
 `);
 const listCartelDealersStmt = db.prepare(`
-  SELECT dealer_id, guild_id, user_id, tier, trait, display_name, status, hourly_sell_cap_mg, price_multiplier_bps, upkeep_cost, upkeep_interval_seconds, upkeep_due_at, bust_until, last_sold_at, lifetime_sold_mg, pending_chips, pending_mg, created_at, updated_at
+  SELECT dealer_id, guild_id, user_id, tier, trait, display_name, status, hourly_sell_cap_mg, price_multiplier_bps, upkeep_cost, upkeep_interval_seconds, upkeep_due_at, bust_until, last_sold_at, lifetime_sold_mg, pending_chips, pending_mg, chip_remainder_units, created_at, updated_at
   FROM cartel_dealers
   WHERE guild_id = ?
 `);
 const listCartelDealersForUserStmt = db.prepare(`
-  SELECT dealer_id, guild_id, user_id, tier, trait, display_name, status, hourly_sell_cap_mg, price_multiplier_bps, upkeep_cost, upkeep_interval_seconds, upkeep_due_at, bust_until, last_sold_at, lifetime_sold_mg, pending_chips, pending_mg, created_at, updated_at
+  SELECT dealer_id, guild_id, user_id, tier, trait, display_name, status, hourly_sell_cap_mg, price_multiplier_bps, upkeep_cost, upkeep_interval_seconds, upkeep_due_at, bust_until, last_sold_at, lifetime_sold_mg, pending_chips, pending_mg, chip_remainder_units, created_at, updated_at
   FROM cartel_dealers
   WHERE guild_id = ? AND user_id = ?
   ORDER BY created_at ASC
 `);
 const getCartelDealerStmt = db.prepare(`
-  SELECT dealer_id, guild_id, user_id, tier, trait, display_name, status, hourly_sell_cap_mg, price_multiplier_bps, upkeep_cost, upkeep_interval_seconds, upkeep_due_at, bust_until, last_sold_at, lifetime_sold_mg, pending_chips, pending_mg, created_at, updated_at
+  SELECT dealer_id, guild_id, user_id, tier, trait, display_name, status, hourly_sell_cap_mg, price_multiplier_bps, upkeep_cost, upkeep_interval_seconds, upkeep_due_at, bust_until, last_sold_at, lifetime_sold_mg, pending_chips, pending_mg, chip_remainder_units, created_at, updated_at
   FROM cartel_dealers
   WHERE guild_id = ? AND dealer_id = ?
 `);
@@ -738,7 +743,7 @@ const updateCartelDealerUpkeepStmt = db.prepare(`
 `);
 const updateCartelDealerSaleStmt = db.prepare(`
   UPDATE cartel_dealers
-  SET last_sold_at = ?, lifetime_sold_mg = lifetime_sold_mg + ?, updated_at = CURRENT_TIMESTAMP
+  SET last_sold_at = ?, lifetime_sold_mg = lifetime_sold_mg + ?, chip_remainder_units = COALESCE(?, chip_remainder_units), updated_at = CURRENT_TIMESTAMP
   WHERE guild_id = ? AND dealer_id = ?
 `);
 const addCartelDealerPendingStmt = db.prepare(`
@@ -901,6 +906,7 @@ function normalizeCartelDealer(row) {
     lifetime_sold_mg: Number(row.lifetime_sold_mg || 0),
     pending_chips: Number(row.pending_chips || 0),
     pending_mg: Number(row.pending_mg || 0),
+    chip_remainder_units: Number(row.chip_remainder_units || 0),
     created_at: row.created_at !== null && row.created_at !== undefined ? Number(row.created_at) : null,
     updated_at: row.updated_at !== null && row.updated_at !== undefined ? Number(row.updated_at) : null
   };
@@ -2531,11 +2537,12 @@ export function cartelSetDealerUpkeep(guildId, dealerId, upkeepDueAt, status = n
   return getCartelDealer(gid, dealerId);
 }
 
-export function cartelRecordDealerSale(guildId, dealerId, mgSold, soldAtSeconds) {
+export function cartelRecordDealerSale(guildId, dealerId, mgSold, soldAtSeconds, chipRemainderUnits = null) {
   const gid = resolveGuildId(guildId);
   if (!dealerId) throw new Error('CARTEL_DEALER_REQUIRED');
   const mg = Math.max(0, Math.floor(Number(mgSold || 0)));
   const ts = Math.floor(Number(soldAtSeconds || Date.now() / 1000));
-  updateCartelDealerSaleStmt.run(ts, mg, gid, dealerId);
+  const remainder = chipRemainderUnits == null ? null : Math.max(0, Math.floor(Number(chipRemainderUnits)));
+  updateCartelDealerSaleStmt.run(ts, mg, remainder, gid, dealerId);
   return getCartelDealer(gid, dealerId);
 }

@@ -384,6 +384,7 @@ async function ensureCartelTables() {
       lifetime_sold_mg BIGINT NOT NULL DEFAULT 0,
       pending_chips BIGINT NOT NULL DEFAULT 0,
       pending_mg BIGINT NOT NULL DEFAULT 0,
+      chip_remainder_units BIGINT NOT NULL DEFAULT 0,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     )
@@ -428,6 +429,9 @@ async function ensureCartelTables() {
   }
   if (!(await tableHasColumn('cartel_dealers', 'pending_mg'))) {
     await q('ALTER TABLE cartel_dealers ADD COLUMN pending_mg BIGINT NOT NULL DEFAULT 0');
+  }
+  if (!(await tableHasColumn('cartel_dealers', 'chip_remainder_units'))) {
+    await q('ALTER TABLE cartel_dealers ADD COLUMN chip_remainder_units BIGINT NOT NULL DEFAULT 0');
   }
 }
 
@@ -827,6 +831,7 @@ function normalizeCartelDealer(row) {
     lifetime_sold_mg: Number(row.lifetime_sold_mg || 0),
     pending_chips: Number(row.pending_chips || 0),
     pending_mg: Number(row.pending_mg || 0),
+    chip_remainder_units: Number(row.chip_remainder_units || 0),
     created_at: toEpochSeconds(row.created_at),
     updated_at: toEpochSeconds(row.updated_at)
   };
@@ -1618,8 +1623,8 @@ export async function cartelCreateDealer(guildId, dealerId, userId, payload) {
   const uid = String(userId || '').trim();
   if (!uid) throw new Error('CARTEL_USER_REQUIRED');
   await q(
-    `INSERT INTO cartel_dealers (dealer_id, guild_id, user_id, tier, trait, display_name, status, hourly_sell_cap_mg, price_multiplier_bps, upkeep_cost, upkeep_interval_seconds, upkeep_due_at, bust_until, last_sold_at, lifetime_sold_mg, pending_chips, pending_mg)
-     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,0,0,0)`,
+    `INSERT INTO cartel_dealers (dealer_id, guild_id, user_id, tier, trait, display_name, status, hourly_sell_cap_mg, price_multiplier_bps, upkeep_cost, upkeep_interval_seconds, upkeep_due_at, bust_until, last_sold_at, lifetime_sold_mg, pending_chips, pending_mg, chip_remainder_units)
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,0,0,0,0)`,
     [
       dealerId,
       gid,
@@ -1658,7 +1663,7 @@ export async function cartelDeleteDealersForUser(guildId, userId) {
 export async function listCartelDealers(guildId) {
   const gid = resolveGuildId(guildId);
   const rows = await q(
-    'SELECT dealer_id, guild_id, user_id, tier, trait, display_name, status, hourly_sell_cap_mg, price_multiplier_bps, upkeep_cost, upkeep_interval_seconds, upkeep_due_at, bust_until, last_sold_at, lifetime_sold_mg, pending_chips, pending_mg, created_at, updated_at FROM cartel_dealers WHERE guild_id = $1 ORDER BY created_at ASC',
+    'SELECT dealer_id, guild_id, user_id, tier, trait, display_name, status, hourly_sell_cap_mg, price_multiplier_bps, upkeep_cost, upkeep_interval_seconds, upkeep_due_at, bust_until, last_sold_at, lifetime_sold_mg, pending_chips, pending_mg, chip_remainder_units, created_at, updated_at FROM cartel_dealers WHERE guild_id = $1 ORDER BY created_at ASC',
     [gid]
   );
   return rows.map(normalizeCartelDealer).filter(Boolean);
@@ -1669,7 +1674,7 @@ export async function listCartelDealersForUser(guildId, userId) {
   const uid = String(userId || '').trim();
   if (!uid) return [];
   const rows = await q(
-    'SELECT dealer_id, guild_id, user_id, tier, trait, display_name, status, hourly_sell_cap_mg, price_multiplier_bps, upkeep_cost, upkeep_interval_seconds, upkeep_due_at, bust_until, last_sold_at, lifetime_sold_mg, pending_chips, pending_mg, created_at, updated_at FROM cartel_dealers WHERE guild_id = $1 AND user_id = $2 ORDER BY created_at ASC',
+    'SELECT dealer_id, guild_id, user_id, tier, trait, display_name, status, hourly_sell_cap_mg, price_multiplier_bps, upkeep_cost, upkeep_interval_seconds, upkeep_due_at, bust_until, last_sold_at, lifetime_sold_mg, pending_chips, pending_mg, chip_remainder_units, created_at, updated_at FROM cartel_dealers WHERE guild_id = $1 AND user_id = $2 ORDER BY created_at ASC',
     [gid, uid]
   );
   return rows.map(normalizeCartelDealer).filter(Boolean);
@@ -1679,7 +1684,7 @@ export async function getCartelDealer(guildId, dealerId) {
   const gid = resolveGuildId(guildId);
   if (!dealerId) return null;
   const row = await q1(
-    'SELECT dealer_id, guild_id, user_id, tier, trait, display_name, status, hourly_sell_cap_mg, price_multiplier_bps, upkeep_cost, upkeep_interval_seconds, upkeep_due_at, bust_until, last_sold_at, lifetime_sold_mg, pending_chips, pending_mg, created_at, updated_at FROM cartel_dealers WHERE guild_id = $1 AND dealer_id = $2',
+    'SELECT dealer_id, guild_id, user_id, tier, trait, display_name, status, hourly_sell_cap_mg, price_multiplier_bps, upkeep_cost, upkeep_interval_seconds, upkeep_due_at, bust_until, last_sold_at, lifetime_sold_mg, pending_chips, pending_mg, chip_remainder_units, created_at, updated_at FROM cartel_dealers WHERE guild_id = $1 AND dealer_id = $2',
     [gid, dealerId]
   );
   return normalizeCartelDealer(row);
@@ -1701,12 +1706,13 @@ export async function cartelSetDealerUpkeep(guildId, dealerId, upkeepDueAt, stat
   return getCartelDealer(gid, dealerId);
 }
 
-export async function cartelRecordDealerSale(guildId, dealerId, mgSold, soldAtSeconds) {
+export async function cartelRecordDealerSale(guildId, dealerId, mgSold, soldAtSeconds, chipRemainderUnits = null) {
   const gid = resolveGuildId(guildId);
   if (!dealerId) throw new Error('CARTEL_DEALER_REQUIRED');
   const mg = Math.max(0, Math.floor(Number(mgSold || 0)));
   const ts = Math.floor(Number(soldAtSeconds || Date.now() / 1000));
-  await q('UPDATE cartel_dealers SET last_sold_at = $1, lifetime_sold_mg = lifetime_sold_mg + $2, updated_at = NOW() WHERE guild_id = $3 AND dealer_id = $4', [ts, mg, gid, dealerId]);
+  const remainder = chipRemainderUnits == null ? null : Math.max(0, Math.floor(Number(chipRemainderUnits)));
+  await q('UPDATE cartel_dealers SET last_sold_at = $1, lifetime_sold_mg = lifetime_sold_mg + $2, chip_remainder_units = COALESCE($3, chip_remainder_units), updated_at = NOW() WHERE guild_id = $4 AND dealer_id = $5', [ts, mg, remainder, gid, dealerId]);
   return getCartelDealer(gid, dealerId);
 }
 

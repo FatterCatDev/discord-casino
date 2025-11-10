@@ -12,6 +12,8 @@ import { applyEmbedThumbnail, resolveGameThumbnail } from '../lib/assets.mjs';
 export const ACTIVE_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
 export const activeSessions = new Map(); // key: `${guildId}:${userId}` -> state
 
+const CARTEL_PITCH_MIN_CHIPS = 1_000;
+
 // Key helpers
 export function activeKey(guildId, userId) { return `${guildId}:${userId}`; }
 export function keyFor(interaction) { return `${interaction.guild.id}:${interaction.user.id}`; }
@@ -103,7 +105,12 @@ export async function refundChipsStake(guildId, userId, amount, reason = 'game r
 function queueCartelPitch(guildId, userId) {
   try {
     const ts = Math.floor(Date.now() / 1000);
-    Promise.resolve(markUserFirstGameWin(guildId, userId, ts))
+    Promise.resolve(getUserBalances(guildId, userId))
+      .then(balances => {
+        const chips = Number(balances?.chips || 0);
+        if (chips <= CARTEL_PITCH_MIN_CHIPS) return false;
+        return markUserFirstGameWin(guildId, userId, ts);
+      })
       .then(shouldNotify => {
         if (!shouldNotify) return null;
         const session = activeSessions.get(activeKey(guildId, userId));
@@ -118,10 +125,11 @@ function queueCartelPitch(guildId, userId) {
 }
 
 function buildCartelPitchMessage(guildName = null) {
+  const thresholdLabel = chipsAmount(CARTEL_PITCH_MIN_CHIPS);
   const header = `${emoji('semuta_cartel')} **Semuta Cartel Dispatch**`;
   const locationLine = guildName
-    ? `Word of your first score in **${guildName}** just hit our comms.`
-    : 'Word of your first score on the casino floor just hit our comms.';
+    ? `Word from **${guildName}** is that your stack just broke ${thresholdLabel}.`
+    : `Word on the casino floor is that your stack just broke ${thresholdLabel}.`;
   const pitchLine = 'We have a chip-making opportunity that keeps paying even when you walk away from the tables.';
   const callToAction = 'Use `/cartel` to open the Semuta board and let our dealers build passive income for you.';
   return [header, locationLine, pitchLine, callToAction].join('\n');
