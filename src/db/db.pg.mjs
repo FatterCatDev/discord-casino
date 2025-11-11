@@ -401,8 +401,23 @@ async function ensureCartelTables() {
       created_at TIMESTAMP NOT NULL DEFAULT NOW()
     )
   `);
+  await q(`
+    CREATE TABLE IF NOT EXISTS cartel_market_orders (
+      order_id TEXT PRIMARY KEY,
+      guild_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      side TEXT NOT NULL,
+      shares BIGINT NOT NULL,
+      price_per_share BIGINT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'OPEN',
+      created_at BIGINT NOT NULL DEFAULT (extract(EPOCH FROM now()))::BIGINT,
+      updated_at BIGINT NOT NULL DEFAULT (extract(EPOCH FROM now()))::BIGINT
+    )
+  `);
   await q('CREATE INDEX IF NOT EXISTS idx_cartel_investors_guild ON cartel_investors (guild_id)');
   await q('CREATE INDEX IF NOT EXISTS idx_cartel_tx_guild_time ON cartel_transactions (guild_id, created_at DESC)');
+  await q('CREATE INDEX IF NOT EXISTS idx_cartel_market_orders_guild_side ON cartel_market_orders (guild_id, side, created_at DESC)');
+  await q('CREATE INDEX IF NOT EXISTS idx_cartel_market_orders_guild_user ON cartel_market_orders (guild_id, user_id, created_at DESC)');
   await q('CREATE INDEX IF NOT EXISTS idx_cartel_dealers_guild ON cartel_dealers (guild_id)');
   await q('CREATE INDEX IF NOT EXISTS idx_cartel_dealers_user ON cartel_dealers (guild_id, user_id)');
 
@@ -832,6 +847,21 @@ function normalizeCartelDealer(row) {
     pending_chips: Number(row.pending_chips || 0),
     pending_mg: Number(row.pending_mg || 0),
     chip_remainder_units: Number(row.chip_remainder_units || 0),
+    created_at: toEpochSeconds(row.created_at),
+    updated_at: toEpochSeconds(row.updated_at)
+  };
+}
+
+function normalizeCartelMarketOrder(row) {
+  if (!row) return null;
+  return {
+    order_id: row.order_id,
+    guild_id: row.guild_id,
+    user_id: row.user_id,
+    side: row.side || 'SELL',
+    shares: Number(row.shares || 0),
+    price_per_share: Number(row.price_per_share || 0),
+    status: row.status || 'OPEN',
     created_at: toEpochSeconds(row.created_at),
     updated_at: toEpochSeconds(row.updated_at)
   };
@@ -1495,6 +1525,33 @@ export async function cartelAddShares(guildId, userId, deltaShares) {
   return getCartelInvestor(gid, uid);
 }
 
+export async function cartelRemoveShares(guildId, userId, deltaShares) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  const shares = Number(deltaShares || 0);
+  if (!uid) throw new Error('CARTEL_USER_REQUIRED');
+  if (!Number.isInteger(shares) || shares <= 0) throw new Error('CARTEL_INVALID_SHARES');
+  return tx(async c => {
+    await c.query('INSERT INTO cartel_pool (guild_id, base_rate_mg_per_hour, share_price, share_rate_mg_per_hour) VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING', [gid, CARTEL_DEFAULT_BASE_RATE_MG_PER_HOUR, CARTEL_DEFAULT_SHARE_PRICE, CARTEL_DEFAULT_SHARE_RATE_MG_PER_HOUR]);
+    await c.query('INSERT INTO cartel_investors (guild_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [gid, uid]);
+    const current = await c.query('SELECT shares FROM cartel_investors WHERE guild_id = $1 AND user_id = $2 FOR UPDATE', [gid, uid]);
+    const owned = Number(current.rows?.[0]?.shares || 0);
+    if (!Number.isFinite(owned) || owned < shares) {
+      throw new Error('CARTEL_NOT_ENOUGH_SHARES');
+    }
+    await c.query(
+      'UPDATE cartel_pool SET total_shares = GREATEST(total_shares - $1, 0), updated_at = NOW() WHERE guild_id = $2',
+      [shares, gid]
+    );
+    await c.query(
+      'UPDATE cartel_investors SET shares = shares - $1, updated_at = NOW() WHERE guild_id = $2 AND user_id = $3',
+      [shares, gid, uid]
+    );
+    const next = await c.query('SELECT guild_id, user_id, shares, stash_mg, warehouse_mg, rank, rank_xp, auto_sell_rule, created_at, updated_at FROM cartel_investors WHERE guild_id = $1 AND user_id = $2', [gid, uid]);
+    return normalizeCartelInvestor(next.rows[0]);
+  });
+}
+
 export async function cartelSetHoldings(guildId, userId, stashMg, warehouseMg) {
   const gid = resolveGuildId(guildId);
   const uid = String(userId || '').trim();
@@ -1616,6 +1673,89 @@ export async function recordCartelTransaction(guildId, userId, type, amountChips
     'INSERT INTO cartel_transactions (guild_id, user_id, type, amount_chips, amount_mg, metadata_json) VALUES ($1,$2,$3,$4,$5,$6)',
     [gid, uid, String(type || 'UNKNOWN'), chips, mg, meta]
   );
+}
+
+export async function createCartelMarketOrder(guildId, userId, side, shareAmount, pricePerShare) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) throw new Error('CARTEL_USER_REQUIRED');
+  const normalizedSide = String(side || 'SELL').toUpperCase() === 'BUY' ? 'BUY' : 'SELL';
+  const shares = Math.max(1, Math.floor(Number(shareAmount || 0)));
+  const price = Math.max(1, Math.floor(Number(pricePerShare || 0)));
+  const orderId = crypto.randomUUID();
+  const now = Math.floor(Date.now() / 1000);
+  await q(
+    `INSERT INTO cartel_market_orders (order_id, guild_id, user_id, side, shares, price_per_share, status, created_at, updated_at)
+     VALUES ($1,$2,$3,$4,$5,$6,'OPEN',$7,$7)`,
+    [orderId, gid, uid, normalizedSide, shares, price, now]
+  );
+  const row = await q1(
+    'SELECT order_id, guild_id, user_id, side, shares, price_per_share, status, created_at, updated_at FROM cartel_market_orders WHERE order_id = $1',
+    [orderId]
+  );
+  return normalizeCartelMarketOrder(row);
+}
+
+export async function listCartelMarketOrders(guildId, side, limit = 10) {
+  const gid = resolveGuildId(guildId);
+  const normalizedSide = String(side || 'SELL').toUpperCase() === 'BUY' ? 'BUY' : 'SELL';
+  const cappedLimit = Math.max(1, Math.min(100, Math.floor(Number(limit || 10))));
+  const rows = await q(
+    `SELECT order_id, guild_id, user_id, side, shares, price_per_share, status, created_at, updated_at
+     FROM cartel_market_orders
+     WHERE guild_id = $1 AND side = $2 AND status = 'OPEN'
+     ORDER BY created_at DESC
+     LIMIT $3`,
+    [gid, normalizedSide, cappedLimit]
+  );
+  return rows.map(normalizeCartelMarketOrder).filter(Boolean);
+}
+
+export async function listCartelMarketOrdersForUser(guildId, userId, limit = 25) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) return [];
+  const cappedLimit = Math.max(1, Math.min(100, Math.floor(Number(limit || 25))));
+  const rows = await q(
+    `SELECT order_id, guild_id, user_id, side, shares, price_per_share, status, created_at, updated_at
+     FROM cartel_market_orders
+     WHERE guild_id = $1 AND user_id = $2 AND status = 'OPEN'
+     ORDER BY created_at DESC
+     LIMIT $3`,
+    [gid, uid, cappedLimit]
+  );
+  return rows.map(normalizeCartelMarketOrder).filter(Boolean);
+}
+
+export async function getCartelMarketOrder(orderId) {
+  if (!orderId) return null;
+  const row = await q1(
+    'SELECT order_id, guild_id, user_id, side, shares, price_per_share, status, created_at, updated_at FROM cartel_market_orders WHERE order_id = $1',
+    [String(orderId)]
+  );
+  return normalizeCartelMarketOrder(row);
+}
+
+export async function setCartelMarketOrderStatus(orderId, status) {
+  if (!orderId) throw new Error('CARTEL_ORDER_REQUIRED');
+  const now = Math.floor(Date.now() / 1000);
+  await q(
+    'UPDATE cartel_market_orders SET status = $2, updated_at = $3 WHERE order_id = $1',
+    [String(orderId), String(status || 'OPEN'), now]
+  );
+  return getCartelMarketOrder(orderId);
+}
+
+export async function setCartelMarketOrderShares(orderId, shares, status = 'OPEN') {
+  const oid = String(orderId || '').trim();
+  if (!oid) throw new Error('CARTEL_ORDER_REQUIRED');
+  const normalizedShares = Math.max(0, Math.floor(Number(shares || 0)));
+  const now = Math.floor(Date.now() / 1000);
+  await q(
+    'UPDATE cartel_market_orders SET shares = $2, status = $3, updated_at = $4 WHERE order_id = $1',
+    [oid, normalizedShares, String(status || 'OPEN'), now]
+  );
+  return getCartelMarketOrder(orderId);
 }
 
 export async function cartelCreateDealer(guildId, dealerId, userId, payload) {

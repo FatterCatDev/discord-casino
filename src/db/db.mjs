@@ -255,8 +255,23 @@ CREATE TABLE IF NOT EXISTS cartel_transactions (
   metadata_json TEXT,
   created_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
 );
+CREATE TABLE IF NOT EXISTS cartel_market_orders (
+  order_id TEXT PRIMARY KEY,
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  side TEXT NOT NULL,
+  shares INTEGER NOT NULL,
+  price_per_share INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'OPEN',
+  created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+  updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
+);
 CREATE INDEX IF NOT EXISTS idx_cartel_investors_guild ON cartel_investors (guild_id);
 CREATE INDEX IF NOT EXISTS idx_cartel_transactions_guild_time ON cartel_transactions (guild_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_cartel_market_orders_guild_side
+  ON cartel_market_orders (guild_id, side, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_cartel_market_orders_guild_user
+  ON cartel_market_orders (guild_id, user_id, created_at DESC);
 CREATE TABLE IF NOT EXISTS cartel_dealers (
   dealer_id TEXT PRIMARY KEY,
   guild_id TEXT NOT NULL,
@@ -695,6 +710,39 @@ const recordCartelTxnStmt = db.prepare(`
   INSERT INTO cartel_transactions (guild_id, user_id, type, amount_chips, amount_mg, metadata_json)
   VALUES (?, ?, ?, ?, ?, ?)
 `);
+const insertCartelMarketOrderStmt = db.prepare(`
+  INSERT INTO cartel_market_orders (order_id, guild_id, user_id, side, shares, price_per_share, status, created_at, updated_at)
+  VALUES (?, ?, ?, ?, ?, ?, 'OPEN', ?, ?)
+`);
+const getCartelMarketOrderStmt = db.prepare(`
+  SELECT order_id, guild_id, user_id, side, shares, price_per_share, status, created_at, updated_at
+  FROM cartel_market_orders
+  WHERE order_id = ?
+`);
+const listCartelMarketOrdersBySideStmt = db.prepare(`
+  SELECT order_id, guild_id, user_id, side, shares, price_per_share, status, created_at, updated_at
+  FROM cartel_market_orders
+  WHERE guild_id = ? AND side = ? AND status = 'OPEN'
+  ORDER BY created_at DESC
+  LIMIT ?
+`);
+const listCartelMarketOrdersByUserStmt = db.prepare(`
+  SELECT order_id, guild_id, user_id, side, shares, price_per_share, status, created_at, updated_at
+  FROM cartel_market_orders
+  WHERE guild_id = ? AND user_id = ? AND status = 'OPEN'
+  ORDER BY created_at DESC
+  LIMIT ?
+`);
+const updateCartelMarketOrderSharesStmt = db.prepare(`
+  UPDATE cartel_market_orders
+  SET shares = ?, status = ?, updated_at = ?
+  WHERE order_id = ?
+`);
+const updateCartelMarketOrderStatusStmt = db.prepare(`
+  UPDATE cartel_market_orders
+  SET status = ?, updated_at = ?
+  WHERE order_id = ?
+`);
 const clearCartelDealerPendingTx = db.transaction((guildId, entries = []) => {
   for (const entry of entries) {
     const chips = Math.max(0, Math.floor(Number(entry.pending_chips || entry.chips || 0)));
@@ -907,6 +955,21 @@ function normalizeCartelDealer(row) {
     pending_chips: Number(row.pending_chips || 0),
     pending_mg: Number(row.pending_mg || 0),
     chip_remainder_units: Number(row.chip_remainder_units || 0),
+    created_at: row.created_at !== null && row.created_at !== undefined ? Number(row.created_at) : null,
+    updated_at: row.updated_at !== null && row.updated_at !== undefined ? Number(row.updated_at) : null
+  };
+}
+
+function normalizeCartelMarketOrder(row) {
+  if (!row) return null;
+  return {
+    order_id: row.order_id,
+    guild_id: row.guild_id,
+    user_id: row.user_id,
+    side: row.side || 'SELL',
+    shares: Number(row.shares || 0),
+    price_per_share: Number(row.price_per_share || 0),
+    status: row.status || 'OPEN',
     created_at: row.created_at !== null && row.created_at !== undefined ? Number(row.created_at) : null,
     updated_at: row.updated_at !== null && row.updated_at !== undefined ? Number(row.updated_at) : null
   };
@@ -2348,6 +2411,26 @@ export function cartelAddShares(guildId, userId, deltaShares) {
   return getCartelInvestor(gid, uid);
 }
 
+export function cartelRemoveShares(guildId, userId, deltaShares) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  const shares = Number(deltaShares || 0);
+  if (!uid) throw new Error('CARTEL_USER_REQUIRED');
+  if (!Number.isInteger(shares) || shares <= 0) throw new Error('CARTEL_INVALID_SHARES');
+  const run = db.transaction(() => {
+    ensureCartelInvestor(gid, uid);
+    const current = getCartelInvestorStmt.get(gid, uid);
+    const owned = Number(current?.shares || 0);
+    if (!Number.isFinite(owned) || owned < shares) {
+      throw new Error('CARTEL_NOT_ENOUGH_SHARES');
+    }
+    updateCartelPoolSharesStmt.run(-shares, gid);
+    addCartelInvestorSharesStmt.run(-shares, gid, uid);
+  });
+  run();
+  return getCartelInvestor(gid, uid);
+}
+
 export function cartelSetHoldings(guildId, userId, stashMg, warehouseMg) {
   const gid = resolveGuildId(guildId);
   const uid = String(userId || '').trim();
@@ -2455,6 +2538,59 @@ export function recordCartelTransaction(guildId, userId, type, amountChips, amou
   const mg = Math.floor(Number(amountMg || 0));
   const meta = metadata ? JSON.stringify(metadata) : null;
   recordCartelTxnStmt.run(gid, uid, String(type || 'UNKNOWN'), chips, mg, meta);
+}
+
+export function createCartelMarketOrder(guildId, userId, side, shareAmount, pricePerShare) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) throw new Error('CARTEL_USER_REQUIRED');
+  const normalizedSide = String(side || 'SELL').toUpperCase() === 'BUY' ? 'BUY' : 'SELL';
+  const shares = Math.max(1, Math.floor(Number(shareAmount || 0)));
+  const price = Math.max(1, Math.floor(Number(pricePerShare || 0)));
+  const orderId = crypto.randomUUID();
+  const now = Math.floor(Date.now() / 1000);
+  insertCartelMarketOrderStmt.run(orderId, gid, uid, normalizedSide, shares, price, now, now);
+  const row = getCartelMarketOrderStmt.get(orderId);
+  return normalizeCartelMarketOrder(row);
+}
+
+export function listCartelMarketOrders(guildId, side, limit = 10) {
+  const gid = resolveGuildId(guildId);
+  const normalizedSide = String(side || 'SELL').toUpperCase() === 'BUY' ? 'BUY' : 'SELL';
+  const cappedLimit = Math.max(1, Math.min(100, Math.floor(Number(limit || 10))));
+  const rows = listCartelMarketOrdersBySideStmt.all(gid, normalizedSide, cappedLimit) || [];
+  return rows.map(normalizeCartelMarketOrder).filter(Boolean);
+}
+
+export function listCartelMarketOrdersForUser(guildId, userId, limit = 25) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) return [];
+  const cappedLimit = Math.max(1, Math.min(100, Math.floor(Number(limit || 25))));
+  const rows = listCartelMarketOrdersByUserStmt.all(gid, uid, cappedLimit) || [];
+  return rows.map(normalizeCartelMarketOrder).filter(Boolean);
+}
+
+export function getCartelMarketOrder(orderId) {
+  if (!orderId) return null;
+  const row = getCartelMarketOrderStmt.get(String(orderId));
+  return normalizeCartelMarketOrder(row);
+}
+
+export function setCartelMarketOrderStatus(orderId, status) {
+  if (!orderId) throw new Error('CARTEL_ORDER_REQUIRED');
+  const now = Math.floor(Date.now() / 1000);
+  updateCartelMarketOrderStatusStmt.run(String(status || 'OPEN'), now, String(orderId));
+  return getCartelMarketOrder(orderId);
+}
+
+export function setCartelMarketOrderShares(orderId, shares, status = 'OPEN') {
+  const oid = String(orderId || '').trim();
+  if (!oid) throw new Error('CARTEL_ORDER_REQUIRED');
+  const normalizedShares = Math.max(0, Math.floor(Number(shares || 0)));
+  const now = Math.floor(Date.now() / 1000);
+  updateCartelMarketOrderSharesStmt.run(normalizedShares, String(status || 'OPEN'), now, oid);
+  return getCartelMarketOrder(oid);
 }
 
 export function cartelCreateDealer(guildId, dealerId, userId, payload) {

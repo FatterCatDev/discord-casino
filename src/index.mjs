@@ -106,14 +106,20 @@ import cmdCartel, {
   handleCartelOverviewRefresh,
   handleCartelRankTable,
   handleCartelGuide,
+  handleCartelSharesView,
   handleCartelDealersView,
   handleCartelDealerHireTier,
   handleCartelDealerUpkeep,
   handleCartelDealerFire,
   handleCartelDealerFireAll,
   handleCartelDealerUpkeepModal,
-  handleCartelInvestButton,
-  handleCartelInvestModal,
+  handleCartelShareOrderPrompt,
+  handleCartelShareOrderModal,
+  handleCartelShareOrderSelect,
+  handleCartelShareOrderCancel,
+  handleCartelMarketSelect,
+  handleCartelMarketConfirm,
+  handleCartelMarketModal,
   handleCartelSellPrompt,
   handleCartelSellModal,
   handleCartelSellMiniGameMove,
@@ -1116,9 +1122,58 @@ client.on(Events.InteractionCreate, async interaction => {
       const ctx = buildCommandContext(interaction, ctxExtras);
       return handleCartelGuide(interaction, ctx);
     }
-    else if (interaction.isButton() && interaction.customId === 'cartel|invest') {
+    else if (interaction.isButton() && interaction.customId === 'cartel|shares|view') {
       const ctx = buildCommandContext(interaction, ctxExtras);
-      return handleCartelInvestButton(interaction, ctx);
+      return handleCartelSharesView(interaction, ctx, 'splash');
+    }
+    else if (interaction.isButton() && interaction.customId === 'cartel|shares|view|buy') {
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelSharesView(interaction, ctx, 'buy');
+    }
+    else if (interaction.isButton() && interaction.customId.startsWith('cartel|shares|view|buy|page|')) {
+      const page = Number(interaction.customId.split('|').pop());
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelSharesView(interaction, ctx, 'buy', { page: Number.isFinite(page) ? page : 1 });
+    }
+    else if (interaction.isButton() && interaction.customId === 'cartel|shares|view|sell') {
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelSharesView(interaction, ctx, 'sell');
+    }
+    else if (interaction.isButton() && interaction.customId.startsWith('cartel|shares|view|sell|page|')) {
+      const page = Number(interaction.customId.split('|').pop());
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelSharesView(interaction, ctx, 'sell', { page: Number.isFinite(page) ? page : 1 });
+    }
+    else if (interaction.isButton() && interaction.customId === 'cartel|shares|view|posts') {
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelSharesView(interaction, ctx, 'posts');
+    }
+    else if (interaction.isButton() && interaction.customId === 'cartel|shares|order|sell') {
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelShareOrderPrompt(interaction, ctx, 'SELL');
+    }
+    else if (interaction.isButton() && interaction.customId === 'cartel|shares|order|buy') {
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelShareOrderPrompt(interaction, ctx, 'BUY');
+    }
+    else if (interaction.isButton() && interaction.customId.startsWith('cartel|shares|order|cancel|')) {
+      const orderId = interaction.customId.substring('cartel|shares|order|cancel|'.length);
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelShareOrderCancel(interaction, ctx, orderId);
+    }
+    else if (interaction.isButton() && interaction.customId.startsWith('cartel|shares|market|buy|confirm|')) {
+      const parts = interaction.customId.split('|');
+      const orderId = parts.length > 5 ? parts[5] : '0';
+      const page = parts.length > 6 ? Number(parts[6]) : 1;
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelMarketConfirm(interaction, ctx, 'buy', orderId, page);
+    }
+    else if (interaction.isButton() && interaction.customId.startsWith('cartel|shares|market|sell|confirm|')) {
+      const parts = interaction.customId.split('|');
+      const orderId = parts.length > 5 ? parts[5] : '0';
+      const page = parts.length > 6 ? Number(parts[6]) : 1;
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelMarketConfirm(interaction, ctx, 'sell', orderId, page);
     }
     else if (interaction.isButton() && interaction.customId === 'cartel|sell|prompt') {
       const ctx = buildCommandContext(interaction, ctxExtras);
@@ -1238,6 +1293,20 @@ client.on(Events.InteractionCreate, async interaction => {
       const mod = await import('./interactions/rouletteTypeSelect.mjs');
       return mod.default(interaction, ctx);
     }
+    else if (interaction.isStringSelectMenu() && interaction.customId === 'cartel|shares|posts|select') {
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelShareOrderSelect(interaction, ctx);
+    }
+    else if (interaction.isStringSelectMenu() && interaction.customId.startsWith('cartel|shares|market|buy|select|')) {
+      const page = Number(interaction.customId.split('|').pop());
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelMarketSelect(interaction, ctx, 'buy', page);
+    }
+    else if (interaction.isStringSelectMenu() && interaction.customId.startsWith('cartel|shares|market|sell|select|')) {
+      const page = Number(interaction.customId.split('|').pop());
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelMarketSelect(interaction, ctx, 'sell', page);
+    }
 
     // Help select menu
     else if (interaction.isStringSelectMenu() && interaction.customId === 'help|section') {
@@ -1261,11 +1330,27 @@ client.on(Events.InteractionCreate, async interaction => {
       const ctx = buildCommandContext(interaction, ctxExtras);
       return handleCartelSellModal(interaction, ctx, messageId);
     }
-    else if (interaction.isModalSubmit() && interaction.customId.startsWith('cartel|invest|modal')) {
+    else if (interaction.isModalSubmit() && interaction.customId.startsWith('cartel|shares|order|modal|')) {
       const parts = interaction.customId.split('|');
-      const sourceMessageId = parts.length > 3 ? parts[3] : '0';
+      const side = parts.length > 4 ? parts[4] : 'SELL';
+      const messageId = parts.length > 5 ? parts[5] : '0';
+      const viewToken = parts.length > 6 ? parts[6] : 'shares';
       const ctx = buildCommandContext(interaction, ctxExtras);
-      return handleCartelInvestModal(interaction, ctx, sourceMessageId);
+      return handleCartelShareOrderModal(interaction, ctx, side, messageId, viewToken);
+    }
+    else if (interaction.isModalSubmit() && interaction.customId.startsWith('cartel|shares|market|buy|modal|')) {
+      const parts = interaction.customId.split('|');
+      const orderId = parts.length > 5 ? parts[5] : '0';
+      const page = parts.length > 6 ? parts[6] : '1';
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelMarketModal(interaction, ctx, 'buy', orderId, page);
+    }
+    else if (interaction.isModalSubmit() && interaction.customId.startsWith('cartel|shares|market|sell|modal|')) {
+      const parts = interaction.customId.split('|');
+      const orderId = parts.length > 5 ? parts[5] : '0';
+      const page = parts.length > 6 ? parts[6] : '1';
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelMarketModal(interaction, ctx, 'sell', orderId, page);
     }
     else if (interaction.isModalSubmit() && interaction.customId.startsWith('req|rejmodal|')) {
       if (!(await isModerator(interaction))) return interaction.reply({ content: '❌ Moderators only.', ephemeral: true });

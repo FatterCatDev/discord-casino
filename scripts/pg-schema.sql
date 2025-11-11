@@ -189,6 +189,19 @@ CREATE TABLE IF NOT EXISTS cartel_transactions (
   metadata_json TEXT,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+CREATE TABLE IF NOT EXISTS cartel_market_orders (
+  order_id TEXT PRIMARY KEY,
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  side TEXT NOT NULL,
+  shares BIGINT NOT NULL,
+  price_per_share BIGINT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'OPEN',
+  created_at BIGINT NOT NULL DEFAULT (extract(EPOCH FROM now()))::BIGINT,
+  updated_at BIGINT NOT NULL DEFAULT (extract(EPOCH FROM now()))::BIGINT
+);
+CREATE INDEX IF NOT EXISTS idx_cartel_market_orders_guild_side ON cartel_market_orders(guild_id, side, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_cartel_market_orders_guild_user ON cartel_market_orders(guild_id, user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_cartel_tx_guild_time ON cartel_transactions(guild_id, created_at DESC);
 
 CREATE TABLE IF NOT EXISTS cartel_dealers (

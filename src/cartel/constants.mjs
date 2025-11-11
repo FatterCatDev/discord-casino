@@ -13,6 +13,7 @@ export const CARTEL_DEFAULT_BASE_RATE_GRAMS_PER_HOUR = Math.max(1, Number(proces
 export const CARTEL_XP_PER_GRAM_PRODUCED = Math.max(0, Number(process.env.CARTEL_XP_PER_GRAM_PRODUCED || 1));
 export const CARTEL_DEFAULT_XP_PER_GRAM_SOLD = Math.max(0, Number(process.env.CARTEL_XP_PER_GRAM_SOLD || 2));
 export const CARTEL_MAX_RANK = 10;
+export const SEMUTA_CARTEL_USER_ID = 'SEMUTA_CARTEL';
 
 export const CARTEL_DEALER_TIERS = [
   { id: 0, name: 'Lookout', requiredRank: 1, hireCost: 1_000, upkeepCost: 50, hourlySellCapGrams: 5, priceMultiplierBps: 8_000 },

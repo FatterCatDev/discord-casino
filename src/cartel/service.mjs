@@ -6,6 +6,7 @@ import {
   listCartelInvestors,
   getCartelInvestor,
   cartelAddShares,
+  cartelRemoveShares,
   cartelSetHoldings,
   cartelSetRankAndXp,
   cartelApplyProduction,
@@ -28,7 +29,13 @@ import {
   setCartelXpPerGram as setCartelXpPerGramDb,
   cartelAddDealerPending,
   cartelClearDealerPending,
-  listCartelGuildIds
+  listCartelGuildIds,
+  createCartelMarketOrder as createCartelMarketOrderDb,
+  listCartelMarketOrders as listCartelMarketOrdersDb,
+  listCartelMarketOrdersForUser as listCartelMarketOrdersForUserDb,
+  getCartelMarketOrder as getCartelMarketOrderDb,
+  setCartelMarketOrderStatus as setCartelMarketOrderStatusDb,
+  setCartelMarketOrderShares as setCartelMarketOrderSharesDb
 } from '../db/db.auto.mjs';
 import {
   MG_PER_GRAM,
@@ -43,7 +50,8 @@ import {
   CARTEL_MAX_RANK,
   CARTEL_DEALER_TIERS,
   CARTEL_DEALER_TIERS_BY_ID,
-  CARTEL_DEALER_UPKEEP_PERCENT_BY_TIER
+  CARTEL_DEALER_UPKEEP_PERCENT_BY_TIER,
+  SEMUTA_CARTEL_USER_ID
 } from './constants.mjs';
 import { stashCapForRank, stashCapMgForRank, applyRankProgress, rankXpTable } from './progression.mjs';
 
@@ -60,6 +68,70 @@ const DEALER_PRICE_SCALE = 10_000;
 const CHIP_VALUE_UNIT = MG_PER_GRAM * DEALER_PRICE_SCALE;
 const SECONDS_PER_HOUR = 3600;
 const DEFAULT_SHARE_RATE_MG_PER_HOUR = Math.max(1, Math.round(CARTEL_DEFAULT_SHARE_RATE_GRAMS_PER_HOUR * MG_PER_GRAM));
+const SHARE_MARKET_MAX_SHARES = 1_000_000;
+const SHARE_MARKET_MAX_PRICE = 1_000_000;
+const SHARE_MARKET_LIST_LIMIT = 10;
+const SHARE_MARKET_USER_LIMIT = 25;
+const ORDER_EXPIRATION_SECONDS = 14 * 24 * 60 * 60;
+function isSemutaSellOrder(orderId) {
+  return typeof orderId === 'string' && orderId.startsWith('sell_SEMUTA_CARTEL');
+}
+
+function isSemutaBuyOrder(orderId) {
+  return typeof orderId === 'string' && orderId.startsWith('buy_SEMUTA_CARTEL');
+}
+
+export function calculateSemutaMarketPrices(totalShares) {
+  const shares = Math.max(0, Number(totalShares || 0));
+  const dynamic = shares * 0.001;
+  const sellPrice = Math.max(1, Math.floor(100 + dynamic));
+  const buyPrice = Math.max(1, Math.floor(sellPrice / 2));
+  return { sellPrice, buyPrice };
+}
+
+async function getSemutaMarketPrices(guildId) {
+  const pool = await getCartelPool(guildId);
+  return calculateSemutaMarketPrices(pool?.total_shares || 0);
+}
+
+function isSemutaMarketOrder(order) {
+  if (!order) return false;
+  if (order.user_id === SEMUTA_CARTEL_USER_ID) return true;
+  return isSemutaSellOrder(order.order_id) || isSemutaBuyOrder(order.order_id);
+}
+
+function isMarketOrderExpired(order, now = Math.floor(Date.now() / 1000)) {
+  if (!order || isSemutaMarketOrder(order)) return false;
+  const createdAt = Number(order.created_at || 0);
+  if (!createdAt) return false;
+  return now - createdAt > ORDER_EXPIRATION_SECONDS;
+}
+
+async function ensureOrderNotExpired(order) {
+  if (!order) return order;
+  const now = Math.floor(Date.now() / 1000);
+  if (isMarketOrderExpired(order, now)) {
+    await setCartelMarketOrderStatusDb(order.order_id, 'EXPIRED');
+    throw new CartelError('CARTEL_MARKET_ORDER_EXPIRED', 'That market order has expired.');
+  }
+  return order;
+}
+
+async function pruneExpiredMarketOrders(rows = [], options = {}) {
+  const now = Math.floor(Date.now() / 1000);
+  const fresh = [];
+  const expiredCollector = Array.isArray(options?.expiredOrders) ? options.expiredOrders : null;
+  for (const order of rows || []) {
+    if (!order) continue;
+    if (isMarketOrderExpired(order, now)) {
+      await setCartelMarketOrderStatusDb(order.order_id, 'EXPIRED');
+      if (expiredCollector) expiredCollector.push(order.order_id);
+      continue;
+    }
+    fresh.push(order);
+  }
+  return fresh;
+}
 
 function gramsToMg(grams) {
   const value = Number(grams);
@@ -158,6 +230,10 @@ function ensurePositiveAmount(value, code, message) {
   if (!Number.isFinite(value) || value <= 0) {
     throw new CartelError(code, message);
   }
+}
+
+function normalizeMarketSide(side) {
+  return String(side || 'SELL').toUpperCase() === 'BUY' ? 'BUY' : 'SELL';
 }
 
 function isDbError(err, code) {
@@ -320,6 +396,296 @@ export async function cartelInvest(guildId, userId, chipAmount) {
   await recordCartelTransaction(guildId, userId, 'INVEST', spend, 0, { shares });
   const remainder = amount - spend;
   return { shares, spend, remainder, sharePrice };
+}
+
+export async function cartelSellShares(guildId, userId, shareAmount) {
+  const sharesToSell = Math.floor(Number(shareAmount || 0));
+  ensurePositiveAmount(sharesToSell, 'CARTEL_SHARE_AMOUNT_REQUIRED', 'Enter at least 1 share to sell.');
+  const pool = await getCartelPool(guildId);
+  const sharePrice = sharePriceFromPool(pool);
+  let investor = await getCartelInvestor(guildId, userId);
+  investor = await autoRankIfNeeded(guildId, investor);
+  const ownedShares = Math.max(0, Number(investor?.shares || 0));
+  if (ownedShares < sharesToSell) {
+    throw new CartelError('CARTEL_NOT_ENOUGH_SHARES', 'You do not have that many shares.');
+  }
+  const payout = sharesToSell * sharePrice;
+  try {
+    await cartelRemoveShares(guildId, userId, sharesToSell);
+  } catch (err) {
+    if (String(err?.message || err) === 'CARTEL_NOT_ENOUGH_SHARES') {
+      throw new CartelError('CARTEL_NOT_ENOUGH_SHARES', 'You do not have that many shares.');
+    }
+    throw err;
+  }
+  try {
+    await transferFromHouseToUser(guildId, userId, payout, 'cartel share sale');
+  } catch (err) {
+    await cartelAddShares(guildId, userId, sharesToSell).catch(() => {});
+    if (isDbError(err, 'INSUFFICIENT_HOUSE')) {
+      throw new CartelError('CARTEL_HOUSE_EMPTY', 'The house bank is too low to buy back shares. Try again soon.');
+    }
+    throw err;
+  }
+  await recordCartelTransaction(guildId, userId, 'DIVEST', payout, 0, { shares: sharesToSell, sharePrice });
+  return { sharesSold: sharesToSell, payout, sharePrice };
+}
+
+export async function createShareMarketOrder(guildId, userId, side, shareAmount, pricePerShare) {
+  const normalizedSide = normalizeMarketSide(side);
+  const shares = Math.floor(Number(shareAmount || 0));
+  ensurePositiveAmount(shares, 'CARTEL_MARKET_SHARES_REQUIRED', 'Enter at least 1 share.');
+  if (shares > SHARE_MARKET_MAX_SHARES) {
+    throw new CartelError(
+      'CARTEL_MARKET_SHARE_LIMIT',
+      `Limit orders to ${SHARE_MARKET_MAX_SHARES.toLocaleString('en-US')} shares or fewer.`
+    );
+  }
+  const price = Math.floor(Number(pricePerShare || 0));
+  ensurePositiveAmount(price, 'CARTEL_MARKET_PRICE_REQUIRED', 'Enter a positive chip price per share.');
+  if (price > SHARE_MARKET_MAX_PRICE) {
+    throw new CartelError(
+      'CARTEL_MARKET_PRICE_LIMIT',
+      `Limit price per share to ${SHARE_MARKET_MAX_PRICE.toLocaleString('en-US')} chips or fewer.`
+    );
+  }
+  return createCartelMarketOrderDb(guildId, userId, normalizedSide, shares, price);
+}
+
+export async function listShareMarketOrders(guildId, side, limit = SHARE_MARKET_LIST_LIMIT) {
+  const normalizedSide = normalizeMarketSide(side);
+  const cappedLimit = Math.max(1, Math.min(SHARE_MARKET_LIST_LIMIT, Math.floor(Number(limit || SHARE_MARKET_LIST_LIMIT))));
+  const rows = await listCartelMarketOrdersDb(guildId, normalizedSide, cappedLimit);
+  return pruneExpiredMarketOrders(rows);
+}
+
+export async function listShareMarketOrdersForUser(guildId, userId, limit = SHARE_MARKET_USER_LIMIT, options = {}) {
+  const cappedLimit = Math.max(1, Math.min(SHARE_MARKET_USER_LIMIT, Math.floor(Number(limit || SHARE_MARKET_USER_LIMIT))));
+  const rows = await listCartelMarketOrdersForUserDb(guildId, userId, cappedLimit);
+  return pruneExpiredMarketOrders(rows, options);
+}
+
+export async function cancelShareMarketOrder(guildId, userId, orderId) {
+  if (!orderId) {
+    throw new CartelError('CARTEL_MARKET_SELECTION_REQUIRED', 'Select one of your market orders first.');
+  }
+  let order = await getCartelMarketOrderDb(orderId);
+  order = await ensureOrderNotExpired(order);
+  if (!order) {
+    throw new CartelError('CARTEL_MARKET_ORDER_NOT_FOUND', 'That market order no longer exists.');
+  }
+  const normalizedUserId = String(userId || '').trim();
+  if (!normalizedUserId || order.user_id !== normalizedUserId) {
+    throw new CartelError('CARTEL_MARKET_ORDER_NOT_OWNER', 'You can only cancel your own market orders.');
+  }
+  if (order.status !== 'OPEN') {
+    throw new CartelError('CARTEL_MARKET_ORDER_CLOSED', 'That market order is already closed.');
+  }
+  await setCartelMarketOrderStatusDb(orderId, 'CANCELLED');
+  return getCartelMarketOrderDb(orderId);
+}
+
+export async function executeMarketBuy(guildId, buyerId, orderId, shareAmount) {
+  const normalizedShares = Math.max(1, Math.floor(Number(shareAmount || 0)));
+  ensurePositiveAmount(normalizedShares, 'CARTEL_MARKET_AMOUNT_REQUIRED', 'Enter at least 1 share.');
+  if (isSemutaSellOrder(orderId)) {
+    return processSemutaMarketPurchase(guildId, buyerId, normalizedShares);
+  }
+  let order = await getCartelMarketOrderDb(orderId);
+  order = await ensureOrderNotExpired(order);
+  if (!order || order.status !== 'OPEN' || String(order.side).toUpperCase() !== 'SELL') {
+    throw new CartelError('CARTEL_MARKET_ORDER_NOT_FOUND', 'That sell order is no longer available.');
+  }
+  return fulfillSellOrderWithBuyer(guildId, buyerId, order, normalizedShares);
+}
+
+export async function executeMarketSell(guildId, sellerId, orderId, shareAmount) {
+  const normalizedShares = Math.max(1, Math.floor(Number(shareAmount || 0)));
+  ensurePositiveAmount(normalizedShares, 'CARTEL_MARKET_AMOUNT_REQUIRED', 'Enter at least 1 share.');
+  if (isSemutaBuyOrder(orderId)) {
+    return processSemutaMarketSale(guildId, sellerId, normalizedShares);
+  }
+  let order = await getCartelMarketOrderDb(orderId);
+  order = await ensureOrderNotExpired(order);
+  if (!order || order.status !== 'OPEN' || String(order.side).toUpperCase() !== 'BUY') {
+    throw new CartelError('CARTEL_MARKET_ORDER_NOT_FOUND', 'That buy order is no longer available.');
+  }
+  return fulfillBuyOrderWithSeller(guildId, sellerId, order, normalizedShares);
+}
+
+async function fulfillSellOrderWithBuyer(guildId, buyerId, order, shareAmount) {
+  const sellerId = order.user_id;
+  if (buyerId === sellerId) {
+    throw new CartelError('CARTEL_MARKET_SELF', 'You cannot fill your own sell order.');
+  }
+  const availableShares = Math.max(0, Number(order.shares || 0));
+  if (shareAmount > availableShares) {
+    throw new CartelError(
+      'CARTEL_MARKET_LIMIT',
+      `That order only has ${availableShares.toLocaleString('en-US')} shares remaining.`
+    );
+  }
+  const seller = await getCartelInvestor(guildId, sellerId);
+  const sellerShares = Math.max(0, Number(seller?.shares || 0));
+  if (sellerShares < shareAmount) {
+    await setCartelMarketOrderStatusDb(order.order_id, 'CANCELLED');
+    throw new CartelError('CARTEL_MARKET_ORDER_STALE', 'Seller no longer has enough shares. Order cancelled.');
+  }
+  const totalCost = shareAmount * Math.max(1, Number(order.price_per_share || 0));
+  try {
+    await takeFromUserToHouse(guildId, buyerId, totalCost, 'cartel market buy');
+  } catch (err) {
+    if (isDbError(err, 'INSUFFICIENT_USER')) {
+      throw new CartelError('CARTEL_MARKET_NO_CHIPS', 'You do not have enough chips to buy that order.');
+    }
+    throw err;
+  }
+  await transferFromHouseToUser(guildId, sellerId, totalCost, 'cartel market sale payout');
+  await cartelRemoveShares(guildId, sellerId, shareAmount);
+  await cartelAddShares(guildId, buyerId, shareAmount);
+  const remainingShares = availableShares - shareAmount;
+  await setCartelMarketOrderSharesDb(order.order_id, remainingShares, remainingShares > 0 ? 'OPEN' : 'FILLED');
+  await recordCartelTransaction(guildId, buyerId, 'MARKET_BUY', totalCost, 0, {
+    orderId: order.order_id,
+    shares: shareAmount,
+    pricePerShare: order.price_per_share,
+    sellerId
+  });
+  await recordCartelTransaction(guildId, sellerId, 'MARKET_SELL', totalCost, 0, {
+    orderId: order.order_id,
+    shares: shareAmount,
+    pricePerShare: order.price_per_share,
+    buyerId
+  });
+  return {
+    direction: 'buy',
+    sharesFilled: shareAmount,
+    pricePerShare: order.price_per_share,
+    chips: totalCost,
+    counterpartyId: sellerId,
+    orderId: order.order_id,
+    semuta: false
+  };
+}
+
+async function fulfillBuyOrderWithSeller(guildId, sellerId, order, shareAmount) {
+  const buyerId = order.user_id;
+  if (buyerId === sellerId) {
+    throw new CartelError('CARTEL_MARKET_SELF', 'You cannot fill your own buy order.');
+  }
+  const availableShares = Math.max(0, Number(order.shares || 0));
+  if (shareAmount > availableShares) {
+    throw new CartelError(
+      'CARTEL_MARKET_LIMIT',
+      `That order only has ${availableShares.toLocaleString('en-US')} shares remaining.`
+    );
+  }
+  const seller = await getCartelInvestor(guildId, sellerId);
+  const sellerShares = Math.max(0, Number(seller?.shares || 0));
+  if (sellerShares < shareAmount) {
+    throw new CartelError('CARTEL_NOT_ENOUGH_SHARES', 'You do not have enough shares to sell that amount.');
+  }
+  const totalCost = shareAmount * Math.max(1, Number(order.price_per_share || 0));
+  try {
+    await takeFromUserToHouse(guildId, buyerId, totalCost, 'cartel market buy fill');
+  } catch (err) {
+    if (isDbError(err, 'INSUFFICIENT_USER')) {
+      await setCartelMarketOrderStatusDb(order.order_id, 'CANCELLED');
+      throw new CartelError('CARTEL_MARKET_ORDER_STALE', 'Buyer no longer has chips. Order cancelled.');
+    }
+    throw err;
+  }
+  await transferFromHouseToUser(guildId, sellerId, totalCost, 'cartel market sell payout');
+  await cartelRemoveShares(guildId, sellerId, shareAmount);
+  await cartelAddShares(guildId, buyerId, shareAmount);
+  const remainingShares = availableShares - shareAmount;
+  await setCartelMarketOrderSharesDb(order.order_id, remainingShares, remainingShares > 0 ? 'OPEN' : 'FILLED');
+  await recordCartelTransaction(guildId, buyerId, 'MARKET_BUY', totalCost, 0, {
+    orderId: order.order_id,
+    shares: shareAmount,
+    pricePerShare: order.price_per_share,
+    sellerId
+  });
+  await recordCartelTransaction(guildId, sellerId, 'MARKET_SELL', totalCost, 0, {
+    orderId: order.order_id,
+    shares: shareAmount,
+    pricePerShare: order.price_per_share,
+    buyerId
+  });
+  return {
+    direction: 'sell',
+    sharesFilled: shareAmount,
+    pricePerShare: order.price_per_share,
+    chips: totalCost,
+    counterpartyId: buyerId,
+    orderId: order.order_id,
+    semuta: false
+  };
+}
+
+async function processSemutaMarketPurchase(guildId, buyerId, shareAmount) {
+  const prices = await getSemutaMarketPrices(guildId);
+  const sellPrice = prices.sellPrice;
+  const totalCost = shareAmount * sellPrice;
+  try {
+    await takeFromUserToHouse(guildId, buyerId, totalCost, 'semuta cartel market buy');
+  } catch (err) {
+    if (isDbError(err, 'INSUFFICIENT_USER')) {
+      throw new CartelError('CARTEL_MARKET_NO_CHIPS', 'You do not have enough chips to buy that order.');
+    }
+    throw err;
+  }
+  await cartelAddShares(guildId, buyerId, shareAmount);
+  await recordCartelTransaction(guildId, buyerId, 'MARKET_BUY', totalCost, 0, {
+    orderId: 'sell_SEMUTA_CARTEL',
+    shares: shareAmount,
+    pricePerShare: sellPrice,
+    sellerId: SEMUTA_CARTEL_USER_ID
+  });
+  return {
+    direction: 'buy',
+    sharesFilled: shareAmount,
+    pricePerShare: sellPrice,
+    chips: totalCost,
+    counterpartyId: SEMUTA_CARTEL_USER_ID,
+    orderId: 'sell_SEMUTA_CARTEL',
+    semuta: true
+  };
+}
+
+async function processSemutaMarketSale(guildId, sellerId, shareAmount) {
+  const seller = await getCartelInvestor(guildId, sellerId);
+  const sellerShares = Math.max(0, Number(seller?.shares || 0));
+  if (sellerShares < shareAmount) {
+    throw new CartelError('CARTEL_NOT_ENOUGH_SHARES', 'You do not have enough shares to sell that amount.');
+  }
+  const prices = await getSemutaMarketPrices(guildId);
+  const buyPrice = prices.buyPrice;
+  const payout = shareAmount * buyPrice;
+  try {
+    await transferFromHouseToUser(guildId, sellerId, payout, 'semuta cartel market sell');
+  } catch (err) {
+    if (isDbError(err, 'INSUFFICIENT_HOUSE')) {
+      throw new CartelError('CARTEL_HOUSE_EMPTY', 'The house bank is too low to buy more shares right now.');
+    }
+    throw err;
+  }
+  await cartelRemoveShares(guildId, sellerId, shareAmount);
+  await recordCartelTransaction(guildId, sellerId, 'MARKET_SELL', payout, 0, {
+    orderId: 'buy_SEMUTA_CARTEL',
+    shares: shareAmount,
+    pricePerShare: buyPrice,
+    buyerId: SEMUTA_CARTEL_USER_ID
+  });
+  return {
+    direction: 'sell',
+    sharesFilled: shareAmount,
+    pricePerShare: buyPrice,
+    chips: payout,
+    counterpartyId: SEMUTA_CARTEL_USER_ID,
+    orderId: 'buy_SEMUTA_CARTEL',
+    semuta: true
+  };
 }
 
 export async function cartelSell(guildId, userId, grams) {

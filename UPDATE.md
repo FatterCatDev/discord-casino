@@ -1,11 +1,12 @@
 # Pending Update
 
-version: 1.2.4
+version: 1.2.5
 
 ## Changes
 
-- `/leaderboard` now toggles between chip and Cartel share rankings; the chip view shows a combined House line (house reserves plus bot admin balances) and the share view displays staff-held Semuta as “Cartel’s Share” outside the rankings.
+<!-- Add one bullet per noteworthy change below. Example: - Improved chip payout handling -->
 
 ## Bug Fixes
 
+<!-- Add one bullet per bug fix below. Example: - Fixed crash when playing blackjack in DMs -->
 

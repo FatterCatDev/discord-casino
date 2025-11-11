@@ -1,7 +1,7 @@
 import { Api } from '@top-gg/sdk';
 
 const TOPGG_API_TOKEN = (process.env.TOPGG_API_TOKEN || process.env.TOPGG_TOKEN || '').trim();
-const MIN_POST_INTERVAL_SECONDS = 300;
+const MIN_POST_INTERVAL_SECONDS = 1800;
 const DEFAULT_POST_INTERVAL_SECONDS = 1800;
 
 function createTopggApi() {
@@ -69,6 +69,7 @@ export function startTopggStatsPoster(client, { intervalSeconds = Number(process
   const intervalMs = Math.max(MIN_POST_INTERVAL_SECONDS, Number(intervalSeconds) || DEFAULT_POST_INTERVAL_SECONDS) * 1000;
   let stopped = false;
   let posting = false;
+  let lastPostedServerCount = null;
 
   const postStats = async (reason = 'interval') => {
     if (stopped || posting) return;
@@ -76,7 +77,14 @@ export function startTopggStatsPoster(client, { intervalSeconds = Number(process
     try {
       const payload = await buildStatsPayload(client);
       if (!payload) return;
+      const serverCount = Number(payload.serverCount);
+      if (!Number.isFinite(serverCount)) return;
+      if (lastPostedServerCount !== null && serverCount === lastPostedServerCount) {
+        console.log(`[top.gg] Skipping stats post (${reason}); server count unchanged (${serverCount}).`);
+        return;
+      }
       await api.postStats(payload);
+      lastPostedServerCount = serverCount;
       console.log(`[top.gg] Posted stats (${reason}):`, payload);
     } catch (err) {
       console.error('[top.gg] Failed to post stats', err);

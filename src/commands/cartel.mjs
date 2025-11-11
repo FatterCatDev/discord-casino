@@ -1,10 +1,19 @@
 import crypto from 'node:crypto';
-import { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle } from 'discord.js';
+import {
+  EmbedBuilder,
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
+  ModalBuilder,
+  TextInputBuilder,
+  TextInputStyle,
+  StringSelectMenuBuilder,
+  StringSelectMenuOptionBuilder
+} from 'discord.js';
 import { emoji } from '../lib/emojis.mjs';
 import {
   getCartelOverview,
-  getCartelSharePrice,
-  cartelInvest,
+  calculateSemutaMarketPrices,
   cartelCollect,
   cartelAbandon,
   listUserDealers,
@@ -22,7 +31,13 @@ import {
   collectDealerChips,
   cartelReserveStashForSale,
   cartelRefundStashForSale,
-  cartelPayoutReservedSale
+  cartelPayoutReservedSale,
+  createShareMarketOrder,
+  listShareMarketOrders,
+  listShareMarketOrdersForUser,
+  cancelShareMarketOrder,
+  executeMarketBuy,
+  executeMarketSell
 } from '../cartel/service.mjs';
 import {
   CARTEL_DEFAULT_SHARE_PRICE,
@@ -33,7 +48,8 @@ import {
   CARTEL_DEALER_TIERS,
   CARTEL_DEALER_NAME_POOL,
   CARTEL_DEFAULT_XP_PER_GRAM_SOLD,
-  MG_PER_GRAM
+  MG_PER_GRAM,
+  SEMUTA_CARTEL_USER_ID
 } from '../cartel/constants.mjs';
 import { xpToNextForRank } from '../cartel/progression.mjs';
 
@@ -57,6 +73,18 @@ const SELL_MINIGAME_MOVE_RIGHT_ID = 'cartel|sell|minigame|move|right';
 const CARTEL_REFRESH_CUSTOM_ID = 'cartel|refresh';
 const CARTEL_RANKS_CUSTOM_ID = 'cartel|ranks';
 const CARTEL_OVERVIEW_CUSTOM_ID = 'cartel|overview';
+const CARTEL_SHARES_VIEW_ID = 'cartel|shares|view';
+const CARTEL_SHARE_MARKET_BUY_VIEW_ID = 'cartel|shares|view|buy';
+const CARTEL_SHARE_MARKET_SELL_VIEW_ID = 'cartel|shares|view|sell';
+const CARTEL_SHARE_MARKET_POSTS_VIEW_ID = 'cartel|shares|view|posts';
+const CARTEL_SHARE_ORDER_SELECT_ID = 'cartel|shares|posts|select';
+const CARTEL_MARKET_BUY_SELECT_ID = 'cartel|shares|market|buy|select';
+const CARTEL_MARKET_SELL_SELECT_ID = 'cartel|shares|market|sell|select';
+const CARTEL_MARKET_BUY_CONFIRM_ID = 'cartel|shares|market|buy|confirm';
+const CARTEL_MARKET_SELL_CONFIRM_ID = 'cartel|shares|market|sell|confirm';
+const CARTEL_MARKET_BUY_MODAL_ID = 'cartel|shares|market|buy|modal';
+const CARTEL_MARKET_SELL_MODAL_ID = 'cartel|shares|market|sell|modal';
+const CARTEL_MARKET_MODAL_AMOUNT_INPUT_ID = 'cartel|shares|market|amount';
 const CARTEL_DEALERS_LIST_VIEW_ID = 'cartel|dealers|view|list';
 const CARTEL_DEALERS_HIRE_VIEW_ID = 'cartel|dealers|view|hire';
 const CARTEL_DEALERS_UPKEEP_VIEW_ID = 'cartel|dealers|view|upkeep';
@@ -67,9 +95,6 @@ const CARTEL_DEALERS_FIRE_ALL_ID = 'cartel|dealers|fire_all';
 const CARTEL_DEALERS_UPKEEP_MODAL_PREFIX = 'cartel|dealers|upkeep_modal|';
 const CARTEL_DEALERS_UPKEEP_MODAL_INPUT_ID = 'chips';
 const CARTEL_DEALERS_COLLECT_ID = 'cartel|dealers|collect';
-const CARTEL_INVEST_BUTTON_ID = 'cartel|invest';
-const CARTEL_INVEST_MODAL_ID = 'cartel|invest|modal';
-const CARTEL_INVEST_MODAL_INPUT_ID = 'cartel|invest|chips';
 const CARTEL_SELL_BUTTON_ID = 'cartel|sell|prompt';
 const CARTEL_SELL_MODAL_ID = 'cartel|sell|modal';
 const CARTEL_SELL_MODAL_INPUT_ID = 'cartel|sell|amount';
@@ -77,12 +102,47 @@ const CARTEL_COLLECT_BUTTON_ID = 'cartel|collect|prompt';
 const CARTEL_COLLECT_MODAL_ID = 'cartel|collect|modal';
 const CARTEL_COLLECT_MODAL_INPUT_ID = 'cartel|collect|amount';
 const CARTEL_GUIDE_BUTTON_ID = 'cartel|guide';
+const CARTEL_SHARE_ORDER_SELL_BUTTON_ID = 'cartel|shares|order|sell';
+const CARTEL_SHARE_ORDER_BUY_BUTTON_ID = 'cartel|shares|order|buy';
+const CARTEL_SHARE_ORDER_MODAL_ID = 'cartel|shares|order|modal';
+const CARTEL_SHARE_ORDER_MODAL_SHARES_INPUT = 'cartel|shares|order|shares';
+const CARTEL_SHARE_ORDER_MODAL_PRICE_INPUT = 'cartel|shares|order|price';
+const CARTEL_SHARE_ORDER_CANCEL_BUTTON_ID = 'cartel|shares|order|cancel';
 const DEALER_NAME_CACHE_TTL_MS = 10 * 60 * 1000;
 const dealerRecruitmentNameCache = new Map();
 const SEMUTA_IMAGE_NAME = 'semuta_cartel.png';
 const SEMUTA_IMAGE_PATH = `Assets/${SEMUTA_IMAGE_NAME}`;
 const DEALERS_IMAGE_NAME = 'dealers.png';
 const DEALERS_IMAGE_PATH = `Assets/${DEALERS_IMAGE_NAME}`;
+const marketOrderSnapshots = new Map();
+
+function snapshotKeyForUser(guildId, userId) {
+  if (!guildId || !userId) return null;
+  return `${guildId}:${userId}`;
+}
+
+function removeOrderFromSnapshot(guildId, userId, orderId) {
+  const key = snapshotKeyForUser(guildId, userId);
+  if (!key) return;
+  const snapshot = marketOrderSnapshots.get(key);
+  if (!snapshot) return;
+  snapshot.delete(orderId);
+  if (!snapshot.size) {
+    marketOrderSnapshots.delete(key);
+  }
+}
+
+function seedSnapshotWithOrder(guildId, userId, order) {
+  const key = snapshotKeyForUser(guildId, userId);
+  if (!key || !order?.order_id) return;
+  const snapshot = marketOrderSnapshots.get(key) || new Map();
+  snapshot.set(order.order_id, {
+    shares: Math.max(0, Number(order?.shares || 0)),
+    side: order.side || 'SELL',
+    price: Math.max(1, Number(order?.price_per_share || 0))
+  });
+  marketOrderSnapshots.set(key, snapshot);
+}
 
 function buildSemutaImageAttachment() {
   return { attachment: SEMUTA_IMAGE_PATH, name: SEMUTA_IMAGE_NAME };
@@ -106,6 +166,24 @@ function withAutoEphemeral(interaction, payload = {}) {
   return payload;
 }
 
+function detectCartelPanelView(message) {
+  const rawTitle = message?.embeds?.[0]?.title || '';
+  const title = typeof rawTitle === 'string' ? rawTitle.toLowerCase() : '';
+  if (title.includes('share market — buy')) return 'shares:buy';
+  if (title.includes('share market — sell')) return 'shares:sell';
+  if (title.includes('share market — posts')) return 'shares:posts';
+  if (title.includes('share market') || title.includes('cartel shares')) return 'shares';
+  return 'overview';
+}
+
+function extractShareMarketMode(token) {
+  if (!token || typeof token !== 'string') return null;
+  if (!token.startsWith('shares')) return null;
+  const [, detail] = token.split(':');
+  if (detail === 'buy' || detail === 'sell' || detail === 'posts') return detail;
+  return 'splash';
+}
+
 async function buildOverviewPayload(interaction, ctx) {
   const chipsFmt = getChipsFormatter(ctx);
   const overview = await getCartelOverview(interaction.guild?.id, interaction.user.id);
@@ -113,6 +191,60 @@ async function buildOverviewPayload(interaction, ctx) {
     embeds: [buildOverviewEmbed(overview, chipsFmt)],
     components: buildOverviewComponents('overview'),
     files: [buildSemutaImageAttachment()]
+  };
+}
+
+async function buildSharesPayload(interaction, ctx, mode = 'splash', viewOptions = {}) {
+  const chipsFmt = getChipsFormatter(ctx);
+  const overview = await getCartelOverview(interaction.guild?.id, interaction.user.id);
+  const { selectedOrderId = null, page = 1 } = viewOptions || {};
+  const guildId = interaction.guild?.id || null;
+  const userId = interaction.user?.id || null;
+  const normalizedPage = Math.max(1, Number.isFinite(Number(page)) ? Number(page) : 1);
+  let embed;
+  const componentOptions = { selectedOrderId, mode, page: normalizedPage };
+  let playerOrders = [];
+  const semutaPrices = calculateSemutaMarketPrices(overview?.pool?.total_shares || overview?.totals?.shares || 0);
+  if (mode === 'buy') {
+    const orders = guildId ? await listShareMarketOrders(guildId, 'SELL', 250) : [];
+    const decorated = decorateShareMarketOrders('SELL', orders, semutaPrices.sellPrice);
+    const sorted = sortShareMarketOrders(decorated, 'buy');
+    const { pageSlice, pageInfo } = paginateShareMarketOrders(sorted, normalizedPage);
+    embed = buildShareMarketOrderEmbed('buy', overview, pageSlice, chipsFmt, pageInfo);
+    componentOptions.pageInfo = pageInfo;
+    componentOptions.orders = pageSlice;
+  } else if (mode === 'sell') {
+    const orders = guildId ? await listShareMarketOrders(guildId, 'BUY', 250) : [];
+    const decorated = decorateShareMarketOrders('BUY', orders, semutaPrices.buyPrice);
+    const sorted = sortShareMarketOrders(decorated, 'sell');
+    const { pageSlice, pageInfo } = paginateShareMarketOrders(sorted, normalizedPage);
+    embed = buildShareMarketOrderEmbed('sell', overview, pageSlice, chipsFmt, pageInfo);
+    componentOptions.pageInfo = pageInfo;
+    componentOptions.orders = pageSlice;
+  } else if (mode === 'posts') {
+    const expiredOrders = [];
+    playerOrders = guildId && userId
+      ? await listShareMarketOrdersForUser(guildId, userId, 25, { expiredOrders })
+      : [];
+    componentOptions.playerOrders = playerOrders;
+    componentOptions.expiredOrders = expiredOrders;
+    embed = buildShareMarketPostsEmbed(overview, playerOrders, chipsFmt);
+  } else {
+    embed = buildCartelSharesEmbed(overview, chipsFmt);
+  }
+  return {
+    payload: {
+      embeds: [embed],
+      components: buildShareMarketComponents(mode, componentOptions),
+      files: [buildSemutaImageAttachment()]
+    },
+    context: {
+      mode,
+      page: normalizedPage,
+      selectedOrderId,
+      playerOrders,
+      expiredOrders: componentOptions.expiredOrders || []
+    }
   };
 }
 
@@ -191,8 +323,7 @@ async function fetchMessageById(interaction, messageId) {
 
 function formatPlayerLabel(user) {
   if (!user) return 'Unknown player';
-  const display = user.tag || user.globalName || user.username || user.id;
-  return `${display} (<@${user.id}>)`;
+  return user.globalName || user.username || user.tag || user.id;
 }
 
 async function logCartelActivity(interaction, activity) {
@@ -284,6 +415,10 @@ async function ensureCartelAccess(interaction, _ctx, options = {}) {
   return false;
 }
 
+async function ensureShareMarketAccess(_interaction, _ctx) {
+  return true;
+}
+
 function formatPercent(value) {
   if (!Number.isFinite(value) || value <= 0) return '0%';
   return `${percentFormatter.format(value * 100)}%`;
@@ -363,25 +498,28 @@ function withSectionDividers(fields = []) {
 }
 
 function buildOverviewEmbed(overview, chipsFmt) {
-  const { investor, metrics, totals, pool, nextTickAt } = overview;
+  const { investor, metrics } = overview;
   const hourlyValue = metrics.hourlyGrams * CARTEL_BASE_PRICE_PER_GRAM;
   const dailyValue = metrics.dailyGrams * CARTEL_BASE_PRICE_PER_GRAM;
   const tickSeconds = CARTEL_MIN_TICK_SECONDS;
   const tickDurationLabel = formatTickDuration(tickSeconds);
   const tickGramsValue = metrics.hourlyGrams * (tickSeconds / SECONDS_PER_HOUR);
-  const nextTickLine = nextTickAt
-    ? `<t:${nextTickAt}:R>`
-    : 'Pending first production tick';
-  const description = `${emoji('semuta')} Semuta is a pile of pale blue crystals that the cartel refines for passive chip income.`;
-
+  const rankLine = buildRankProgressLine(investor);
+  const zeroSharesPrompt = Number(investor?.shares || 0) <= 0
+    ? `${emoji('info')} You have no Semuta shares yet. Click **Cartel Shares** below to buy some.`
+    : null;
+  const descriptionParts = [
+    rankLine,
+    `${emoji('semuta')} Semuta is a pile of pale blue crystals that the cartel refines for passive chip income.`,
+    zeroSharesPrompt
+  ].filter(Boolean);
+  const description = descriptionParts.join('\n\n');
   const fields = [
     {
-      name: 'Your Holdings',
+      name: 'Inventory',
       value: joinSections([
-        `${emoji('cashStack')} Shares: **${Number(investor?.shares || 0).toLocaleString('en-US')}**`,
         `${emoji('semuta')} Stash: **${gramsFormatter.format(metrics.stashGrams)}g of Semuta** / ${gramsFormatter.format(metrics.stashCapGrams)}g of Semuta cap`,
-        `${emoji('vault')} Warehouse (overflow): **${gramsFormatter.format(metrics.warehouseGrams)}g of Semuta**`,
-        buildRankProgressLine(investor)
+        `${emoji('vault')} Warehouse (overflow): **${gramsFormatter.format(metrics.warehouseGrams)}g of Semuta**`
       ])
     },
     {
@@ -389,17 +527,7 @@ function buildOverviewEmbed(overview, chipsFmt) {
       value: joinSections([
         `${emoji('hourglass')} Tick (~${tickDurationLabel}): **${gramsFormatter.format(tickGramsValue)}g of Semuta**`,
         `${emoji('alarmClock')} Hourly: **${gramsFormatter.format(metrics.hourlyGrams)}g of Semuta** (~${chipsFmt(Math.round(hourlyValue))})`,
-        `${emoji('calendar')} Daily: **${gramsFormatter.format(metrics.dailyGrams)}g of Semuta** (~${chipsFmt(Math.round(dailyValue))})`,
-        `${emoji('pie')} Pool share: **${formatPercent(metrics.sharePercent)}**`
-      ])
-    },
-    {
-      name: 'Cartel Pool',
-      value: joinSections([
-        `${emoji('busts')} Investors: **${totals.investors}**`,
-        `${emoji('chipCard')} Shares outstanding: **${Number(pool?.total_shares || 0).toLocaleString('en-US')}**`,
-        `${emoji('hourglassFlow')} Next tick: ${nextTickLine}`,
-        `${emoji('balanceScale')} Warehouse fee: **${(CARTEL_WAREHOUSE_FEE_BPS / 100).toFixed(2)}%**`
+        `${emoji('calendar')} Daily: **${gramsFormatter.format(metrics.dailyGrams)}g of Semuta** (~${chipsFmt(Math.round(dailyValue))})`
       ])
     }
   ];
@@ -411,6 +539,477 @@ function buildOverviewEmbed(overview, chipsFmt) {
     .setDescription(description)
     .addFields(...withSectionDividers(fields))
     .setFooter({ text: 'Grow your Semuta stash, then sell the pale blue crystals for passive chips.' });
+}
+
+function buildCartelSharesEmbed(overview, chipsFmt, { maintenance = false, includeSnapshot = true } = {}) {
+  const { investor, metrics, totals, pool, nextTickAt } = overview;
+  const sharePrice = Math.max(
+    1,
+    Math.floor(Number(metrics?.sharePrice || pool?.share_price || CARTEL_DEFAULT_SHARE_PRICE))
+  );
+  const perShareRate = gramsFormatter.format(mgToGrams(metrics?.perShareRateMg || 0));
+  const nextTickLine = nextTickAt
+    ? `<t:${nextTickAt}:R>`
+    : 'Pending first production tick';
+  const descriptionParts = ['Monitor your holdings and the cartel pool before buying or selling shares.'];
+  if (maintenance) {
+    descriptionParts.push(`${emoji('warning')} Share Market is in maintenance and limited to admins for now.`);
+  }
+  const embed = new EmbedBuilder()
+    .setColor(0x1abc9c)
+    .setTitle(`${emoji('semuta_cartel')} Semuta Cartel Share Market`)
+    .setThumbnail(`attachment://${SEMUTA_IMAGE_NAME}`)
+    .setDescription(descriptionParts.join('\n\n'))
+    .setFooter({ text: 'Buy shares to grow production or sell shares to cash out chips.' });
+  if (includeSnapshot) {
+    const holdingsField = {
+      name: 'Player Holdings',
+      value: joinSections([
+        `${emoji('cashStack')} Shares: **${Number(investor?.shares || 0).toLocaleString('en-US')}**`,
+        `${emoji('pie')} Pool share: **${formatPercent(metrics.sharePercent)}**`,
+        `${emoji('hourglass')} Per-share output: **${perShareRate}g of Semuta/hr**`
+      ])
+    };
+    const poolField = {
+      name: 'Cartel Pool',
+      value: joinSections([
+        `${emoji('chipCard')} Share price: **${chipsFmt(sharePrice)}**`,
+        `${emoji('busts')} Investors: **${totals.investors}**`,
+        `${emoji('chipCard')} Shares outstanding: **${Number(pool?.total_shares || 0).toLocaleString('en-US')}**`,
+        `${emoji('hourglassFlow')} Next tick: ${nextTickLine}`,
+        `${emoji('balanceScale')} Warehouse fee: **${(CARTEL_WAREHOUSE_FEE_BPS / 100).toFixed(2)}%**`
+      ])
+    };
+    embed.addFields(...withSectionDividers([holdingsField, poolField]));
+  }
+  return embed;
+}
+
+function buildShareMarketComponents(mode = 'splash', options = {}) {
+  const playerOrders = Array.isArray(options?.playerOrders) ? options.playerOrders : [];
+  const selectedOrderIdRaw = typeof options?.selectedOrderId === 'string' ? options.selectedOrderId : null;
+  const pageInfo = options?.pageInfo || null;
+  const ordersForPage = Array.isArray(options?.orders) ? options.orders : [];
+  const currentPage = pageInfo?.current || Number(options?.page || 1) || 1;
+  const buyNavStyle = mode === 'buy' ? ButtonStyle.Primary : ButtonStyle.Secondary;
+  const sellNavStyle = mode === 'sell' ? ButtonStyle.Primary : ButtonStyle.Secondary;
+  const postsNavStyle = mode === 'posts' ? ButtonStyle.Primary : ButtonStyle.Secondary;
+  const rows = [];
+
+  const navRow = new ActionRowBuilder();
+  if (mode === 'splash') {
+    navRow.addComponents(
+      new ButtonBuilder()
+        .setCustomId(CARTEL_OVERVIEW_CUSTOM_ID)
+        .setLabel('Return to Overview')
+        .setEmoji('↩️')
+        .setStyle(ButtonStyle.Secondary)
+    );
+  } else {
+    navRow.addComponents(
+      new ButtonBuilder()
+        .setCustomId(CARTEL_SHARES_VIEW_ID)
+        .setLabel('Splash')
+        .setEmoji('📈')
+        .setStyle(ButtonStyle.Secondary)
+    );
+  }
+  navRow.addComponents(
+    new ButtonBuilder()
+      .setCustomId(CARTEL_SHARE_MARKET_BUY_VIEW_ID)
+      .setLabel('Buy')
+      .setEmoji('🛒')
+      .setStyle(buyNavStyle),
+    new ButtonBuilder()
+      .setCustomId(CARTEL_SHARE_MARKET_SELL_VIEW_ID)
+      .setLabel('Sell')
+      .setEmoji('💱')
+      .setStyle(sellNavStyle),
+    new ButtonBuilder()
+      .setCustomId(CARTEL_SHARE_MARKET_POSTS_VIEW_ID)
+      .setLabel('Posts')
+      .setEmoji('📮')
+      .setStyle(postsNavStyle),
+    new ButtonBuilder()
+      .setCustomId(CARTEL_DEALERS_LIST_VIEW_ID)
+      .setLabel('Dealers')
+      .setEmoji('🧑‍🤝‍🧑')
+      .setStyle(ButtonStyle.Primary)
+  );
+  rows.push(navRow);
+
+  if (mode !== 'splash') {
+    rows.push(
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(CARTEL_SHARE_ORDER_SELL_BUTTON_ID)
+          .setLabel('Post Sell Order')
+          .setEmoji('📢')
+          .setStyle(mode === 'buy' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId(CARTEL_SHARE_ORDER_BUY_BUTTON_ID)
+          .setLabel('Post Buy Order')
+          .setEmoji('🛒')
+          .setStyle(mode === 'sell' ? ButtonStyle.Primary : ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId(CARTEL_GUIDE_BUTTON_ID)
+          .setLabel('Guide')
+          .setEmoji('📘')
+          .setStyle(ButtonStyle.Secondary)
+      )
+    );
+  }
+
+  if ((mode === 'buy' || mode === 'sell') && pageInfo && pageInfo.total > 1) {
+    const prevPage = Math.max(1, pageInfo.current - 1);
+    const nextPage = Math.min(pageInfo.total, pageInfo.current + 1);
+    rows.push(
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`cartel|shares|view|${mode}|page|${prevPage}`)
+          .setLabel('Prev')
+          .setEmoji('◀️')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(pageInfo.current <= 1),
+        new ButtonBuilder()
+          .setCustomId(`cartel|shares|view|${mode}|page|${nextPage}`)
+          .setLabel('Next')
+          .setEmoji('▶️')
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(pageInfo.current >= pageInfo.total)
+      )
+    );
+  }
+
+  if ((mode === 'buy' || mode === 'sell') && ordersForPage.length) {
+    const selectMenu = new StringSelectMenuBuilder()
+      .setCustomId(
+        mode === 'buy'
+          ? `${CARTEL_MARKET_BUY_SELECT_ID}|${currentPage}`
+          : `${CARTEL_MARKET_SELL_SELECT_ID}|${currentPage}`
+      )
+      .setPlaceholder('Select an order')
+      .setMinValues(1)
+      .setMaxValues(1);
+    const currentOrderIds = new Set(ordersForPage.map(order => order?.order_id));
+    const effectiveSelectedId = currentOrderIds.has(selectedOrderIdRaw) ? selectedOrderIdRaw : null;
+    const optionBuilders = ordersForPage.slice(0, 25).map(order => {
+      const option = new StringSelectMenuOptionBuilder()
+        .setLabel(buildMarketOrderOptionLabel(order))
+        .setValue(order.order_id)
+        .setDescription(buildMarketOrderOptionDescription(order));
+      if (order.order_id === effectiveSelectedId) option.setDefault(true);
+      return option;
+    });
+    if (optionBuilders.length) {
+      selectMenu.addOptions(optionBuilders);
+      rows.push(new ActionRowBuilder().addComponents(selectMenu));
+      const confirmId = mode === 'buy'
+        ? `${CARTEL_MARKET_BUY_CONFIRM_ID}|${effectiveSelectedId || '0'}|${currentPage}`
+        : `${CARTEL_MARKET_SELL_CONFIRM_ID}|${effectiveSelectedId || '0'}|${currentPage}`;
+      rows.push(
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId(confirmId)
+            .setLabel(mode === 'buy' ? 'Enter Shares to Buy' : 'Enter Shares to Sell')
+            .setEmoji('✅')
+            .setStyle(mode === 'buy' ? ButtonStyle.Success : ButtonStyle.Danger)
+            .setDisabled(!effectiveSelectedId)
+        )
+      );
+    }
+  }
+
+  if (mode === 'posts' && playerOrders.length) {
+    const selectMenu = new StringSelectMenuBuilder()
+      .setCustomId(CARTEL_SHARE_ORDER_SELECT_ID)
+      .setPlaceholder('Select one of your orders')
+      .setMinValues(1)
+      .setMaxValues(1);
+    const optionBuilders = playerOrders.slice(0, 25).map(order => {
+      const shareCount = Math.max(0, Number(order?.shares || 0));
+      const shareLabel = `${shareCount.toLocaleString('en-US')} ${shareCount === 1 ? 'share' : 'shares'}`;
+      const priceLabel = Math.max(1, Math.floor(Number(order?.price_per_share || 0))).toLocaleString('en-US');
+      const sideLabel = String(order?.side).toUpperCase() === 'BUY' ? 'Buy' : 'Sell';
+      const option = new StringSelectMenuOptionBuilder()
+        .setLabel(`${sideLabel} ${shareLabel}`)
+        .setValue(order.order_id)
+        .setDescription(`@ ${priceLabel} chips · ${order?.created_at ? formatRelativeTs(order.created_at) : 'posted now'}`);
+      if (order.order_id === selectedOrderIdRaw) option.setDefault(true);
+      return option;
+    });
+    if (optionBuilders.length) {
+      selectMenu.addOptions(optionBuilders);
+      rows.push(new ActionRowBuilder().addComponents(selectMenu));
+      const cancelTarget = selectedOrderIdRaw || '0';
+      rows.push(
+        new ActionRowBuilder().addComponents(
+          new ButtonBuilder()
+            .setCustomId(`${CARTEL_SHARE_ORDER_CANCEL_BUTTON_ID}|${cancelTarget}`)
+            .setLabel('Cancel Order')
+            .setEmoji('🗑️')
+            .setStyle(ButtonStyle.Danger)
+            .setDisabled(cancelTarget === '0')
+        )
+      );
+    }
+  }
+
+  return rows;
+}
+
+function buildShareMarketOrderEmbed(mode, overview, orders, chipsFmt, pageInfo = null) {
+  const isBuyView = mode === 'buy';
+  const pageLabel = pageInfo && pageInfo.total > 1
+    ? ` — Page ${pageInfo.current}/${pageInfo.total}`
+    : '';
+  const baseDescription = isBuyView
+    ? 'Browse live sell posts from other players or rely on the Semuta Cartel’s infinite inventory.'
+    : 'Review open buy posts from other players ready to pay chips for your shares.';
+  const pageDescription = pageInfo && pageInfo.total > 1
+    ? `Page ${pageInfo.current} of ${pageInfo.total} — showing ${orders.length} of ${pageInfo.totalItems.toLocaleString('en-US')} posts.`
+    : null;
+  const embed = buildCartelSharesEmbed(overview, chipsFmt, { maintenance: false, includeSnapshot: false })
+    .setTitle(`${emoji('semuta_cartel')} Semuta Cartel Share Market — ${isBuyView ? 'Buy' : 'Sell'}${pageLabel}`)
+    .setDescription([baseDescription, pageDescription].filter(Boolean).join('\n\n'));
+  if (pageInfo) {
+    embed.setFooter({ text: `Showing ${orders.length} of ${pageInfo.totalItems} posts · Page ${pageInfo.current}/${pageInfo.total}` });
+  }
+  embed.addFields(...withSectionDividers([
+    {
+      name: `${emoji('clipboard')} ${isBuyView ? 'Sell Posts' : 'Buy Posts'}`,
+      value: formatShareMarketOrdersList(orders, chipsFmt)
+    }
+  ]));
+  return embed;
+}
+
+function buildShareMarketPostsEmbed(overview, orders, chipsFmt) {
+  const embed = buildCartelSharesEmbed(overview, chipsFmt, { maintenance: false, includeSnapshot: false })
+    .setTitle(`${emoji('semuta_cartel')} Semuta Cartel Share Market — Posts`)
+    .setDescription('Track your own market posts or create a new listing in seconds.');
+  const buyOrders = (orders || []).filter(order => String(order?.side).toUpperCase() === 'BUY');
+  const sellOrders = (orders || []).filter(order => String(order?.side).toUpperCase() !== 'BUY');
+  embed.addFields(...withSectionDividers([
+    {
+      name: `${emoji('chipCard')} Your Buy Orders`,
+      value: formatPlayerMarketOrdersList(buyOrders, chipsFmt, '_No buy orders yet._')
+    },
+    {
+      name: `${emoji('receipt')} Your Sell Orders`,
+      value: formatPlayerMarketOrdersList(sellOrders, chipsFmt, '_No sell orders yet._')
+    }
+  ]));
+  return embed;
+}
+
+function decorateShareMarketOrders(side, orders = [], semutaPrice = 100) {
+  const sanitized = Array.isArray(orders) ? orders.filter(Boolean) : [];
+  return [buildSemutaMarketOrder(side, semutaPrice), ...sanitized];
+}
+
+function sortShareMarketOrders(orders = [], mode = 'buy') {
+  const normalizedMode = mode === 'sell' ? 'sell' : 'buy';
+  const sorted = [...orders];
+  sorted.sort((a, b) => {
+    const priceA = Number(a?.price_per_share || 0);
+    const priceB = Number(b?.price_per_share || 0);
+    const createdA = Number(a?.created_at || 0);
+    const createdB = Number(b?.created_at || 0);
+    if (normalizedMode === 'buy') {
+      if (priceA !== priceB) return priceA - priceB;
+      return createdA - createdB;
+    }
+    if (priceA !== priceB) return priceB - priceA;
+    return createdA - createdB;
+  });
+  return sorted;
+}
+
+function paginateShareMarketOrders(orders = [], requestedPage = 1, pageSize = 25) {
+  const safePageSize = Math.max(1, Math.floor(Number(pageSize) || 25));
+  const totalItems = orders.length;
+  const totalPages = Math.max(1, Math.ceil(totalItems / safePageSize));
+  const current = Math.min(Math.max(1, Math.floor(Number(requestedPage) || 1)), totalPages);
+  const start = (current - 1) * safePageSize;
+  const pageSlice = orders.slice(start, start + safePageSize);
+  return {
+    pageSlice,
+    pageInfo: {
+      current,
+      total: totalPages,
+      totalItems,
+      pageSize: safePageSize
+    }
+  };
+}
+
+function buildSemutaMarketOrder(side, semutaPrice) {
+  const normalizedSide = String(side || 'SELL').toUpperCase() === 'BUY' ? 'BUY' : 'SELL';
+  const price = Math.max(1, Math.floor(Number(semutaPrice || 0)));
+  return {
+    order_id: `${normalizedSide.toLowerCase()}_${SEMUTA_CARTEL_USER_ID}`,
+    guild_id: null,
+    user_id: SEMUTA_CARTEL_USER_ID,
+    side: normalizedSide,
+    shares: Number.POSITIVE_INFINITY,
+    price_per_share: price,
+    status: 'OPEN',
+    created_at: null,
+    infinite: true
+  };
+}
+
+function formatShareMarketOrdersList(orders = [], chipsFmt) {
+  if (!orders.length) return '_No posts yet._';
+  const lines = orders
+    .map(order => formatShareMarketOrderLine(order, chipsFmt))
+    .filter(Boolean);
+  if (!lines.length) return '_No posts yet._';
+  const onlySemuta = orders.every(order => order?.user_id === SEMUTA_CARTEL_USER_ID);
+  const output = lines.join('\n');
+  if (onlySemuta) {
+    return `${output}\n${emoji('sparkles')} No player posts yet—use **Post Order** below to create one.`;
+  }
+  return output;
+}
+
+function buildMarketOrderOptionLabel(order) {
+  const sideLabel = String(order?.side).toUpperCase() === 'BUY' ? 'Buy' : 'Sell';
+  const shareLabel = order?.infinite
+    ? '∞ shares'
+    : `${Math.max(0, Number(order?.shares || 0)).toLocaleString('en-US')} shares`;
+  const priceLabel = Math.max(1, Math.floor(Number(order?.price_per_share || 0))).toLocaleString('en-US');
+  return `${sideLabel} ${shareLabel} @ ${priceLabel}`;
+}
+
+function buildMarketOrderOptionDescription(order) {
+  const ownerLabel = order?.user_id === SEMUTA_CARTEL_USER_ID
+    ? 'Semuta Cartel'
+    : order?.user_id
+      ? `Order by ${shortUserId(order.user_id)}`
+      : 'Order';
+  const posted = order?.user_id === SEMUTA_CARTEL_USER_ID
+    ? 'always available'
+    : order?.created_at
+      ? formatRelativeTs(order.created_at)
+      : 'just now';
+  return `${ownerLabel} · ${posted}`;
+}
+
+function shortUserId(userId) {
+  const value = String(userId || '');
+  if (!value) return 'Unknown';
+  if (value.length <= 6) return value;
+  return `${value.slice(0, 3)}…${value.slice(-3)}`;
+}
+
+function formatShareMarketOrderLine(order, chipsFmt) {
+  const sideLabel = String(order?.side).toUpperCase() === 'BUY' ? 'Buying' : 'Selling';
+  const userLabel = order?.user_id === SEMUTA_CARTEL_USER_ID
+    ? `${emoji('semuta_cartel')} Semuta Cartel`
+    : `<@${order?.user_id}>`;
+  const shareCount = Math.max(0, Number(order?.shares || 0));
+  const shareLabel = order?.infinite
+    ? '∞ shares'
+    : `${shareCount.toLocaleString('en-US')} ${shareCount === 1 ? 'share' : 'shares'}`;
+  const price = Math.max(1, Math.floor(Number(order?.price_per_share || 0)));
+  const posted = order?.created_at ? ` · ${formatRelativeTs(order.created_at)}` : '';
+  return `${emoji('chipCard')} ${userLabel} — ${sideLabel} ${shareLabel} @ ${chipsFmt(price)} per share${posted}`;
+}
+
+function shortOrderId(orderId) {
+  const value = String(orderId || '');
+  if (!value) return 'unknown';
+  if (value.length <= 6) return value;
+  return `${value.slice(0, 3)}…${value.slice(-3)}`;
+}
+
+function formatPlayerMarketOrdersList(orders = [], chipsFmt, fallbackMessage = '_None yet._') {
+  if (!orders.length) return fallbackMessage;
+  const lines = orders
+    .slice(0, 5)
+    .map(order => {
+      const shareCount = Math.max(0, Number(order?.shares || 0));
+      const price = Math.max(1, Math.floor(Number(order?.price_per_share || 0)));
+      const posted = order?.created_at ? formatRelativeTs(order.created_at) : 'just now';
+      const shareLabel = `${shareCount.toLocaleString('en-US')} ${shareCount === 1 ? 'share' : 'shares'}`;
+      return `${emoji('chipCard')} ${shareLabel} @ ${chipsFmt(price)} — posted ${posted}`;
+    })
+    .filter(Boolean);
+  return lines.length ? lines.join('\n') : fallbackMessage;
+}
+
+async function maybeNotifyOrderFills(interaction, ctx, playerOrders = [], expiredOrderIds = []) {
+  const guildId = interaction.guild?.id;
+  const userId = interaction.user?.id;
+  const snapshotKey = snapshotKeyForUser(guildId, userId);
+  if (!snapshotKey) return;
+  const previous = marketOrderSnapshots.get(snapshotKey) || new Map();
+  const current = new Map();
+  for (const order of playerOrders) {
+    if (!order?.order_id) continue;
+    current.set(order.order_id, {
+      shares: Math.max(0, Number(order?.shares || 0)),
+      side: order.side || 'SELL',
+      price: Math.max(1, Number(order?.price_per_share || 0))
+    });
+  }
+  const expiredSet = new Set(expiredOrderIds || []);
+  const updates = [];
+  for (const [orderId, prevEntry] of previous.entries()) {
+    if (expiredSet.has(orderId)) {
+      previous.delete(orderId);
+      continue;
+    }
+    const currentEntry = current.get(orderId);
+    if (!currentEntry) {
+      updates.push({
+        type: 'closed',
+        orderId,
+        side: prevEntry.side,
+        price: prevEntry.price,
+        delta: prevEntry.shares
+      });
+      continue;
+    }
+    if (currentEntry.shares < prevEntry.shares) {
+      updates.push({
+        type: 'partial',
+        orderId,
+        side: currentEntry.side,
+        price: currentEntry.price,
+        delta: prevEntry.shares - currentEntry.shares,
+        remaining: currentEntry.shares
+      });
+    }
+  }
+  // replace snapshot with current values
+  if (current.size) {
+    const nextSnapshot = new Map();
+    for (const [orderId, entry] of current.entries()) {
+      nextSnapshot.set(orderId, { ...entry });
+    }
+    marketOrderSnapshots.set(snapshotKey, nextSnapshot);
+  } else {
+    marketOrderSnapshots.delete(snapshotKey);
+  }
+  if (!updates.length) return;
+  const chipsFmt = getChipsFormatter(ctx);
+  const lines = updates.map(update => {
+    const normalizedSide = String(update.side).toUpperCase() === 'BUY' ? 'BUY' : 'SELL';
+    const sideLabel = normalizedSide === 'BUY' ? 'Buy' : 'Sell';
+    const chipsDelta = update.delta * update.price * (normalizedSide === 'SELL' ? 1 : -1);
+    const sharesDelta = normalizedSide === 'SELL' ? -update.delta : update.delta;
+    const chipsString = `${chipsDelta >= 0 ? '+' : '-'}${chipsFmt(Math.abs(chipsDelta))}`;
+    const sharesString = `${sharesDelta >= 0 ? '+' : '-'}${Math.abs(sharesDelta).toLocaleString('en-US')} shares`;
+    if (update.type === 'partial') {
+      return `• ${sideLabel} order (${shortOrderId(update.orderId)}) filled **${update.delta.toLocaleString('en-US')}** shares @ ${chipsFmt(update.price)} (${chipsString}, ${sharesString}) — ${update.remaining.toLocaleString('en-US')} remaining.`;
+    }
+    return `• ${sideLabel} order (${shortOrderId(update.orderId)}) filled completely @ ${chipsFmt(update.price)} (${chipsString}, ${sharesString}).`;
+  });
+  const content = `${emoji('info')} Order updates since your last visit:\n${lines.join('\n')}`;
+  await interaction.followUp(withAutoEphemeral(interaction, { content })).catch(() => {});
 }
 
 function buildOverviewComponents(mode = 'overview') {
@@ -427,15 +1026,15 @@ function buildOverviewComponents(mode = 'overview') {
   const rows = [new ActionRowBuilder().addComponents(primary, secondary)];
   const navRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
+      .setCustomId(CARTEL_SHARES_VIEW_ID)
+      .setLabel('Cartel Shares')
+      .setEmoji('📈')
+      .setStyle(ButtonStyle.Primary),
+    new ButtonBuilder()
       .setCustomId(CARTEL_DEALERS_LIST_VIEW_ID)
       .setLabel('Dealers')
       .setEmoji('🧑‍🤝‍🧑')
-      .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId(CARTEL_INVEST_BUTTON_ID)
-      .setLabel('Invest Chips')
-      .setEmoji('💰')
-      .setStyle(ButtonStyle.Success)
+      .setStyle(ButtonStyle.Primary)
   );
   rows.push(navRow);
   rows.push(
@@ -489,7 +1088,7 @@ function buildCartelGuideEmbed(overview = null, chipsFmt = amount => `${amount} 
     {
       name: `${emoji('sparkles')} Bootstrapping`,
       value: joinSections([
-        `${emoji('cashStack')} Invest chips through the **Invest** button to buy Semuta shares and raise your hourly output.`,
+        `${emoji('cashStack')} Invest chips through the **Buy Shares** button on the Cartel Shares screen to buy Semuta shares and raise your hourly output.`,
         `${emoji('semuta')} Keep stash space clear—overflow rolls into the warehouse with a small fee, but every gram still pays.`,
         `${emoji('medalGold')} Rank up by collecting and selling; higher ranks unlock more dealer slots and stash cap.`
       ])
@@ -1096,6 +1695,33 @@ export async function handleCartelGuide(interaction, ctx) {
   }
 }
 
+export async function handleCartelSharesView(interaction, ctx, mode = 'splash', options = {}) {
+  const allowed = await ensureCartelAccess(interaction, ctx);
+  if (!allowed) return;
+  const shareAllowed = await ensureShareMarketAccess(interaction, ctx);
+  if (!shareAllowed) return;
+  try {
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferUpdate();
+    }
+  } catch {}
+  try {
+    const { payload, context } = await buildSharesPayload(interaction, ctx, mode, options);
+    await interaction.editReply(payload);
+    if (mode === 'posts') {
+      await maybeNotifyOrderFills(interaction, ctx, context?.playerOrders || [], context?.expiredOrders || []);
+    }
+  } catch (error) {
+    console.error('Cartel shares view button failed', error);
+    const content = '⚠️ Failed to load the cartel shares view. Please try again.';
+    if (interaction.deferred || interaction.replied) {
+      await interaction.editReply({ content, components: [], embeds: [] }).catch(() => {});
+    } else {
+      await interaction.reply(withAutoEphemeral(interaction, { content })).catch(() => {});
+    }
+  }
+}
+
 export async function handleCartelDealersView(interaction, ctx, view = 'list') {
   const allowed = await ensureCartelAccess(interaction, ctx);
   if (!allowed) return;
@@ -1110,35 +1736,6 @@ export async function handleCartelDealersView(interaction, ctx, view = 'list') {
     console.error('Cartel dealer view update failed', error);
     await interaction.followUp(withAutoEphemeral(interaction, { content: '⚠️ Failed to load dealers. Please try again.' })).catch(() => {});
   }
-}
-
-export async function handleCartelInvestButton(interaction, ctx) {
-  const allowed = await ensureCartelAccess(interaction, ctx);
-  if (!allowed) return;
-  let sharePriceHint = CARTEL_DEFAULT_SHARE_PRICE;
-  const guildId = interaction.guild?.id;
-  if (guildId) {
-    try {
-      const latest = await getCartelSharePrice(guildId);
-      if (Number.isFinite(latest) && latest > 0) {
-        sharePriceHint = Math.floor(Number(latest));
-      }
-    } catch (err) {
-      console.error('Failed to fetch cartel share price for invest modal', err);
-    }
-  }
-  const messageId = interaction.message?.id || '0';
-  const modal = new ModalBuilder()
-    .setCustomId(`${CARTEL_INVEST_MODAL_ID}|${messageId}`)
-    .setTitle('Invest in the Semuta Cartel');
-  const input = new TextInputBuilder()
-    .setCustomId(CARTEL_INVEST_MODAL_INPUT_ID)
-    .setLabel('Chips to invest')
-    .setPlaceholder(`Share price is ${sharePriceHint} chips`)
-    .setStyle(TextInputStyle.Short)
-    .setRequired(true);
-  modal.addComponents(new ActionRowBuilder().addComponents(input));
-  await interaction.showModal(modal);
 }
 
 export async function handleCartelDealerHireTier(interaction, ctx, tierId) {
@@ -1349,47 +1946,241 @@ export async function handleCartelDealerUpkeepModal(interaction, ctx, dealerId) 
   }
 }
 
-export async function handleCartelInvestModal(interaction, ctx, sourceMessageId = '0') {
-  const allowed = await ensureCartelAccess(interaction, ctx, { sourceMessageId });
+export async function handleCartelShareOrderPrompt(interaction, ctx, side) {
+  const allowed = await ensureCartelAccess(interaction, ctx);
   if (!allowed) return;
+  const shareAllowed = await ensureShareMarketAccess(interaction, ctx);
+  if (!shareAllowed) return;
+  const normalizedSide = String(side || 'SELL').toUpperCase() === 'BUY' ? 'BUY' : 'SELL';
+  const messageId = interaction.message?.id || '0';
+  const panelView = detectCartelPanelView(interaction.message);
+  const modal = new ModalBuilder()
+    .setCustomId(`${CARTEL_SHARE_ORDER_MODAL_ID}|${normalizedSide}|${messageId}|${panelView}`)
+    .setTitle(normalizedSide === 'BUY' ? 'Post Buy Order' : 'Post Sell Order');
+  const sharesInput = new TextInputBuilder()
+    .setCustomId(CARTEL_SHARE_ORDER_MODAL_SHARES_INPUT)
+    .setLabel('Shares')
+    .setPlaceholder('Enter shares (e.g. 100)')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true);
+  const priceInput = new TextInputBuilder()
+    .setCustomId(CARTEL_SHARE_ORDER_MODAL_PRICE_INPUT)
+    .setLabel('Price per share (chips)')
+    .setPlaceholder(normalizedSide === 'BUY' ? 'How much will you pay per share?' : 'What price per share?')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true);
+  modal.addComponents(
+    new ActionRowBuilder().addComponents(sharesInput),
+    new ActionRowBuilder().addComponents(priceInput)
+  );
+  await interaction.showModal(modal);
+}
+
+export async function handleCartelShareOrderModal(interaction, ctx, side, messageId, viewToken = 'shares') {
+  const allowed = await ensureCartelAccess(interaction, ctx, { sourceMessageId: messageId });
+  if (!allowed) return;
+  const shareAllowed = await ensureShareMarketAccess(interaction, ctx);
+  if (!shareAllowed) return;
+  const normalizedSide = String(side || 'SELL').toUpperCase() === 'BUY' ? 'BUY' : 'SELL';
+  const chipsFmt = getChipsFormatter(ctx);
   try {
-    const chipsFmt = getChipsFormatter(ctx);
-    const rawValue = interaction.fields.getTextInputValue(CARTEL_INVEST_MODAL_INPUT_ID);
-    const numeric = Math.floor(Number((rawValue || '').replace(/[,\s]/g, '')));
-    const isBotAdmin = typeof ctx?.isAdmin === 'function'
-      ? await ctx.isAdmin(interaction)
-      : false;
-    await interaction.deferReply({ ephemeral: Boolean(isBotAdmin) });
-    const result = await cartelInvest(interaction.guild?.id, interaction.user.id, numeric);
-    const message = result.remainder > 0
-      ? `${emoji('cashStack')} Bought **${result.shares.toLocaleString('en-US')}** shares for **${chipsFmt(result.spend)}**. ${result.remainder} chips were too small for another share and remain in your wallet.`
-      : `${emoji('cashStack')} Bought **${result.shares.toLocaleString('en-US')}** shares for **${chipsFmt(result.spend)}**.`;
-    const remainderNote = result.remainder > 0
-      ? ` (remainder ${result.remainder.toLocaleString('en-US')} chips)`
-      : '';
+    const sharesRaw = (interaction.fields.getTextInputValue(CARTEL_SHARE_ORDER_MODAL_SHARES_INPUT) || '').trim();
+    const priceRaw = (interaction.fields.getTextInputValue(CARTEL_SHARE_ORDER_MODAL_PRICE_INPUT) || '').trim();
+    if (!sharesRaw) {
+      throw new CartelError('CARTEL_MARKET_SHARES_REQUIRED', 'Enter how many shares this order covers.');
+    }
+    if (!priceRaw) {
+      throw new CartelError('CARTEL_MARKET_PRICE_REQUIRED', 'Enter the price per share in chips.');
+    }
+    const shares = Math.floor(Number(sharesRaw.replace(/[,\s]/g, '')));
+    if (!Number.isFinite(shares) || shares <= 0) {
+      throw new CartelError('CARTEL_MARKET_SHARES_REQUIRED', 'Enter at least 1 share.');
+    }
+    const price = Math.floor(Number(priceRaw.replace(/[,\s]/g, '')));
+    if (!Number.isFinite(price) || price <= 0) {
+      throw new CartelError('CARTEL_MARKET_PRICE_REQUIRED', 'Enter a positive chip price per share.');
+    }
+    await interaction.deferReply({ ephemeral: true });
+    const result = await createShareMarketOrder(interaction.guild?.id, interaction.user.id, normalizedSide, shares, price);
+    seedSnapshotWithOrder(interaction.guild?.id, interaction.user.id, result);
+    const shareMode = extractShareMarketMode(viewToken) || (viewToken === 'shares' ? 'splash' : null);
+    const viewData = shareMode
+      ? await buildSharesPayload(interaction, ctx, shareMode, shareMode === 'posts' ? { selectedOrderId: result.order_id } : {})
+      : null;
+    const payload = viewData ? viewData.payload : await buildOverviewPayload(interaction, ctx);
+    const sharesLabel = shares.toLocaleString('en-US');
+    const actionVerb = normalizedSide === 'BUY' ? 'buy' : 'sell';
+    const confirmation = `${emoji('clipboard')} Posted an order to **${actionVerb} ${sharesLabel}** shares at **${chipsFmt(price)}** per share.`;
+    await interaction.editReply({ content: confirmation });
+    if (messageId && messageId !== '0') {
+      const targetMessage = await fetchMessageById(interaction, messageId);
+      if (targetMessage) {
+        await applyOverviewToMessage(targetMessage, payload);
+      }
+    }
     await logCartelActivity(
       interaction,
-      `Invested ${result.shares.toLocaleString('en-US')} shares for ${chipsFmt(result.spend)}${remainderNote}.`
+      `Posted ${normalizedSide} order for ${sharesLabel} shares @ ${chipsFmt(price)} per share.`
     );
-    const overviewPayload = await buildOverviewPayload(interaction, ctx);
-    await interaction.editReply({ content: message, ...overviewPayload });
-    if (sourceMessageId && sourceMessageId !== '0') {
-      const targetMessage = await fetchMessageById(interaction, sourceMessageId);
-      if (targetMessage) {
-        await applyOverviewToMessage(targetMessage, overviewPayload);
-      }
+    if (shareMode === 'posts') {
+      await maybeNotifyOrderFills(interaction, ctx, viewData?.context?.playerOrders || [], viewData?.context?.expiredOrders || []);
     }
   } catch (error) {
     if (interaction.deferred || interaction.replied) {
       const content = error instanceof CartelError
         ? `⚠️ ${error.message || 'Action failed.'}`
-        : '⚠️ Something went wrong while investing. Please try again.';
+        : '⚠️ Something went wrong while posting that order. Please try again.';
       await interaction.editReply({ content }).catch(() => {});
     } else if (error instanceof CartelError) {
       await interaction.reply(withAutoEphemeral(interaction, { content: `⚠️ ${error.message || 'Action failed.'}` })).catch(() => {});
     } else {
-      console.error('Cartel invest modal failed', error);
-      await interaction.reply(withAutoEphemeral(interaction, { content: '⚠️ Something went wrong while investing. Please try again.' })).catch(() => {});
+      console.error('Cartel share order modal failed', error);
+      await interaction.reply(withAutoEphemeral(interaction, { content: '⚠️ Something went wrong while posting that order. Please try again.' })).catch(() => {});
+    }
+  }
+}
+
+export async function handleCartelShareOrderSelect(interaction, ctx) {
+  const allowed = await ensureCartelAccess(interaction, ctx);
+  if (!allowed) return;
+  const shareAllowed = await ensureShareMarketAccess(interaction, ctx);
+  if (!shareAllowed) return;
+  const selectedOrderId = Array.isArray(interaction.values) ? interaction.values[0] : null;
+  try {
+    await interaction.deferUpdate();
+  } catch {}
+  try {
+    const { payload, context } = await buildSharesPayload(interaction, ctx, 'posts', { selectedOrderId });
+    await interaction.editReply(payload);
+    await maybeNotifyOrderFills(interaction, ctx, context?.playerOrders || [], context?.expiredOrders || []);
+  } catch (error) {
+    console.error('Cartel share order select failed', error);
+    await interaction.followUp(withAutoEphemeral(interaction, { content: '⚠️ Failed to update that selection. Please try again.' })).catch(() => {});
+  }
+}
+
+export async function handleCartelShareOrderCancel(interaction, ctx, orderId) {
+  const allowed = await ensureCartelAccess(interaction, ctx);
+  if (!allowed) return;
+  const shareAllowed = await ensureShareMarketAccess(interaction, ctx);
+  if (!shareAllowed) return;
+  if (!orderId || orderId === '0') {
+    await interaction.reply(withAutoEphemeral(interaction, { content: '⚠️ Select one of your orders first.' })).catch(() => {});
+    return;
+  }
+  const chipsFmt = getChipsFormatter(ctx);
+  try {
+    const guildId = interaction.guild?.id;
+    const userId = interaction.user?.id;
+    removeOrderFromSnapshot(guildId, userId, orderId);
+    await interaction.deferUpdate();
+  } catch {}
+  try {
+    const cancelled = await cancelShareMarketOrder(interaction.guild?.id, interaction.user.id, orderId);
+    const { payload, context } = await buildSharesPayload(interaction, ctx, 'posts');
+    await interaction.editReply(payload);
+    const sideLabel = String(cancelled?.side).toUpperCase() === 'BUY' ? 'buy' : 'sell';
+    const sharesLabel = Number(cancelled?.shares || 0).toLocaleString('en-US');
+    const priceLabel = chipsFmt(Math.max(1, Number(cancelled?.price_per_share || 0)));
+    await interaction.followUp(withAutoEphemeral(interaction, {
+      content: `${emoji('clipboard')} Cancelled your ${sideLabel} order for **${sharesLabel}** shares at **${priceLabel}** per share.`
+    })).catch(() => {});
+    await logCartelActivity(
+      interaction,
+      `Cancelled ${sideLabel} order for ${sharesLabel} shares @ ${priceLabel} per share.`
+    );
+    await maybeNotifyOrderFills(interaction, ctx, context?.playerOrders || [], context?.expiredOrders || []);
+  } catch (error) {
+    if (error instanceof CartelError) {
+      await interaction.followUp(withAutoEphemeral(interaction, { content: `⚠️ ${error.message || 'Action failed.'}` })).catch(() => {});
+    } else {
+      console.error('Cartel share order cancel failed', error);
+      await interaction.followUp(withAutoEphemeral(interaction, { content: '⚠️ Failed to cancel that order. Please try again.' })).catch(() => {});
+    }
+  }
+}
+
+export async function handleCartelMarketSelect(interaction, ctx, mode, page) {
+  const allowed = await ensureCartelAccess(interaction, ctx);
+  if (!allowed) return;
+  const shareAllowed = await ensureShareMarketAccess(interaction, ctx);
+  if (!shareAllowed) return;
+  const selectedOrderId = Array.isArray(interaction.values) ? interaction.values[0] : null;
+  const normalizedPage = Math.max(1, Math.floor(Number(page) || 1));
+  try {
+    await interaction.deferUpdate();
+  } catch {}
+  try {
+    const { payload } = await buildSharesPayload(interaction, ctx, mode, { page: normalizedPage, selectedOrderId });
+    await interaction.editReply(payload);
+  } catch (error) {
+    console.error('Cartel market select failed', error);
+    await interaction.followUp(withAutoEphemeral(interaction, { content: '⚠️ Failed to update that selection. Please try again.' })).catch(() => {});
+  }
+}
+
+export async function handleCartelMarketConfirm(interaction, ctx, mode, orderId, page) {
+  const allowed = await ensureCartelAccess(interaction, ctx);
+  if (!allowed) return;
+  const shareAllowed = await ensureShareMarketAccess(interaction, ctx);
+  if (!shareAllowed) return;
+  if (!orderId || orderId === '0') {
+    await interaction.reply(withAutoEphemeral(interaction, { content: '⚠️ Select an order first.' })).catch(() => {});
+    return;
+  }
+  const modal = new ModalBuilder()
+    .setCustomId(`${mode === 'buy' ? CARTEL_MARKET_BUY_MODAL_ID : CARTEL_MARKET_SELL_MODAL_ID}|${orderId}|${page || 1}`)
+    .setTitle(mode === 'buy' ? 'Confirm Market Buy' : 'Confirm Market Sell');
+  const input = new TextInputBuilder()
+    .setCustomId(CARTEL_MARKET_MODAL_AMOUNT_INPUT_ID)
+    .setLabel('Shares to trade')
+    .setPlaceholder('Enter number of shares')
+    .setStyle(TextInputStyle.Short)
+    .setRequired(true);
+  modal.addComponents(new ActionRowBuilder().addComponents(input));
+  await interaction.showModal(modal);
+}
+
+export async function handleCartelMarketModal(interaction, ctx, mode, orderId, page) {
+  const allowed = await ensureCartelAccess(interaction, ctx);
+  if (!allowed) return;
+  const shareAllowed = await ensureShareMarketAccess(interaction, ctx);
+  if (!shareAllowed) return;
+  const chipsFmt = getChipsFormatter(ctx);
+  const normalizedPage = Math.max(1, Math.floor(Number(page) || 1));
+  try {
+    const rawValue = (interaction.fields.getTextInputValue(CARTEL_MARKET_MODAL_AMOUNT_INPUT_ID) || '').trim();
+    const shares = Math.floor(Number(rawValue.replace(/[,\s]/g, '')));
+    if (!Number.isFinite(shares) || shares <= 0) {
+      throw new CartelError('CARTEL_MARKET_AMOUNT_REQUIRED', 'Enter at least 1 share.');
+    }
+    await interaction.deferReply({ ephemeral: true });
+    const result = mode === 'buy'
+      ? await executeMarketBuy(interaction.guild?.id, interaction.user.id, orderId, shares)
+      : await executeMarketSell(interaction.guild?.id, interaction.user.id, orderId, shares);
+    const { payload } = await buildSharesPayload(interaction, ctx, mode, { page: normalizedPage });
+    const message = mode === 'buy'
+      ? `${emoji('cashStack')} Bought **${result.sharesFilled.toLocaleString('en-US')}** shares @ **${chipsFmt(result.pricePerShare)}** (${chipsFmt(result.chips)} total).`
+      : `${emoji('cashStack')} Sold **${result.sharesFilled.toLocaleString('en-US')}** shares @ **${chipsFmt(result.pricePerShare)}** (${chipsFmt(result.chips)} received).`;
+    await interaction.editReply({ content: message });
+    await logCartelActivity(
+      interaction,
+      `${mode === 'buy' ? 'Bought' : 'Sold'} ${result.sharesFilled.toLocaleString('en-US')} shares @ ${chipsFmt(result.pricePerShare)} via market order.`
+    );
+  } catch (error) {
+    if (error instanceof CartelError) {
+      if (interaction.deferred || interaction.replied) {
+        await interaction.editReply({ content: `⚠️ ${error.message || 'Action failed.'}` }).catch(() => {});
+      } else {
+        await interaction.reply(withAutoEphemeral(interaction, { content: `⚠️ ${error.message || 'Action failed.'}` })).catch(() => {});
+      }
+      return;
+    }
+    console.error('Cartel market modal failed', error);
+    if (interaction.deferred || interaction.replied) {
+      await interaction.editReply({ content: '⚠️ Failed to process that market order. Please try again.' }).catch(() => {});
+    } else {
+      await interaction.reply(withAutoEphemeral(interaction, { content: '⚠️ Failed to process that market order. Please try again.' })).catch(() => {});
     }
   }
 }
