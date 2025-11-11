@@ -414,6 +414,15 @@ async function ensureCartelTables() {
       updated_at BIGINT NOT NULL DEFAULT (extract(EPOCH FROM now()))::BIGINT
     )
   `);
+  await q(`
+    CREATE TABLE IF NOT EXISTS cartel_order_snapshots (
+      guild_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      snapshot_json TEXT NOT NULL,
+      updated_at BIGINT NOT NULL DEFAULT (extract(EPOCH FROM now()))::BIGINT,
+      PRIMARY KEY (guild_id, user_id)
+    )
+  `);
   await q('CREATE INDEX IF NOT EXISTS idx_cartel_investors_guild ON cartel_investors (guild_id)');
   await q('CREATE INDEX IF NOT EXISTS idx_cartel_tx_guild_time ON cartel_transactions (guild_id, created_at DESC)');
   await q('CREATE INDEX IF NOT EXISTS idx_cartel_market_orders_guild_side ON cartel_market_orders (guild_id, side, created_at DESC)');
@@ -1756,6 +1765,43 @@ export async function setCartelMarketOrderShares(orderId, shares, status = 'OPEN
     [oid, normalizedShares, String(status || 'OPEN'), now]
   );
   return getCartelMarketOrder(orderId);
+}
+
+export async function getCartelOrderSnapshot(guildId, userId) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!gid || !uid) return null;
+  const row = await q1('SELECT snapshot_json FROM cartel_order_snapshots WHERE guild_id = $1 AND user_id = $2', [gid, uid]);
+  if (!row?.snapshot_json) return null;
+  try {
+    const parsed = JSON.parse(row.snapshot_json);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function setCartelOrderSnapshot(guildId, userId, snapshot) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!gid || !uid) return null;
+  const payload = snapshot && typeof snapshot === 'object' ? JSON.stringify(snapshot) : '{}';
+  const now = Math.floor(Date.now() / 1000);
+  await q(
+    `INSERT INTO cartel_order_snapshots (guild_id, user_id, snapshot_json, updated_at)
+     VALUES ($1, $2, $3, $4)
+     ON CONFLICT (guild_id, user_id)
+     DO UPDATE SET snapshot_json = EXCLUDED.snapshot_json, updated_at = EXCLUDED.updated_at`,
+    [gid, uid, payload, now]
+  );
+  return getCartelOrderSnapshot(gid, uid);
+}
+
+export async function deleteCartelOrderSnapshot(guildId, userId) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!gid || !uid) return;
+  await q('DELETE FROM cartel_order_snapshots WHERE guild_id = $1 AND user_id = $2', [gid, uid]);
 }
 
 export async function cartelCreateDealer(guildId, dealerId, userId, payload) {

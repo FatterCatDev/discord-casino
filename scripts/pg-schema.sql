@@ -200,6 +200,13 @@ CREATE TABLE IF NOT EXISTS cartel_market_orders (
   created_at BIGINT NOT NULL DEFAULT (extract(EPOCH FROM now()))::BIGINT,
   updated_at BIGINT NOT NULL DEFAULT (extract(EPOCH FROM now()))::BIGINT
 );
+CREATE TABLE IF NOT EXISTS cartel_order_snapshots (
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  snapshot_json TEXT NOT NULL,
+  updated_at BIGINT NOT NULL DEFAULT (extract(EPOCH FROM now()))::BIGINT,
+  PRIMARY KEY (guild_id, user_id)
+);
 CREATE INDEX IF NOT EXISTS idx_cartel_market_orders_guild_side ON cartel_market_orders(guild_id, side, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_cartel_market_orders_guild_user ON cartel_market_orders(guild_id, user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_cartel_tx_guild_time ON cartel_transactions(guild_id, created_at DESC);

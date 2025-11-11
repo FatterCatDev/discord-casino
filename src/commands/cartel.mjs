@@ -37,7 +37,10 @@ import {
   listShareMarketOrdersForUser,
   cancelShareMarketOrder,
   executeMarketBuy,
-  executeMarketSell
+  executeMarketSell,
+  getCartelOrderSnapshot,
+  setCartelOrderSnapshot,
+  deleteCartelOrderSnapshot
 } from '../cartel/service.mjs';
 import {
   CARTEL_DEFAULT_SHARE_PRICE,
@@ -62,7 +65,7 @@ const SECONDS_PER_DAY = 86_400;
 const SELL_MINIGAME_TICKS = 20;
 const SELL_MINIGAME_ROWS = 5;
 const SELL_MINIGAME_LANES = 3;
-const SELL_MINIGAME_INTERVAL_MS = 1000;
+const SELL_MINIGAME_INTERVAL_MS = 2000;
 const SELL_MINIGAME_PLAYER_EMOJI = '🏃';
 const SELL_MINIGAME_POLICE_EMOJI = '🚓';
 const SELL_MINIGAME_POTHOLE_EMOJI = '🕳️';
@@ -115,33 +118,81 @@ const SEMUTA_IMAGE_PATH = `Assets/${SEMUTA_IMAGE_NAME}`;
 const DEALERS_IMAGE_NAME = 'dealers.png';
 const DEALERS_IMAGE_PATH = `Assets/${DEALERS_IMAGE_NAME}`;
 const marketOrderSnapshots = new Map();
+const DEALER_BUTTON_LABEL_MAX = 40;
 
 function snapshotKeyForUser(guildId, userId) {
   if (!guildId || !userId) return null;
   return `${guildId}:${userId}`;
 }
 
-function removeOrderFromSnapshot(guildId, userId, orderId) {
-  const key = snapshotKeyForUser(guildId, userId);
-  if (!key) return;
-  const snapshot = marketOrderSnapshots.get(key);
-  if (!snapshot) return;
-  snapshot.delete(orderId);
-  if (!snapshot.size) {
-    marketOrderSnapshots.delete(key);
-  }
+function normalizeSnapshotEntry(entry = {}) {
+  return {
+    shares: Math.max(0, Number(entry?.shares || 0)),
+    side: entry?.side || 'SELL',
+    price: Math.max(1, Number(entry?.price || entry?.price_per_share || 0))
+  };
 }
 
-function seedSnapshotWithOrder(guildId, userId, order) {
+function snapshotObjectFromMap(map = new Map()) {
+  const payload = {};
+  for (const [orderId, entry] of map.entries()) {
+    if (!orderId) continue;
+    payload[orderId] = normalizeSnapshotEntry(entry);
+  }
+  return payload;
+}
+
+function mapFromSnapshotObject(obj = {}) {
+  const map = new Map();
+  if (!obj || typeof obj !== 'object') return map;
+  for (const [orderId, entry] of Object.entries(obj)) {
+    if (!orderId) continue;
+    map.set(orderId, normalizeSnapshotEntry(entry));
+  }
+  return map;
+}
+
+async function loadOrderSnapshot(guildId, userId) {
   const key = snapshotKeyForUser(guildId, userId);
-  if (!key || !order?.order_id) return;
-  const snapshot = marketOrderSnapshots.get(key) || new Map();
-  snapshot.set(order.order_id, {
-    shares: Math.max(0, Number(order?.shares || 0)),
-    side: order.side || 'SELL',
-    price: Math.max(1, Number(order?.price_per_share || 0))
-  });
-  marketOrderSnapshots.set(key, snapshot);
+  if (!key) return null;
+  const cached = marketOrderSnapshots.get(key);
+  if (cached) return cached;
+  const stored = await getCartelOrderSnapshot(guildId, userId);
+  if (stored && typeof stored === 'object' && Object.keys(stored).length) {
+    const map = mapFromSnapshotObject(stored);
+    marketOrderSnapshots.set(key, map);
+    return map;
+  }
+  return new Map();
+}
+
+async function persistOrderSnapshot(guildId, userId, snapshotMap) {
+  const key = snapshotKeyForUser(guildId, userId);
+  if (!key) return;
+  if (!snapshotMap || !snapshotMap.size) {
+    marketOrderSnapshots.delete(key);
+    await deleteCartelOrderSnapshot(guildId, userId);
+    return;
+  }
+  marketOrderSnapshots.set(key, snapshotMap);
+  const payload = snapshotObjectFromMap(snapshotMap);
+  await setCartelOrderSnapshot(guildId, userId, payload);
+}
+
+async function removeOrderFromSnapshot(guildId, userId, orderId) {
+  if (!orderId) return;
+  const snapshot = await loadOrderSnapshot(guildId, userId);
+  if (!snapshot?.has(orderId)) return;
+  snapshot.delete(orderId);
+  await persistOrderSnapshot(guildId, userId, snapshot);
+}
+
+async function seedSnapshotWithOrder(guildId, userId, order) {
+  if (!order?.order_id) return;
+  const snapshot = await loadOrderSnapshot(guildId, userId);
+  if (!snapshot) return;
+  snapshot.set(order.order_id, normalizeSnapshotEntry({ shares: order.shares, side: order.side, price: order.price_per_share }));
+  await persistOrderSnapshot(guildId, userId, snapshot);
 }
 
 function buildSemutaImageAttachment() {
@@ -945,7 +996,8 @@ async function maybeNotifyOrderFills(interaction, ctx, playerOrders = [], expire
   const userId = interaction.user?.id;
   const snapshotKey = snapshotKeyForUser(guildId, userId);
   if (!snapshotKey) return;
-  const previous = marketOrderSnapshots.get(snapshotKey) || new Map();
+  const storedSnapshot = await loadOrderSnapshot(guildId, userId);
+  const previous = storedSnapshot ? new Map(storedSnapshot.entries()) : new Map();
   const current = new Map();
   for (const order of playerOrders) {
     if (!order?.order_id) continue;
@@ -984,16 +1036,7 @@ async function maybeNotifyOrderFills(interaction, ctx, playerOrders = [], expire
       });
     }
   }
-  // replace snapshot with current values
-  if (current.size) {
-    const nextSnapshot = new Map();
-    for (const [orderId, entry] of current.entries()) {
-      nextSnapshot.set(orderId, { ...entry });
-    }
-    marketOrderSnapshots.set(snapshotKey, nextSnapshot);
-  } else {
-    marketOrderSnapshots.delete(snapshotKey);
-  }
+  await persistOrderSnapshot(guildId, userId, current);
   if (!updates.length) return;
   const chipsFmt = getChipsFormatter(ctx);
   const lines = updates.map(update => {
@@ -1070,44 +1113,53 @@ function buildCartelGuideEmbed(overview = null, chipsFmt = amount => `${amount} 
   );
   const shareRateGramPerHour = gramsFormatter.format(mgToGrams(overview?.metrics?.perShareRateMg || 0));
   const xpRate = Math.max(0, Number(overview?.metrics?.xpPerGram ?? CARTEL_DEFAULT_XP_PER_GRAM_SOLD));
+  const xpRateLabel = xpRate.toLocaleString('en-US', { maximumFractionDigits: 2 });
+  const totalShares = Math.max(0, Number(overview?.pool?.total_shares || overview?.totals?.shares || 0));
+  const semutaMarket = calculateSemutaMarketPrices(totalShares);
+  const semutaSellFloor = chipsFmt(Math.max(1, Number(semutaMarket?.sellPrice || 0)));
+  const semutaBuyFloor = chipsFmt(Math.max(1, Number(semutaMarket?.buyPrice || 0)));
+  const tickLabel = formatTickDuration(CARTEL_MIN_TICK_SECONDS);
+  const warehouseFeePercent = (CARTEL_WAREHOUSE_FEE_BPS / 100).toFixed(2);
   const embed = new EmbedBuilder()
     .setColor(0x3498db)
     .setTitle(`${emoji('books')} Semuta Loot Guide`)
     .setThumbnail(`attachment://${SEMUTA_IMAGE_NAME}`)
-    .setDescription('How to convert pale blue Semuta into steady chip loot—follow this lightweight loop.');
+    .setDescription('Semuta Cartel runs on a live share market plus a delivery mini-game—stick to this loop to keep the passive chips flowing.');
   const fields = [
     {
-      name: `${emoji('chipCard')} Economy Snapshot`,
+      name: `${emoji('chipCard')} Market Pulse`,
       value: joinSections([
-        `${emoji('cashStack')} Share price: **${chipsFmt(sharePrice)}** · Customer rate: **${CARTEL_BASE_PRICE_PER_GRAM} chips/g**`,
-        `${emoji('semuta')} Share rate: **${shareRateGramPerHour}g of Semuta / share / hr**`,
-        `${emoji('spark')} XP gain = Semuta sold × **${xpRate.toLocaleString('en-US', { maximumFractionDigits: 2 })} XP/g**.`,
-        `${emoji('hourglass')} Production per tick = share rate × total shares × your pool share % × tick length.`
+        `${emoji('cashStack')} Admin share price: **${chipsFmt(sharePrice)}** · Semuta Cartel floor spreads **${semutaBuyFloor}** (buyback) / **${semutaSellFloor}** (sells to you).`,
+        `${emoji('semuta')} Per-share mint: **${shareRateGramPerHour}g/hr** and each gram pays **${CARTEL_BASE_PRICE_PER_GRAM} chips/g** when sold.`,
+        `${emoji('spark')} XP gain = Semuta sold × **${xpRateLabel} XP/g** whether it's a manual run or dealer drop.`,
+        `${emoji('hourglassFlow')} Output = per-share rate × total shares × your pool % × tick (~${tickLabel}).`
       ])
     },
     {
-      name: `${emoji('sparkles')} Bootstrapping`,
+      name: `${emoji('currencyExchange')} Share Market Flow`,
       value: joinSections([
-        `${emoji('cashStack')} Invest chips through the **Buy Shares** button on the Cartel Shares screen to buy Semuta shares and raise your hourly output.`,
-        `${emoji('semuta')} Keep stash space clear—overflow rolls into the warehouse with a small fee, but every gram still pays.`,
-        `${emoji('medalGold')} Rank up by collecting and selling; higher ranks unlock more dealer slots and stash cap.`
+        `${emoji('currencyExchange')} **Buy** tab fills player sell posts first, then falls back to the Semuta Cartel's infinite inventory.`,
+        `${emoji('receipt')} **Sell** tab dumps into live buy posts or the floor buy price when no bids remain.`,
+        `${emoji('clipboard')} **Posts** tab lists your limit orders (auto-expire after ~2 weeks) so you can cancel or spotlight one.`,
+        `${emoji('info')} Post via the modal to control share count + price, stacking multiple buy/sell listings alongside instant fills.`
       ])
     },
     {
-      name: `${emoji('hourglassFlow')} Daily Loot Loop`,
+      name: `${emoji('hourglassFlow')} Selling & Dealers`,
       value: joinSections([
-        `1. **Sell Stash** to turn ready grams of Semuta into chips (enter a number or type ALL).`,
-        `2. **Collect Warehouse** when overflow stacks up so none of your Semuta sits idle.`,
-        `3. **Hire Dealers** on the List tab and keep their upkeep timers paid so they auto-sell stash for you.`,
-        `4. **Collect Chips** from dealers to scoop passive payouts plus cartel XP.`
+        `${SELL_MINIGAME_PLAYER_EMOJI} **Sell Stash** launches a ${SELL_MINIGAME_TICKS}-tick delivery—dodge ${SELL_MINIGAME_POLICE_EMOJI} busts (lose everything) and ${SELL_MINIGAME_POTHOLE_EMOJI} potholes (halve what's left) to cash out.`,
+        `${emoji('package')} **Collect Warehouse** moves overflow into stash but charges **${warehouseFeePercent}%** of the sale value, so keep stash space open whenever you can.`,
+        `${emoji('briefcase')} **Dealers** auto-sell from stash while upkeep is current; Hire unlocks higher tiers as you rank up and Upkeep keeps their timers paid.`,
+        `${emoji('chipCard')} Smash **Collect Chips** once it lights up to bank dealer payouts—chips arrive with cartel XP attached.`
       ])
     },
     {
       name: `${emoji('spark')} Quick Tips`,
       value: joinSections([
-        `${emoji('alarmClock')} Production ticks roughly every few minutes—use **Refresh** to see the latest Semuta stash math.`,
-        `${emoji('hammerWrench')} Admins can tune share price, rate, and XP live with \`/setcartelshare\`, \`/setcartelrate\`, and \`/setcartelxp\`.`,
-        `${emoji('package')} Warehouse fees are minor, but stash space is free. Sell regularly to keep the blue crystals flowing.`
+        `${emoji('alarmClock')} Tap **Refresh** whenever you return—ticks hit roughly every ${tickLabel}, so numbers move fast.`,
+        `${emoji('bell')} Opening the **Posts** tab after a break drops a recap for orders that filled while you were away.`,
+        `${emoji('shield')} Overflow never decays; leave it parked until you can afford the **${warehouseFeePercent}%** collection fee.`,
+        `${emoji('hammerWrench')} Admins can live-tune share price, share rate, and XP with \`/setcartelshare\`, \`/setcartelrate\`, and \`/setcartelxp\`.`
       ])
     }
   ];
@@ -1148,6 +1200,25 @@ function gramsToMg(grams) {
 function trimDealerName(name) {
   if (typeof name !== 'string') return '';
   return name.trim();
+}
+
+function truncateDealerButtonLabel(label) {
+  if (typeof label !== 'string' || !label.trim()) return 'Dealer';
+  const trimmed = label.trim();
+  if (trimmed.length <= DEALER_BUTTON_LABEL_MAX) return trimmed;
+  return `${trimmed.slice(0, DEALER_BUTTON_LABEL_MAX - 3)}...`;
+}
+
+function dealerButtonLabel(dealer) {
+  if (!dealer) return 'Dealer';
+  const name = trimDealerName(dealer.display_name);
+  if (name) return truncateDealerButtonLabel(name);
+  const tierName = dealer?.tierInfo?.name;
+  if (tierName) return truncateDealerButtonLabel(tierName);
+  if (typeof dealer?.tier === 'number') {
+    return truncateDealerButtonLabel(`Tier ${dealer.tier}`);
+  }
+  return truncateDealerButtonLabel(shortDealerId(dealer?.dealer_id));
 }
 
 function collectDealerNameReservations(dealers = []) {
@@ -1462,7 +1533,7 @@ function buildDealerUpkeepRows(dealers) {
     currentRow.addComponents(
       new ButtonBuilder()
         .setCustomId(`${CARTEL_DEALERS_UPKEEP_PREFIX}${dealer.dealer_id}`)
-        .setLabel(shortDealerId(dealer.dealer_id))
+        .setLabel(dealerButtonLabel(dealer))
         .setStyle(overdue ? ButtonStyle.Danger : ButtonStyle.Secondary)
         .setEmoji(overdue ? emoji('warning') : emoji('banknotes'))
     );
@@ -1486,7 +1557,7 @@ function buildDealerFireRows(dealers) {
     currentRow.addComponents(
       new ButtonBuilder()
         .setCustomId(`${CARTEL_DEALERS_FIRE_PREFIX}${dealer.dealer_id}`)
-        .setLabel(shortDealerId(dealer.dealer_id))
+        .setLabel(dealerButtonLabel(dealer))
         .setStyle(ButtonStyle.Danger)
         .setEmoji(emoji('fire'))
     );
@@ -2002,7 +2073,7 @@ export async function handleCartelShareOrderModal(interaction, ctx, side, messag
     }
     await interaction.deferReply({ ephemeral: true });
     const result = await createShareMarketOrder(interaction.guild?.id, interaction.user.id, normalizedSide, shares, price);
-    seedSnapshotWithOrder(interaction.guild?.id, interaction.user.id, result);
+    await seedSnapshotWithOrder(interaction.guild?.id, interaction.user.id, result);
     const shareMode = extractShareMarketMode(viewToken) || (viewToken === 'shares' ? 'splash' : null);
     const viewData = shareMode
       ? await buildSharesPayload(interaction, ctx, shareMode, shareMode === 'posts' ? { selectedOrderId: result.order_id } : {})
@@ -2072,7 +2143,7 @@ export async function handleCartelShareOrderCancel(interaction, ctx, orderId) {
   try {
     const guildId = interaction.guild?.id;
     const userId = interaction.user?.id;
-    removeOrderFromSnapshot(guildId, userId, orderId);
+    await removeOrderFromSnapshot(guildId, userId, orderId);
     await interaction.deferUpdate();
   } catch {}
   try {

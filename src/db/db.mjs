@@ -266,6 +266,13 @@ CREATE TABLE IF NOT EXISTS cartel_market_orders (
   created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
   updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now'))
 );
+CREATE TABLE IF NOT EXISTS cartel_order_snapshots (
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  snapshot_json TEXT NOT NULL,
+  updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+  PRIMARY KEY (guild_id, user_id)
+);
 CREATE INDEX IF NOT EXISTS idx_cartel_investors_guild ON cartel_investors (guild_id);
 CREATE INDEX IF NOT EXISTS idx_cartel_transactions_guild_time ON cartel_transactions (guild_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS idx_cartel_market_orders_guild_side
@@ -742,6 +749,22 @@ const updateCartelMarketOrderStatusStmt = db.prepare(`
   UPDATE cartel_market_orders
   SET status = ?, updated_at = ?
   WHERE order_id = ?
+`);
+const upsertCartelOrderSnapshotStmt = db.prepare(`
+  INSERT INTO cartel_order_snapshots (guild_id, user_id, snapshot_json, updated_at)
+  VALUES (?, ?, ?, ?)
+  ON CONFLICT(guild_id, user_id) DO UPDATE
+  SET snapshot_json = excluded.snapshot_json,
+      updated_at = excluded.updated_at
+`);
+const getCartelOrderSnapshotStmt = db.prepare(`
+  SELECT snapshot_json
+  FROM cartel_order_snapshots
+  WHERE guild_id = ? AND user_id = ?
+`);
+const deleteCartelOrderSnapshotStmt = db.prepare(`
+  DELETE FROM cartel_order_snapshots
+  WHERE guild_id = ? AND user_id = ?
 `);
 const clearCartelDealerPendingTx = db.transaction((guildId, entries = []) => {
   for (const entry of entries) {
@@ -2591,6 +2614,37 @@ export function setCartelMarketOrderShares(orderId, shares, status = 'OPEN') {
   const now = Math.floor(Date.now() / 1000);
   updateCartelMarketOrderSharesStmt.run(normalizedShares, String(status || 'OPEN'), now, oid);
   return getCartelMarketOrder(oid);
+}
+
+export function getCartelOrderSnapshot(guildId, userId) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!gid || !uid) return null;
+  const row = getCartelOrderSnapshotStmt.get(gid, uid);
+  if (!row?.snapshot_json) return null;
+  try {
+    const parsed = JSON.parse(row.snapshot_json);
+    return parsed && typeof parsed === 'object' ? parsed : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setCartelOrderSnapshot(guildId, userId, snapshot) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!gid || !uid) return null;
+  const payload = snapshot && typeof snapshot === 'object' ? JSON.stringify(snapshot) : '{}';
+  const now = Math.floor(Date.now() / 1000);
+  upsertCartelOrderSnapshotStmt.run(gid, uid, payload, now);
+  return getCartelOrderSnapshot(gid, uid);
+}
+
+export function deleteCartelOrderSnapshot(guildId, userId) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!gid || !uid) return;
+  deleteCartelOrderSnapshotStmt.run(gid, uid);
 }
 
 export function cartelCreateDealer(guildId, dealerId, userId, payload) {

@@ -35,7 +35,10 @@ import {
   listCartelMarketOrdersForUser as listCartelMarketOrdersForUserDb,
   getCartelMarketOrder as getCartelMarketOrderDb,
   setCartelMarketOrderStatus as setCartelMarketOrderStatusDb,
-  setCartelMarketOrderShares as setCartelMarketOrderSharesDb
+  setCartelMarketOrderShares as setCartelMarketOrderSharesDb,
+  getCartelOrderSnapshot as getCartelOrderSnapshotDb,
+  setCartelOrderSnapshot as setCartelOrderSnapshotDb,
+  deleteCartelOrderSnapshot as deleteCartelOrderSnapshotDb
 } from '../db/db.auto.mjs';
 import {
   MG_PER_GRAM,
@@ -463,6 +466,18 @@ export async function listShareMarketOrdersForUser(guildId, userId, limit = SHAR
   const cappedLimit = Math.max(1, Math.min(SHARE_MARKET_USER_LIMIT, Math.floor(Number(limit || SHARE_MARKET_USER_LIMIT))));
   const rows = await listCartelMarketOrdersForUserDb(guildId, userId, cappedLimit);
   return pruneExpiredMarketOrders(rows, options);
+}
+
+export async function getCartelOrderSnapshot(guildId, userId) {
+  return getCartelOrderSnapshotDb(guildId, userId);
+}
+
+export async function setCartelOrderSnapshot(guildId, userId, snapshot) {
+  return setCartelOrderSnapshotDb(guildId, userId, snapshot);
+}
+
+export async function deleteCartelOrderSnapshot(guildId, userId) {
+  return deleteCartelOrderSnapshotDb(guildId, userId);
 }
 
 export async function cancelShareMarketOrder(guildId, userId, orderId) {

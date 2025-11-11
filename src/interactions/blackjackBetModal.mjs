@@ -18,11 +18,11 @@ export default async function handleBlackjackBetModal(interaction, ctx) {
     return interaction.reply({ content: `${emoji('warning')} Bet must be a positive whole number.`, ephemeral: true });
   }
 
-  if (table === 'HIGH' && bet < 100) {
-    return interaction.reply({ content: `${emoji('warning')} The high table minimum is 100 chips.`, ephemeral: true });
+  if (table === 'HIGH' && bet < 1000) {
+    return interaction.reply({ content: `${emoji('warning')} The high table minimum is 1000 chips.`, ephemeral: true });
   }
-  if (table === 'LOW' && bet > 99) {
-    return interaction.reply({ content: `${emoji('warning')} The low table maximum is 99 chips.`, ephemeral: true });
+  if (table === 'LOW' && bet > 999) {
+    return interaction.reply({ content: `${emoji('warning')} The low table maximum is 999 chips.`, ephemeral: true });
   }
   if (table !== 'HIGH' && table !== 'LOW') {
     return interaction.reply({ content: `${emoji('warning')} Invalid table selection. Try starting a new hand with /blackjack.`, ephemeral: true });

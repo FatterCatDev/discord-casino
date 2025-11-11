@@ -140,7 +140,8 @@ function formatCard(card) {
   if (!card) return '??';
   const suit = card[card.length - 1];
   const rank = card[0];
-  return `${rank}${suitEmoji(suit)}`;
+  const rankDisplay = (rank === 'T') ? '10' : rank;
+  return `${rankDisplay}${suitEmoji(suit)}`;
 }
 
 function buildTablePayload(state, content = null) {

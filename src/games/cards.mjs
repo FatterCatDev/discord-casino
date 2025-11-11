@@ -1,7 +1,7 @@
 export const RANKS = ['2', '3', '4', '5', '6', '7', '8', '9', '10', 'J', 'Q', 'K', 'A'];
 export const RANK_VAL = Object.fromEntries(RANKS.map((r, i) => [r, i + 2])); // 2..14
 export const SUITS = ['C', 'D', 'H', 'S'];
-import { EMOJI, emoji } from '../lib/emojis.mjs';
+import { EMOJI } from '../lib/emojis.mjs';
 
 export const SUIT_EMOJI = {
   C: EMOJI.pokerClub,

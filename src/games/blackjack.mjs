@@ -91,8 +91,8 @@ export async function startBlackjack(interaction, table, bet) {
   }
   const k = `${interaction.guild.id}:${interaction.user.id}`;
   if (blackjackGames.has(k)) return interaction.reply({ content: '❌ You already have an active Blackjack hand. Finish it first.', ephemeral: true });
-  if (table === 'HIGH') { if (bet < 100) return interaction.reply({ content: '❌ High table minimum is 100.', ephemeral: true }); }
-  else if (table === 'LOW') { if (bet > 99) return interaction.reply({ content: '❌ Low table maximum is 99.', ephemeral: true }); }
+  if (table === 'HIGH') { if (bet < 1000) return interaction.reply({ content: '❌ High table minimum is 1000.', ephemeral: true }); }
+  else if (table === 'LOW') { if (bet > 999) return interaction.reply({ content: '❌ Low table maximum is 999.', ephemeral: true }); }
   else return interaction.reply({ content: '❌ Invalid table.', ephemeral: true });
 
   const guildId = interaction.guild?.id;

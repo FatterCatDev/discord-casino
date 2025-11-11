@@ -133,8 +133,8 @@ const commands = [
         type: 3, // STRING
         required: true,
         choices: [
-          { name: 'High (min 100, H17)', value: 'HIGH' },
-          { name: 'Low (max 99, S17)', value: 'LOW' }
+          { name: 'High (min 1000, H17)', value: 'HIGH' },
+          { name: 'Low (max 999, S17)', value: 'LOW' }
         ]
       },
       { name: 'bet', description: 'Your wager', type: 4, required: true, min_value: 1 }
