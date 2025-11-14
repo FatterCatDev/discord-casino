@@ -65,7 +65,7 @@ const SECONDS_PER_DAY = 86_400;
 const SELL_MINIGAME_TICKS = 20;
 const SELL_MINIGAME_ROWS = 5;
 const SELL_MINIGAME_LANES = 3;
-const SELL_MINIGAME_INTERVAL_MS = 2000;
+const SELL_MINIGAME_INTERVAL_MS = 1500;
 const SELL_MINIGAME_PLAYER_EMOJI = '🏃';
 const SELL_MINIGAME_POLICE_EMOJI = '🚓';
 const SELL_MINIGAME_POTHOLE_EMOJI = '🕳️';
@@ -1365,7 +1365,7 @@ function buildDealerProspectEmbed(
   return { embed, names: workingNames };
 }
 
-function buildOwnedDealersEmbed(dealers, chipsFmt) {
+function buildOwnedDealersEmbed(dealers, chipsFmt, dealerCount = 0, dealerCap = null) {
   const embed = new EmbedBuilder()
     .setColor(0x95a5a6)
     .setTitle(`${emoji('dealers')} Your Cartel Dealers`)
@@ -1375,38 +1375,41 @@ function buildOwnedDealersEmbed(dealers, chipsFmt) {
     return embed;
   }
   const totalPending = dealers.reduce((sum, dealer) => sum + Number(dealer?.pending_chips || 0), 0);
+  const descriptionLines = [];
+  if (Number.isFinite(dealerCap)) {
+    const capReached = dealerCount >= dealerCap;
+    const slotsLine = `${emoji('clipboard')} Slots: ${dealerCount} / ${dealerCap}${capReached ? ` (${emoji('warning')} full)` : ''}`;
+    descriptionLines.push(slotsLine);
+  }
   if (totalPending > 0) {
-    embed.setDescription(`${emoji('cashStack')} Pending chips: **${chipsFmt(totalPending)}**`);
+    descriptionLines.push(`${emoji('cashStack')} Pending chips: **${chipsFmt(totalPending)}**`);
+  }
+  if (descriptionLines.length) {
+    embed.setDescription(descriptionLines.join('\n'));
   }
   const fields = [];
   for (const dealer of dealers) {
-    const tierName = dealer.tierInfo?.name || `Tier ${dealer.tier}`;
     const contactName = typeof dealer.display_name === 'string' && dealer.display_name.trim()
       ? dealer.display_name.trim()
       : null;
     const tierEmoji = dealerTierEmoji(dealer.tier);
     const multiplier = (Number(dealer.price_multiplier_bps || 10_000) / 10_000).toFixed(2);
-    const upkeepRate = Math.max(0, calculateDealerUpkeepChipsPerHour(dealer));
-    const upkeepPercent = dealerUpkeepPercentForTier(dealer.tier);
-    const statusIcon = dealer.status === 'ACTIVE'
-      ? `${emoji('whiteCheck')} Active`
-      : dealer.status === 'PAUSED'
-        ? `${emoji('pauseButton')} Paused`
-        : dealer.status;
-    const headerParts = [`${tierName}`];
-    if (contactName) headerParts.push(`“${contactName}”`);
-    headerParts.push(`ID \`${shortDealerId(dealer.dealer_id)}\``);
+    const headerLabel = contactName ? `“${contactName}”` : 'Dealer';
+    const isActive = String(dealer.status).toUpperCase() === 'ACTIVE';
+    let fieldValue = joinSections([
+      `${emoji('alarmClock')} ${gramsFormatter.format(mgToGrams(dealer.hourly_sell_cap_mg))}g of Semuta/hr @ ${multiplier}×`,
+      `${emoji('cashStack')} Pending payout: ${chipsFmt(Number(dealer.pending_chips || 0))}`,
+      dealer.upkeep_due_at ? `${emoji('calendar')} Paid through: ${formatRelativeTs(dealer.upkeep_due_at)}` : null
+    ]);
+    if (!isActive && fieldValue) {
+      fieldValue = fieldValue
+        .split('\n')
+        .map(line => line ? `> ${line}` : line)
+        .join('\n');
+    }
     fields.push({
-      name: `${tierEmoji} ${headerParts.join(' • ')}`,
-      value: joinSections([
-        `${statusIcon}`,
-        `${emoji('alarmClock')} ${gramsFormatter.format(mgToGrams(dealer.hourly_sell_cap_mg))}g of Semuta/hr @ ${multiplier}×`,
-        `${emoji('cashStack')} Upkeep: ${formatPercentDisplay(upkeepPercent)} (~${chipsFmt(Math.round(upkeepRate))}/hr)`,
-        `${emoji('calendar')} Paid through: ${formatRelativeTs(dealer.upkeep_due_at)}`,
-        `${emoji('semuta')} Lifetime sold: ${gramsFormatter.format(mgToGrams(dealer.lifetime_sold_mg))}g of Semuta · ${chipsFmt(dealerPayoutForMg(dealer.lifetime_sold_mg, dealer.price_multiplier_bps))}`,
-        `${emoji('cashStack')} Pending payout: ${chipsFmt(Number(dealer.pending_chips || 0))}`,
-        `${emoji('spark')} Last sale: ${dealer.last_sold_at ? formatRelativeTs(dealer.last_sold_at) : 'never'}`
-      ])
+      name: `${tierEmoji} ${headerLabel}`,
+      value: fieldValue || '\u200b'
     });
   }
   if (fields.length) {
@@ -1634,7 +1637,7 @@ function buildDealerViewPayload(view, { overview, dealers, chipsFmt, cachedNames
   return {
     payload: {
       embeds: [
-        buildOwnedDealersEmbed(dealers, chipsFmt)
+        buildOwnedDealersEmbed(dealers, chipsFmt, dealerCount, dealerCap)
       ],
       components: buildDealerNavComponents('list', extraRows),
       files: [buildDealersImageAttachment()]

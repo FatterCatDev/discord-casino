@@ -1,4 +1,5 @@
 import { emoji } from '../lib/emojis.mjs';
+import { chipsAmount } from '../games/format.mjs';
 
 export default async function handleBlackjackBetModal(interaction, ctx) {
   const parts = interaction.customId.split('|');
@@ -19,10 +20,10 @@ export default async function handleBlackjackBetModal(interaction, ctx) {
   }
 
   if (table === 'HIGH' && bet < 1000) {
-    return interaction.reply({ content: `${emoji('warning')} The high table minimum is 1000 chips.`, ephemeral: true });
+    return interaction.reply({ content: `${emoji('warning')} The high table minimum is ${chipsAmount(1000)} chips.`, ephemeral: true });
   }
   if (table === 'LOW' && bet > 999) {
-    return interaction.reply({ content: `${emoji('warning')} The low table maximum is 999 chips.`, ephemeral: true });
+    return interaction.reply({ content: `${emoji('warning')} The low table maximum is ${chipsAmount(999)} chips.`, ephemeral: true });
   }
   if (table !== 'HIGH' && table !== 'LOW') {
     return interaction.reply({ content: `${emoji('warning')} Invalid table selection. Try starting a new hand with /blackjack.`, ephemeral: true });

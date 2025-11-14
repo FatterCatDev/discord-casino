@@ -1,4 +1,5 @@
 import { getTopUsers } from '../db/db.auto.mjs';
+import { chipsAmount } from '../games/format.mjs';
 
 const HOME_GUILD_ID = (process.env.PRIMARY_GUILD_ID || process.env.GUILD_ID || '').trim() || null;
 const LEADERBOARD_ROLE_ID = (process.env.HOME_LEADERBOARD_ROLE_ID || '1436737307591049308').trim() || null;
@@ -127,8 +128,7 @@ async function dmChampionInvite(client, userId, chips) {
   try {
     const user = await client.users.fetch(userId).catch(() => null);
     if (!user) return;
-    const fmt = new Intl.NumberFormat('en-US');
-    const amount = fmt.format(Math.max(0, Number(chips || 0)));
+    const amount = chipsAmount(Math.max(0, Number(chips || 0)));
     const message = [
       `🏆 Congrats! You just claimed the #1 spot on the global leaderboard with **${amount}** chips.`,
       `Join the home server to unlock a special champion role: ${HOME_GUILD_INVITE_URL}`

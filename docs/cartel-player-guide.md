@@ -10,13 +10,13 @@ Semuta Cartel is the passive-income backbone of Discord Casino. Every `/cartel` 
 - 📊 Tap **Rank XP Table** to see how close you are to the next rank; selling Semuta or cashing out dealer chips gives cartel XP.
 
 ## 💎 Shares & Production
-- 📈 **Share price & rate** – Shares start around 100 chips each and each share refines roughly 0.10 g of Semuta per hour before bonuses. Prices crawl up as the guild-wide pool grows, so the sooner you buy, the cheaper your stake.
+- 📈 **Share price & rate** – Shares start around <:chips:1427947979758637096>100 chips each and each share refines roughly 0.10 g of Semuta per hour before bonuses. Prices crawl up as the guild-wide pool grows, so the sooner you buy, the cheaper your stake.
 - 🔁 **Ticks run at least every ~5 minutes**. Each tick adds Semuta to your stash based on your share count, rank multiplier, and pool percentage. Hit **Refresh** to pull the latest tick math.
 - 🔍 **Cartel Shares view** – Buttons inside this view let you:
   - **Buy**: Browse sell posts from other players or grab the built-in `Semuta Cartel` listing for instant shares at the current sell price.
   - **Sell**: Pick a buy post or use the infinite `Semuta Cartel` bid (pays roughly half the sell price) to liquidate shares fast.
   - **Posts**: Review every buy/sell order you created, then cancel or repost as needed.
-- 🧠 **Order tips** – Orders auto-expire after 14 days, and each post caps at 1,000,000 shares / 1,000,000 chips. Use the **Post Buy Order** or **Post Sell Order** buttons to set your own price targets when the market is quiet.
+- 🧠 **Order tips** – Orders auto-expire after 14 days, and each post caps at 1,000,000 shares / <:chips:1427947979758637096>1,000,000 chips. Use the **Post Buy Order** or **Post Sell Order** buttons to set your own price targets when the market is quiet.
 
 ## 📦 Stash, Warehouse & Fees
 - 🧊 **Stash cap** – Each rank unlocks more free storage (Rank 1 = 100 g, Rank 10 = 2,500 g). Keep the stash below cap so production never pauses.
@@ -27,7 +27,7 @@ Semuta Cartel is the passive-income backbone of Discord Casino. Every `/cartel` 
   - If you don’t want to pay the warehouse fee yet, just leave overflow parked until you’re ready (dealers can’t touch warehouse stock).
 
 ## 💥 Selling Semuta
-- 🕹️ **Sell Stash mini-game** – Enter a gram amount (or type `ALL`), then survive a 20‑tick lane-dodging mini-game. `🚓` police end the run with zero payout, while `🕳️` potholes halve what’s left. Make it to the end to sell at the base market rate (3 chips per gram by default).
+- 🕹️ **Sell Stash mini-game** – Enter a gram amount (or type `ALL`), then survive a 20‑tick lane-dodging mini-game. `🚓` police end the run with zero payout, while `🕳️` potholes halve what’s left. Make it to the end to sell at the base market rate (<:chips:1427947979758637096>3 chips per gram by default).
 - 🧾 **Receipt** – Successful runs show the grams sold, chips earned, and update the overview embed automatically. Failed runs refund whatever Semuta never left your stash.
 - 🪙 **Warehouse pulls** – Only stash grams can be sold. If overflow is locked away, tap **Collect Warehouse**, pay the fee, and the chosen amount slides back into the stash so you can sell it or feed your dealers.
 
@@ -39,12 +39,12 @@ Semuta Cartel is the passive-income backbone of Discord Casino. Every `/cartel` 
 
 | Tier | Unlock Rank | Hire Cost | Upkeep/hr | Sell Cap (g/hr) | Price Boost |
 | --- | --- | --- | --- | --- | --- |
-| 🔭 Lookout | 1 | 1,000 | 50 | 5 | 0.80× |
-| 🛴 Street Runner | 2 | 5,000 | 250 | 10 | 1.00× |
-| 🚚 Courier | 4 | 15,000 | 600 | 30 | 1.05× |
-| 📦 Distributor | 6 | 45,000 | 1,500 | 80 | 1.10× |
-| 🛰️ Route Boss | 8 | 120,000 | 3,500 | 180 | 1.18× |
-| 👑 Kingpin | 10 | 300,000 | 8,000 | 400 | 1.25× |
+| 🔭 Lookout | 1 | <:chips:1427947979758637096>1,000 chips | <:chips:1427947979758637096>50 chips | 5 | 0.80× |
+| 🛴 Street Runner | 2 | <:chips:1427947979758637096>5,000 chips | <:chips:1427947979758637096>250 chips | 10 | 1.00× |
+| 🚚 Courier | 4 | <:chips:1427947979758637096>15,000 chips | <:chips:1427947979758637096>600 chips | 30 | 1.05× |
+| 📦 Distributor | 6 | <:chips:1427947979758637096>45,000 chips | <:chips:1427947979758637096>1,500 chips | 80 | 1.10× |
+| 🛰️ Route Boss | 8 | <:chips:1427947979758637096>120,000 chips | <:chips:1427947979758637096>3,500 chips | 180 | 1.18× |
+| 👑 Kingpin | 10 | <:chips:1427947979758637096>300,000 chips | <:chips:1427947979758637096>8,000 chips | 400 | 1.25× |
 
 > 💡 Dealers need Semuta in your stash to stay busy. If the stash hits zero, they idle until you restock.
 
@@ -52,7 +52,7 @@ Semuta Cartel is the passive-income backbone of Discord Casino. Every `/cartel` 
 - 🛒 **Buy tab** – Select a sell listing, hit **Enter Shares to Buy**, confirm how many shares you want, and the bot pulls the chips plus adds the shares instantly.
 - 💱 **Sell tab** – Select a buy listing, confirm the share count, and you’ll get chips at that order’s price while the shares disappear from your wallet.
 - 📮 **Posts tab** – Shows every open order you posted. Select one to highlight it, then tap **Cancel Order** if you want your chips or shares released back to you.
-- 🧮 **Price logic** – The built-in `Semuta Cartel` listing sells to you at ~`100 + (total shares × 0.001)` chips each and buys back at roughly half that. Guild demand pushes the player market above or below that anchor, so flipping shares is a real play.
+- 🧮 **Price logic** – The built-in `Semuta Cartel` listing sells to you at ~<:chips:1427947979758637096>`100 + (total shares × 0.001)` chips each and buys back at roughly half that. Guild demand pushes the player market above or below that anchor, so flipping shares is a real play.
 
 ## 🏅 Rank & XP Progression
 - ✨ **XP sources** – Selling stash manually or collecting dealer chips grants XP equal to grams sold × the current XP-per-gram rate (defaults to 2 XP/g). You’ll see XP popups in the follow-up message whenever progress lands.

@@ -229,7 +229,7 @@ export async function buildSessionEndEmbed(guildId, userId, sessionOverride = nu
     const lines = [
       `Game: ${game}`,
       'Player Balance',
-      `Chips: ${fmt.format(chips)}`,
+      `Chips: ${chipsAmount(chips)}`,
       `Credits: ${fmt.format(credits)}`,
       `Hands(Rounds) Played: ${fmt.format(s.games || 0)}`,
       `Net: ${(s.playerNet||0) >= 0 ? '+' : '-'}${fmt.format(Math.abs(s.playerNet||0))}`

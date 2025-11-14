@@ -4,7 +4,7 @@
 - Document the three launch roles (Bartender, Card Dealer, Bouncer) with lore blurbs, kitten-mode variants, and descriptions of player fantasy.
 - Confirm shift pacing: players can chain up to five shifts back-to-back with no downtime, then enter a 6-hour cooldown before the next burst; target session length remains 45-60 seconds built around a single interactive scenario.
 - Lock the 10-rank ladder (Novice, Trainee, Apprentice, Junior Specialist, Specialist, Senior Specialist, Expert, Veteran, Elite, Master).
-- Publish the XP curve with exponential rank-up thresholds: `xp_to_next(rank) = round(100 * r^(rank-1))` where `r ~ 2.18048`, yielding the sequence `[100, 218, 475, 1,037, 2,261, 4,929, 10,748, 23,435, 51,100]` (total 94,303 XP) and confirm the Rank 10 max pay cap of 100,000 chips.
+- Publish the XP curve with exponential rank-up thresholds: `xp_to_next(rank) = round(100 * r^(rank-1))` where `r ~ 2.18048`, yielding the sequence `[100, 218, 475, 1,037, 2,261, 4,929, 10,748, 23,435, 51,100]` (total 94,303 XP) and confirm the Rank 10 max pay cap of <:chips:1427947979758637096>100,000 chips.
 - Define the performance grade scale (e.g., Poor <50, Good >=70, Flawless >=95) and its messaging in both personas.
 
 ## 2. Specify Game Mechanics Per Job

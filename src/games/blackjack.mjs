@@ -100,7 +100,7 @@ export async function startBlackjack(interaction, table, bet) {
   const total = chips + credits;
   if (total < bet) {
     const fmt = new Intl.NumberFormat('en-US');
-    const base = `❌ Not enough funds. Credits: **${fmt.format(credits)}**, Chips: **${fmt.format(chips)}**. Need: **${fmt.format(bet)}**.`;
+    const base = `❌ Not enough funds. Credits: **${fmt.format(credits)}**, Chips: **${chipsAmount(chips)}**. Need: **${chipsAmount(bet)}**.`;
     return interaction.reply({ content: withInsufficientFundsTip(base), ephemeral: true });
   }
   const cover = await getHouseBalance(guildId);

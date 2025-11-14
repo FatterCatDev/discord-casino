@@ -1,5 +1,6 @@
 import { getTopUsers, listCartelInvestors } from '../db/db.auto.mjs';
 import { emoji } from '../lib/emojis.mjs';
+import { chipsAmount } from '../games/format.mjs';
 import {
   createLeaderboardSession,
   renderLeaderboardPage,
@@ -61,7 +62,7 @@ export default async function handleLeaderboard(interaction, ctx) {
 
   const fmt = new Intl.NumberFormat('en-US');
   const medals = [emoji('medalGold'), emoji('medalSilver'), emoji('medalBronze')];
-  const houseLine = `House: **${fmt.format(Math.max(0, houseBalance + adminChipTotal))}** chips`;
+  const houseLine = `House: **${chipsAmount(Math.max(0, houseBalance + adminChipTotal))}** chips`;
 
   const resolveName = async (userId) => {
     const fallback = `User ${userId}`;
@@ -87,9 +88,10 @@ export default async function handleLeaderboard(interaction, ctx) {
   const chipLines = await Promise.all(rows.map(async (r, i) => {
     const rank = i < 3 ? medals[i] : `#${i + 1}`;
     const name = await resolveName(r.discord_id);
+    const chipTotal = chipsAmount(Math.max(0, Number(r.chips || 0)));
     return say(
-      `${rank} My radiant Kitten **${name}** — **${fmt.format(Number(r.chips || 0))}**`,
-      `${rank} **${name}** — **${fmt.format(Number(r.chips || 0))}**`
+      `${rank} My radiant Kitten **${name}** — **${chipTotal}**`,
+      `${rank} **${name}** — **${chipTotal}**`
     );
   }));
   const chipCount = Math.min(rows.length, maxEntries);

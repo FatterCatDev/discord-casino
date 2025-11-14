@@ -173,7 +173,7 @@ function triggerTopggStats(reason = 'manual') {
 }
 
 function buildWelcomePromptEmbed({ status = null, bonusJustGranted = false, bonusError = null } = {}) {
-  const chipsText = formatChips(WELCOME_BONUS_AMOUNT);
+  const chipsText = chipsAmount(WELCOME_BONUS_AMOUNT);
   const hasBonus = (status?.chipsGranted ?? 0) >= WELCOME_BONUS_AMOUNT;
   let statusLine;
   if (bonusError) {
@@ -225,7 +225,7 @@ function buildWelcomePromptComponents() {
 }
 
 function buildWelcomeAcknowledgedEmbed({ status, alreadyClaimed }) {
-  const chipsText = formatChips(WELCOME_BONUS_AMOUNT);
+  const chipsText = chipsAmount(WELCOME_BONUS_AMOUNT);
   const hasBonus = (status?.chipsGranted ?? 0) >= WELCOME_BONUS_AMOUNT;
   if (alreadyClaimed) {
     return new EmbedBuilder()
@@ -554,7 +554,7 @@ client.once(Events.ClientReady, c => {
         }
         try {
           const user = await client.users.fetch(entry.userId);
-          const amount = formatChips(entry.claimedTotal || 0);
+          const amount = chipsAmount(entry.claimedTotal || 0);
           const breakdownText = describeBreakdown(entry.breakdown || []);
           const sources = breakdownText || 'your recent votes';
           const message = `${emoji('partyPopper')} Thanks for voting (${sources})! I just credited **${amount}** to your chips.`;
@@ -646,6 +646,11 @@ function applyKittenModeToInteraction(interaction) {
 function buildCommandContext(interaction, extras = {}) {
   const guildId = interaction?.guild?.id || null;
   let kittenModeFlag = typeof extras.kittenMode === 'boolean' ? extras.kittenMode : null;
+  const sessionCleanupPromise = extras?.sessionCleanupPromise || null;
+  const waitForSessionCleanup = async () => {
+    if (!sessionCleanupPromise) return;
+    await sessionCleanupPromise;
+  };
 
   const ensureKittenMode = async () => {
     if (typeof kittenModeFlag === 'boolean') return kittenModeFlag;
@@ -756,14 +761,27 @@ function buildCommandContext(interaction, extras = {}) {
     recordSessionGame,
     burnUpToCredits: (userId, stake, reason) => burnUpToCredits(guildId, userId, stake, reason),
     endActiveSessionForUser,
-    startRideBus: async (interaction, bet) => startRideBusMod(interaction, bet, {
-      kittenMode: await ensureKittenMode(),
-      kittenizeText: kittenizeIfNeeded,
-      kittenizePayload: kittenizePayloadIfNeeded
-    }),
-    startBlackjack: (interaction, table, bet) => startBlackjackMod(interaction, table, bet),
-    runSlotsSpin: (interaction, bet, key) => runSlotsSpinMod(interaction, bet, key),
-    startRouletteSession: async (interaction) => startRouletteSessionMod(interaction),
+    awaitSessionCleanup: waitForSessionCleanup,
+    startRideBus: async (interaction, bet) => {
+      await waitForSessionCleanup();
+      return startRideBusMod(interaction, bet, {
+        kittenMode: await ensureKittenMode(),
+        kittenizeText: kittenizeIfNeeded,
+        kittenizePayload: kittenizePayloadIfNeeded
+      });
+    },
+    startBlackjack: async (interaction, table, bet) => {
+      await waitForSessionCleanup();
+      return startBlackjackMod(interaction, table, bet);
+    },
+    runSlotsSpin: async (interaction, bet, key) => {
+      await waitForSessionCleanup();
+      return runSlotsSpinMod(interaction, bet, key);
+    },
+    startRouletteSession: async (interaction) => {
+      await waitForSessionCleanup();
+      return startRouletteSessionMod(interaction);
+    },
     guildId,
     kittenModeEnabled: kittenModeFlag,
     isKittenModeEnabled: ensureKittenMode,
@@ -954,10 +972,9 @@ async function maybeSendChampionNotice(interaction) {
     if (!interaction?.user?.id) return;
     const notice = claimChampionNotice(interaction.user.id);
     if (!notice) return;
-    const fmt = new Intl.NumberFormat('en-US');
     let content = '';
     if (notice.type === 'gained') {
-      const amount = fmt.format(Math.max(0, Number(notice.chips || 0)));
+      const amount = chipsAmount(Math.max(0, Number(notice.chips || 0)));
       content = `${emoji('trophy')} You just claimed the #1 leaderboard spot with **${amount}** chips! Keep the streak going.`;
     } else if (notice.type === 'lost') {
       const dethronedBy = notice.dethronedBy ? ` by <@${notice.dethronedBy}>` : '';
@@ -1061,15 +1078,15 @@ client.on(Events.InteractionCreate, async interaction => {
       if (gated) return;
 
       // End any existing active game session when a new command is run.
-      // Don't await this cleanup so the slash command can acknowledge within Discord's 3s window.
-      endActiveSessionForUser(interaction, 'new_command').catch(err => {
+      // Capture the promise so game commands can await it before starting new sessions.
+      const sessionCleanupPromise = endActiveSessionForUser(interaction, 'new_command').catch(err => {
         console.error('endActiveSessionForUser (command) error:', err);
       });
 
       // Modular command dispatch
       const handler = commandHandlers[interaction.commandName];
       if (typeof handler === 'function') {
-        const ctx = buildCommandContext(interaction, ctxExtras);
+        const ctx = buildCommandContext(interaction, { ...ctxExtras, sessionCleanupPromise });
         const result = await handler(interaction, ctx);
         await maybeSendNewsReminder(interaction);
         return result;

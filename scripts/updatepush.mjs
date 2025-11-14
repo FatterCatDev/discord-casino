@@ -81,6 +81,11 @@ function appendInstallLink(content) {
   return `${content}${separator}${emoji('link')} Home page: ${BOT_HOME_URL}`;
 }
 
+function stripHtmlComments(text) {
+  if (!text) return text;
+  return text.replace(/<!--[\s\S]*?-->/g, '');
+}
+
 async function recordLastUpdateVersion(version) {
   try {
     const readme = await fs.readFile(README_PATH, 'utf8');
@@ -145,7 +150,8 @@ async function main() {
   if (!changes.length) throw new Error('No changes listed in UPDATE.md. Add bullet points before running updatepush.');
 
   const activeUpdateContent = setUpdateStatus(originalUpdateContent, 'update');
-  const messageContent = appendInstallLink(activeUpdateContent.trimEnd());
+  const contentWithoutComments = stripHtmlComments(activeUpdateContent).trimEnd();
+  const messageContent = appendInstallLink(contentWithoutComments);
 
   let updateStatusApplied = false;
   let updateResetToPending = false;

@@ -25,7 +25,7 @@ Passive income pillar where players bankroll a cartel to manufacture **Semuta**�
 ---
 
 ## Selling Mechanics
-- **Base Price:** Flat chip rate per gram of Semuta set to **3 chips** by default (configurable via env/admin command if balancing requires).
+- **Base Price:** Flat chip rate per gram of Semuta set to **<:chips:1427947979758637096>3 chips** by default (configurable via env/admin command if balancing requires).
 - **Manual Sales:** `/cartel sell amount:<grams>` validates stash, converts grams of Semuta into chips, and logs a transaction. Add `/cartel sell all` convenience.
 - **Auto-Sell Rules:** Stored on the player profile (e.g., “sell 25% whenever stash > 500g”). Dealers execute these rules first every tick before manual stash is shown.
 - **Warehouse Spillover:** When stash > cap, extra grams of Semuta move into `warehouse_grams`. These grams cannot be sold until the player pays the collection fee via `/cartel collect`, which transfers a chosen amount back into the active stash (or directly into a dealer buffer if desired). Players may also choose `/cartel abandon amount:<grams>` to permanently burn overflow without paying the fee.
@@ -49,11 +49,11 @@ Passive income pillar where players bankroll a cartel to manufacture **Semuta**�
 ### Dealer Tier Reference
 | Tier | Unlock Rank | Hire Cost | Upkeep (per hr) | Sell Cap (g Semuta/hr) | Price Multiplier | Bust Risk |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 – Street Runner | Rank 2 | 5,000 chips | 250 chips | 10 | 1.00× | Low |
-| 2 – Courier | Rank 4 | 15,000 | 600 | 30 | 1.05× | Low |
-| 3 – Distributor | Rank 6 | 45,000 | 1,500 | 80 | 1.10× | Medium |
-| 4 – Route Boss | Rank 8 | 120,000 | 3,500 | 180 | 1.18× | Medium |
-| 5 – Kingpin | Rank 10 | 300,000 | 8,000 | 400 | 1.25× | High (mitigate via bribes) |
+| 1 – Street Runner | Rank 2 | <:chips:1427947979758637096>5,000 chips | <:chips:1427947979758637096>250 chips | 10 | 1.00× | Low |
+| 2 – Courier | Rank 4 | <:chips:1427947979758637096>15,000 chips | <:chips:1427947979758637096>600 chips | 30 | 1.05× | Low |
+| 3 – Distributor | Rank 6 | <:chips:1427947979758637096>45,000 chips | <:chips:1427947979758637096>1,500 chips | 80 | 1.10× | Medium |
+| 4 – Route Boss | Rank 8 | <:chips:1427947979758637096>120,000 chips | <:chips:1427947979758637096>3,500 chips | 180 | 1.18× | Medium |
+| 5 – Kingpin | Rank 10 | <:chips:1427947979758637096>300,000 chips | <:chips:1427947979758637096>8,000 chips | 400 | 1.25× | High (mitigate via bribes) |
 
 *(Values illustrative; tune against economy telemetry.)*
 

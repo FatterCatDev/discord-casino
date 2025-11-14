@@ -8,7 +8,7 @@ import {
   transferFromHouseToUser,
   grantCredits
 } from '../db/db.auto.mjs';
-import { formatChips, chipsAmountSigned } from './format.mjs';
+import { formatChips, chipsAmount, chipsAmountSigned } from './format.mjs';
 import { emoji, HORSE_COLOR_EMOJIS } from '../lib/emojis.mjs';
 import { postGameSessionEnd, postGameSessionEndByIds } from './logging.mjs';
 import { withInsufficientFundsTip } from '../lib/fundsTip.mjs';
@@ -240,8 +240,8 @@ function createRaceEmbed(state, options = {}) {
   const embed = new EmbedBuilder()
     .setTitle(title)
     .addFields(
-      { name: `${emoji('chips')} Pot`, value: `${formatChips(state.totalPot)} chips`, inline: true },
-      { name: `${emoji('target')} Exposure`, value: `${formatChips(state.totalExposure)} chips`, inline: true },
+      { name: `${emoji('chips')} Pot`, value: chipsAmount(state.totalPot), inline: true },
+      { name: `${emoji('target')} Exposure`, value: chipsAmount(state.totalExposure), inline: true },
       { name: `${emoji('finishFlag')} Bets`, value: summarizeBets(state) }
     )
     .setFooter({ text: options.footerText ?? state.footerText ?? DEFAULT_STAGE_FOOTER_TEXT });

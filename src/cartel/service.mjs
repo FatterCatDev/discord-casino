@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import { EmbedBuilder } from 'discord.js';
 import { emoji } from '../lib/emojis.mjs';
+import { chipsAmount } from '../games/format.mjs';
 import {
   getCartelPool,
   listCartelInvestors,
@@ -382,10 +383,10 @@ export async function cartelInvest(guildId, userId, chipAmount) {
   const sharePrice = sharePriceFromPool(pool);
   const amount = Math.floor(Number(chipAmount || 0));
   if (!Number.isInteger(amount) || amount < sharePrice) {
-    throw new CartelError('CARTEL_INVEST_MIN', `Invest at least ${sharePrice} chips.`);
+    throw new CartelError('CARTEL_INVEST_MIN', `Invest at least ${chipsAmount(sharePrice)} chips.`);
   }
   const shares = Math.floor(amount / sharePrice);
-  if (shares <= 0) throw new CartelError('CARTEL_INVEST_MIN', `Invest in multiples of ${sharePrice} chips.`);
+  if (shares <= 0) throw new CartelError('CARTEL_INVEST_MIN', `Invest in multiples of ${chipsAmount(sharePrice)} chips.`);
   const spend = shares * sharePrice;
   try {
     await takeFromUserToHouse(guildId, userId, spend, 'cartel investment');
@@ -449,7 +450,7 @@ export async function createShareMarketOrder(guildId, userId, side, shareAmount,
   if (price > SHARE_MARKET_MAX_PRICE) {
     throw new CartelError(
       'CARTEL_MARKET_PRICE_LIMIT',
-      `Limit price per share to ${SHARE_MARKET_MAX_PRICE.toLocaleString('en-US')} chips or fewer.`
+      `Limit price per share to ${chipsAmount(SHARE_MARKET_MAX_PRICE)} chips or fewer.`
     );
   }
   return createCartelMarketOrderDb(guildId, userId, normalizedSide, shares, price);
@@ -1049,7 +1050,7 @@ export async function payCartelDealerUpkeep(guildId, userId, dealerId, chipAmoun
   const secondsPurchased = calculateDealerSecondsPurchased(dealer, chips);
   if (secondsPurchased <= 0) {
     const minChips = minimumUpkeepChips(dealer);
-    throw new CartelError('CARTEL_UPKEEP_TOO_LOW', `Spend at least ${minChips} chips to buy any time for this dealer.`);
+    throw new CartelError('CARTEL_UPKEEP_TOO_LOW', `Spend at least ${chipsAmount(minChips)} chips to buy any time for this dealer.`);
   }
   try {
     await takeFromUserToHouse(guildId, userId, chips, 'cartel dealer upkeep');
