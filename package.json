@@ -26,6 +26,7 @@
     "node": ">=20"
   },
   "dependencies": {
+    "@napi-rs/canvas": "^0.1.82",
     "@top-gg/sdk": "^3.1.6",
     "better-sqlite3": "^12.2.0",
     "cors": "^2.8.5",
