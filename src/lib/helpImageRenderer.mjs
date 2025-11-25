@@ -17,12 +17,14 @@ const ICON_SIZE = 58;
 const ICON_AREA = ICON_SIZE + 42;
 const CARD_RADIUS = 24;
 
-const HEADER_FONT = '600 34px "DejaVu Sans", "Segoe UI", sans-serif';
-const COMMAND_FONT = '600 30px "DejaVu Sans", "Segoe UI", sans-serif';
-const DESC_FONT = '400 26px "DejaVu Sans", "Segoe UI", sans-serif';
+const HEADER_FONT = '600 32px "DejaVu Sans", "Segoe UI", sans-serif';
+const COMMAND_FONT = '600 28px "DejaVu Sans", "Segoe UI", sans-serif';
+const DESC_FONT = '400 24px "DejaVu Sans", "Segoe UI", sans-serif';
 const EMOJI_FONT = '400 42px "DejaVu Sans", "Segoe UI Emoji", sans-serif';
-const LINE_HEIGHT = 34;
+const LINE_HEIGHT = 32;
 const PAGE_BADGE_FONT = '600 30px "DejaVu Sans", "Segoe UI", sans-serif';
+const UNICODE_EMOJI_PATTERN = '\\p{Extended_Pictographic}(?:\\uFE0F|\\uFE0E)?(?:\\u200D\\p{Extended_Pictographic}(?:\\uFE0F|\\uFE0E)?)*';
+const INLINE_EMOJI_REGEX = new RegExp(`<a?:[\\w]+:\\d+>|${UNICODE_EMOJI_PATTERN}`, 'gu');
 
 const measureCanvas = createCanvas(2, 2);
 const measureCtx = measureCanvas.getContext('2d');
@@ -30,6 +32,9 @@ measureCtx.textBaseline = 'top';
 
 const CUSTOM_EMOJI_DIR = path.resolve(process.cwd(), 'Assets', 'custom_emojis');
 const emojiImageCache = new Map();
+const unicodeEmojiCache = new Map();
+const BACKGROUND_ICON_PATH = path.resolve(process.cwd(), 'Assets', 'semuta_casino_icon.png');
+let backgroundIconPromise = null;
 
 async function loadEmojiImage(name) {
   if (!name) return null;
@@ -47,10 +52,123 @@ async function loadEmojiImage(name) {
   }
 }
 
+function loadBackgroundIcon() {
+  if (backgroundIconPromise) return backgroundIconPromise;
+  backgroundIconPromise = loadImage(BACKGROUND_ICON_PATH).catch(() => null);
+  return backgroundIconPromise;
+}
+
 function parseCustomEmoji(value) {
   if (typeof value !== 'string') return null;
   const match = /^<a?:([\w]+):\d+>$/.exec(value.trim());
   return match ? match[1] : null;
+}
+
+function toUnicodeCodePoints(str) {
+  return Array.from(str).map(char => char.codePointAt(0).toString(16));
+}
+
+async function loadUnicodeEmojiImage(symbol) {
+  if (typeof symbol !== 'string' || !symbol.trim()) return null;
+  if (unicodeEmojiCache.has(symbol)) return unicodeEmojiCache.get(symbol);
+  const codePoints = toUnicodeCodePoints(symbol.trim());
+  if (!codePoints.length) return null;
+  const url = `https://cdn.jsdelivr.net/gh/twitter/twemoji@14.0.2/assets/72x72/${codePoints.join('-')}.png`;
+  const promise = fetch(url)
+    .then(async (res) => {
+      if (!res.ok) throw new Error(`Failed to load emoji from ${url}`);
+      const arrayBuffer = await res.arrayBuffer();
+      return loadImage(Buffer.from(arrayBuffer));
+    })
+    .catch(() => null);
+  unicodeEmojiCache.set(symbol, promise);
+  return promise;
+}
+
+async function resolveEmojiImage(value) {
+  const customName = parseCustomEmoji(value);
+  if (customName) return loadEmojiImage(customName);
+  return loadUnicodeEmojiImage(value);
+}
+
+function splitInlineEmojiText(value) {
+  const text = typeof value === 'string' ? value : '';
+  if (!text) return [{ type: 'text', value: '' }];
+  const tokens = [];
+  INLINE_EMOJI_REGEX.lastIndex = 0;
+  let lastIndex = 0;
+  let match;
+  while ((match = INLINE_EMOJI_REGEX.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      tokens.push({ type: 'text', value: text.slice(lastIndex, match.index) });
+    }
+    tokens.push({ type: 'emoji', value: match[0] });
+    lastIndex = INLINE_EMOJI_REGEX.lastIndex;
+  }
+  if (lastIndex < text.length) {
+    tokens.push({ type: 'text', value: text.slice(lastIndex) });
+  }
+  return tokens.length ? tokens : [{ type: 'text', value: text }];
+}
+
+function parseFontSizePx(font) {
+  if (typeof font !== 'string') return 24;
+  const match = font.match(/(\d+(?:\.\d+)?)px/i);
+  return match ? Number(match[1]) : 24;
+}
+
+async function drawInlineEmojiText(ctx, text, opts = {}) {
+  const {
+    x = 0,
+    y = 0,
+    font = DESC_FONT,
+    color = '#fff',
+    textBaseline = 'top',
+    emojiSize: sizeOverride,
+    emojiGap = 6,
+    emojiYOffset = 0
+  } = opts;
+
+  const tokens = splitInlineEmojiText(text);
+  ctx.save();
+  ctx.font = font;
+  ctx.fillStyle = color;
+  ctx.textBaseline = textBaseline;
+
+  const defaultSize = parseFontSizePx(font);
+  const emojiSize = typeof sizeOverride === 'number' ? sizeOverride : defaultSize;
+  let cursorX = x;
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i];
+    if (token.type === 'emoji') {
+      const image = await resolveEmojiImage(token.value);
+      if (image) {
+        const naturalWidth = image.width || emojiSize;
+        const naturalHeight = image.height || emojiSize;
+        const ratio = Math.min(emojiSize / naturalWidth, emojiSize / naturalHeight);
+        const drawWidth = naturalWidth * ratio;
+        const drawHeight = naturalHeight * ratio;
+        const offsetY = y + emojiYOffset;
+        ctx.save();
+        ctx.shadowColor = 'transparent';
+        ctx.shadowBlur = 0;
+        ctx.drawImage(image, cursorX, offsetY, drawWidth, drawHeight);
+        ctx.restore();
+        cursorX += drawWidth;
+        const next = tokens[i + 1];
+        const nextHasLeadingSpace = next && next.type === 'text' && /^\s/.test(next.value);
+        if (next && !nextHasLeadingSpace) {
+          cursorX += emojiGap;
+        }
+        continue;
+      }
+    }
+    if (!token.value) continue;
+    ctx.fillText(token.value, cursorX, y);
+    cursorX += ctx.measureText(token.value).width;
+  }
+  ctx.restore();
+  return cursorX - x;
 }
 
 function wrapText(text, maxWidth, font) {
@@ -66,6 +184,13 @@ function wrapText(text, maxWidth, font) {
       current = '';
     }
   };
+  const captureSplitWord = (word) => {
+    const segments = splitWord(word, maxWidth);
+    if (!segments.length) return;
+    const trailing = segments.pop();
+    if (segments.length) lines.push(...segments);
+    current = trailing ?? '';
+  };
 
   for (const word of words) {
     if (!word) continue;
@@ -76,13 +201,14 @@ function wrapText(text, maxWidth, font) {
       continue;
     }
     if (!current) {
-      lines.push(...splitWord(word, maxWidth));
+      captureSplitWord(word);
       continue;
     }
     pushCurrent();
-    lines.push(...splitWord(word, maxWidth));
+    captureSplitWord(word);
   }
   pushCurrent();
+  tidyWidows(lines);
   return lines.length ? lines : [''];
 }
 
@@ -101,6 +227,28 @@ function splitWord(word, maxWidth) {
   }
   if (buffer) out.push(buffer);
   return out.length ? out : [word];
+}
+
+function tidyWidows(lines) {
+  if (!Array.isArray(lines)) return;
+  for (let i = 1; i < lines.length; i++) {
+    const current = lines[i].trim();
+    if (!current) continue;
+    const currentWords = current.split(/\s+/);
+    if (currentWords.length !== 1) continue;
+
+    const prevIndex = i - 1;
+    if (prevIndex < 0) continue;
+    const prevLine = lines[prevIndex];
+    if (!prevLine || !prevLine.trim()) continue;
+    const prevWords = prevLine.trim().split(/\s+/);
+    if (prevWords.length <= 1) continue;
+
+    const moved = prevWords.pop();
+    lines[prevIndex] = prevWords.join(' ');
+    const combined = `${moved} ${currentWords[0]}`.trim();
+    lines[i] = combined;
+  }
 }
 
 function buildLayout(section, width = CANVAS_WIDTH) {
@@ -122,7 +270,7 @@ function buildLayout(section, width = CANVAS_WIDTH) {
 
     for (const item of sourceItems) {
       const descriptionLines = wrapText(item.desc || '', textWidth, DESC_FONT);
-      const blockHeight = LINE_HEIGHT + (descriptionLines.length * LINE_HEIGHT) + 32;
+      const blockHeight = LINE_HEIGHT + (descriptionLines.length * LINE_HEIGHT) + 24;
       layoutItems.push({
         cmd: item.cmd || '',
         emoji: item.emoji || '',
@@ -135,42 +283,41 @@ function buildLayout(section, width = CANVAS_WIDTH) {
   return { groups: layoutGroups };
 }
 
-function drawBackground(ctx, width, height) {
-  const gradient = ctx.createLinearGradient(0, 0, width, height);
-  gradient.addColorStop(0, '#1a0835');
-  gradient.addColorStop(0.45, '#2c114b');
-  gradient.addColorStop(1, '#3f175d');
-  ctx.fillStyle = gradient;
+function drawBackground(ctx, width, height, backgroundIcon) {
+  ctx.fillStyle = '#1a0634';
   ctx.fillRect(0, 0, width, height);
 
-  ctx.save();
-  ctx.globalAlpha = 0.35;
-  ctx.fillStyle = '#f7e4b5';
-  ctx.translate(-width * 0.2, height * 0.18);
-  ctx.rotate(-0.22);
-  ctx.fillRect(0, 0, width * 1.4, height * 0.18);
-  ctx.restore();
+  if (backgroundIcon) {
+    const maxWidth = width * 0.75;
+    const maxHeight = height * 0.75;
+    const scale = Math.min(
+      maxWidth / (backgroundIcon.width || maxWidth),
+      maxHeight / (backgroundIcon.height || maxHeight)
+    );
+    const drawWidth = (backgroundIcon.width || maxWidth) * scale;
+    const drawHeight = (backgroundIcon.height || maxHeight) * scale;
+    const drawX = (width - drawWidth) / 2;
+    const drawY = (height - drawHeight) / 2;
+    ctx.save();
+    ctx.globalAlpha = 0.12;
+    ctx.drawImage(backgroundIcon, drawX, drawY, drawWidth, drawHeight);
+    ctx.restore();
+  }
 
-  ctx.save();
-  ctx.globalAlpha = 0.28;
-  ctx.fillStyle = '#ffdca5';
-  ctx.translate(width * 0.25, height * 0.6);
-  ctx.rotate(0.3);
-  ctx.fillRect(0, 0, width, height * 0.16);
-  ctx.restore();
+  // Gold trims around the canvas
+  const outerTrim = ctx.createLinearGradient(0, 0, width, height);
+  outerTrim.addColorStop(0, '#fbe19d');
+  outerTrim.addColorStop(1, '#d28f2d');
+  ctx.strokeStyle = outerTrim;
+  ctx.lineWidth = 14;
+  ctx.strokeRect(7, 7, width - 14, height - 14);
 
-  const glow = ctx.createRadialGradient(
-    width * 0.78,
-    height * 0.22,
-    40,
-    width * 0.78,
-    height * 0.22,
-    Math.max(width, height)
-  );
-  glow.addColorStop(0, 'rgba(255, 225, 180, 0.6)');
-  glow.addColorStop(1, 'rgba(255, 225, 180, 0)');
-  ctx.fillStyle = glow;
-  ctx.fillRect(0, 0, width, height);
+  const innerTrim = ctx.createLinearGradient(0, height, width, 0);
+  innerTrim.addColorStop(0, '#f8d672');
+  innerTrim.addColorStop(1, '#f6e8b1');
+  ctx.strokeStyle = innerTrim;
+  ctx.lineWidth = 4;
+  ctx.strokeRect(18, 18, width - 36, height - 36);
 }
 
 function drawRoundedRect(ctx, x, y, width, height, radius = CARD_RADIUS) {
@@ -205,17 +352,17 @@ async function drawItem(ctx, item, yPosition, width) {
   ctx.stroke();
   ctx.restore();
 
-  const emojiName = parseCustomEmoji(item.emoji);
   const emojiY = yPosition - 6;
-  if (emojiName) {
-    const emojiImage = await loadEmojiImage(emojiName);
-    if (emojiImage) {
-      ctx.drawImage(emojiImage, SIDE_PADDING, emojiY, ICON_SIZE, ICON_SIZE);
-    } else if (item.emoji) {
-      ctx.font = EMOJI_FONT;
-      ctx.fillStyle = '#fff1c7';
-      ctx.fillText(item.emoji, SIDE_PADDING, emojiY);
-    }
+  const emojiImage = await resolveEmojiImage(item.emoji);
+  if (emojiImage) {
+    const naturalWidth = emojiImage.width || ICON_SIZE;
+    const naturalHeight = emojiImage.height || ICON_SIZE;
+    const ratio = Math.min(ICON_SIZE / naturalWidth, ICON_SIZE / naturalHeight);
+    const drawWidth = naturalWidth * ratio;
+    const drawHeight = naturalHeight * ratio;
+    const offsetX = SIDE_PADDING + (ICON_SIZE - drawWidth) / 2;
+    const offsetY = emojiY + (ICON_SIZE - drawHeight) / 2;
+    ctx.drawImage(emojiImage, offsetX, offsetY, drawWidth, drawHeight);
   } else if (item.emoji) {
     ctx.font = EMOJI_FONT;
     ctx.fillStyle = '#fff1c7';
@@ -321,6 +468,7 @@ export function paginateHelpSection(section) {
 export async function renderHelpSectionImage(section, opts = {}) {
   const width = opts.width ?? CANVAS_WIDTH;
   const height = opts.height ?? CANVAS_HEIGHT;
+  const backgroundIcon = await loadBackgroundIcon();
   const groups = Array.isArray(opts.groups) && opts.groups.length
     ? opts.groups
     : buildLayout(section, width).groups;
@@ -329,16 +477,20 @@ export async function renderHelpSectionImage(section, opts = {}) {
   ctx.antialias = 'subpixel';
   ctx.textBaseline = 'top';
 
-  drawBackground(ctx, width, height);
+  drawBackground(ctx, width, height, backgroundIcon);
 
   let cursorY = TOP_PADDING;
   for (const group of groups) {
     ctx.save();
     ctx.shadowColor = 'rgba(0, 0, 0, 0.55)';
     ctx.shadowBlur = 8;
-    ctx.font = HEADER_FONT;
-    ctx.fillStyle = '#ffe6a8';
-    ctx.fillText(group.label, SIDE_PADDING, cursorY);
+    await drawInlineEmojiText(ctx, group.label, {
+      x: SIDE_PADDING,
+      y: cursorY,
+      font: HEADER_FONT,
+      color: '#ffe6a8',
+      textBaseline: 'top'
+    });
     ctx.restore();
     cursorY += GROUP_HEADER_HEIGHT + GROUP_HEADER_SPACER;
 

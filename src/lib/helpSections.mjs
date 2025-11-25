@@ -189,7 +189,7 @@ export function buildHelpSections({ kittenMode = false, isMod = false, isServerA
     color: DEFAULT_COLOR,
     description: say(
       'Each shift is a single quick challenge. Spend stamina to chain up to five back-to-back, then rest those paws for six hours.',
-      'Each shift is a single quick challenge. Stamina refills every few hours while you’re below cap, so pace your streaks.'
+      'Clock shifts to earn XP, chip bonuses, and new ranks.\nManage your stamina to keep working.'
     ),
     groups: [
       {
@@ -216,7 +216,7 @@ export function buildHelpSections({ kittenMode = false, isMod = false, isServerA
             cmd: '/job cancel',
             desc: say(
               'Bail out of your active shift before the finale if something comes up (stamina is refunded).',
-              'Cancel an active shift early if you need to step away; your stamina charge comes back.'
+              'Cancel an active shift early if you need to step away;\nyour stamina charge comes back.'
             )
           }
         ]
