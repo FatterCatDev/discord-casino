@@ -134,6 +134,7 @@ import cmdSetCartelXp from './commands/setcartelxp.mjs';
 
 // Interaction handlers
 import onHelpSelect from './interactions/helpSelect.mjs';
+import onHelpPageButtons from './interactions/helpPageButtons.mjs';
 import onRequestButtons from './interactions/requestButtons.mjs';
 import onRequestRejectModal from './interactions/requestRejectModal.mjs';
 
@@ -1329,6 +1330,11 @@ client.on(Events.InteractionCreate, async interaction => {
     else if (interaction.isStringSelectMenu() && interaction.customId === 'help|section') {
       const ctx = buildCommandContext(interaction, ctxExtras);
       return onHelpSelect(interaction, ctx);
+    }
+    else if (interaction.isButton() && interaction.customId.startsWith('help|page|')) {
+      if (interaction.customId === 'help|page|noop') return interaction.deferUpdate().catch(() => {});
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return onHelpPageButtons(interaction, ctx);
     }
 
     // Request reject modal submits
