@@ -10,6 +10,7 @@ import {
   cartelRemoveShares,
   cartelSetHoldings,
   cartelSetRankAndXp,
+  cartelSetSaleMultiplier,
   cartelAdjustSaleMultiplier,
   cartelApplyProduction,
   cartelUpdatePoolTick,
@@ -25,6 +26,7 @@ import {
   cartelDeleteDealersForUser,
   takeFromUserToHouse,
   transferFromHouseToUser,
+  addToHouse,
   setCartelSharePrice as setCartelSharePriceDb,
   cartelResetInvestor,
   setCartelShareRate as setCartelShareRateDb,
@@ -71,6 +73,9 @@ export class CartelError extends Error {
 const PROD_WEIGHT_BASE = 10_000;
 const DEALER_PRICE_SCALE = 10_000;
 const CHIP_VALUE_UNIT = MG_PER_GRAM * DEALER_PRICE_SCALE;
+const SALE_MULTIPLIER_MAX_BPS = 50_000;
+const WAREHOUSE_EXPORT_FEE_CHIPS_PER_BLOCK = 2000;
+const WAREHOUSE_EXPORT_FEE_BLOCK_MG = MG_PER_GRAM * 1000;
 const SECONDS_PER_HOUR = 3600;
 const DEFAULT_SHARE_RATE_MG_PER_HOUR = Math.max(1, Math.round(CARTEL_DEFAULT_SHARE_RATE_GRAMS_PER_HOUR * MG_PER_GRAM));
 const SHARE_MARKET_MAX_SHARES = 1_000_000;
@@ -149,7 +154,8 @@ function mgToGrams(mg) {
 }
 
 function saleMultiplierBpsForInvestor(investor) {
-  return Math.max(0, Number(investor?.sale_multiplier_bps || 0));
+  const raw = Math.max(0, Number(investor?.sale_multiplier_bps || 0));
+  return Math.min(SALE_MULTIPLIER_MAX_BPS, raw);
 }
 
 function applySaleMultiplierToChips(baseChips, investorOrBps) {
@@ -177,6 +183,31 @@ function warehouseExportBonusBps(mgAmount) {
   const units = Math.floor(mg / mgPerThousandGrams);
   if (units <= 0) return 0;
   return units * 100;
+}
+
+function warehouseExportFeeChips(mgAmount) {
+  const mg = Math.max(0, Math.floor(Number(mgAmount || 0)));
+  if (mg <= 0) return 0;
+  const units = Math.ceil(mg / WAREHOUSE_EXPORT_FEE_BLOCK_MG);
+  if (units <= 0) return 0;
+  return units * WAREHOUSE_EXPORT_FEE_CHIPS_PER_BLOCK;
+}
+
+function multiplierUnitsToMg(units) {
+  if (units <= 0) return 0;
+  return units * WAREHOUSE_EXPORT_FEE_BLOCK_MG;
+}
+
+function mgNeededToReachMultiplierCap(currentBps) {
+  const remainingBps = Math.max(0, SALE_MULTIPLIER_MAX_BPS - Math.max(0, Number(currentBps || 0)));
+  if (remainingBps <= 0) return 0;
+  const unitsNeeded = Math.ceil(remainingBps / 100);
+  return multiplierUnitsToMg(unitsNeeded);
+}
+
+function maxExportableMgBeforeCap(investor) {
+  const current = saleMultiplierBpsForInvestor(investor);
+  return mgNeededToReachMultiplierCap(current);
 }
 
 function sharePriceFromPool(pool) {
@@ -332,7 +363,7 @@ export async function getCartelOverview(guildId, userId) {
   const state = await loadCartelState(guildId);
   const pool = state.pool;
   let investor = await getCartelInvestor(guildId, userId);
-  investor = await autoRankIfNeeded(guildId, investor);
+  investor = await normalizeInvestorState(guildId, investor);
   const shareCount = Math.max(0, Number(investor?.shares || 0));
   const totalShares = Math.max(0, Number(state.totals?.shares || 0));
   const sharePercent = totalShares > 0 && shareCount > 0 ? shareCount / totalShares : 0;
@@ -444,7 +475,7 @@ export async function cartelSellShares(guildId, userId, shareAmount) {
   const pool = await getCartelPool(guildId);
   const sharePrice = sharePriceFromPool(pool);
   let investor = await getCartelInvestor(guildId, userId);
-  investor = await autoRankIfNeeded(guildId, investor);
+  investor = await normalizeInvestorState(guildId, investor);
   const ownedShares = Math.max(0, Number(investor?.shares || 0));
   if (ownedShares < sharesToSell) {
     throw new CartelError('CARTEL_NOT_ENOUGH_SHARES', 'You do not have that many shares.');
@@ -745,7 +776,7 @@ export async function cartelSell(guildId, userId, grams) {
   ensurePositiveAmount(mgToSell, 'CARTEL_AMOUNT_REQUIRED', 'Enter at least 1g to sell.');
   const pool = await getCartelPool(guildId);
   let investor = await getCartelInvestor(guildId, userId);
-  investor = await autoRankIfNeeded(guildId, investor);
+  investor = await normalizeInvestorState(guildId, investor);
   const currentStash = Number(investor?.stash_mg || 0);
   if (currentStash < mgToSell) {
     throw new CartelError('CARTEL_NOT_ENOUGH_STASH', 'You do not have that much Semuta in your stash.');
@@ -758,6 +789,7 @@ export async function cartelSell(guildId, userId, grams) {
   await cartelSetHoldings(guildId, userId, newStash, warehouse);
   try {
     await transferFromHouseToUser(guildId, userId, payout, 'cartel sale');
+    await addToHouse(guildId, payout, 'cartel sale match');
   } catch (err) {
     await cartelSetHoldings(guildId, userId, currentStash, warehouse);
     if (isDbError(err, 'INSUFFICIENT_HOUSE')) {
@@ -800,7 +832,7 @@ export async function cartelRefundStashForSale(guildId, userId, mgAmount) {
   const mgToRefund = Math.floor(Number(mgAmount || 0));
   if (mgToRefund <= 0) return { refundedMg: 0, overflowMg: 0 };
   let investor = await getCartelInvestor(guildId, userId);
-  investor = await autoRankIfNeeded(guildId, investor);
+  investor = await normalizeInvestorState(guildId, investor);
   const currentStash = Number(investor?.stash_mg || 0);
   const warehouse = Number(investor?.warehouse_mg || 0);
   const capMg = stashCapMgForRank(investor.rank);
@@ -820,12 +852,13 @@ export async function cartelPayoutReservedSale(guildId, userId, mgAmount) {
   ensurePositiveAmount(mgToPayout, 'CARTEL_AMOUNT_REQUIRED', 'Enter at least 1g to sell.');
   const pool = await getCartelPool(guildId);
   let investor = await getCartelInvestor(guildId, userId);
-  investor = await autoRankIfNeeded(guildId, investor);
+  investor = await normalizeInvestorState(guildId, investor);
   const basePayout = Math.floor((mgToPayout / MG_PER_GRAM) * CARTEL_BASE_PRICE_PER_GRAM);
   const payoutInfo = applySaleMultiplierToChips(basePayout, investor);
   const payout = payoutInfo.total;
   try {
     await transferFromHouseToUser(guildId, userId, payout, 'cartel sale (mini-game)');
+    await addToHouse(guildId, payout, 'cartel sale (mini-game) match');
   } catch (err) {
     if (isDbError(err, 'INSUFFICIENT_HOUSE')) {
       throw new CartelError('CARTEL_HOUSE_EMPTY', 'The house bank is too low to cover that sale. Try again soon.');
@@ -906,7 +939,8 @@ export async function cartelAbandon(guildId, userId, grams) {
 }
 
 export async function cartelExportWarehouse(guildId, userId, mgAmount = null) {
-  const investor = await getCartelInvestor(guildId, userId);
+  let investor = await getCartelInvestor(guildId, userId);
+  investor = await normalizeInvestorState(guildId, investor);
   const currentWarehouse = Number(investor?.warehouse_mg || 0);
   if (currentWarehouse <= 0) {
     throw new CartelError('CARTEL_NOT_ENOUGH_WAREHOUSE', 'Not enough Semuta in the warehouse.');
@@ -917,6 +951,39 @@ export async function cartelExportWarehouse(guildId, userId, mgAmount = null) {
   }
   if (mgToExport > currentWarehouse) {
     throw new CartelError('CARTEL_NOT_ENOUGH_WAREHOUSE', 'You do not have that much Semuta in storage.');
+  }
+  const currentMultiplierBps = saleMultiplierBpsForInvestor(investor);
+  if (currentMultiplierBps >= SALE_MULTIPLIER_MAX_BPS) {
+    throw new CartelError(
+      'CARTEL_MULTIPLIER_MAX',
+      'The cartel refuses more Semuta exports from you—burn or collect your overflow instead.'
+    );
+  }
+  const maxExportToCapMg = mgNeededToReachMultiplierCap(currentMultiplierBps);
+  if (maxExportToCapMg <= 0) {
+    throw new CartelError(
+      'CARTEL_MULTIPLIER_MAX',
+      'The cartel refuses more Semuta exports from you—burn or collect your overflow instead.'
+    );
+  }
+  const maxAllowedMg = Math.min(maxExportToCapMg, currentWarehouse);
+  if (mgToExport > maxAllowedMg) {
+    const gramsNeeded = formatSemuta(maxExportToCapMg);
+    throw new CartelError(
+      'CARTEL_MULTIPLIER_CAP',
+      `Export at most ${gramsNeeded}g of Semuta to reach the +500% sale multiplier cap, then burn or collect the rest.`
+    );
+  }
+  const feeChips = warehouseExportFeeChips(mgToExport);
+  if (feeChips > 0) {
+    try {
+      await takeFromUserToHouse(guildId, userId, feeChips, 'cartel export fee');
+    } catch (err) {
+      if (isDbError(err, 'INSUFFICIENT_USER')) {
+        throw new CartelError('CARTEL_NO_CHIPS', 'You do not have enough chips to cover the export fee.');
+      }
+      throw err;
+    }
   }
   const currentStash = Number(investor?.stash_mg || 0);
   const newWarehouse = currentWarehouse - mgToExport;
@@ -930,13 +997,15 @@ export async function cartelExportWarehouse(guildId, userId, mgAmount = null) {
   await recordCartelTransaction(guildId, userId, 'WAREHOUSE_EXPORT', 0, mgToExport, {
     grams: exportedGrams,
     multiplierBpsGained: bonusBps,
-    multiplierBpsTotal: totalMultiplierBps
+    multiplierBpsTotal: totalMultiplierBps,
+    feeChips
   });
   return {
     exportedMg: mgToExport,
     exportedGrams,
     bonusBps,
-    totalMultiplierBps
+    totalMultiplierBps,
+    feeChips
   };
 }
 
@@ -1032,6 +1101,7 @@ export async function collectDealerChips(guildId, userId) {
   }
   try {
     await transferFromHouseToUser(guildId, userId, totalChips, 'cartel dealer collect');
+    await addToHouse(guildId, totalChips, 'cartel dealer sale match');
   } catch (err) {
     if (isDbError(err, 'INSUFFICIENT_HOUSE')) {
       throw new CartelError('CARTEL_HOUSE_EMPTY', 'The house is too low to cover that payout. Try again soon.');
@@ -1046,7 +1116,7 @@ export async function collectDealerChips(guildId, userId) {
   let rankState = null;
   if (xpGain > 0) {
     let investor = await getCartelInvestor(guildId, userId);
-    investor = await autoRankIfNeeded(guildId, investor);
+    investor = await normalizeInvestorState(guildId, investor);
     rankState = await applyXpGain(guildId, investor, xpGain);
   }
   await recordCartelTransaction(guildId, userId, 'DEALER_COLLECT', totalChips, totalMg, { dealers: pendingEntries.length });
@@ -1070,7 +1140,7 @@ export async function listUserDealers(guildId, userId) {
 
 export async function hireCartelDealer(guildId, userId, tierId, trait = null, displayName = null) {
   let investor = await getCartelInvestor(guildId, userId);
-  investor = await autoRankIfNeeded(guildId, investor);
+  investor = await normalizeInvestorState(guildId, investor);
   if (!investor) throw new CartelError('CARTEL_PROFILE_MISSING', 'Start investing in the cartel before hiring dealers.');
   const tier = dealerTierOrThrow(tierId);
   if (investor.rank < tier.requiredRank) {
@@ -1327,4 +1397,23 @@ async function autoRankIfNeeded(guildId, investor) {
     return { ...investor, rank: result.rank, rank_xp: result.rankXp };
   }
   return investor;
+}
+
+async function clampSaleMultiplierIfNeeded(guildId, investor) {
+  if (!investor) return null;
+  const raw = Number(investor.sale_multiplier_bps ?? investor.saleMultiplierBps ?? 0);
+  if (raw > SALE_MULTIPLIER_MAX_BPS) {
+    return cartelSetSaleMultiplier(guildId, investor.user_id, SALE_MULTIPLIER_MAX_BPS);
+  }
+  if (raw < 0) {
+    return cartelSetSaleMultiplier(guildId, investor.user_id, 0);
+  }
+  return investor;
+}
+
+async function normalizeInvestorState(guildId, investor) {
+  if (!investor) return null;
+  let updated = await autoRankIfNeeded(guildId, investor);
+  updated = await clampSaleMultiplierIfNeeded(guildId, updated);
+  return updated;
 }

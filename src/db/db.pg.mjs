@@ -803,6 +803,8 @@ function toEpochSeconds(value) {
   return null;
 }
 
+const CARTEL_MAX_SALE_MULTIPLIER_BPS = 50_000;
+
 function normalizeCartelPool(row) {
   if (!row) return null;
   return {
@@ -828,7 +830,7 @@ function normalizeCartelInvestor(row) {
     warehouse_mg: Number(row.warehouse_mg || 0),
     rank: Math.max(1, Number(row.rank || 1)),
     rank_xp: Math.max(0, Number(row.rank_xp || 0)),
-    sale_multiplier_bps: Math.max(0, Number(row.sale_multiplier_bps || 0)),
+    sale_multiplier_bps: Math.max(0, Math.min(CARTEL_MAX_SALE_MULTIPLIER_BPS, Number(row.sale_multiplier_bps || 0))),
     auto_sell_rule: row.auto_sell_rule ? safeParseJson(row.auto_sell_rule) : null,
     created_at: toEpochSeconds(row.created_at),
     updated_at: toEpochSeconds(row.updated_at)
@@ -1578,7 +1580,7 @@ export async function cartelSetSaleMultiplier(guildId, userId, multiplierBps) {
   const gid = resolveGuildId(guildId);
   const uid = String(userId || '').trim();
   if (!uid) throw new Error('CARTEL_USER_REQUIRED');
-  const bps = Math.max(0, Math.floor(Number(multiplierBps || 0)));
+  const bps = Math.max(0, Math.min(CARTEL_MAX_SALE_MULTIPLIER_BPS, Math.floor(Number(multiplierBps || 0))));
   await ensureCartelInvestorRow(gid, uid);
   await q(
     'UPDATE cartel_investors SET sale_multiplier_bps = $1, updated_at = NOW() WHERE guild_id = $2 AND user_id = $3',
@@ -1595,8 +1597,8 @@ export async function cartelAdjustSaleMultiplier(guildId, userId, deltaBps) {
   if (!Number.isFinite(delta)) throw new Error('CARTEL_MULTIPLIER_DELTA_INVALID');
   await ensureCartelInvestorRow(gid, uid);
   await q(
-    'UPDATE cartel_investors SET sale_multiplier_bps = GREATEST(sale_multiplier_bps + $1, 0), updated_at = NOW() WHERE guild_id = $2 AND user_id = $3',
-    [delta, gid, uid]
+    'UPDATE cartel_investors SET sale_multiplier_bps = LEAST(GREATEST(sale_multiplier_bps + $1, 0), $2), updated_at = NOW() WHERE guild_id = $3 AND user_id = $4',
+    [delta, CARTEL_MAX_SALE_MULTIPLIER_BPS, gid, uid]
   );
   return getCartelInvestor(gid, uid);
 }

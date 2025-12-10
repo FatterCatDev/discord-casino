@@ -642,7 +642,7 @@ function buildWarehouseEmbed(overview, chipsFmt) {
   ];
   const tipLines = [
     `${emoji('info')} Burn overflow for free or collect it (fee applies) once you have chips ready.`,
-    `${emoji('rocket')} Export to the cartel for a permanent +1% sale bonus per 1,000g shipped.`
+    `${emoji('rocket')} Export to the cartel for a permanent +1% sale bonus per 1,000g shipped (fee ${chipsFmt(2000)} per 1,000g).`
   ];
   return new EmbedBuilder()
     .setColor(0x8e44ad)
@@ -1268,7 +1268,7 @@ function buildCartelGuideEmbed(overview = null, chipsFmt = amount => `${amount} 
         `${emoji('alarmClock')} Tap **Refresh** whenever you return—ticks hit roughly every ${tickLabel}, so numbers move fast.`,
         `${emoji('bell')} Opening the **Posts** tab after a break drops a recap for orders that filled while you were away.`,
         `${emoji('shield')} Overflow never decays; leave it parked until you can afford the **${warehouseFeePercent}%** collection fee.`,
-        `${emoji('sparkles')} Export overflow from the warehouse to burn Semuta for a permanent +1% sale bonus per 1,000g.`,
+        `${emoji('sparkles')} Export overflow from the warehouse to burn Semuta for a permanent +1% sale bonus per 1,000g (costs ${chipsFmt(2000)} per 1,000g exported).`,
         `${emoji('hammerWrench')} Admins can live-tune share price, share rate, and XP with \`/setcartelshare\`, \`/setcartelrate\`, and \`/setcartelxp\`.`
       ])
     }
@@ -2007,7 +2007,7 @@ export async function handleCartelWarehouseExport(interaction, ctx) {
       .setTitle('Export Semuta Overflow');
     const input = new TextInputBuilder()
       .setCustomId(CARTEL_WAREHOUSE_EXPORT_MODAL_INPUT_ID)
-      .setLabel('Semuta to export (grams or ALL)')
+      .setLabel('Semuta to export (fee: 2,000 chips / 1,000g)')
       .setStyle(TextInputStyle.Short)
       .setPlaceholder('Example: 5000 or ALL (rounded to 1,000g)')
       .setRequired(true);
@@ -2021,6 +2021,7 @@ export async function handleCartelWarehouseExport(interaction, ctx) {
 export async function handleCartelWarehouseExportModal(interaction, ctx, sourceMessageId = '0') {
   const allowed = await ensureCartelAccess(interaction, ctx, { sourceMessageId });
   if (!allowed) return;
+  const chipsFmt = getChipsFormatter(ctx);
   try {
     const rawValue = interaction.fields.getTextInputValue(CARTEL_WAREHOUSE_EXPORT_MODAL_INPUT_ID) || '';
     const normalized = rawValue.trim();
@@ -2065,11 +2066,13 @@ export async function handleCartelWarehouseExportModal(interaction, ctx, sourceM
     const exportedLabel = gramsFormatter.format(result.exportedGrams);
     const gainedPercent = percentFormatter.format(result.bonusBps / 100);
     const totalPercent = percentFormatter.format(result.totalMultiplierBps / 100);
+    const feeChips = Math.max(0, Number(result.feeChips || 0));
     const bonusLine = result.bonusBps > 0
       ? `for a permanent **+${gainedPercent}%** sale bonus`
       : 'without changing your sale bonus';
+    const feeDetail = feeChips > 0 ? ` Fee: **${chipsFmt(feeChips)}** paid to the house.` : '';
     await interaction.reply(withAutoEphemeral(interaction, {
-      content: `${emoji('rocket')} Exported **${exportedLabel}g** of Semuta ${bonusLine} (now **+${totalPercent}%**).`,
+      content: `${emoji('rocket')} Exported **${exportedLabel}g** of Semuta ${bonusLine} (now **+${totalPercent}%**).${feeDetail}`,
       ephemeral: true
     })).catch(() => {});
     const targetMessage = await fetchMessageById(interaction, sourceMessageId);
@@ -2077,9 +2080,10 @@ export async function handleCartelWarehouseExportModal(interaction, ctx, sourceM
     if (targetMessage) {
       await applyOverviewToMessage(targetMessage, payload);
     }
+    const feeLog = feeChips > 0 ? ` Fee ${chipsFmt(feeChips)}.` : '';
     const activityLine = result.bonusBps > 0
-      ? `Exported ${exportedLabel}g of Semuta for +${gainedPercent}% sale multiplier (now +${totalPercent}%).`
-      : `Exported ${exportedLabel}g of Semuta (multiplier remains +${totalPercent}%).`;
+      ? `Exported ${exportedLabel}g of Semuta for +${gainedPercent}% sale multiplier (now +${totalPercent}%).${feeLog}`
+      : `Exported ${exportedLabel}g of Semuta (multiplier remains +${totalPercent}%).${feeLog}`;
     await logCartelActivity(interaction, activityLine);
   } catch (error) {
     if (error instanceof CartelError) {
