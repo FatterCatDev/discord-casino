@@ -1,332 +1,92 @@
-# Discord Casino Bot
-
-Last update: 1.2.5
-
-Invite Bot to your server:
-https://discord.com/oauth2/authorize?client_id=1415454565687492780
-
-Discord bot for a lightweight casino economy with two currencies and multiple mini‑games.
-
-- Chips: backed by a global House bank shared across every server and used for all payouts.
-- Credits: personal, non‑house currency; burned on losses when used to stake.
-
-Balances are global: the House bank and user wallets follow players across every guild where the bot runs. Every chip or credit change writes to the same shared ledger—per-server economies are no longer supported. The economy owner (Discord ID `94915805375889408`) retains ultimate control over minting and burning.
-
-Includes slash commands for balances, leaderboards, admin operations, cash/request workflows, logging, a single-stage job system, and the following games: Ride the Bus, Blackjack, Slots, Roulette, Dice War, Horse Race, and a Texas Hold’em table.
-
-> **Note on UI Icons:** For any player-facing components (buttons, select menus, interactive text), use standard Unicode emojis or plain text. Avoid referencing custom server emojis in interactive UI so the controls render consistently across guilds.
-
-## Global Economy
-
-- Chips, Credits, and job progress live in one shared ledger for every guild where the bot runs.
-- `/balance`, `/job`, `/request`, and logging commands always reference the global house and wallet totals.
-- Vote rewards, buy-ins, and game payouts all settle against that same ledger—there is no per-server opt-out.
-- If you previously ran isolated ledgers, keep `ECONOMY_SCOPE=global` and use `GLOBAL_ECONOMY_ID` only when you need to migrate the canonical guild id.
-- Moderators can use `/housebalance` to spot-check the shared vault before approving big withdrawals or resets.
-- Ledger updates replicate instantly across shards, so economy commands reflect the latest balances no matter which guild or shard triggers them.
-
-## Games
-
-All games except Texas Hold’em use Credits‑first staking: your bet draws from your Credits balance first, with any remainder automatically covered by Chips. On loss, the Credits portion is burned; if Chips were used, that portion is transferred to the House. Winnings are always paid in Chips from the House.
-
-### Casino Category & Channel Policy
-- Configure a dedicated category via `/setcasinocategory category:<#Category>`.
-- Game slash commands (RideBus, Blackjack, Slots, Roulette, HorseRace, Hold’em) only run inside channels/threads under this category. Interactions for an already-started game continue to work where they began.
-- Hold’em creates a temporary per‑table text channel under this category and removes it automatically when the table idles out.
-
-### Ride the Bus
-- Clear Q1–Q4 to win up to 10×; can cash out after Q3 (pays the Q3 pot).
-- House cover check ensures the House can pay a max win before starting.
-- Per‑guild max bet (default 1000) via `/setmaxbet game:<Ride the Bus> amount:<int>`.
-
-### Blackjack
-- Two tables: `HIGH` (min 100, H17) and `LOW` (max 99, S17).
-- Supports hit/stand/double; split when allowed and affordable.
-- House cover check for max exposure (stake + potential 2× payout).
-
-### Slots
-- 5×3 video slot with 20 fixed lines, wilds and scatter.
-- Total bet is split evenly per line; results floored to whole credits.
-- Interactive “Spin Again” and “Pay Table” buttons.
-
-### Roulette (American)
-- Add multiple bets interactively, then confirm to spin.
-- Supports Red/Black, Odd/Even, Low/High, Dozens, Columns, Straight (35:1).
-
-### Dice War
-- Simple 2d6 vs the House: if you roll any doubles and beat the House, your win is doubled (ties go to the House).
-- Credits-first staking with house cover check.
-- “Play Again” button repeats the same bet.
-- Session timeout: expires after 2 minutes of inactivity; any interaction (e.g., Play Again) resets the timer. On expiry, the session ends and a summary replaces the last message.
-
-### Horse Race
-- Five horses sprint down a 100-tick track over 10 stages; progress is visualised in an embed after each stage.
-- Players bet with `/horserace`, the host starts a bold countdown, and everyone gets a 2.5-second window between stages to swap picks (fee=(number of stage)/2*(player bet)).
-- The house enforces exposure limits; winners receive a 4× payout and the bot announces the results in-channel.
-
-### Texas Hold’em
-- Multi‑player table with host/seat/start, betting actions, and ephemerally peeking your hole cards.
-- Automatic turn timers with warnings, host inactivity auto‑kick (10 min), and table auto‑close when empty/idle.
-- Side pots, all‑in handling, proper betting flow, and hand evaluation.
-- Rake: set default percent per guild via `/setrake percent:<number>` (admin). Cap is always the table’s Max buy‑in. New tables use this default; the creation summary shows it and results display rake taken.
-- Per‑table channels: when a preset is chosen, the bot creates `#holdem-table-N` under the casino category (next available number), posts the table card with the host’s mention above it, and deletes the channel once the table times out.
-- Presets & Custom: choose a preset (1/2, 5/10, 20/40) or pick Custom to enter Small Blind (BB auto‑set to 2×SB), Min buy‑in, and Max buy‑in. The options message is edited to summarize who created the table, where, and the configuration.
-- Results UX: winners list includes the winning hand and relevant kickers; a Leave button appears so players can exit before the next hand.
-- Betting UI nuance: preflop, players who did not post a blind see “Bet”; SB/BB (and all post‑flop streets) show “Raise”.
-- Chips-only buy-ins use per-table escrow; hand commits move escrow to the pot; payouts and rake settle to players and the house.
-
-## Job System
-
-Run `/job` inside any guild to open the career board. Shifts, XP, ranks, and cooldowns now follow you globally, so progress carries across every server where you play.
-
-- **Shift flow:** every shift is a single interactive scenario. Respond before the timer to succeed; timing out or cancelling ends the attempt and breaks the streak.
-- **Stamina:** each shift costs one stamina point (max stack of five). You regenerate one stamina every two hours while below the cap.
-- **Burst limits:** players can clear up to five shifts in a burst before stamina triggers a six-hour rest timer.
-- **Rewards:** performance grades award Chips and XP. XP promotes you through job ranks and increases the chip bonus earned at the end of a successful shift.
-- **Player commands:**
-  - `/job` (or `/job overview`) – review the job roster, current streak, and cooldown timer.
-  - `/job start job:<id>` – pick a job and begin a shift.
-  - `/job cancel` – leave an active shift early if needed.
-  - `/job stats [user]` – inspect XP, ranks, cooldowns, and recent shifts for yourself or a tagged user.
-- **Admin commands:**
-  - `/job reset user:<@User>` – refill a player’s stamina so they can immediately start another burst of shifts.
-  - `/job resetstats user:<@User>` – reset ranks, XP, and streak data across every job for a player.
-
-## Requests & Logging
-
-- Requests: users can submit `/request type:<Buy In|Cash Out|Erase Account Data> ...`; buy-in/cash-out posts include the stake, while erasure requests route to the primary guild’s request channel and require `notes:` describing the request. Optional cooldown via `/requesttimer seconds:<int>`.
-- Log channels:
-  - Game logs (e.g., session end) via `/setgamelogchannel channel:<#>`.
-  - Cash logs (admin and request settlements) via `/setcashlog channel:<#>`.
-- Leaderboard: `/leaderboard [limit]` lists the global top chip holders.
-
-## Command Catalogue
-
-Player
-- `/help`, `/ping`, `/balance [user]`, `/leaderboard [limit]`, `/dailyspin`, `/vote`
-- `/stafflist`
-- `/job`, `/job start job:<id>`, `/job cancel`, `/job stats [user]`
-- `/ridebus bet:<int>`, `/blackjack table:<High|Low> bet:<int>`, `/slots bet:<int>`, `/roulette`, `/holdem`, `/horserace`
-
-### Earning Chips
-- `/dailyspin` – free chips every 24 hours.
-- `/vote` – vote on Top.gg; rewards credit automatically and the bot DMs the amount.
-- `/request type:<Buy In|Cash Out|Erase Account Data>` – work with staff for manual chip grants/withdrawals, or submit a data-erasure ticket (requires notes and routes to the primary guild’s request channel).
-- Chip-paying games (Ride the Bus, Blackjack, Slots, Roulette, Dice War, Horse Race, Hold’em) — Credits stake first, and any win pays out in Chips from the house.
-
-Moderator (granted via `/addmod`, admins via `/addadmin`)
-- House & chips: `/housebalance`, `/houseadd`, `/houseremove`, `/givechips`, `/takechips`, `/buyin`, `/cashout`
-- Credits: `/givecredits`, `/takecredits`
-- Logging: `/setgamelogchannel`, `/setcashlog`
-- Requests: `/setrequestchannel`, `/requesttimer`
-- Game limits: `/setmaxbet game:<Ride the Bus> amount:<int>`
-- Roles: `/addmod user:<@User>`, `/removemod user:<@User>`, `/addadmin user:<@User>`, `/removeadmin user:<@User>`
-- Job tools (admin): `/job reset user:<@User>`, `/job resetstats user:<@User>`
-- Maintenance (OWNER): `/resetallbalance`
-- Hold’em table (admin): `/setrake percent:<number> [cap:<int>]`
- - Setup: `/setcasinocategory category:<#Category>`
-
-## Sessions & Timeouts
-
-- Active sessions expire after 2 minutes of inactivity; the last session message is replaced with a summary card. Game logs are posted to the configured channel.
-- Roulette/Slots/Blackjack/RideBus/Dice War/HorseRace sessions track games played and net; RideBus/Blackjack burn any Credits stake on expiration.
-
-Tip: Dice War “Play Again” is only available to the original player and only while the session is active (within 2 minutes of the last action).
-
-## Requirements
-- Node.js 18+
-- A Discord application and bot token
-- A test guild (server) where you can register commands
- - Discord permissions: the bot needs, at minimum
-   - Manage Channels (to create/delete Hold’em table channels)
-   - View Channel and Send Messages (in game/log/cash/request channels)
-   - Read Message History and Embed Links recommended
-
-## Setup
-1. Copy `.env.example` to `.env` and fill values.
-2. Install dependencies: `npm install`
-3. Register slash commands globally: `npm run deploy`
-4. Start the bot: `npm start`
-5. As an admin, set the casino category: `/setcasinocategory category:<#Category>` and ensure the bot has the permissions above in that category.
-6. Remind moderators that all balances and job progress are shared globally—coordinate big payouts or resets across every server using the bot.
-
-## Environment
-See `.env.example` for all variables.
-
-Required
-- `DISCORD_TOKEN` – Your bot token
-- `CLIENT_ID` – Application (client) ID
-- `GUILD_ID` – Primary guild ID for database defaults and API helpers
-
-Optional (for OAuth login)
-- `DISCORD_CLIENT_ID` – OAuth client ID (defaults to `CLIENT_ID` if omitted)
-- `DISCORD_CLIENT_SECRET` – OAuth client secret used during code exchange
-- `DISCORD_REDIRECT_URI` – Callback URL Discord redirects to after login
-- `DISCORD_OAUTH_SCOPES` – Space-separated scopes (defaults to `identify`)
-- `AUTH_SESSION_SECRET` – HMAC secret for signing encrypted session cookies
-- `AUTH_SESSION_MAX_AGE` – Session lifetime in seconds (defaults to 7 days)
-- `AUTH_COOKIE_NAME` – Cookie name for the signed session (default `semuta_session`)
-- `AUTH_COOKIE_DOMAIN` – Domain attribute for the session cookie
-- `AUTH_COOKIE_SECURE` – Set `false` only for plain HTTP during local dev
-- `OAUTH_SUCCESS_REDIRECT` – URL to send users to after successful login
-- `OAUTH_FAILURE_REDIRECT` – URL for error cases (falls back to success URL)
-- `FRONTEND_BASE_URL` – Used as success redirect fallback
-- `CORS_ORIGINS` – Comma-separated list of origins allowed to send credentials
-
-### OAuth Endpoints
-- `GET /auth/discord` – Redirects users to Discord’s authorization page
-- `GET /auth/discord/callback` – Handles the OAuth code exchange, stores the session cookie, and redirects to the configured success URL
-- `POST /auth/logout` – Clears the session cookie
-- `GET /api/me` – Returns `{ authenticated: boolean, user: {...} }` so the front-end can display avatar and Discord ID
-
-Optional
-- `DB_PATH` – SQLite file path (default `./casino.db`)
-- `OWNER_USER_IDS` – Comma‑separated user IDs with OWNER override for maintenance commands
-- `ECONOMY_SCOPE` – Leave set to `global` (the economy is unified across every guild)
-- `GLOBAL_ECONOMY_ID` – Override the stored guild id used for the shared global economy (defaults to `GUILD_ID`)
-- `TOPGG_WEBHOOK_AUTH` – Shared secret for the Top.gg webhook endpoint (enables vote rewards)
-- `TOPGG_VOTE_URL` – Override the vote link shown in `/vote` (defaults to `https://top.gg/bot/<CLIENT_ID>/vote`)
-- `TOPGG_BOT_ID` – Bot ID for building the default Top.gg vote link (falls back to `CLIENT_ID`)
-- `TOPGG_API_TOKEN` – REST token from Top.gg; enables automatic server count posting
-- `TOPGG_POST_INTERVAL_SECONDS` – How often to push stats to Top.gg (defaults to 1800 seconds; minimum 300)
-- `DBL_VOTE_URL` – Override the DiscordBotList vote link shown in `/vote` (defaults to `https://discordbotlist.com/bots/<CLIENT_ID>/upvote`)
-- `DBL_BOT_ID` – Bot ID for building the default DiscordBotList vote link (falls back to `CLIENT_ID`)
-- `DBL_WEBHOOK_AUTH` – Shared secret for the DiscordBotList vote webhook endpoint
-- `DBL_VOTE_REWARD` – Chip reward per DiscordBotList vote (integer, default matches `VOTE_REWARD_TOPGG`)
-- `DBL_VOTE_REWARD_REASON` – Ledger reason to record for DiscordBotList rewards (default `discordbotlist vote reward`)
-- `VOTE_REWARD_TOPGG` – Base chip reward per Top.gg vote (integer, default 150)
-- `VOTE_REWARD_TOPGG_WEEKEND_MULTIPLIER` – Weekend multiplier for Top.gg votes (number, default 2)
-- `TOPGG_ALLOW_TEST_VOTES` – Set to `true` to reward Top.gg “test” webhook deliveries when debugging
-- `VOTE_EXTRA_LINKS` – JSON or comma `Label|https://url` list of additional vote buttons to display in `/vote`
-- `VOTE_REWARD_AUTO_GUILD_ID` – Guild ID tied to the shared global ledger for vote rewards (defaults to `PRIMARY_GUILD_ID`/`GUILD_ID`)
-- `VOTE_REWARD_AUTO_INTERVAL_MS` – Interval for the bot to sweep pending vote rewards (default 15000)
-- `VOTE_REWARD_AUTO_BATCH_LIMIT` – Max distinct users processed per sweep (default 25)
-- `VOTE_REWARD_REASON` – Custom ledger reason when minting vote rewards (default `vote reward`)
-- `VOTE_AUTO_REDEEM` – Set to `false` to disable automatic crediting/DMs (the `/vote` command will still show links)
-
-Tip: verify env parsing with `npm run env`.
-
-## Access Control
-
-- Moderators and admins are tracked by user ID per guild. Use `/addmod user:<@User>` and `/removemod user:<@User>` to manage moderators.
-- Admins are managed with `/addadmin user:<@User>` and `/removeadmin user:<@User>`; admins automatically enjoy moderator privileges.
-- Users listed in `OWNER_USER_IDS` are treated as admins everywhere, providing a recovery path if no administrators remain.
-- All economy commands (chip grants, requests, resets) act on the shared global ledger—coordinate across servers before running high-impact actions.
-
-## Data Erasure Workflow
-
-- Players start `/request type:Erase Account Data notes:<reason>` from any guild. Validation notes are mandatory; without them the command is rejected.
-- Configure the primary review guild via `PRIMARY_GUILD_ID` (falls back to `GUILD_ID`) and `/setrequestchannel` in that guild — all erasure tickets are posted there regardless of origin.
-- Staff click **Take Request** to claim the ticket, confirm the user’s identity, then press **Erase User Data**. The bot purges ledger balances, requests, vote rewards, job profiles, daily spin history, Hold’em escrow/commits, moderator/admin assignments, and deletes transaction rows where the user was the account (admin IDs are anonymised to `NULL`).
-- The embed records how many rows were deleted or anonymised and the requester receives an automatic DM confirming completion.
-- If the request is invalid, use **Reject Request** with a reason; the user is notified and the cooldown resets so they can refile when ready.
-
-## Scripts
-- `npm start` – Run the bot (`src/index.mjs`)
-- `npm run deploy` – Register global slash commands (set `CLEAR_GUILD_IDS` to a comma list to wipe guild overrides)
-- `npm run env` – Print a redacted snapshot of env values
-- `npm run api:keys` – Manage HTTP API keys (create/list/delete)
-- `npm run restart` – Re-deploy commands and restart a managed process (systemd/PM2)
-- `npm run updatepush` – Post the pending changes in `UPDATE.md` to every configured update channel, bump the bot version, and reset `UPDATE.md`
-
-### Release Workflow
-- Add release notes as `-` bullets in `UPDATE.md` under the “Changes” heading; keep the `version:` line in sync with the version you intend to announce.
-- Ensure each guild that should receive announcements has `/setupdatech` configured and the bot retains `View Channel`/`Send Messages` in that channel.
-- Run `npm run updatepush` to send the full `UPDATE.md` text (with an `@everyone` mention and the install link appended automatically), bump the patch version in `package.json`, and reset `UPDATE.md` for the next cycle.
-
-## Updating Commands
-- After changing slash commands in `src/cli/deploy-commands.mjs`, run `npm run deploy` to push updates globally. To remove old guild-scoped copies, run `CLEAR_GUILD_IDS=<guildId,...> npm run deploy` once.
-- Restart the bot only if you changed runtime logic (e.g., `src/index.mjs`).
-- Discord may take up to an hour to propagate global updates.
-
-## Restarting for Updates
-- Shortcut: `npm run restart` (uses systemd service `discord-casino` by default; override with `npm run restart -- my-service` or `SERVICE_NAME=my-service npm run restart`).
-- Local/dev: stop the running process (Ctrl+C) and run `npm start` again.
-- PM2: `pm2 restart discord-casino` (or `pm2 start npm --name "discord-casino" -- run start`).
-- systemd: `sudo systemctl restart discord-casino` (service name may vary).
-- Docker: rebuild the image and recreate the container (e.g., `docker compose up -d --build`).
-
-Tip: add a sudoers rule to avoid password prompts for restarts (edit with `sudo visudo`):
-
-```
-bot ALL=NOPASSWD: /bin/systemctl restart discord-casino, /bin/systemctl start discord-casino, /bin/systemctl status discord-casino
-```
-
-Adjust the username and service as needed.
-
-## Notes
-- Commands are registered globally (see `src/cli/deploy-commands.mjs`). Expect up to an hour for propagation.
-- SQLite runs in WAL mode; the DB file is `casino.db` by default. Avoid committing `.env`, `casino.db*`, and any `*.bak` files.
-- `/setcasinocategory` is the canonical casino category command.
-
-### Security
-- Treat `.env` (and any JSON credential files) as secrets: rotate your Discord bot token immediately if it’s ever checked into Git or shared.
-- Run `npm run api:keys` to manage API tokens; rotate and delete unused tokens regularly.
-
-### DigitalOcean Postgres (managed)
-- Grab the connection string and CA certificate from the DigitalOcean control panel (Databases → your cluster → `Connection details`). Save the certificate as `./do-root-ca.crt` (or similar).
-- Update `.env` with `DB_DRIVER=pg`, `DATABASE_URL=<digitalocean URL>`, `PGSSLMODE=require`, and either `DATABASE_CA_CERT_PATH=./do-root-ca.crt` or paste the certificate into `DATABASE_CA_CERT`.
-- Run `npm run sql:migrate` after setting `DATABASE_URL` to initialize the schema remotely. No proxy or extra daemon is required—the bot connects directly over TLS.
-
-### Run the bot as a systemd service
-1) Copy the unit file and enable it:
-   - `sudo cp scripts/systemd/discord-casino.service /etc/systemd/system/discord-casino.service`
-   - `sudo systemctl daemon-reload`
-   - `sudo systemctl enable --now discord-casino`
-2) Check status and logs:
-   - `systemctl status discord-casino`
-   - `journalctl -u discord-casino -f`
-3) Ensure your `.env` contains required vars (see `.env.example`):
-   - `DISCORD_TOKEN`, `CLIENT_ID`, `GUILD_ID`, etc.
-   - For Postgres: `DB_DRIVER=pg`, `DATABASE_URL=...`, `PGSSLMODE=require`, and your DigitalOcean CA certificate (`DATABASE_CA_CERT_PATH` or `DATABASE_CA_CERT`).
-
-## HTTP API
-
-Optional Express API (`src/api/server.mjs`) for integrations (dashboards, partner tools). Uses bearer token auth, scopes, and basic hardening (helmet, CORS, rate limit).
-
-Auth
-- Header: `Authorization: Bearer <token>`
-- Manage tokens with CLI: `npm run api:keys`
-  - Create: `node src/api/cli.mjs create --guild <GUILD_ID> --scopes chips:grant,settings:write`
-  - List: `node src/api/cli.mjs list [--guild <GUILD_ID>]`
-  - Delete: `node src/api/cli.mjs delete --token <token>`
-
-Scopes
-- `chips:grant`, `chips:take`, `chips:burn`, `house:add`
-- `credit:grant`, `credit:burn`
-- `settings:write`
-
-Endpoints (v1)
-- `GET /api/v1/ping` – Health check
-- `GET /api/v1/guilds/:guildId/users/:discordId/balance` – Get a user’s balances
-- `POST /api/v1/guilds/:guildId/users/:discordId/chips/grant` – Grant chips (scope: `chips:grant`)
-- `POST /api/v1/guilds/:guildId/users/:discordId/chips/take` – Take chips to house (scope: `chips:take`)
-- `POST /api/v1/guilds/:guildId/users/:discordId/chips/burn` – Burn chips (scope: `chips:burn`)
-- `POST /api/v1/guilds/:guildId/house/add` – Add chips to house (scope: `house:add`)
-- `POST /api/v1/guilds/:guildId/users/:discordId/credits/grant` – Grant Credits (scope: `credit:grant`)
-- `POST /api/v1/guilds/:guildId/users/:discordId/credits/burn` – Burn Credits (scope: `credit:burn`)
-- `POST /api/v1/guilds/:guildId/ridebus/max-bet` – Set Ride the Bus max bet (scope: `settings:write`)
-
-All write endpoints require the `:guildId` in the URL to match the API key’s guild.
-
-Example
-
-```
-curl -X POST \
-  -H "Authorization: Bearer $TOKEN" \
-  -H 'Content-Type: application/json' \
-  -d '{"amount": 500, "reason": "welcome"}' \
-  http://localhost:3000/api/v1/guilds/$GUILD_ID/users/123456789012345678/chips/grant
-```
-
-Run locally: `node src/api/server.mjs` (port `3000` by default; override with `PORT`).
-
-# List of services
-systemctl list-units --type=service | grep casino
-
-# Restart the service
-sudo systemctl restart your-service-name.service
-
-# Optional: check status/logs
-sudo systemctl status your-service-name.service
-journalctl -u your-service-name.service -f
+# Semuta Casino — Discord Casino Bot
+
+Bring a living casino floor to your Discord server. Semuta’s shared house vault, interactive slash commands, and global ledgers mean your chips, credits, and job ranks follow you anywhere the bot is invited.
+
+- **Invite link:** https://discord.com/oauth2/authorize?client_id=1415454565687492780
+- **Supported tiers:** Works in any community that wants casino-style games, daily rewards, and lightweight roleplay jobs.
+- **No setup drama:** Once staff pick a casino category, players can run every command themselves—no prefixes, just `/play`.
+
+---
+
+## Jump In
+1. Invite the bot with the link above and hop into your server’s casino channels.
+2. Type `/balance` to see your starting stack, `/dailyspin` for a free wheel, and `/vote` if you want extra chips right away.
+3. Start a minigame (`/blackjack`, `/slots`, `/ridebus`, `/roulette`, `/horserace`, `/holdem`, `/dicewar`) or clock into `/job` for a shift.
+4. Track your progress with `/leaderboard`, check `/job stats`, and cash out or buy in with `/request` when you need staff attention.
+
+Everything runs through slash commands with responsive embeds, timers, and “play again” buttons, so you always know what’s happening.
+
+---
+
+## Shared Economy Basics
+- **Chips** are the main payout currency. Wins land in chips straight from the Semuta House vault.
+- **Credits** are your personal stake. Games always burn credits first on losses, then chips if needed.
+- **Global ledger:** Your wallet, job data, and achievements sync instantly across every guild using the bot. Jump servers without losing progress.
+- **Coverage checks:** The house won’t start a session unless it can pay the maximum possible win, so you never worry about IOUs.
+
+### Easy Ways to Earn
+- `/dailyspin` — Free reward wheel every 24 hours, with jackpots in chips.
+- `/vote` — Support the bot on Top.gg/DiscordBotList and get automatic chip drops via DM.
+- `/job` — Work interactive shifts (Dealer, Bartender, Bouncer, and more). Good runs pay chips, XP, and streak bonuses.
+- `/request type:buyin amount:<chips>` — Ask moderators for a manual bankroll when events call for it.
+
+---
+
+## Casino Floor Highlights
+All games (besides Hold’em buy-ins) use credits-first staking and pay chips on wins. Sessions time out after two minutes of inactivity, swapping your message with a recap.
+
+- **Ride the Bus** — Clear four card prompts to earn up to 10× your bet. Cash out after the third round if you’re nervous.
+- **Blackjack** — Two tables (Low stakes S17, High stakes H17). Split, double, and beat the house with slick reactions and H/ S text guidance.
+- **Slots** — 5×3 video slot with 20 fixed lines, wilds, scatters, and quick “Spin Again” buttons.
+- **Roulette (American)** — Stack inside/outside bets, confirm the board, and watch a detailed reveal that breaks down every wager.
+- **Dice War** — Roll 2d6 vs. the house. Win with doubles and your payout doubles too.
+- **Horse Race** — Bet on five horses sprinting over ten stages. Animated embeds narrate the countdown, swap fees, and final placements.
+- **Texas Hold’em** — Host a full table with auto-created channels, private cards, turn timers, side pots, and rake tracking. Presets (1/2, 5/10, 20/40) or custom blinds supported.
+
+Need channel structure? Staff run `/setcasinocategory` once and the bot enforces that games stay inside those channels. Hold’em tables spawn temporary text channels there and clean themselves up when idle.
+
+---
+
+## Jobs & Long-Term Progression
+- Run `/job` anywhere to open the Semuta Career Board. Stamina, cooldowns, and XP sync globally.
+- Each shift is a short interactive scenario. Answer before the timer expires to keep your streak alive.
+- Stamina caps at five charges; you regenerate one every two hours. Finishing five shifts triggers a short rest before you can grind again.
+- XP ranks unlock better chip bonuses. `/job stats` shows your history, ranks, and timers (yours or a friend’s).
+- Staff helpers get `/job reset` (refill stamina) and `/job resetstats` for appeals—but the default flow keeps progress honest.
+
+---
+
+## Requests, Cash Outs, and Logs
+- **Player requests:** `/request type:<Buy In|Cash Out|Erase Account Data> ...` Posts a detailed ticket in the primary review guild so staff can approve it. Optional timers keep spam down.
+- **Channels:** `/setrequestchannel`, `/setcashlog`, and `/setgamelogchannel` route tickets, withdrawals, and session summaries where your community can review them.
+- **Leaderboards:** `/leaderboard [limit]` shows global chip whales. `/stafflist` lists the humans you can ping for help.
+
+When you ask for a data wipe, staff use secure buttons to purge balances, job stats, requests, vote history, and table escrow everywhere—then you get an automatic DM confirming the wipe.
+
+---
+
+## Commands You’ll Actually Use
+- `/help` — In-Discord command index and explanations.
+- `/balance [user]` — Peek at your wallet or flex on friends.
+- `/dailyspin` / `/vote` — Consistent passive income.
+- `/job`, `/job start job:<id>`, `/job cancel`, `/job stats [user]` — Manage shifts, stamina, and bragging rights.
+- Gameplay: `/ridebus`, `/blackjack`, `/slots`, `/roulette`, `/horserace`, `/holdem`, `/dicewar`.
+- `/request type:<Buy In|Cash Out|Erase Account Data>` — Work directly with staff for bankroll moves or privacy actions.
+- `/housebalance`, `/givechips`, `/setmaxbet`, `/setrake`, etc. remain available to moderators/admins, but regular players never need to touch them.
+
+---
+
+## Fair Play & Safety
+- Sessions auto-close after two minutes of silence so stale bets never linger.
+- Every payout, request, and job result writes to shared log channels. Communities can audit the action whenever they like.
+- Unicode-only buttons and icons keep interactions consistent across guilds, devices, and themes.
+- Privacy-first workflow: Erasure requests scrub your ledger data, job records, daily spins, vote rewards, table escrows, and staff roles across every server synchronized with the bot.
+
+---
+
+## Need Help?
+- Ping a staff member listed in `/stafflist` or use `/request` to open a ticket in the Semuta hub.
+- Want to check uptime or recent changes? Servers configured with `/setupdatech` receive patch notes straight from `UPDATE.md` whenever the owner runs the broadcast script.
+- Bugs or ideas? Drop them where your community collects feedback—the Semuta team watches the global ledger for anything suspicious, but moderators remain your first contact.
+
+Pull up a chair, set your status to “In the Casino,” and let Semuta’s Discord Casino Bot keep the cards, wheels, and job boards spinning 24/7. Good luck at the tables!
