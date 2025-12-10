@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 import {
   EmbedBuilder,
+  AttachmentBuilder,
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
@@ -16,6 +17,7 @@ import {
   calculateSemutaMarketPrices,
   cartelCollect,
   cartelAbandon,
+  cartelExportWarehouse,
   listUserDealers,
   hireCartelDealer,
   payCartelDealerUpkeep,
@@ -55,6 +57,7 @@ import {
   SEMUTA_CARTEL_USER_ID
 } from '../cartel/constants.mjs';
 import { xpToNextForRank } from '../cartel/progression.mjs';
+import { renderWarehouseImage } from '../cartel/warehouseImage.mjs';
 
 const gramsFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
 const percentFormatter = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
@@ -111,6 +114,13 @@ const CARTEL_SHARE_ORDER_MODAL_ID = 'cartel|shares|order|modal';
 const CARTEL_SHARE_ORDER_MODAL_SHARES_INPUT = 'cartel|shares|order|shares';
 const CARTEL_SHARE_ORDER_MODAL_PRICE_INPUT = 'cartel|shares|order|price';
 const CARTEL_SHARE_ORDER_CANCEL_BUTTON_ID = 'cartel|shares|order|cancel';
+const CARTEL_WAREHOUSE_VIEW_ID = 'cartel|warehouse|view';
+const CARTEL_WAREHOUSE_BURN_BUTTON_ID = 'cartel|warehouse|burn';
+const CARTEL_WAREHOUSE_BURN_CONFIRM_ID = 'cartel|warehouse|burn|confirm';
+const CARTEL_WAREHOUSE_BURN_CANCEL_ID = 'cartel|warehouse|burn|cancel';
+const CARTEL_WAREHOUSE_EXPORT_BUTTON_ID = 'cartel|warehouse|export';
+const CARTEL_WAREHOUSE_EXPORT_MODAL_ID = 'cartel|warehouse|export|modal';
+const CARTEL_WAREHOUSE_EXPORT_MODAL_INPUT_ID = 'cartel|warehouse|export|amount';
 const DEALER_NAME_CACHE_TTL_MS = 10 * 60 * 1000;
 const dealerRecruitmentNameCache = new Map();
 const SEMUTA_IMAGE_NAME = 'semuta_cartel.png';
@@ -242,6 +252,36 @@ async function buildOverviewPayload(interaction, ctx) {
     embeds: [buildOverviewEmbed(overview, chipsFmt)],
     components: buildOverviewComponents('overview'),
     files: [buildSemutaImageAttachment()]
+  };
+}
+
+async function buildWarehousePayload(interaction, ctx) {
+  const chipsFmt = getChipsFormatter(ctx);
+  const overview = await getCartelOverview(interaction.guild?.id, interaction.user.id);
+  let warehouseAttachment = null;
+  const fileName = `cartel-warehouse-${interaction.user?.id || 'player'}.png`;
+  try {
+    const buffer = await renderWarehouseImage({
+      warehouseGrams: Number(overview?.metrics?.warehouseGrams || 0)
+    });
+    if (buffer?.length) {
+      warehouseAttachment = new AttachmentBuilder(buffer, { name: fileName });
+    }
+  } catch (err) {
+    console.error('Failed to render warehouse image', err);
+  }
+  const embed = buildWarehouseEmbed(overview, chipsFmt);
+  const files = [];
+  if (warehouseAttachment) {
+    embed.setImage(`attachment://${fileName}`);
+    files.push(warehouseAttachment);
+  }
+  embed.setThumbnail(`attachment://${SEMUTA_IMAGE_NAME}`);
+  files.push(buildSemutaImageAttachment());
+  return {
+    embeds: [embed],
+    components: buildOverviewComponents('warehouse'),
+    files
   };
 }
 
@@ -570,7 +610,8 @@ function buildOverviewEmbed(overview, chipsFmt) {
       name: 'Inventory',
       value: joinSections([
         `${emoji('semuta')} Stash: **${gramsFormatter.format(metrics.stashGrams)}g of Semuta** / ${gramsFormatter.format(metrics.stashCapGrams)}g of Semuta cap`,
-        `${emoji('vault')} Warehouse (overflow): **${gramsFormatter.format(metrics.warehouseGrams)}g of Semuta**`
+        `${emoji('vault')} Warehouse (overflow): **${gramsFormatter.format(metrics.warehouseGrams)}g of Semuta**`,
+        `${emoji('sparkles')} Sale multiplier: **+${percentFormatter.format(metrics.saleMultiplierPercent || 0)}%** on Semuta sells`
       ])
     },
     {
@@ -590,6 +631,28 @@ function buildOverviewEmbed(overview, chipsFmt) {
     .setDescription(description)
     .addFields(...withSectionDividers(fields))
     .setFooter({ text: 'Grow your Semuta stash, then sell the pale blue crystals for passive chips.' });
+}
+
+function buildWarehouseEmbed(overview, chipsFmt) {
+  const metrics = overview?.metrics || {};
+  const details = [
+    `${emoji('semuta')} Stash: **${gramsFormatter.format(metrics.stashGrams)}g** / ${gramsFormatter.format(metrics.stashCapGrams)}g cap`,
+    `${emoji('vault')} Warehouse: **${gramsFormatter.format(metrics.warehouseGrams)}g** overflow`,
+    `${emoji('sparkles')} Sale multiplier: **+${percentFormatter.format(metrics.saleMultiplierPercent || 0)}%** on Semuta sells`
+  ];
+  const tipLines = [
+    `${emoji('info')} Burn overflow for free or collect it (fee applies) once you have chips ready.`,
+    `${emoji('rocket')} Export to the cartel for a permanent +1% sale bonus per 1,000g shipped.`
+  ];
+  return new EmbedBuilder()
+    .setColor(0x8e44ad)
+    .setTitle(`${emoji('vault')} Overflow Warehouse`)
+    .setDescription(details.join('\n'))
+    .addFields({
+      name: 'Tips',
+      value: tipLines.join('\n')
+    })
+    .setFooter({ text: 'Manage overflow to keep production flowing without wasting Semuta.' });
 }
 
 function buildCartelSharesEmbed(overview, chipsFmt, { maintenance = false, includeSnapshot = true } = {}) {
@@ -1067,6 +1130,34 @@ function buildOverviewComponents(mode = 'overview') {
     .setEmoji(mode === 'overview' ? '📊' : '↩️')
     .setStyle(ButtonStyle.Secondary);
   const rows = [new ActionRowBuilder().addComponents(primary, secondary)];
+
+  if (mode === 'warehouse') {
+    rows.push(
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(CARTEL_WAREHOUSE_BURN_BUTTON_ID)
+          .setLabel('Burn Warehouse')
+          .setEmoji('🔥')
+          .setStyle(ButtonStyle.Danger),
+        new ButtonBuilder()
+          .setCustomId(CARTEL_WAREHOUSE_EXPORT_BUTTON_ID)
+          .setLabel('Export Warehouse')
+          .setEmoji('📤')
+          .setStyle(ButtonStyle.Secondary)
+      )
+    );
+    rows.push(
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(CARTEL_GUIDE_BUTTON_ID)
+          .setLabel('Guide')
+          .setEmoji('📘')
+          .setStyle(ButtonStyle.Secondary)
+      )
+    );
+    return rows;
+  }
+
   const navRow = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId(CARTEL_SHARES_VIEW_ID)
@@ -1094,15 +1185,33 @@ function buildOverviewComponents(mode = 'overview') {
         .setStyle(ButtonStyle.Secondary)
     )
   );
-  rows.push(
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(CARTEL_GUIDE_BUTTON_ID)
-        .setLabel('Guide')
-        .setEmoji('📘')
-        .setStyle(ButtonStyle.Secondary)
-    )
-  );
+  if (mode === 'overview') {
+    rows.push(
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(CARTEL_WAREHOUSE_VIEW_ID)
+          .setLabel('Visit Overflow Warehouse')
+          .setEmoji('🏭')
+          .setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId(CARTEL_GUIDE_BUTTON_ID)
+          .setLabel('Guide')
+          .setEmoji('📘')
+          .setStyle(ButtonStyle.Secondary)
+      )
+    );
+  } else {
+    rows.push(
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(CARTEL_GUIDE_BUTTON_ID)
+          .setLabel('Guide')
+          .setEmoji('📘')
+          .setStyle(ButtonStyle.Secondary)
+      )
+    );
+  }
+
   return rows;
 }
 
@@ -1159,6 +1268,7 @@ function buildCartelGuideEmbed(overview = null, chipsFmt = amount => `${amount} 
         `${emoji('alarmClock')} Tap **Refresh** whenever you return—ticks hit roughly every ${tickLabel}, so numbers move fast.`,
         `${emoji('bell')} Opening the **Posts** tab after a break drops a recap for orders that filled while you were away.`,
         `${emoji('shield')} Overflow never decays; leave it parked until you can afford the **${warehouseFeePercent}%** collection fee.`,
+        `${emoji('sparkles')} Export overflow from the warehouse to burn Semuta for a permanent +1% sale bonus per 1,000g.`,
         `${emoji('hammerWrench')} Admins can live-tune share price, share rate, and XP with \`/setcartelshare\`, \`/setcartelrate\`, and \`/setcartelxp\`.`
       ])
     }
@@ -1195,6 +1305,12 @@ function gramsToMg(grams) {
   const value = Number(grams);
   if (!Number.isFinite(value) || value <= 0) return 0;
   return Math.max(0, Math.floor(value * MG_PER_GRAM));
+}
+
+function roundDownToThousandGrams(grams) {
+  const numeric = Math.floor(Math.max(0, Number(grams || 0)));
+  if (numeric < 1000) return 0;
+  return Math.floor(numeric / 1000) * 1000;
 }
 
 function trimDealerName(name) {
@@ -1765,6 +1881,218 @@ export async function handleCartelGuide(interaction, ctx) {
       await interaction.editReply({ content, components: [], embeds: [] }).catch(() => {});
     } else {
       await interaction.reply(withAutoEphemeral(interaction, { content })).catch(() => {});
+    }
+  }
+}
+
+export async function handleCartelWarehouseView(interaction, ctx) {
+  const allowed = await ensureCartelAccess(interaction, ctx);
+  if (!allowed) return;
+  try {
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferUpdate();
+    }
+  } catch {}
+  try {
+    const payload = await buildWarehousePayload(interaction, ctx);
+    await interaction.editReply(payload);
+  } catch (error) {
+    console.error('Cartel warehouse view failed', error);
+    const content = '⚠️ Failed to load the overflow warehouse. Please try again.';
+    if (interaction.deferred || interaction.replied) {
+      await interaction.editReply({ content, components: [], embeds: [] }).catch(() => {});
+    } else {
+      await interaction.reply(withAutoEphemeral(interaction, { content })).catch(() => {});
+    }
+  }
+}
+
+export async function handleCartelWarehouseBurnPrompt(interaction, ctx) {
+  const allowed = await ensureCartelAccess(interaction, ctx);
+  if (!allowed) return;
+  try {
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferUpdate();
+    }
+  } catch {}
+  try {
+    const overview = await getCartelOverview(interaction.guild?.id, interaction.user.id);
+    const warehouseGrams = Math.max(0, Number(overview?.metrics?.warehouseGrams || 0));
+    if (warehouseGrams <= 0) {
+      await interaction.followUp(withAutoEphemeral(interaction, {
+        content: `${emoji('info')} Your warehouse is already empty.`
+      })).catch(() => {});
+      return;
+    }
+    const confirmRow = new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(`${CARTEL_WAREHOUSE_BURN_CONFIRM_ID}|${interaction.message?.id || '0'}`)
+        .setLabel('Burn Everything')
+        .setEmoji('🔥')
+        .setStyle(ButtonStyle.Danger),
+      new ButtonBuilder()
+        .setCustomId(CARTEL_WAREHOUSE_BURN_CANCEL_ID)
+        .setLabel('Cancel')
+        .setStyle(ButtonStyle.Secondary)
+    );
+    const description = `${emoji('fire')} Burn **${gramsFormatter.format(warehouseGrams)}g** of Semuta overflow? This cannot be undone.`;
+    await interaction.followUp(withAutoEphemeral(interaction, {
+      content: description,
+      components: [confirmRow]
+    })).catch(() => {});
+  } catch (error) {
+    await notifyCartelButtonError(interaction, error);
+  }
+}
+
+export async function handleCartelWarehouseBurnConfirm(interaction, ctx, sourceMessageId = '0') {
+  const allowed = await ensureCartelAccess(interaction, ctx, { sourceMessageId });
+  if (!allowed) return;
+  try {
+    await interaction.deferUpdate();
+  } catch {}
+  try {
+    const overview = await getCartelOverview(interaction.guild?.id, interaction.user.id);
+    const warehouseMg = Math.max(0, Number(overview?.investor?.warehouse_mg || 0));
+    if (warehouseMg <= 0) {
+      await interaction.editReply({ content: `${emoji('info')} Your warehouse is already empty.`, components: [] }).catch(() => {});
+      return;
+    }
+    const grams = mgToGrams(warehouseMg);
+    const result = await cartelAbandon(interaction.guild?.id, interaction.user.id, grams);
+    await interaction.editReply({
+      content: `${emoji('fire')} Burned **${gramsFormatter.format(result.burnedGrams)}g** of Semuta.`,
+      components: []
+    }).catch(() => {});
+    const targetMessage = await fetchMessageById(interaction, sourceMessageId);
+    const payload = await buildWarehousePayload(interaction, ctx);
+    if (targetMessage) {
+      await applyOverviewToMessage(targetMessage, payload);
+    }
+    await logCartelActivity(
+      interaction,
+      `Burned ${gramsFormatter.format(result.burnedGrams)}g of Semuta from warehouse.`
+    );
+  } catch (error) {
+    console.error('Cartel warehouse burn confirm failed', error);
+    await interaction.editReply({
+      content: '⚠️ Failed to burn the warehouse. Please try again.',
+      components: []
+    }).catch(() => {});
+  }
+}
+
+export async function handleCartelWarehouseBurnCancel(interaction) {
+  try {
+    await interaction.update({ content: 'Burn cancelled.', components: [] });
+  } catch (err) {
+    console.error('Cartel warehouse burn cancel failed', err);
+  }
+}
+
+export async function handleCartelWarehouseExport(interaction, ctx) {
+  const allowed = await ensureCartelAccess(interaction, ctx);
+  if (!allowed) return;
+  try {
+    const overview = await getCartelOverview(interaction.guild?.id, interaction.user.id);
+    const warehouseGrams = Math.max(0, Number(overview?.metrics?.warehouseGrams || 0));
+    if (warehouseGrams <= 0) {
+      await interaction.followUp(withAutoEphemeral(interaction, {
+        content: `${emoji('info')} Your warehouse is empty—nothing to export.`
+      })).catch(() => {});
+      return;
+    }
+    const modal = new ModalBuilder()
+      .setCustomId(`${CARTEL_WAREHOUSE_EXPORT_MODAL_ID}|${interaction.message?.id || '0'}`)
+      .setTitle('Export Semuta Overflow');
+    const input = new TextInputBuilder()
+      .setCustomId(CARTEL_WAREHOUSE_EXPORT_MODAL_INPUT_ID)
+      .setLabel('Semuta to export (grams or ALL)')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('Example: 5000 or ALL (rounded to 1,000g)')
+      .setRequired(true);
+    modal.addComponents(new ActionRowBuilder().addComponents(input));
+    await interaction.showModal(modal);
+  } catch (error) {
+    await notifyCartelButtonError(interaction, error);
+  }
+}
+
+export async function handleCartelWarehouseExportModal(interaction, ctx, sourceMessageId = '0') {
+  const allowed = await ensureCartelAccess(interaction, ctx, { sourceMessageId });
+  if (!allowed) return;
+  try {
+    const rawValue = interaction.fields.getTextInputValue(CARTEL_WAREHOUSE_EXPORT_MODAL_INPUT_ID) || '';
+    const normalized = rawValue.trim();
+    if (!normalized) {
+      throw new CartelError('CARTEL_AMOUNT_REQUIRED', 'Enter how many grams to export or type ALL.');
+    }
+    const overview = await getCartelOverview(interaction.guild?.id, interaction.user.id);
+    const warehouseMg = Math.max(0, Number(overview?.investor?.warehouse_mg || 0));
+    if (warehouseMg <= 0) {
+      await interaction.reply(withAutoEphemeral(interaction, {
+        content: `${emoji('info')} Your warehouse is empty—there is nothing to export.`,
+        ephemeral: true
+      })).catch(() => {});
+      return;
+    }
+    const warehouseGrams = mgToGrams(warehouseMg);
+    let mgToExport = 0;
+    if (normalized.toLowerCase() === 'all') {
+      mgToExport = warehouseMg;
+    } else {
+      const cleaned = normalized.replace(/,/g, '');
+      const numeric = Number(cleaned);
+      if (!Number.isFinite(numeric) || numeric <= 0) {
+        throw new CartelError('CARTEL_AMOUNT_INVALID', 'Enter a positive number of grams or ALL.');
+      }
+      const rounded = roundDownToThousandGrams(numeric);
+      if (rounded <= 0) {
+        throw new CartelError('CARTEL_AMOUNT_TOO_LOW', 'Enter at least 1,000g to export (we round down to the nearest thousand).');
+      }
+      if (rounded > warehouseGrams) {
+        throw new CartelError(
+          'CARTEL_NOT_ENOUGH_WAREHOUSE',
+          `You only have ${gramsFormatter.format(warehouseGrams)}g of Semuta available to export.`
+        );
+      }
+      mgToExport = gramsToMg(rounded);
+    }
+    if (mgToExport <= 0) {
+      throw new CartelError('CARTEL_AMOUNT_TOO_LOW', 'Enter at least 1,000g to export.');
+    }
+    const result = await cartelExportWarehouse(interaction.guild?.id, interaction.user.id, mgToExport);
+    const exportedLabel = gramsFormatter.format(result.exportedGrams);
+    const gainedPercent = percentFormatter.format(result.bonusBps / 100);
+    const totalPercent = percentFormatter.format(result.totalMultiplierBps / 100);
+    const bonusLine = result.bonusBps > 0
+      ? `for a permanent **+${gainedPercent}%** sale bonus`
+      : 'without changing your sale bonus';
+    await interaction.reply(withAutoEphemeral(interaction, {
+      content: `${emoji('rocket')} Exported **${exportedLabel}g** of Semuta ${bonusLine} (now **+${totalPercent}%**).`,
+      ephemeral: true
+    })).catch(() => {});
+    const targetMessage = await fetchMessageById(interaction, sourceMessageId);
+    const payload = await buildWarehousePayload(interaction, ctx);
+    if (targetMessage) {
+      await applyOverviewToMessage(targetMessage, payload);
+    }
+    const activityLine = result.bonusBps > 0
+      ? `Exported ${exportedLabel}g of Semuta for +${gainedPercent}% sale multiplier (now +${totalPercent}%).`
+      : `Exported ${exportedLabel}g of Semuta (multiplier remains +${totalPercent}%).`;
+    await logCartelActivity(interaction, activityLine);
+  } catch (error) {
+    if (error instanceof CartelError) {
+      await interaction.reply(withAutoEphemeral(interaction, {
+        content: `⚠️ ${error.message}`,
+        ephemeral: true
+      })).catch(() => {});
+    } else {
+      console.error('Cartel warehouse export modal failed', error);
+      await interaction.reply(withAutoEphemeral(interaction, {
+        content: '⚠️ Failed to export Semuta. Please try again.',
+        ephemeral: true
+      })).catch(() => {});
     }
   }
 }

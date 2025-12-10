@@ -107,6 +107,12 @@ import cmdCartel, {
   handleCartelOverviewRefresh,
   handleCartelRankTable,
   handleCartelGuide,
+  handleCartelWarehouseView,
+  handleCartelWarehouseBurnPrompt,
+  handleCartelWarehouseBurnConfirm,
+  handleCartelWarehouseBurnCancel,
+  handleCartelWarehouseExport,
+  handleCartelWarehouseExportModal,
   handleCartelSharesView,
   handleCartelDealersView,
   handleCartelDealerHireTier,
@@ -1214,6 +1220,26 @@ client.on(Events.InteractionCreate, async interaction => {
       const ctx = buildCommandContext(interaction, ctxExtras);
       return handleCartelOverviewRefresh(interaction, ctx);
     }
+    else if (interaction.isButton() && interaction.customId === 'cartel|warehouse|view') {
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelWarehouseView(interaction, ctx);
+    }
+    else if (interaction.isButton() && interaction.customId === 'cartel|warehouse|burn') {
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelWarehouseBurnPrompt(interaction, ctx);
+    }
+    else if (interaction.isButton() && interaction.customId.startsWith('cartel|warehouse|burn|confirm|')) {
+      const messageId = interaction.customId.substring('cartel|warehouse|burn|confirm|'.length) || '0';
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelWarehouseBurnConfirm(interaction, ctx, messageId);
+    }
+    else if (interaction.isButton() && interaction.customId === 'cartel|warehouse|burn|cancel') {
+      return handleCartelWarehouseBurnCancel(interaction);
+    }
+    else if (interaction.isButton() && interaction.customId === 'cartel|warehouse|export') {
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelWarehouseExport(interaction, ctx);
+    }
     else if (interaction.isButton() && interaction.customId.startsWith('cartel|dealers|view|')) {
       const view = interaction.customId.split('|').pop();
       const ctx = buildCommandContext(interaction, ctxExtras);
@@ -1340,6 +1366,11 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 
     // Request reject modal submits
+    else if (interaction.isModalSubmit() && interaction.customId.startsWith('cartel|warehouse|export|modal|')) {
+      const messageId = interaction.customId.substring('cartel|warehouse|export|modal|'.length) || '0';
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelWarehouseExportModal(interaction, ctx, messageId);
+    }
     else if (interaction.isModalSubmit() && interaction.customId.startsWith('cartel|dealers|upkeep_modal|')) {
       const dealerId = interaction.customId.substring('cartel|dealers|upkeep_modal|'.length);
       const ctx = buildCommandContext(interaction, ctxExtras);

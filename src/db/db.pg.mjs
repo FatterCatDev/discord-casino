@@ -455,6 +455,9 @@ async function ensureCartelTables() {
   if (!(await tableHasColumn('cartel_dealers', 'chip_remainder_units'))) {
     await q('ALTER TABLE cartel_dealers ADD COLUMN chip_remainder_units BIGINT NOT NULL DEFAULT 0');
   }
+  if (!(await tableHasColumn('cartel_investors', 'sale_multiplier_bps'))) {
+    await q('ALTER TABLE cartel_investors ADD COLUMN sale_multiplier_bps BIGINT NOT NULL DEFAULT 0');
+  }
 }
 
 async function ensureBotStatusTable() {
@@ -825,6 +828,7 @@ function normalizeCartelInvestor(row) {
     warehouse_mg: Number(row.warehouse_mg || 0),
     rank: Math.max(1, Number(row.rank || 1)),
     rank_xp: Math.max(0, Number(row.rank_xp || 0)),
+    sale_multiplier_bps: Math.max(0, Number(row.sale_multiplier_bps || 0)),
     auto_sell_rule: row.auto_sell_rule ? safeParseJson(row.auto_sell_rule) : null,
     created_at: toEpochSeconds(row.created_at),
     updated_at: toEpochSeconds(row.updated_at)
@@ -1481,7 +1485,7 @@ export async function listCartelGuildIds() {
 export async function listCartelInvestors(guildId) {
   const gid = resolveGuildId(guildId);
   await ensureCartelPoolRow(gid);
-  const rows = await q('SELECT guild_id, user_id, shares, stash_mg, warehouse_mg, rank, rank_xp, auto_sell_rule, created_at, updated_at FROM cartel_investors WHERE guild_id = $1', [gid]);
+  const rows = await q('SELECT guild_id, user_id, shares, stash_mg, warehouse_mg, rank, rank_xp, auto_sell_rule, sale_multiplier_bps, created_at, updated_at FROM cartel_investors WHERE guild_id = $1', [gid]);
   return rows.map(normalizeCartelInvestor).filter(Boolean);
 }
 
@@ -1490,7 +1494,7 @@ export async function getCartelInvestor(guildId, userId) {
   const uid = String(userId || '').trim();
   if (!uid) return null;
   await ensureCartelInvestorRow(gid, uid);
-  const row = await q1('SELECT guild_id, user_id, shares, stash_mg, warehouse_mg, rank, rank_xp, auto_sell_rule, created_at, updated_at FROM cartel_investors WHERE guild_id = $1 AND user_id = $2', [gid, uid]);
+  const row = await q1('SELECT guild_id, user_id, shares, stash_mg, warehouse_mg, rank, rank_xp, auto_sell_rule, sale_multiplier_bps, created_at, updated_at FROM cartel_investors WHERE guild_id = $1 AND user_id = $2', [gid, uid]);
   return normalizeCartelInvestor(row);
 }
 
@@ -1537,7 +1541,7 @@ export async function cartelRemoveShares(guildId, userId, deltaShares) {
       'UPDATE cartel_investors SET shares = shares - $1, updated_at = NOW() WHERE guild_id = $2 AND user_id = $3',
       [shares, gid, uid]
     );
-    const next = await c.query('SELECT guild_id, user_id, shares, stash_mg, warehouse_mg, rank, rank_xp, auto_sell_rule, created_at, updated_at FROM cartel_investors WHERE guild_id = $1 AND user_id = $2', [gid, uid]);
+    const next = await c.query('SELECT guild_id, user_id, shares, stash_mg, warehouse_mg, rank, rank_xp, auto_sell_rule, sale_multiplier_bps, created_at, updated_at FROM cartel_investors WHERE guild_id = $1 AND user_id = $2', [gid, uid]);
     return normalizeCartelInvestor(next.rows[0]);
   });
 }
@@ -1566,6 +1570,33 @@ export async function cartelSetRankAndXp(guildId, userId, rank, rankXp) {
   await q(
     'UPDATE cartel_investors SET rank = $1, rank_xp = $2, updated_at = NOW() WHERE guild_id = $3 AND user_id = $4',
     [r, xp, gid, uid]
+  );
+  return getCartelInvestor(gid, uid);
+}
+
+export async function cartelSetSaleMultiplier(guildId, userId, multiplierBps) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) throw new Error('CARTEL_USER_REQUIRED');
+  const bps = Math.max(0, Math.floor(Number(multiplierBps || 0)));
+  await ensureCartelInvestorRow(gid, uid);
+  await q(
+    'UPDATE cartel_investors SET sale_multiplier_bps = $1, updated_at = NOW() WHERE guild_id = $2 AND user_id = $3',
+    [bps, gid, uid]
+  );
+  return getCartelInvestor(gid, uid);
+}
+
+export async function cartelAdjustSaleMultiplier(guildId, userId, deltaBps) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) throw new Error('CARTEL_USER_REQUIRED');
+  const delta = Math.floor(Number(deltaBps || 0));
+  if (!Number.isFinite(delta)) throw new Error('CARTEL_MULTIPLIER_DELTA_INVALID');
+  await ensureCartelInvestorRow(gid, uid);
+  await q(
+    'UPDATE cartel_investors SET sale_multiplier_bps = GREATEST(sale_multiplier_bps + $1, 0), updated_at = NOW() WHERE guild_id = $2 AND user_id = $3',
+    [delta, gid, uid]
   );
   return getCartelInvestor(gid, uid);
 }
@@ -1602,12 +1633,13 @@ export async function cartelResetInvestor(guildId, userId) {
           warehouse_mg = 0,
           rank = 1,
           rank_xp = 0,
+          sale_multiplier_bps = 0,
           auto_sell_rule = NULL,
           updated_at = NOW()
       WHERE guild_id = $1 AND user_id = $2
     `, [gid, uid]);
     await c.query('DELETE FROM cartel_dealers WHERE guild_id = $1 AND user_id = $2', [gid, uid]);
-    const next = await c.query('SELECT guild_id, user_id, shares, stash_mg, warehouse_mg, rank, rank_xp, auto_sell_rule, created_at, updated_at FROM cartel_investors WHERE guild_id = $1 AND user_id = $2', [gid, uid]);
+    const next = await c.query('SELECT guild_id, user_id, shares, stash_mg, warehouse_mg, rank, rank_xp, auto_sell_rule, sale_multiplier_bps, created_at, updated_at FROM cartel_investors WHERE guild_id = $1 AND user_id = $2', [gid, uid]);
     return normalizeCartelInvestor(next.rows[0]);
   });
 }

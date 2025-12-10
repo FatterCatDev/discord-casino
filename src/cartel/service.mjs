@@ -10,6 +10,7 @@ import {
   cartelRemoveShares,
   cartelSetHoldings,
   cartelSetRankAndXp,
+  cartelAdjustSaleMultiplier,
   cartelApplyProduction,
   cartelUpdatePoolTick,
   recordCartelTransaction,
@@ -145,6 +146,37 @@ function gramsToMg(grams) {
 
 function mgToGrams(mg) {
   return Number(mg || 0) / MG_PER_GRAM;
+}
+
+function saleMultiplierBpsForInvestor(investor) {
+  return Math.max(0, Number(investor?.sale_multiplier_bps || 0));
+}
+
+function applySaleMultiplierToChips(baseChips, investorOrBps) {
+  const chips = Math.max(0, Math.floor(Number(baseChips || 0)));
+  const multiplierBps = typeof investorOrBps === 'number'
+    ? Math.max(0, Math.floor(Number(investorOrBps || 0)))
+    : saleMultiplierBpsForInvestor(investorOrBps);
+  if (multiplierBps <= 0 || chips <= 0) {
+    return { total: chips, bonus: 0, multiplierBps };
+  }
+  const bonus = Math.floor((chips * multiplierBps) / 10_000);
+  return { total: chips + bonus, bonus, multiplierBps };
+}
+
+function combineDealerAndSaleMultiplier(dealerMultiplierBps, saleMultiplierBps) {
+  const dealerBps = Math.max(1, Math.floor(Number(dealerMultiplierBps || DEALER_PRICE_SCALE)));
+  const bonusBps = Math.max(0, Math.floor(Number(saleMultiplierBps || 0)));
+  return Math.floor((dealerBps * (10_000 + bonusBps)) / 10_000);
+}
+
+function warehouseExportBonusBps(mgAmount) {
+  const mg = Math.max(0, Math.floor(Number(mgAmount || 0)));
+  if (mg <= 0) return 0;
+  const mgPerThousandGrams = MG_PER_GRAM * 1000;
+  const units = Math.floor(mg / mgPerThousandGrams);
+  if (units <= 0) return 0;
+  return units * 100;
 }
 
 function sharePriceFromPool(pool) {
@@ -314,6 +346,8 @@ export async function getCartelOverview(guildId, userId) {
   const sharePrice = sharePriceFromPool(pool);
   const stashGrams = mgToGrams(investor.stash_mg);
   const warehouseGrams = mgToGrams(investor.warehouse_mg);
+  const saleMultiplierBps = saleMultiplierBpsForInvestor(investor);
+  const saleMultiplierPercent = saleMultiplierBps / 100;
   const nextTick = nextTickAt(pool);
   return {
     pool,
@@ -332,7 +366,9 @@ export async function getCartelOverview(guildId, userId) {
       perShareRateMg,
       xpPerGram: xpPerGramSold(pool),
       rankMultiplier,
-      shareMultiplier
+      shareMultiplier,
+      saleMultiplierBps,
+      saleMultiplierPercent
     },
     nextTickAt: nextTick
   };
@@ -714,7 +750,9 @@ export async function cartelSell(guildId, userId, grams) {
   if (currentStash < mgToSell) {
     throw new CartelError('CARTEL_NOT_ENOUGH_STASH', 'You do not have that much Semuta in your stash.');
   }
-  const payout = Math.floor((mgToSell / MG_PER_GRAM) * CARTEL_BASE_PRICE_PER_GRAM);
+  const basePayout = Math.floor((mgToSell / MG_PER_GRAM) * CARTEL_BASE_PRICE_PER_GRAM);
+  const payoutInfo = applySaleMultiplierToChips(basePayout, investor);
+  const payout = payoutInfo.total;
   const newStash = currentStash - mgToSell;
   const warehouse = Number(investor?.warehouse_mg || 0);
   await cartelSetHoldings(guildId, userId, newStash, warehouse);
@@ -731,7 +769,11 @@ export async function cartelSell(guildId, userId, grams) {
   const xpRate = xpPerGramSold(pool);
   const xpGain = Math.floor(gramsSold * xpRate);
   const rankState = await applyXpGain(guildId, investor, xpGain);
-  await recordCartelTransaction(guildId, userId, 'SELL', payout, mgToSell, { grams: gramsSold, pricePerGram: CARTEL_BASE_PRICE_PER_GRAM });
+  await recordCartelTransaction(guildId, userId, 'SELL', payout, mgToSell, {
+    grams: gramsSold,
+    pricePerGram: CARTEL_BASE_PRICE_PER_GRAM,
+    saleMultiplierBps: payoutInfo.multiplierBps
+  });
   return {
     gramsSold,
     payout,
@@ -779,7 +821,9 @@ export async function cartelPayoutReservedSale(guildId, userId, mgAmount) {
   const pool = await getCartelPool(guildId);
   let investor = await getCartelInvestor(guildId, userId);
   investor = await autoRankIfNeeded(guildId, investor);
-  const payout = Math.floor((mgToPayout / MG_PER_GRAM) * CARTEL_BASE_PRICE_PER_GRAM);
+  const basePayout = Math.floor((mgToPayout / MG_PER_GRAM) * CARTEL_BASE_PRICE_PER_GRAM);
+  const payoutInfo = applySaleMultiplierToChips(basePayout, investor);
+  const payout = payoutInfo.total;
   try {
     await transferFromHouseToUser(guildId, userId, payout, 'cartel sale (mini-game)');
   } catch (err) {
@@ -795,7 +839,8 @@ export async function cartelPayoutReservedSale(guildId, userId, mgAmount) {
   await recordCartelTransaction(guildId, userId, 'SELL', payout, mgToPayout, {
     grams: gramsSold,
     pricePerGram: CARTEL_BASE_PRICE_PER_GRAM,
-    mode: 'MINIGAME'
+    mode: 'MINIGAME',
+    saleMultiplierBps: payoutInfo.multiplierBps
   });
   return {
     gramsSold,
@@ -860,6 +905,41 @@ export async function cartelAbandon(guildId, userId, grams) {
   return { burnedGrams: mgToGrams(mgToBurn) };
 }
 
+export async function cartelExportWarehouse(guildId, userId, mgAmount = null) {
+  const investor = await getCartelInvestor(guildId, userId);
+  const currentWarehouse = Number(investor?.warehouse_mg || 0);
+  if (currentWarehouse <= 0) {
+    throw new CartelError('CARTEL_NOT_ENOUGH_WAREHOUSE', 'Not enough Semuta in the warehouse.');
+  }
+  let mgToExport = mgAmount == null ? currentWarehouse : Math.max(0, Math.floor(Number(mgAmount)));
+  if (mgToExport <= 0) {
+    throw new CartelError('CARTEL_AMOUNT_REQUIRED', 'Enter at least 1,000g of Semuta to export.');
+  }
+  if (mgToExport > currentWarehouse) {
+    throw new CartelError('CARTEL_NOT_ENOUGH_WAREHOUSE', 'You do not have that much Semuta in storage.');
+  }
+  const currentStash = Number(investor?.stash_mg || 0);
+  const newWarehouse = currentWarehouse - mgToExport;
+  await cartelSetHoldings(guildId, userId, currentStash, newWarehouse);
+  const bonusBps = warehouseExportBonusBps(mgToExport);
+  const updatedInvestor = bonusBps > 0
+    ? await cartelAdjustSaleMultiplier(guildId, userId, bonusBps)
+    : investor;
+  const totalMultiplierBps = saleMultiplierBpsForInvestor(updatedInvestor);
+  const exportedGrams = mgToGrams(mgToExport);
+  await recordCartelTransaction(guildId, userId, 'WAREHOUSE_EXPORT', 0, mgToExport, {
+    grams: exportedGrams,
+    multiplierBpsGained: bonusBps,
+    multiplierBpsTotal: totalMultiplierBps
+  });
+  return {
+    exportedMg: mgToExport,
+    exportedGrams,
+    bonusBps,
+    totalMultiplierBps
+  };
+}
+
 export async function runDealerAutoSales(
   guildId,
   nowSeconds = Math.floor(Date.now() / 1000),
@@ -909,9 +989,11 @@ export async function runDealerAutoSales(
       // Nothing left to move this tick; try again on the next pass.
       continue;
     }
-    const multiplierBps = Math.max(1, Number(dealer.price_multiplier_bps || DEALER_PRICE_SCALE));
+    const dealerMultiplierBps = Math.max(1, Number(dealer.price_multiplier_bps || DEALER_PRICE_SCALE));
+    const saleMultiplierBps = saleMultiplierBpsForInvestor(investor);
     const remainderUnits = Math.max(0, Math.floor(Number(dealer.chip_remainder_units || 0)));
-    const saleValueUnits = Math.floor(mgToSell) * CARTEL_BASE_PRICE_PER_GRAM * multiplierBps;
+    const effectiveMultiplierBps = combineDealerAndSaleMultiplier(dealerMultiplierBps, saleMultiplierBps);
+    const saleValueUnits = Math.floor(mgToSell) * CARTEL_BASE_PRICE_PER_GRAM * effectiveMultiplierBps;
     const totalValueUnits = remainderUnits + saleValueUnits;
     const payout = Math.floor(totalValueUnits / CHIP_VALUE_UNIT);
     const nextRemainderUnits = totalValueUnits - payout * CHIP_VALUE_UNIT;
