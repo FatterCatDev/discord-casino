@@ -659,7 +659,7 @@ function buildCartelSharesEmbed(overview, chipsFmt, { maintenance = false, inclu
   const { investor, metrics, totals, pool, nextTickAt } = overview;
   const sharePrice = Math.max(
     1,
-    Math.floor(Number(metrics?.sharePrice || pool?.share_price || CARTEL_DEFAULT_SHARE_PRICE))
+    Math.floor(Number(metrics?.floorSellPrice || metrics?.sharePrice || pool?.share_price || CARTEL_DEFAULT_SHARE_PRICE))
   );
   const perShareRate = gramsFormatter.format(mgToGrams(metrics?.perShareRateMg || 0));
   const nextTickLine = nextTickAt

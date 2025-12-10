@@ -378,6 +378,8 @@ export async function getCartelOverview(guildId, userId) {
   const stashGrams = mgToGrams(investor.stash_mg);
   const warehouseGrams = mgToGrams(investor.warehouse_mg);
   const saleMultiplierBps = saleMultiplierBpsForInvestor(investor);
+  const semutaMarketPrices = calculateSemutaMarketPrices(state?.pool?.total_shares || state?.totals?.shares || 0);
+  const floorSellPrice = Math.max(1, Number(semutaMarketPrices.sellPrice || sharePrice));
   const saleMultiplierPercent = saleMultiplierBps / 100;
   const nextTick = nextTickAt(pool);
   return {
@@ -394,6 +396,7 @@ export async function getCartelOverview(guildId, userId) {
       activeInvestors: state.activeInvestors.length,
       totalWeight: totalShares,
       sharePrice,
+      floorSellPrice,
       perShareRateMg,
       xpPerGram: xpPerGramSold(pool),
       rankMultiplier,

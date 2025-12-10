@@ -50,6 +50,23 @@ export default async function onBlackjackButtons(interaction, ctx) {
     return payload;
   };
   const updateMessage = (payload) => ctx.sendGameMessage(interaction, payload, 'update');
+  const renderBjView = async (embedOpts = {}) => {
+    const view = await ctx.bjEmbed(state, embedOpts);
+    const embed = view?.embed ?? view;
+    const files = Array.isArray(view?.files) ? view.files : [];
+    const extraEmbeds = Array.isArray(view?.extraEmbeds) ? view.extraEmbeds.filter(Boolean) : [];
+    return { embed, extraEmbeds, files };
+  };
+  const buildBjResponse = async (embedOpts = {}, componentsArg) => {
+    const view = await renderBjView(embedOpts);
+    const embeds = [];
+    if (view.embed) embeds.push(view.embed);
+    if (view.extraEmbeds?.length) embeds.push(...view.extraEmbeds);
+    const payload = { embeds: embeds.length ? embeds : [] };
+    if (componentsArg) payload.components = componentsArg;
+    if (view.files.length) payload.files = view.files;
+    return payload;
+  };
   if (action !== 'again' && action !== 'change') {
     if (!state) { cancelAutoAck(); return updateMessage(buildExpiredPayload()); }
     if (interaction.user.id !== state.userId) { return respondEphemeral({ content: '❌ Only the original player can use these buttons.' }); }
@@ -79,8 +96,10 @@ export default async function onBlackjackButtons(interaction, ctx) {
     const burned = await ctx.burnUpToCredits(state.userId, state.creditsStake, reason);
     ctx.addHouseNet(state.guildId, state.userId, 'blackjack', state.chipsStake);
     try { ctx.recordSessionGame(state.guildId, state.userId, -state.chipsStake - burned); } catch {}
-    const emb = await ctx.bjEmbed(state, { footer: 'You bust. Dealer wins.', color: 0xED4245 });
-    return updateMessage({ embeds: [emb], components: [ctx.bjPlayAgainRow(state.table, state.bet, state.userId)] });
+    return updateMessage(await buildBjResponse(
+      { footer: 'You bust. Dealer wins.', color: 0xED4245 },
+      [ctx.bjPlayAgainRow(state.table, state.bet, state.userId)]
+    ));
   };
   if (action === 'change') {
     const table = parts[2];
@@ -142,7 +161,7 @@ export default async function onBlackjackButtons(interaction, ctx) {
       if (action !== 'stand') {
         const row = ctx.rowButtons([{ id: 'bj|hit', label: 'Hit', style: 1 }, { id: 'bj|stand', label: 'Stand', style: 2 }]);
         await deferUpdateOnce();
-        return updateMessage({ embeds: [await ctx.bjEmbed(state)], components: [row] });
+        return updateMessage(await buildBjResponse({}, [row]));
       }
     } else {
       state.player.push(draw());
@@ -150,7 +169,7 @@ export default async function onBlackjackButtons(interaction, ctx) {
       if (p.total > 21) { state.revealed = true; return settleLoss('blackjack loss (bust)'); }
       const row = ctx.rowButtons([{ id: 'bj|hit', label: 'Hit', style: 1 }, { id: 'bj|stand', label: 'Stand', style: 2 }]);
       await deferUpdateOnce();
-      return updateMessage({ embeds: [await ctx.bjEmbed(state)], components: [row] });
+      return updateMessage(await buildBjResponse({}, [row]));
     }
   }
   if (action === 'double') {
@@ -183,18 +202,21 @@ export default async function onBlackjackButtons(interaction, ctx) {
       }
       ctx.addHouseNet(state.guildId, state.userId, 'blackjack', state.chipsStake);
       try { ctx.recordSessionGame(state.guildId, state.userId, -state.chipsStake - burned); } catch {}
-      return updateMessage({ embeds: [await ctx.bjEmbed(state, { footer: 'You bust after doubling. Dealer wins.', color: 0xED4245 })], components: [ctx.bjPlayAgainRow(state.table, state.bet / 2, state.userId)] });
+      return updateMessage(await buildBjResponse(
+        { footer: 'You bust after doubling. Dealer wins.', color: 0xED4245 },
+        [ctx.bjPlayAgainRow(state.table, state.bet / 2, state.userId)]
+      ));
     }
-    if (d.total > 21) { const win = state.bet; try { const payout = state.chipsStake + win; await ctx.transferFromHouseToUser(state.userId, payout, 'blackjack win (double, dealer bust)', null); ctx.addHouseNet(state.guildId, state.userId, 'blackjack', -win); try { ctx.recordSessionGame(state.guildId, state.userId, win); } catch {}; return updateMessage({ embeds: [await ctx.bjEmbed(state, { footer: `Dealer busts. You win ${ctx.formatChips(win)}.`, color: 0x57F287 })], components: [ctx.bjPlayAgainRow(state.table, state.bet / 2, state.userId)] }); } catch { return updateMessage({ content: '⚠️ Payout failed.', components: [] }); } }
-    if (p.total > d.total) { const win = state.bet; try { const payout = state.chipsStake + win; await ctx.transferFromHouseToUser(state.userId, payout, 'blackjack win (double)', null); ctx.addHouseNet(state.guildId, state.userId, 'blackjack', -win); try { ctx.recordSessionGame(state.guildId, state.userId, win); } catch {}; return updateMessage({ embeds: [await ctx.bjEmbed(state, { footer: `You win ${ctx.chipsAmount(win)}.`, color: 0x57F287 })], components: [ctx.bjPlayAgainRow(state.table, state.bet / 2, state.userId)] }); } catch { return updateMessage({ content: '⚠️ Payout failed.', components: [] }); } }
-    if (p.total === d.total) { try { if (state.chipsStake > 0) await ctx.transferFromHouseToUser(state.userId, state.chipsStake, 'blackjack push (double)', null); ctx.addHouseNet(state.guildId, state.userId, 'blackjack', 0); try { ctx.recordSessionGame(state.guildId, state.userId, 0); } catch {}; return updateMessage({ embeds: [await ctx.bjEmbed(state, { footer: 'Push. Your stake was returned.', color: 0x2b2d31 })], components: [ctx.bjPlayAgainRow(state.table, state.bet / 2, state.userId)] }); } catch { return updateMessage({ content: '⚠️ Return failed.', components: [] }); } }
+    if (d.total > 21) { const win = state.bet; try { const payout = state.chipsStake + win; await ctx.transferFromHouseToUser(state.userId, payout, 'blackjack win (double, dealer bust)', null); ctx.addHouseNet(state.guildId, state.userId, 'blackjack', -win); try { ctx.recordSessionGame(state.guildId, state.userId, win); } catch {}; return updateMessage(await buildBjResponse({ footer: `Dealer busts. You win ${ctx.formatChips(win)}.`, color: 0x57F287 }, [ctx.bjPlayAgainRow(state.table, state.bet / 2, state.userId)])); } catch { return updateMessage({ content: '⚠️ Payout failed.', components: [] }); } }
+    if (p.total > d.total) { const win = state.bet; try { const payout = state.chipsStake + win; await ctx.transferFromHouseToUser(state.userId, payout, 'blackjack win (double)', null); ctx.addHouseNet(state.guildId, state.userId, 'blackjack', -win); try { ctx.recordSessionGame(state.guildId, state.userId, win); } catch {}; return updateMessage(await buildBjResponse({ footer: `You win ${ctx.chipsAmount(win)}.`, color: 0x57F287 }, [ctx.bjPlayAgainRow(state.table, state.bet / 2, state.userId)])); } catch { return updateMessage({ content: '⚠️ Payout failed.', components: [] }); } }
+    if (p.total === d.total) { try { if (state.chipsStake > 0) await ctx.transferFromHouseToUser(state.userId, state.chipsStake, 'blackjack push (double)', null); ctx.addHouseNet(state.guildId, state.userId, 'blackjack', 0); try { ctx.recordSessionGame(state.guildId, state.userId, 0); } catch {}; return updateMessage(await buildBjResponse({ footer: 'Push. Your stake was returned.', color: 0x2b2d31 }, [ctx.bjPlayAgainRow(state.table, state.bet / 2, state.userId)])); } catch { return updateMessage({ content: '⚠️ Return failed.', components: [] }); } }
     let lossCredits = 0;
     if (state.creditsStake > 0) {
       try { await ctx.burnCredits(state.userId, state.creditsStake, 'blackjack loss (double)', null); lossCredits = state.creditsStake; } catch {}
     }
     ctx.addHouseNet(state.guildId, state.userId, 'blackjack', state.chipsStake);
     try { ctx.recordSessionGame(state.guildId, state.userId, -state.chipsStake - lossCredits); } catch {}
-    return updateMessage({ embeds: [await ctx.bjEmbed(state, { footer: 'Dealer wins.', color: 0xED4245 })], components: [ctx.bjPlayAgainRow(state.table, state.bet / 2, state.userId)] });
+    return updateMessage(await buildBjResponse({ footer: 'Dealer wins.', color: 0xED4245 }, [ctx.bjPlayAgainRow(state.table, state.bet / 2, state.userId)]));
   }
   if (action === 'split') {
     if (state.split) { return respondEphemeral({ content: '❌ Already split.' }); }
@@ -214,12 +236,12 @@ export default async function onBlackjackButtons(interaction, ctx) {
     if (extraChip > 0) { try { await ctx.takeFromUserToHouse(state.userId, extraChip, 'blackjack split (chips)', state.userId); } catch { return respondEphemeral({ content: '❌ Could not process split.' }); } }
     state.split = true; state.hands = [{ cards: [c1], bet: state.bet, creditsStake: state.creditsStake, chipsStake: state.chipsStake, finished: false }, { cards: [c2], bet: state.bet, creditsStake: extraCredit, chipsStake: extraChip, finished: false }]; state.active = 0; delete state.player; delete state.creditsStake; delete state.chipsStake;
     const row = ctx.rowButtons([{ id: 'bj|hit', label: 'Hit', style: 1 }, { id: 'bj|stand', label: 'Stand', style: 2 }]);
-    return updateMessage({ embeds: [await ctx.bjEmbed(state)], components: [row] });
+    return updateMessage(await buildBjResponse({}, [row]));
   }
   if (action === 'stand') {
     if (state.split && (!state.hands[0]?.finished || !state.hands[1]?.finished)) {
       if (state.hands[state.active]) state.hands[state.active].finished = true;
-      if (state.active === 0) { state.active = 1; const row = ctx.rowButtons([{ id: 'bj|hit', label: 'Hit', style: 1 }, { id: 'bj|stand', label: 'Stand', style: 2 }]); await deferUpdateOnce(); return updateMessage({ embeds: [await ctx.bjEmbed(state)], components: [row] }); }
+      if (state.active === 0) { state.active = 1; const row = ctx.rowButtons([{ id: 'bj|hit', label: 'Hit', style: 1 }, { id: 'bj|stand', label: 'Stand', style: 2 }]); await deferUpdateOnce(); return updateMessage(await buildBjResponse({}, [row])); }
     }
     state.revealed = true;
     const dealerPlay = () => { while (true) { const v = ctx.bjHandValue(state.dealer); if (v.total > 21) return; if (v.total < 17) { state.dealer.push(draw()); continue; } if (v.total === 17) { if (state.table === 'HIGH' && v.soft) { state.dealer.push(draw()); continue; } } return; } };
@@ -255,18 +277,18 @@ export default async function onBlackjackButtons(interaction, ctx) {
       if (totalPayout > 0) { try { await ctx.transferFromHouseToUser(state.userId, totalPayout, 'blackjack settle (split)', null); } catch {} }
       try { const totalChipsStake = (state.hands?.[0]?.chipsStake || 0) + (state.hands?.[1]?.chipsStake || 0); ctx.recordSessionGame(state.guildId, state.userId, totalPayout - totalChipsStake - creditsBurned); } catch {}
       try { const totalChipsStake = (state.hands?.[0]?.chipsStake || 0) + (state.hands?.[1]?.chipsStake || 0); ctx.addHouseNet(state.guildId, state.userId, 'blackjack', totalChipsStake - totalPayout); } catch {}
-      { const tcs = (state.hands?.[0]?.chipsStake || 0) + (state.hands?.[1]?.chipsStake || 0); const resultColor = totalPayout > tcs ? 0x57F287 : totalPayout < tcs ? 0xED4245 : 0x2b2d31; return updateMessage({ embeds: [await ctx.bjEmbed(state, { footer: summary.join(' • '), color: resultColor })], components: [ctx.bjPlayAgainRow(state.table, state.bet, state.userId)] }); }
+      { const tcs = (state.hands?.[0]?.chipsStake || 0) + (state.hands?.[1]?.chipsStake || 0); const resultColor = totalPayout > tcs ? 0x57F287 : totalPayout < tcs ? 0xED4245 : 0x2b2d31; return updateMessage(await buildBjResponse({ footer: summary.join(' • '), color: resultColor }, [ctx.bjPlayAgainRow(state.table, state.bet, state.userId)])); }
     }
     const p = ctx.bjHandValue(state.player);
-    if (d.total > 21) { const win = state.bet; try { const payout = state.chipsStake + win; await ctx.transferFromHouseToUser(state.userId, payout, 'blackjack win (dealer bust)', null); ctx.addHouseNet(state.guildId, state.userId, 'blackjack', -win); try { ctx.recordSessionGame(state.guildId, state.userId, win); } catch {}; return updateMessage({ embeds: [await ctx.bjEmbed(state, { footer: `Dealer busts. You win ${ctx.chipsAmount(win)}.`, color: 0x57F287 })], components: [ctx.bjPlayAgainRow(state.table, state.bet, state.userId)] }); } catch { return updateMessage({ content: '⚠️ Payout failed.', components: [] }); } }
-  if (p.total > d.total) { const win = state.bet; try { const payout = state.chipsStake + win; await ctx.transferFromHouseToUser(state.userId, payout, 'blackjack win', null); ctx.addHouseNet(state.guildId, state.userId, 'blackjack', -win); try { ctx.recordSessionGame(state.guildId, state.userId, win); } catch {}; return updateMessage({ embeds: [await ctx.bjEmbed(state, { footer: `You win ${ctx.chipsAmount(win)}.`, color: 0x57F287 })], components: [ctx.bjPlayAgainRow(state.table, state.bet, state.userId)] }); } catch { return updateMessage({ content: '⚠️ Payout failed.', components: [] }); } }
-  if (p.total === d.total) { try { if (state.chipsStake > 0) await ctx.transferFromHouseToUser(state.userId, state.chipsStake, 'blackjack push', null); ctx.addHouseNet(state.guildId, state.userId, 'blackjack', 0); try { ctx.recordSessionGame(state.guildId, state.userId, 0); } catch {}; return updateMessage({ embeds: [await ctx.bjEmbed(state, { footer: 'Push. Your stake was returned.', color: 0x2b2d31 })], components: [ctx.bjPlayAgainRow(state.table, state.bet, state.userId)] }); } catch { return updateMessage({ content: '⚠️ Return failed.', components: [] }); } }
+    if (d.total > 21) { const win = state.bet; try { const payout = state.chipsStake + win; await ctx.transferFromHouseToUser(state.userId, payout, 'blackjack win (dealer bust)', null); ctx.addHouseNet(state.guildId, state.userId, 'blackjack', -win); try { ctx.recordSessionGame(state.guildId, state.userId, win); } catch {}; return updateMessage(await buildBjResponse({ footer: `Dealer busts. You win ${ctx.chipsAmount(win)}.`, color: 0x57F287 }, [ctx.bjPlayAgainRow(state.table, state.bet, state.userId)])); } catch { return updateMessage({ content: '⚠️ Payout failed.', components: [] }); } }
+  if (p.total > d.total) { const win = state.bet; try { const payout = state.chipsStake + win; await ctx.transferFromHouseToUser(state.userId, payout, 'blackjack win', null); ctx.addHouseNet(state.guildId, state.userId, 'blackjack', -win); try { ctx.recordSessionGame(state.guildId, state.userId, win); } catch {}; return updateMessage(await buildBjResponse({ footer: `You win ${ctx.chipsAmount(win)}.`, color: 0x57F287 }, [ctx.bjPlayAgainRow(state.table, state.bet, state.userId)])); } catch { return updateMessage({ content: '⚠️ Payout failed.', components: [] }); } }
+  if (p.total === d.total) { try { if (state.chipsStake > 0) await ctx.transferFromHouseToUser(state.userId, state.chipsStake, 'blackjack push', null); ctx.addHouseNet(state.guildId, state.userId, 'blackjack', 0); try { ctx.recordSessionGame(state.guildId, state.userId, 0); } catch {}; return updateMessage(await buildBjResponse({ footer: 'Push. Your stake was returned.', color: 0x2b2d31 }, [ctx.bjPlayAgainRow(state.table, state.bet, state.userId)])); } catch { return updateMessage({ content: '⚠️ Return failed.', components: [] }); } }
   let creditsLoss = 0;
   if (state.creditsStake > 0) {
     try { await ctx.burnCredits(state.userId, state.creditsStake, 'blackjack loss', null); creditsLoss = state.creditsStake; } catch {}
   }
     ctx.addHouseNet(state.guildId, state.userId, 'blackjack', state.chipsStake); try { ctx.recordSessionGame(state.guildId, state.userId, -state.chipsStake - creditsLoss); } catch {}
-    return updateMessage({ embeds: [await ctx.bjEmbed(state, { footer: 'Dealer wins.', color: 0xED4245 })], components: [ctx.bjPlayAgainRow(state.table, state.bet, state.userId)] });
+    return updateMessage(await buildBjResponse({ footer: 'Dealer wins.', color: 0xED4245 }, [ctx.bjPlayAgainRow(state.table, state.bet, state.userId)]));
   }
   return respondEphemeral({ content: '❌ Unknown action.' });
 }

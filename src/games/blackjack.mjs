@@ -1,17 +1,34 @@
-import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
+import { ActionRowBuilder, AttachmentBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
 import { getUserBalances, getHouseBalance, transferFromHouseToUser, takeFromUserToHouse, burnCredits } from '../db/db.auto.mjs';
-import { makeDeck, show } from './cards.mjs';
+import { makeDeck } from './cards.mjs';
 import { chipsAmount, formatChips } from './format.mjs';
-import { setActiveSession, buildPlayerBalanceField, addHouseNet, recordSessionGame, sendGameMessage, buildTimeoutField } from './session.mjs';
+import { setActiveSession, addHouseNet, recordSessionGame, sendGameMessage, buildPlayerBalanceField, buildTimeoutField } from './session.mjs';
 import { emoji } from '../lib/emojis.mjs';
 import { withInsufficientFundsTip } from '../lib/fundsTip.mjs';
-import { applyEmbedThumbnail, buildAssetEmbedPayload } from '../lib/assets.mjs';
+import { applyEmbedThumbnail } from '../lib/assets.mjs';
+import { renderBlackjackTableImage } from './blackjackTableImage.mjs';
 
 export const blackjackGames = new Map();
 export const BLACKJACK_ASSET = 'blackJack.png';
 
-function buildBlackjackPayload(embed, components) {
-  return buildAssetEmbedPayload(embed, BLACKJACK_ASSET, components);
+function buildBlackjackPayload(embedOrPayload, components) {
+  const mainEmbed = embedOrPayload?.embed ?? embedOrPayload;
+  const extraEmbeds = Array.isArray(embedOrPayload?.extraEmbeds)
+    ? embedOrPayload.extraEmbeds.filter(Boolean)
+    : [];
+  const embeds = [];
+  if (mainEmbed) embeds.push(mainEmbed);
+  if (extraEmbeds.length) embeds.push(...extraEmbeds);
+  const payload = {};
+  if (embeds.length) payload.embeds = embeds;
+  else if (Array.isArray(embedOrPayload?.embeds)) payload.embeds = embedOrPayload.embeds;
+  else payload.embeds = [];
+  const extraFiles = embedOrPayload?.files ?? [];
+  if (components !== undefined) payload.components = components;
+  if (extraFiles.length) {
+    payload.files = extraFiles;
+  }
+  return payload;
 }
 
 // Compute hand total; treat Aces as 11 then reduce to avoid busting
@@ -22,8 +39,6 @@ export function bjHandValue(cards) {
   const soft = aces > 0;
   return { total, soft };
 }
-// Format a hand for display
-export function bjShowHand(cards) { return cards.map(show).join(' '); }
 // Helper: normalized value for split checks
 export function cardValueForSplit(card) { if (card.r === 'A') return 11; if (['10','J','Q','K'].includes(card.r)) return 10; return Number(card.r); }
 // Check if user can afford an additional stake
@@ -36,31 +51,54 @@ export async function canAffordExtra(guildId, userId, amount) {
 export async function bjEmbed(state, opts = {}) {
   const { title = `${emoji('chipAce')} Blackjack`, color = 0x2b2d31, footer } = opts;
   const e = new EmbedBuilder().setTitle(title).setColor(color);
-  const dUp = state.dealer[0];
-  const dHidden = state.revealed ? bjShowHand(state.dealer) : `${show(dUp)} ${emoji('info')}`;
   e.addFields(
     { name: `${emoji('slots')} Table`, value: `${state.table}`, inline: true },
-    { name: `${emoji('coin')} Bet`, value: `**${chipsAmount(state.bet)}**`, inline: true },
-    { name: `${emoji('scroll')} Rule`, value: state.table === 'HIGH' ? 'H17 (Dealer hits soft 17)' : 'S17 (Dealer stands on soft 17)', inline: false }
+    { name: `${emoji('coin')} Bet`, value: `**${chipsAmount(state.bet)}**`, inline: true }
   );
-  if (state.split && Array.isArray(state.hands)) {
-    const a = bjHandValue(state.hands[0].cards); const b = bjHandValue(state.hands[1].cards);
-    e.addFields(
-      { name: `${emoji('chipJoker')} Your Hand A${state.active===0?' (active)':''}`, value: `${bjShowHand(state.hands[0].cards)} • **${a.total}**${a.soft?' (soft)':''}` },
-      { name: `${emoji('chipJoker')} Your Hand B${state.active===1?' (active)':''}`, value: `${bjShowHand(state.hands[1].cards)} • **${b.total}**${b.soft?' (soft)':''}` }
-    );
-  } else {
-    const p = bjHandValue(state.player); const pHand = bjShowHand(state.player);
-    e.addFields({ name: `${emoji('chipJoker')} Your Hand`, value: `${pHand} • **${p.total}**${p.soft ? ' (soft)' : ''}` });
-  }
-  e.addFields({ name: `${emoji('tuxedo')} Dealer`, value: state.revealed ? `${dHidden} • **${bjHandValue(state.dealer).total}**` : dHidden });
-  try { e.addFields(await buildPlayerBalanceField(state.guildId, state.userId)); } catch {}
-  try { e.addFields(buildTimeoutField(state.guildId, state.userId)); } catch {}
   if (footer) {
     e.setDescription(footer);
   }
-  applyEmbedThumbnail(e, BLACKJACK_ASSET);
-  return e;
+  let attachments = [];
+  try {
+    const buffer = await renderBlackjackTableImage(state);
+    if (buffer?.length) {
+      const fileName = `blackjack-table-${state.userId || 'player'}.png`;
+      const attachment = new AttachmentBuilder(buffer, { name: fileName });
+      attachments.push(attachment);
+      e.setImage(`attachment://${fileName}`);
+    }
+  } catch (err) {
+    console.error('Failed to render blackjack image', err);
+  }
+  const thumbAttachment = applyEmbedThumbnail(e, BLACKJACK_ASSET);
+  if (thumbAttachment) {
+    attachments.push(thumbAttachment);
+  }
+  const extraEmbeds = [];
+  const statsEmbed = new EmbedBuilder().setColor(color);
+  let statsFieldCount = 0;
+  try {
+    const balanceField = await buildPlayerBalanceField(state.guildId, state.userId);
+    if (balanceField) {
+      statsEmbed.addFields(balanceField);
+      statsFieldCount += 1;
+    }
+  } catch (err) {
+    console.error('Failed to build blackjack player balance field', err);
+  }
+  try {
+    const timeoutField = buildTimeoutField(state.guildId, state.userId);
+    if (timeoutField) {
+      statsEmbed.addFields(timeoutField);
+      statsFieldCount += 1;
+    }
+  } catch (err) {
+    console.error('Failed to build blackjack timeout field', err);
+  }
+  if (statsFieldCount > 0) {
+    extraEmbeds.push(statsEmbed);
+  }
+  return { embed: e, extraEmbeds, files: attachments };
 }
 
 export function bjPlayAgainRow(table, bet, userId) {
