@@ -254,13 +254,18 @@ export async function runSlotsSpin(interaction, bet, key) {
     const label = creditsBurned > 0 ? 'Credits Burned' : 'Credits Used';
     footerParts.push(`${label}: ${fmtCredits.format(creditStake)}`);
   }
-  const footer = footerParts.join(' • ');
+  const outcomeLine = footerParts.join(' • ');
+  const descriptionLines = [
+    '```',
+    renderSlotsGrid(grid),
+    '```',
+    outcomeLine
+  ];
   const e = new EmbedBuilder()
     .setTitle(`${emoji('slots')} Slots`)
     .setColor(win > 0 ? 0x57F287 : 0xED4245)
     .addFields({ name: 'Bet', value: `**${chipsAmount(bet)}** (${lines} lines)`, inline: true }, { name: 'Win', value: `**${chipsAmount(win)}**`, inline: true })
-    .setDescription('```' + '\n' + renderSlotsGrid(grid) + '\n' + '```')
-    .setFooter({ text: footer });
+    .setDescription(descriptionLines.join('\n'));
   try {
     const { chips: chipsBal, credits: creditsBal } = await getUserBalances(guildId, interaction.user.id);
     const fmt = new Intl.NumberFormat('en-US');

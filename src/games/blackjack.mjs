@@ -56,7 +56,9 @@ export async function bjEmbed(state, opts = {}) {
   e.addFields({ name: `${emoji('tuxedo')} Dealer`, value: state.revealed ? `${dHidden} • **${bjHandValue(state.dealer).total}**` : dHidden });
   try { e.addFields(await buildPlayerBalanceField(state.guildId, state.userId)); } catch {}
   try { e.addFields(buildTimeoutField(state.guildId, state.userId)); } catch {}
-  if (footer) e.setFooter({ text: footer });
+  if (footer) {
+    e.setDescription(footer);
+  }
   applyEmbedThumbnail(e, BLACKJACK_ASSET);
   return e;
 }

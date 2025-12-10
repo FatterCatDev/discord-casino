@@ -8,7 +8,7 @@ export function formatChips(n) {
 
 export function chipsAmount(n, options = {}) {
   const { includeLabel = false } = options;
-  const base = `${CHIP_EMOJI}${formatChips(n)}`;
+  const base = `${CHIP_EMOJI} ${formatChips(n)}`;
   return includeLabel ? `${base} Chips` : base;
 }
 
