@@ -63,10 +63,11 @@ import { startTopggStatsPoster } from './services/topgg.mjs';
 import cmdPing from './commands/ping.mjs';
 import cmdStatus from './commands/status.mjs';
 import cmdBalance from './commands/balance.mjs';
+import cmdGiveChip from './commands/givechip.mjs';
 import cmdJob from './commands/job.mjs';
 import cmdHouseBalance from './commands/housebalance.mjs';
 import cmdHouseAdd from './commands/houseadd.mjs';
-import cmdGiveChips from './commands/givechips.mjs';
+import cmdMintChip from './commands/mintchip.mjs';
 import cmdHouseRemove from './commands/houseremove.mjs';
 import cmdBuyIn from './commands/buyin.mjs';
 import cmdTakeChips from './commands/takechips.mjs';
@@ -1010,9 +1011,10 @@ const commandHandlers = {
   status: cmdStatus,
   balance: cmdBalance,
   job: cmdJob,
+  givechip: cmdGiveChip,
   housebalance: cmdHouseBalance,
   houseadd: cmdHouseAdd,
-  givechips: cmdGiveChips,
+  mintchip: cmdMintChip,
   houseremove: cmdHouseRemove,
   buyin: cmdBuyIn,
   takechips: cmdTakeChips,

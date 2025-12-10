@@ -48,6 +48,14 @@ export function buildHelpSections({ kittenMode = false, isMod = false, isServerA
               'Ask staff for buy-ins or cash-outs — stay sweet while they work.',
               'Submit buy-in or cash-out tickets for staff review.'
             )
+          },
+          {
+            emoji: emoji('gift'),
+            cmd: '/givechip user:<@> amount:<int>',
+            desc: say(
+              'Share chips directly with another Kitten straight from your stash.',
+              'Send chips from your balance to another player.'
+            )
           }
         ]
       },
@@ -480,10 +488,10 @@ export function buildHelpSections({ kittenMode = false, isMod = false, isServerA
             },
             {
               emoji: emoji('gift'),
-              cmd: '/givechips user:<@> amount:<int> [reason]',
+              cmd: '/mintchip user:<@> amount:<int> [reason]',
               desc: say(
                 'Gift chips to a deserving kitten.',
-                'Give chips from the house to a player.'
+                'Mint chips from the house to a player.'
               )
             },
             {

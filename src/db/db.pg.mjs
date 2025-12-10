@@ -34,9 +34,7 @@ function buildSslConfig() {
 }
 
 const DEFAULT_GUILD_ID = process.env.PRIMARY_GUILD_ID || process.env.GUILD_ID || 'global';
-const ECONOMY_SCOPE = (process.env.ECONOMY_SCOPE || 'global').toLowerCase();
 const ECONOMY_GUILD_ID = process.env.GLOBAL_ECONOMY_ID || DEFAULT_GUILD_ID;
-const USE_GLOBAL_ECONOMY = ECONOMY_SCOPE !== 'guild';
 const MG_PER_GRAM = 1000;
 const CARTEL_DEFAULT_BASE_RATE_GRAMS_PER_HOUR = Math.max(1, Number(process.env.CARTEL_BASE_RATE_GRAMS_PER_HOUR || 180));
 const CARTEL_DEFAULT_BASE_RATE_MG_PER_HOUR = Math.round(CARTEL_DEFAULT_BASE_RATE_GRAMS_PER_HOUR * MG_PER_GRAM);
@@ -471,7 +469,6 @@ async function ensureBotStatusTable() {
 }
 
 async function mergeEconomyToGlobalScope() {
-  if (!USE_GLOBAL_ECONOMY) return;
   const gid = ECONOMY_GUILD_ID;
 
   const needsUserMerge = await q1('SELECT 1 FROM users WHERE guild_id <> $1 LIMIT 1', [gid]);
@@ -572,9 +569,8 @@ try {
   console.error('Failed to ensure first_game_win_at column on users:', err);
 }
 
-function resolveGuildId(guildId) {
-  if (USE_GLOBAL_ECONOMY) return ECONOMY_GUILD_ID;
-  return guildId || DEFAULT_GUILD_ID;
+function resolveGuildId() {
+  return ECONOMY_GUILD_ID;
 }
 
 async function ensureGuildUser(guildId, discordId) {
@@ -1260,25 +1256,10 @@ export async function getPendingVoteRewards(discordId) {
   return rows.map(mapVoteRow).filter(Boolean);
 }
 
-export async function redeemVoteRewards(guildId, discordId, options = {}) {
+export async function redeemVoteRewards(_guildId, discordId, options = {}) {
   const userId = String(discordId || '').trim();
   if (!userId) throw new Error('VOTE_REWARD_USER_REQUIRED');
-  let guildHint = guildId;
-  if (typeof guildHint === 'string') {
-    guildHint = guildHint.trim();
-    if (!guildHint) guildHint = null;
-  }
-  if (!USE_GLOBAL_ECONOMY) {
-    const needsLookup = !guildHint || guildHint === DEFAULT_GUILD_ID;
-    if (needsLookup) {
-      const existing = await q1(
-        'SELECT guild_id FROM users WHERE discord_id = $1 ORDER BY updated_at DESC LIMIT 1',
-        [userId]
-      );
-      if (existing?.guild_id) guildHint = existing.guild_id;
-    }
-  }
-  const gid = resolveGuildId(guildHint);
+  const gid = resolveGuildId();
   const reason = options?.reason ? String(options.reason) : 'vote reward';
   const adminId = options?.adminId ? String(options.adminId) : null;
   const limit = Number.isInteger(options?.limit) && options.limit > 0 ? options.limit : null;

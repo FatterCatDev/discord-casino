@@ -91,6 +91,14 @@ const commands = [
     ]
   },
   {
+    name: 'givechip',
+    description: 'Send chips from your balance to another user.',
+    options: [
+      { name: 'user', description: 'Recipient', type: 6, required: true },
+      { name: 'amount', description: 'Amount of chips to send', type: 4, required: true, min_value: 1 }
+    ]
+  },
+  {
     name: 'roulette',
     description: 'Play American Roulette (interactive betting).',
     options: []
@@ -208,8 +216,8 @@ const commands = [
     ]
   },
   {
-    name: 'givechips',
-    description: 'Give chips from the house to a user (moderator only).',
+    name: 'mintchip',
+    description: 'Mint chips from the house to a user (moderator only).',
     options: [
       { name: 'user', description: 'Recipient', type: 6, required: true },
       { name: 'amount', description: 'Amount of chips', type: 4, required: true, min_value: 1 },

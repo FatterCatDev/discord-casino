@@ -72,7 +72,8 @@ When you ask for a data wipe, staff use secure buttons to purge balances, job st
 - `/job`, `/job start job:<id>`, `/job cancel`, `/job stats [user]` — Manage shifts, stamina, and bragging rights.
 - Gameplay: `/ridebus`, `/blackjack`, `/slots`, `/roulette`, `/horserace`, `/holdem`, `/dicewar`.
 - `/request type:<Buy In|Cash Out|Erase Account Data>` — Work directly with staff for bankroll moves or privacy actions.
-- `/housebalance`, `/givechips`, `/setmaxbet`, `/setrake`, etc. remain available to moderators/admins, but regular players never need to touch them.
+- `/givechip user:<@> amount:<int>` — Send chips directly from your stack to another player.
+- `/housebalance`, `/mintchip`, `/setmaxbet`, `/setrake`, etc. remain available to moderators/admins, but regular players never need to touch them.
 
 ---
 

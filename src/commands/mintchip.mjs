@@ -1,7 +1,7 @@
 import { transferFromHouseToUser } from '../db/db.auto.mjs';
 import { emoji } from '../lib/emojis.mjs';
 
-export default async function handleGiveChips(interaction, ctx) {
+export default async function handleMintChip(interaction, ctx) {
   const kittenMode = typeof ctx?.isKittenModeEnabled === 'function' ? await ctx.isKittenModeEnabled() : false;
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
   if (!(await ctx.isModerator(interaction))) {
@@ -17,20 +17,29 @@ export default async function handleGiveChips(interaction, ctx) {
     const { chips, house } = await transferFromHouseToUser(interaction.guild?.id, target.id, amount, reason, interaction.user.id);
     const logLines = kittenMode
       ? [
-          `${emoji('gift')} **Give Chips**`,
+          `${emoji('gift')} **Mint Chips**`,
           `To: My spoiled Kitten <@${target.id}> • Amount: **${ctx.chipsAmount(amount)}**${reason ? ` • Reason: ${reason}` : ''}`,
           `User Chips: **${ctx.chipsAmount(chips)}** • House: **${ctx.chipsAmount(house)}**`
         ]
       : [
-          `${emoji('gift')} **Give Chips**`,
+          `${emoji('gift')} **Mint Chips**`,
           `To: <@${target.id}> • Amount: **${ctx.chipsAmount(amount)}**${reason ? ` • Reason: ${reason}` : ''}`,
           `User Chips: **${ctx.chipsAmount(chips)}** • House: **${ctx.chipsAmount(house)}**`
         ];
     await ctx.postCashLog(interaction, logLines);
+    try {
+      const dmContent = say(
+        `${emoji('gift')} My darling staff just showered you with **${ctx.chipsAmount(amount)}** from <@${interaction.user.id}>${reason ? ` (${reason})` : ''}.\nKeep those paws ready — your balance now rests at **${ctx.chipsAmount(chips)}**.`,
+        `${emoji('gift')} You received **${ctx.chipsAmount(amount)}** chips from <@${interaction.user.id}>${reason ? ` (${reason})` : ''}.\nYour balance is now **${ctx.chipsAmount(chips)}**.`
+      );
+      await target.send(dmContent);
+    } catch (dmErr) {
+      console.error('mintchip dm failed', dmErr);
+    }
     return interaction.reply({
       content: say(
-        `${emoji('gift')} Gave **${ctx.chipsAmount(amount)}** to my playful Kitten <@${target.id}>${reason ? ` (${reason})` : ''}.\n• Bask in it, Kitten — balance: **${ctx.chipsAmount(chips)}**\n• House balance: **${ctx.chipsAmount(house)}**`,
-        `${emoji('gift')} Gave **${ctx.chipsAmount(amount)}** to <@${target.id}>${reason ? ` (${reason})` : ''}.\n• <@${target.id}>'s new balance: **${ctx.chipsAmount(chips)}**\n• House balance: **${ctx.chipsAmount(house)}**`
+        `${emoji('gift')} Minted **${ctx.chipsAmount(amount)}** for my playful Kitten <@${target.id}>${reason ? ` (${reason})` : ''}.\n• Bask in it, Kitten — balance: **${ctx.chipsAmount(chips)}**\n• House balance: **${ctx.chipsAmount(house)}**`,
+        `${emoji('gift')} Minted **${ctx.chipsAmount(amount)}** for <@${target.id}>${reason ? ` (${reason})` : ''}.\n• <@${target.id}>'s new balance: **${ctx.chipsAmount(chips)}**\n• House balance: **${ctx.chipsAmount(house)}**`
       ),
       ephemeral: true
     });

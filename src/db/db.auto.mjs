@@ -1,10 +1,7 @@
-// Environment-driven DB selector: Postgres (Cloud SQL) or SQLite
+// Database adapter shim (Postgres only)
 import 'dotenv/config';
 
-const usePg = (process.env.DB_DRIVER || '').toLowerCase() === 'pg' || !!process.env.DATABASE_URL;
-const impl = usePg
-  ? await import('./db.pg.mjs')
-  : await import('./db.mjs'); // SQLite default
+const impl = await import('./db.pg.mjs');
 
 // Utility to map function names safely (fallbacks for minor naming drifts)
 function pick(name, ...alts) {
@@ -148,12 +145,11 @@ export const settleRake = pick('settleRake');
 export const finalizeHoldemHand = pick('finalizeHoldemHand');
 export const listEscrowForTable = pick('listEscrowForTable');
 
-// In SQLite, escrowCreditMany is an alias of escrowPayoutMany; normalize here
-const _escrowCreditMany = pick('escrowCreditMany', 'escrowPayoutMany');
+const _escrowCreditMany = pick('escrowCreditMany');
 export async function escrowCreditMany(tableId, payouts) { return _escrowCreditMany(tableId, payouts); }
 
 // Maintenance
 export const resetAllBalances = pick('resetAllBalances');
 
 // Helpful to know what backend is active
-export const __DB_DRIVER = usePg ? 'pg' : 'sqlite';
+export const __DB_DRIVER = 'pg';

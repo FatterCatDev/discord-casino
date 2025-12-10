@@ -87,7 +87,7 @@ function isSemutaBuyOrder(orderId) {
 
 export function calculateSemutaMarketPrices(totalShares) {
   const shares = Math.max(0, Number(totalShares || 0));
-  const dynamic = shares * 0.001;
+  const dynamic = shares * 0.1;
   const sellPrice = Math.max(1, Math.floor(100 + dynamic));
   const buyPrice = Math.max(1, Math.floor(sellPrice / 2));
   return { sellPrice, buyPrice };

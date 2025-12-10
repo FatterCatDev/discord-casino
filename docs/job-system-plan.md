@@ -30,7 +30,7 @@
   - `job_profiles`: `rank` default 1, `total_xp` default 0, `xp_to_next` default 100 (Rank 1 -> 2 threshold), `last_shift_at` nullable (NULL indicates no history), timestamps default to current epoch.
   - `job_status`: `active_job` default 'none' (kept for future specialization states), `job_switch_available_at` default 0, `cooldown_reason` default NULL, `daily_earning_cap` NULL unless configured, `earned_today` default 0, `cap_reset_at` default NULL, `shift_streak_count` default 0, `shift_cooldown_expires_at` default 0, `updated_at` auto timestamp.
   - `job_shifts`: `completed_at` NULL until the run ends, `performance_score` default 0, `base_pay` default 0, `tip_percent` default 0, `tip_amount` default 0, `total_payout` default 0, `result_state` default 'PENDING', `metadata_json` default '{}' (JSON object).
-- Capture the defaults in migrations. Example SQLite snippet (Postgres mirrors types and uses `NOW()` / `CURRENT_TIMESTAMP`, `JSONB`, and check constraints):
+- Capture the defaults in migrations. Example Postgres snippet:
   ```sql
   CREATE TABLE job_profiles (
     guild_id TEXT NOT NULL,
@@ -39,9 +39,9 @@
     rank INTEGER NOT NULL DEFAULT 1,
     total_xp INTEGER NOT NULL DEFAULT 0,
     xp_to_next INTEGER NOT NULL DEFAULT 100,
-    last_shift_at INTEGER,
-    created_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
-    updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+    last_shift_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (guild_id, user_id, job_id)
   );
 
@@ -49,14 +49,14 @@
     guild_id TEXT NOT NULL,
     user_id TEXT NOT NULL,
     active_job TEXT NOT NULL DEFAULT 'none',
-    job_switch_available_at INTEGER NOT NULL DEFAULT 0,
+    job_switch_available_at BIGINT NOT NULL DEFAULT 0,
     cooldown_reason TEXT,
     daily_earning_cap INTEGER,
     earned_today INTEGER NOT NULL DEFAULT 0,
-    cap_reset_at INTEGER,
+    cap_reset_at BIGINT,
     shift_streak_count INTEGER NOT NULL DEFAULT 0,
-    shift_cooldown_expires_at INTEGER NOT NULL DEFAULT 0,
-    updated_at INTEGER NOT NULL DEFAULT (strftime('%s','now')),
+    shift_cooldown_expires_at BIGINT NOT NULL DEFAULT 0,
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     PRIMARY KEY (guild_id, user_id)
   );
 
@@ -65,18 +65,17 @@
     guild_id TEXT NOT NULL,
     user_id TEXT NOT NULL,
     job_id TEXT NOT NULL,
-    started_at INTEGER NOT NULL,
-    completed_at INTEGER,
+    started_at TIMESTAMPTZ NOT NULL,
+    completed_at TIMESTAMPTZ,
     performance_score INTEGER NOT NULL DEFAULT 0,
     base_pay INTEGER NOT NULL DEFAULT 0,
     tip_percent INTEGER NOT NULL DEFAULT 0,
     tip_amount INTEGER NOT NULL DEFAULT 0,
     total_payout INTEGER NOT NULL DEFAULT 0,
     result_state TEXT NOT NULL DEFAULT 'PENDING' CHECK (result_state IN ('PENDING','SUCCESS','PARTIAL_PAY','HOUSE_INSUFFICIENT','TIMEOUT','ABORTED','ERROR')),
-    metadata_json TEXT NOT NULL DEFAULT '{}' CHECK (json_valid(metadata_json))
+    metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb
   );
   ```
-- For Postgres, mirror the schema but use `TIMESTAMPTZ DEFAULT NOW()`, `metadata_json JSONB NOT NULL DEFAULT '{}'::jsonb`, and a `CHECK (result_state = ANY('{PENDING,SUCCESS,PARTIAL_PAY,HOUSE_INSUFFICIENT,TIMEOUT,ABORTED,ERROR}'))`.
 - Plan indexes on guild/user columns for fast lookups and reporting:
   - `CREATE INDEX job_profiles_guild_user_idx ON job_profiles (guild_id, user_id);`
   - `CREATE INDEX job_profiles_job_idx ON job_profiles (job_id, guild_id);`
@@ -88,7 +87,7 @@
   - Provide a migration helper that, for existing users, inserts a `job_status` row with `active_job = 'none'`, `job_switch_available_at = 0`, `earned_today = 0`, `shift_streak_count = 0`, and `shift_cooldown_expires_at = 0`.
 - Populate QA fixtures via runtime registries rather than static seed data: `src/jobs/registry.mjs` should register canonical bartender recipes, dealer boards, and bouncer scenarios. Add CLI tooling to load sample scenarios for test environments when needed.
 - Define retention: keep `job_shifts` forever by default; add a global scheduled task that purges rows older than 180 days if storage pressure arises (no per-guild override needed at launch).
-- Write migration scripts for both SQLite (`db.mjs`) and Postgres (`db.pg.mjs`), including forward/backward compatibility guards and default values.
+- Write migration scripts for Postgres (`db.pg.mjs`), including forward/backward compatibility guards and default values.
 
 ## 5. Command Surface & UX
 - Detail `/jobs` response layout: surface shift streak status (shifts remaining before rest, cooldown timer), ranks per job, and flavor text per role.
@@ -126,7 +125,7 @@
   - Streak counting and cooldown enforcement after the fifth shift.
   - Handling when house funds are insufficient.
 - Integration tests:
-  - DB migrations up/down on SQLite and Postgres.
+  - DB migrations up/down on Postgres.
   - End-to-end shift flow per job (success, fail, timeout) verifying state persistence and ledger entries.
   - Session recovery after restart (simulate mid-shift reboot).
 - Manual QA checklist:

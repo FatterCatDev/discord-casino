@@ -30,7 +30,7 @@ We rely on your consent and your continued use of the Bot to process data. If yo
 
 ## 4. Data Sharing & Disclosure
 - We do not sell or rent user data.
-- Data is stored locally on the bot host or the project database (SQLite or Postgres). Access is restricted to project maintainers.
+- Data is stored in the hosted Postgres database or encrypted application storage. Access is restricted to project maintainers.
 - We may disclose limited data if required by law, to respond to valid legal requests, or to enforce our Terms of Service.
 - Aggregated, non-identifiable statistics may be published (e.g. total chips in circulation).
 
@@ -52,7 +52,7 @@ We rely on your consent and your continued use of the Bot to process data. If yo
 4. You will receive confirmation in the request channel when the purge completes.
 
 ## 7. Security
-- Databases run in WAL mode (SQLite) or hosted Postgres with access control. Files are stored in secured directories on the host machine.
+- The Postgres database enforces TLS connections, role-based access, and encrypted disks. Files are stored in secured directories on the host machine.
 - Access is limited to the project maintainers; credentials are stored in environment variables rather than source control.
 - Despite our efforts, no system is fully secure. Report suspected vulnerabilities to the maintainers immediately.
 
