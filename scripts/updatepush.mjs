@@ -15,6 +15,8 @@ const UPDATE_PATH = path.join(ROOT, 'UPDATE.md');
 const README_PATH = path.join(ROOT, 'README.md');
 const STATUS_HEADING_REGEX = /^#\s*(?:pending\s+update|update)\b.*$/im;
 const UPDATE_ROLE_ID = '1426725492538478593';
+const DEFAULT_HOME_GUILD_ID = '1200629872423346246';
+const DEFAULT_UPDATE_CHANNEL_ID = '1426730736312123466';
 
 function setUpdateStatus(content, status) {
   if (status !== 'pending' && status !== 'update') {
@@ -121,17 +123,28 @@ function bumpPatch(version) {
   return `${major}.${minor}.${patch + 1}`;
 }
 
+function normalizeSnowflake(value) {
+  if (value == null) return null;
+  const raw = String(value).trim();
+  if (!raw) return null;
+  const match = raw.match(/(\d{5,})/);
+  return match ? match[1] : null;
+}
+
 function resolveGuildIds() {
-  const raw = process.env.UPDATE_GUILD_IDS || process.env.PRIMARY_GUILD_ID || process.env.GUILD_ID || '';
+  const raw = process.env.UPDATE_GUILD_IDS || process.env.PRIMARY_GUILD_ID || process.env.GUILD_ID || DEFAULT_HOME_GUILD_ID;
   const ids = raw
     .split(/[,\s]+/)
-    .map(s => s.trim())
+    .map(s => normalizeSnowflake(s))
     .filter(Boolean);
   if (!ids.length) throw new Error('No guild IDs resolved. Set UPDATE_GUILD_IDS or PRIMARY_GUILD_ID.');
   return ids;
 }
 
-const UPDATE_CHANNEL_ID = process.env.UPDATE_CHANNEL_ID || null;
+const UPDATE_CHANNEL_ID = normalizeSnowflake(process.env.UPDATE_CHANNEL_ID || DEFAULT_UPDATE_CHANNEL_ID);
+if (process.env.UPDATE_CHANNEL_ID && !UPDATE_CHANNEL_ID) {
+  console.warn('Warning: UPDATE_CHANNEL_ID is set but no numeric channel ID was found. It will be ignored.');
+}
 
 async function main() {
   const token = process.env.DISCORD_TOKEN;
@@ -216,6 +229,19 @@ async function main() {
 
     const newPkg = { ...pkg, version: nextVersion };
     await fs.writeFile(path.join(ROOT, 'package.json'), `${JSON.stringify(newPkg, null, 2)}\n`, 'utf8');
+
+    const lockPath = path.join(ROOT, 'package-lock.json');
+    try {
+      const lockText = await fs.readFile(lockPath, 'utf8');
+      const lockData = JSON.parse(lockText);
+      lockData.version = nextVersion;
+      if (lockData.packages?.['']) {
+        lockData.packages[''].version = nextVersion;
+      }
+      await fs.writeFile(lockPath, `${JSON.stringify(lockData, null, 2)}\n`, 'utf8');
+    } catch (err) {
+      console.warn('Warning: failed to rewrite package-lock.json with new version:', err?.message || err);
+    }
 
     console.log(`Version bumped to ${nextVersion} and UPDATE.md reset.`);
   } finally {
