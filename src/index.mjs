@@ -102,6 +102,7 @@ import cmdSetCasinoCategory from './commands/setcasinocategory.mjs';
 import cmdKittenMode from './commands/kittenmode.mjs';
 import cmdVote from './commands/vote.mjs';
 import cmdNews from './commands/news.mjs';
+import cmdBeg from './commands/beg.mjs';
 import cmdEightBall from './commands/eightball.mjs';
 import cmdCartel, {
   handleCartelOverviewRefresh,
@@ -1016,6 +1017,7 @@ const commandHandlers = {
   ping: cmdPing,
   status: cmdStatus,
   balance: cmdBalance,
+  beg: cmdBeg,
   job: cmdJob,
   givechip: cmdGiveChip,
   housebalance: cmdHouseBalance,

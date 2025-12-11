@@ -17,6 +17,10 @@ const commands = [
     ]
   },
   {
+    name: 'beg',
+    description: 'Beg the narrator for a handful of chips.'
+  },
+  {
     name: 'job',
     description: 'Clock in for casino shifts, manage stamina, and oversee your role.',
     options: [

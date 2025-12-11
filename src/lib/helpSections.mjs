@@ -34,6 +34,14 @@ export function buildHelpSections({ kittenMode = false, isMod = false, isServerA
             )
           },
           {
+            emoji: emoji('cry'),
+            cmd: '/beg',
+            desc: say(
+              'Act out a melodramatic plea for a few chips whenever desperation hits.',
+              'Narrate a begging scene for a handful of chips whenever you need a boost.'
+            )
+          },
+          {
             emoji: emoji('ballot'),
             cmd: '/vote',
             desc: say(
