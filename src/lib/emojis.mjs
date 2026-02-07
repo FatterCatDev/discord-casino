@@ -1,4 +1,31 @@
-export const EMOJI = {
+import { existsSync, readFileSync } from 'node:fs';
+import path from 'node:path';
+
+function loadEmojiOverrides() {
+  const rawPath = (process.env.EMOJI_MAP_PATH || '').trim();
+  if (!rawPath) return {};
+  const fullPath = path.resolve(rawPath);
+  if (!existsSync(fullPath)) {
+    console.warn(`[emoji] override map not found: ${fullPath}`);
+    return {};
+  }
+  try {
+    const raw = readFileSync(fullPath, 'utf8');
+    const data = JSON.parse(raw);
+    if (!data || typeof data !== 'object') return {};
+    const cleaned = {};
+    for (const [key, value] of Object.entries(data)) {
+      if (typeof key !== 'string' || typeof value !== 'string') continue;
+      cleaned[key] = value;
+    }
+    return cleaned;
+  } catch (err) {
+    console.warn(`[emoji] failed to load override map: ${fullPath}`, err);
+    return {};
+  }
+}
+
+export const BASE_EMOJI = {
   // Application emoji inventory (snake_case)
   a_button: '<:a_button:1427947858727800883>',
   ace_of_spades: '<:ace_of_spades:1427947873839874098>',
@@ -275,6 +302,13 @@ export const EMOJI = {
   squareBlue: '🟦',
   squarePurple: '🟪',
   horse: '<:horse:1427948165730140210>'
+};
+
+const EMOJI_OVERRIDES = loadEmojiOverrides();
+
+export const EMOJI = {
+  ...BASE_EMOJI,
+  ...EMOJI_OVERRIDES
 };
 
 export function emoji(name) {

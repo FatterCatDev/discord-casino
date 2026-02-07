@@ -24,3 +24,6 @@ cloudsql-key.json
 
 # Local tooling
 google-cloud-sdk/
+
+# Debug local config
+debug/
