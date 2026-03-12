@@ -1420,3 +1420,29 @@ async function normalizeInvestorState(guildId, investor) {
   updated = await clampSaleMultiplierIfNeeded(guildId, updated);
   return updated;
 }
+function calculateWarehouseHeat(investor) {
+  const warehouseGrams = mgToGrams(Number(investor?.warehouse_mg || 0));
+  return warehouseGrams * CARTEL_WAREHOUSE_HEAT_PER_GRAM;
+}
+function rollRaidIfNeeded(investor) {
+  const heat = calculateWarehouseHeat(investor);
+  const roll = Math.ceil(Math.random() * 20);
+
+  let tier = null;
+
+  if (heat >= CARTEL_RAID_THRESHOLDS.EXTREME.heat) tier = CARTEL_RAID_THRESHOLDS.EXTREME;
+  else if (heat >= CARTEL_RAID_THRESHOLDS.HIGH.heat) tier = CARTEL_RAID_THRESHOLDS.HIGH;
+  else if (heat >= CARTEL_RAID_THRESHOLDS.MED.heat) tier = CARTEL_RAID_THRESHOLDS.MED;
+  else if (heat >= CARTEL_RAID_THRESHOLDS.LOW.heat) tier = CARTEL_RAID_THRESHOLDS.LOW;
+
+  if (!tier) return { raided: false, success: false };
+
+  // First check: did the raid trigger?
+  if (roll <= tier.trigger) {
+    // Second check: does the raid succeed? 50% chance
+    const success = Math.random() < 0.5; // 50% chance
+    return { raided: true, success };
+  }
+
+  return { raided: false, success: false };
+}
