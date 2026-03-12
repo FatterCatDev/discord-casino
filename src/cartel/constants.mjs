@@ -56,9 +56,9 @@ export const CARTEL_WAREHOUSE_HEAT_DECAY_PER_HOUR = 2; //every hour 5 grams
 
 export const CARTEL_RAID_THRESHOLDS = {
   LOW: { heat: 50, trigger: 1 },   // raid on d20 roll of 1
-  MED: { heat: 100, trigger: 2 },  // raid on 1-2
-  HIGH: { heat: 250, trigger: 3 }, // raid on 1-3
-  EXTREME: { heat: 500, trigger: 5 } // raid on 1-5
+  MED: { heat: 100, trigger: 7 },  // raid on 1-7
+  HIGH: { heat: 250, trigger: 13 }, // raid on 1-13
+  EXTREME: { heat: 500, trigger: 20 } // raid on 1-20
 };
 
 export const CARTEL_RAID_FINE_MULTIPLIER = 6;//how much chips per semuta fined
