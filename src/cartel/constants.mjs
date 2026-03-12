@@ -42,10 +42,23 @@ export const CARTEL_DEALER_UPKEEP_PERCENT_BY_TIER = Object.freeze({
 });
 
 export const CARTEL_DEALER_NAME_POOL = Object.freeze({
-  0: ['Pip Calder', 'Nix Halley', 'Sia Voss', 'Timo Lark', 'Jori Wren', 'Mave Russo', 'Koa Talos', 'Iri Penn', 'Dex Romi', 'Tali Kade', 'Rue Sorel'],
+  0: ['Pip Calder', 'Nix Halley', 'Sia Voss', 'Rick Astley', 'Jori Wren', 'Mave Russo', 'Koa Talos', 'Iri Penn', 'Dex Romi', 'Tali Kade', 'Rue Sorel'],
   1: ['Lexa Finch', 'Nova Pierce', 'Kade Mercer', 'Vera Locke', 'Jax Wilder', 'Mira Sloan', 'Tess Arden', 'Milo Crane', 'Rin Calder', 'Bex Rowan', 'Ivy March'],
   2: ['Cal Reyes', 'Sable Quinn', 'Noor Talbot', 'Ezra Shaw', 'Lena Crowe', 'Odin Vale', 'Juno Voss', 'Talon Pryce', 'Keira Mott', 'Briar Kline', 'Cato Mercer'],
-  3: ['Rhea Calder', 'Marco Ives', 'Nolan Creed', 'Iris Calderon', 'Vale Porter', 'Harlow Vance', 'Soren Vale', 'Nyra Holt', 'Ember Shaw', 'Cassian Drew', 'Lira Beckett'],
-  4: ['Selene Pryce', 'Atlas Monroe', 'Zara Bishop', 'Dante Collins', 'Rowan Hale', 'Cass Nova', 'Gideon Rook', 'Vesper Lang', 'Mara Quill', 'Daxon Pierce', 'Ren Hollis'],
+  3: ['Rhea Calder', 'Marco Ives', 'Nolan Creed', 'Iris Calderon', 'Vale Porter', 'Harlow Vance', 'Soren Vale', 'Nyra Holt', 'Ember Shaw', 'Cassian Drew', 'Micheal Jackson'],
+  4: ['Selene Pryce', 'Atlas Monroe', 'Zara Bishop', 'Dante Collins', 'Rowan Hale', 'Cass Nova', 'Kevin McCallister', 'Vesper Lang', 'Mara Quill', 'Daxon Pierce', 'Ren Hollis'],
   5: ['Aurora Nyx', 'Magnus Kade', 'Octavia Wren', 'Silas Dray', 'Lyra Keane', 'Corvin Slate', 'Seren Vale', 'Kael Sunder', 'Isolde Crane', 'Theron Black', 'Nyx Alecto']
 });
+
+// Warehouse raid system
+export const CARTEL_WAREHOUSE_HEAT_PER_GRAM = 0.002; // heat added per gram stored
+export const CARTEL_WAREHOUSE_HEAT_DECAY_PER_HOUR = 2; //every hour 5 grams 
+
+export const CARTEL_RAID_THRESHOLDS = {
+  LOW: { heat: 50, trigger: 1 },   // raid on d20 roll of 1
+  MED: { heat: 100, trigger: 2 },  // raid on 1-2
+  HIGH: { heat: 250, trigger: 3 }, // raid on 1-3
+  EXTREME: { heat: 500, trigger: 5 } // raid on 1-5
+};
+
+export const CARTEL_RAID_FINE_MULTIPLIER = 6;//how much chips per semuta fined
