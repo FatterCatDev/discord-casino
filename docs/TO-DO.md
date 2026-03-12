@@ -14,6 +14,8 @@
 - Execute the raid only after the player completes one of: Collect Warehouse, Burn Warehouse, Export Warehouse.(added code, please test for bugs)
 - Raid scope on Collect: include warehouse contents plus the amount being collected.
 - Raid scope on Burn/Export: include only Semuta remaining in the warehouse after the action.
+
+- 
 (just a note, i dont have any way to test if these features are working or not, bc i dont have access to the bot to test it out, so you might wanna double check)
 (so the ones i havent done are :
                                 semuta expiration mechanics(i think, im not sure bc the code got kinda muddled up in between)
