@@ -201,11 +201,15 @@ test('warehouse raid resolution is scoped per action and surfaced in user messag
   assert.match(service, /console\.info\('Cartel warehouse raid resolved', payload\);/);
   assert.match(commands, /function buildWarehouseRaidLines\(raid, chipsFmt\)/);
   assert.match(commands, /function buildWarehouseRaidFlavorEmbed\(interaction, raid, chipsFmt\)/);
+  assert.match(commands, /function buildRaidInterceptLogLine\(raid, chipsFmt\)/);
   assert.match(commands, /name: 'Raided Player'/);
   assert.match(commands, /name: 'What Was Taken'/);
   assert.match(commands, /await postWarehouseRaidFlavorEmbed\(interaction, result\.raid, chipsFmt\);/);
   assert.match(commands, /const raidFromError = error instanceof CartelError \? error\?\.extra\?\.raid : null;/);
+  assert.match(commands, /const raidEmbed = buildWarehouseRaidFlavorEmbed\(interaction, raidFromError, chipsFmt\);/);
   assert.match(commands, /if \(raidFromError\?\.triggered\) \{\s*await postWarehouseRaidFlavorEmbed\(interaction, raidFromError, chipsFmt\);/);
+  assert.match(commands, /await logCartelActivity\(interaction, interceptLog\)\.catch\(\(\) => \{\}\);/);
+  assert.match(commands, /\.\.\.\(raidEmbed \? \{ embeds: \[raidEmbed\] \} : \{\}\)/);
   assert.match(commands, /const raidLines = buildWarehouseRaidLines\(result\.raid, chipsFmt\);/);
   assert.match(todo, /\[x\] Implement raid scope calculation per action type \(collect, burn, export\)\./);
   assert.match(todo, /\[x\] Apply confiscation and fine atomically in storage layer\./);

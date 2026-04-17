@@ -594,6 +594,16 @@ async function postWarehouseRaidFlavorEmbed(interaction, raid, chipsFmt) {
   });
 }
 
+function buildRaidInterceptLogLine(raid, chipsFmt) {
+  if (!raid?.triggered) return null;
+  const actionLabel = formatRaidActionLabel(raid?.actionType);
+  const confiscatedGrams = Math.max(0, Number(raid?.confiscatedGrams || 0));
+  const fineCharged = Math.max(0, Number(raid?.fineChipsCharged || 0));
+  const finePaid = Math.max(0, Number(raid?.fineChipsPaid || 0));
+  const fineOutstanding = Math.max(0, fineCharged - finePaid);
+  return `Raid intercepted ${actionLabel} action. Confiscated ${gramsFormatter.format(confiscatedGrams)}g. Fine charged ${chipsFmt(fineCharged)}, paid ${chipsFmt(finePaid)}${fineOutstanding > 0 ? `, outstanding ${chipsFmt(fineOutstanding)}` : ''}.`;
+}
+
 function handleCartelFailure(interaction, error) {
   if (error instanceof CartelError) {
     const message = error.message || 'Action failed.';
@@ -2197,12 +2207,18 @@ export async function handleCartelWarehouseBurnModal(interaction, ctx, sourceMes
     );
   } catch (error) {
     const raidFromError = error instanceof CartelError ? error?.extra?.raid : null;
+    const raidEmbed = buildWarehouseRaidFlavorEmbed(interaction, raidFromError, chipsFmt);
     if (raidFromError?.triggered) {
       await postWarehouseRaidFlavorEmbed(interaction, raidFromError, chipsFmt);
+      const interceptLog = buildRaidInterceptLogLine(raidFromError, chipsFmt);
+      if (interceptLog) {
+        await logCartelActivity(interaction, interceptLog).catch(() => {});
+      }
     }
     if (error instanceof CartelError) {
       await interaction.reply(withAutoEphemeral(interaction, {
         content: `⚠️ ${error.message}`,
+        ...(raidEmbed ? { embeds: [raidEmbed] } : {}),
         ephemeral: true
       })).catch(() => {});
     } else {
@@ -2328,12 +2344,18 @@ export async function handleCartelWarehouseExportModal(interaction, ctx, sourceM
     await logCartelActivity(interaction, `${activityLine}${raidLines.length ? ` ${raidLines.join(' ')}` : ''}`);
   } catch (error) {
     const raidFromError = error instanceof CartelError ? error?.extra?.raid : null;
+    const raidEmbed = buildWarehouseRaidFlavorEmbed(interaction, raidFromError, chipsFmt);
     if (raidFromError?.triggered) {
       await postWarehouseRaidFlavorEmbed(interaction, raidFromError, chipsFmt);
+      const interceptLog = buildRaidInterceptLogLine(raidFromError, chipsFmt);
+      if (interceptLog) {
+        await logCartelActivity(interaction, interceptLog).catch(() => {});
+      }
     }
     if (error instanceof CartelError) {
       await interaction.reply(withAutoEphemeral(interaction, {
         content: `⚠️ ${error.message}`,
+        ...(raidEmbed ? { embeds: [raidEmbed] } : {}),
         ephemeral: true
       })).catch(() => {});
     } else {
@@ -3132,16 +3154,27 @@ export async function handleCartelCollectModal(interaction, ctx, messageId) {
     );
   } catch (error) {
     const raidFromError = error instanceof CartelError ? error?.extra?.raid : null;
+    const raidEmbed = buildWarehouseRaidFlavorEmbed(interaction, raidFromError, chipsFmt);
     if (raidFromError?.triggered) {
       await postWarehouseRaidFlavorEmbed(interaction, raidFromError, chipsFmt);
+      const interceptLog = buildRaidInterceptLogLine(raidFromError, chipsFmt);
+      if (interceptLog) {
+        await logCartelActivity(interaction, interceptLog).catch(() => {});
+      }
     }
     if (interaction.deferred || interaction.replied) {
       const content = error instanceof CartelError
         ? `⚠️ ${error.message || 'Action failed.'}`
         : '⚠️ Something went wrong while collecting. Please try again.';
-      await interaction.editReply({ content }).catch(() => {});
+      await interaction.editReply({
+        content,
+        ...(raidEmbed ? { embeds: [raidEmbed] } : {})
+      }).catch(() => {});
     } else if (error instanceof CartelError) {
-      await interaction.reply(withAutoEphemeral(interaction, { content: `⚠️ ${error.message || 'Action failed.'}` })).catch(() => {});
+      await interaction.reply(withAutoEphemeral(interaction, {
+        content: `⚠️ ${error.message || 'Action failed.'}`,
+        ...(raidEmbed ? { embeds: [raidEmbed] } : {})
+      })).catch(() => {});
     } else {
       console.error('Cartel collect modal failed', error);
       await interaction.reply(withAutoEphemeral(interaction, { content: '⚠️ Something went wrong while collecting. Please try again.' })).catch(() => {});
