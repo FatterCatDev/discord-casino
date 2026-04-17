@@ -102,6 +102,16 @@ test('holdem table allocation uses DB reservation instead of full channel fetch 
   assert.match(adapter, /export const reserveHoldemTableNumber = pick\('reserveHoldemTableNumber'\);/);
 });
 
+test('vote reward DM delivery uses bounded concurrency workers', async () => {
+  const content = await readRepoFile('src/index.mjs');
+  assert.match(content, /const VOTE_REWARD_DM_CONCURRENCY =/);
+  assert.match(content, /async function sendVoteRewardDm\(client, entry\)/);
+  assert.match(content, /async function deliverVoteRewardDms\(client, entries, concurrency = VOTE_REWARD_DM_CONCURRENCY\)/);
+  assert.match(content, /const workerCount = Math\.min\(Math\.max\(1, Number\(concurrency\) \|\| 1\), queue\.length\);/);
+  assert.match(content, /await Promise\.all\(workers\);/);
+  assert.match(content, /await deliverVoteRewardDms\(client, dmEntries\);/);
+});
+
 test('pruneUserInteractionEvents is exported and batch-limited', async () => {
   const dbContent = await readRepoFile('src/db/db.pg.mjs');
   const autoContent = await readRepoFile('src/db/db.auto.mjs');
@@ -208,7 +218,8 @@ test('todo list includes top-priority scalability work', async () => {
   assert.match(content, /\[x\] Batch admin balance lookups instead of N per-user balance reads\./);
   assert.match(content, /\[x\] Move Hold'em orphan cleanup out of startup blocking flow into a background queue\./);
   assert.match(content, /\[x\] Replace Hold'em table-number discovery that fetches all guild channels with a cheaper allocation strategy\./);
-  assert.match(content, /\[ \] Add bounded concurrency for vote reward DM delivery\./);
+  assert.match(content, /\[x\] Add bounded concurrency for vote reward DM delivery\./);
+  assert.match(content, /\[ \] Add hard bounds or eviction strategy for long-lived in-memory session\/state maps\./);
 });
 
 test('champion role sync avoids full guild member fetch on startup', async () => {

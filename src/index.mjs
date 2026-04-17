@@ -197,6 +197,7 @@ const INTERACTION_EVENT_RETENTION_DAYS = Math.max(7, Number(process.env.INTERACT
 const INTERACTION_EVENT_PRUNE_BATCH_SIZE = Math.max(100, Number(process.env.INTERACTION_EVENT_PRUNE_BATCH_SIZE || 10_000));
 const INTERACTION_EVENT_PRUNE_INTERVAL_MS = Math.max(60_000, Number(process.env.INTERACTION_EVENT_PRUNE_INTERVAL_MS || 15 * 60_000));
 const ONBOARDING_ACK_CACHE_MAX = Math.max(1_000, Number(process.env.ONBOARDING_ACK_CACHE_MAX || 100_000));
+const VOTE_REWARD_DM_CONCURRENCY = Math.max(1, Math.min(10, Number(process.env.VOTE_REWARD_DM_CONCURRENCY || 3)));
 const HOLDEM_ORPHAN_SWEEP_START_DELAY_MS = Math.max(1_000, Number(process.env.HOLDEM_ORPHAN_SWEEP_START_DELAY_MS || 20_000));
 const HOLDEM_ORPHAN_SWEEP_GUILD_BATCH_SIZE = Math.max(1, Math.min(10, Number(process.env.HOLDEM_ORPHAN_SWEEP_GUILD_BATCH_SIZE || 2)));
 const HOLDEM_ORPHAN_SWEEP_BATCH_INTERVAL_MS = Math.max(100, Number(process.env.HOLDEM_ORPHAN_SWEEP_BATCH_INTERVAL_MS || 1_500));
@@ -375,6 +376,42 @@ function scheduleStartupHoldemOrphanSweep(client) {
     processHoldemOrphanSweepBatch(client);
   }, HOLDEM_ORPHAN_SWEEP_START_DELAY_MS);
   if (typeof holdemOrphanSweepTimer?.unref === 'function') holdemOrphanSweepTimer.unref();
+}
+
+async function sendVoteRewardDm(client, entry) {
+  const user = await client.users.fetch(entry.userId);
+  const amount = chipsAmount(entry.claimedTotal || 0);
+  const breakdownText = describeBreakdown(entry.breakdown || []);
+  const sources = breakdownText || 'your recent votes';
+  const message = `${emoji('partyPopper')} Thanks for voting (${sources})! I just credited **${amount}** to your chips.`;
+  await user.send(message);
+}
+
+async function deliverVoteRewardDms(client, entries, concurrency = VOTE_REWARD_DM_CONCURRENCY) {
+  const queue = Array.isArray(entries) ? entries : [];
+  if (!queue.length) return;
+  const workerCount = Math.min(Math.max(1, Number(concurrency) || 1), queue.length);
+  let cursor = 0;
+  const nextEntry = () => {
+    if (cursor >= queue.length) return null;
+    const current = queue[cursor];
+    cursor += 1;
+    return current;
+  };
+
+  const workers = Array.from({ length: workerCount }, async () => {
+    while (true) {
+      const entry = nextEntry();
+      if (!entry) return;
+      try {
+        await sendVoteRewardDm(client, entry);
+      } catch (err) {
+        console.error('Failed to DM vote reward notice', entry.userId, err);
+      }
+    }
+  });
+
+  await Promise.all(workers);
 }
 
 function buildWelcomePromptEmbed({ status = null, bonusJustGranted = false, bonusError = null } = {}) {
@@ -730,6 +767,7 @@ client.once(Events.ClientReady, c => {
     voteRewardProcessing = true;
     try {
       const results = await autoRedeemPendingVoteRewards();
+      const dmEntries = [];
       for (const entry of results) {
         if (!entry || entry.error || !(entry.claimedTotal > 0)) {
           if (entry?.error) {
@@ -737,17 +775,9 @@ client.once(Events.ClientReady, c => {
           }
           continue;
         }
-        try {
-          const user = await client.users.fetch(entry.userId);
-          const amount = chipsAmount(entry.claimedTotal || 0);
-          const breakdownText = describeBreakdown(entry.breakdown || []);
-          const sources = breakdownText || 'your recent votes';
-          const message = `${emoji('partyPopper')} Thanks for voting (${sources})! I just credited **${amount}** to your chips.`;
-          await user.send(message);
-        } catch (err) {
-          console.error('Failed to DM vote reward notice', entry.userId, err);
-        }
+        dmEntries.push(entry);
       }
+      await deliverVoteRewardDms(client, dmEntries);
     } catch (err) {
       console.error('Failed to auto redeem vote rewards', err);
     } finally {

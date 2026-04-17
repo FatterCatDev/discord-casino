@@ -17,7 +17,7 @@
 ### Discord API + Startup Load
 - [x] Move Hold'em orphan cleanup out of startup blocking flow into a background queue.
 - [x] Replace Hold'em table-number discovery that fetches all guild channels with a cheaper allocation strategy.
-- [ ] Add bounded concurrency for vote reward DM delivery.
+- [x] Add bounded concurrency for vote reward DM delivery.
 
 ### Memory + Runtime Safety
 - [ ] Add hard bounds or eviction strategy for long-lived in-memory session/state maps.
@@ -25,7 +25,7 @@
 - [x] Add a pruning/index strategy for `user_interaction_events` that scales with time-based cleanup.
 
 ## 2) Current Step
-- [ ] Add bounded concurrency for vote reward DM delivery.
+- [ ] Add hard bounds or eviction strategy for long-lived in-memory session/state maps.
 
 # Warehouse Raid System Design + Implementation Checklist
 
