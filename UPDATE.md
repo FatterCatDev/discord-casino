@@ -9,7 +9,7 @@ version: 1.3.2
 - Added in-channel raid flavor embeds with action context, roll/tier details, raided player identity, and confiscation/fine outcomes.
 - Added warehouse heat bar and heat tier indicators to both cartel overview and warehouse views.
 - Replaced dealer list fire/pause buttons with a two-dropdown control flow: Fire Dealers and Pause Dealers selects with a single Confirm button.
-- Dropdowns default to Fire Dealers and include an All option when more than two dealers are employed.
+- Dropdowns default to None and include an All option when more than two dealers are employed.
 - Added per-message selection state cache so both dropdown choices persist until Confirm is pressed.
 - Added dealer pause service actions with audit transaction logging for single and bulk dealer pauses.
 - Updated interaction routing and regression coverage for dropdown-based dealer management.
@@ -23,7 +23,7 @@ version: 1.3.2
 - Cartel UI now surfaces warehouse heat visually, making raid risk easier to read.
 - Raid messaging now includes richer flavor and concrete outcome details in-channel.
 - Dealer management now uses two dropdowns (Fire Dealers, Pause Dealers) with a Confirm button, replacing the previous per-dealer button rows.
-- Both dropdowns include an All option when more than two dealers are present, and default to Pause Dealers until a selection is made.
+- Both dropdowns include an All option when more than two dealers are present, and default to None until a selection is made.
 
 ## Bug Fixes
 

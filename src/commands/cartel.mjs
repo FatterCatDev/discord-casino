@@ -1842,10 +1842,10 @@ function dealerActionOptionForDealer(dealer) {
   };
 }
 
-function buildDealerActionOptions(dealers = [], selected = DEALER_ACTION_NONE) {
+function buildDealerActionOptions(dealers = [], selected = DEALER_ACTION_NONE, noneLabel = 'None') {
   const options = [
     {
-      label: 'None',
+      label: noneLabel,
       value: DEALER_ACTION_NONE,
       default: selected === DEALER_ACTION_NONE
     }
@@ -1875,13 +1875,13 @@ function buildDealerManageSelectRows(dealers = [], selections = null) {
     .setPlaceholder('Fire Dealers')
     .setMinValues(1)
     .setMaxValues(1)
-    .addOptions(buildDealerActionOptions(dealers, safeSelections.fire));
+    .addOptions(buildDealerActionOptions(dealers, safeSelections.fire, 'Fire Dealers'));
   const pauseMenu = new StringSelectMenuBuilder()
     .setCustomId(CARTEL_DEALERS_MANAGE_PAUSE_SELECT_ID)
     .setPlaceholder('Pause Dealers')
     .setMinValues(1)
     .setMaxValues(1)
-    .addOptions(buildDealerActionOptions(dealers, safeSelections.pause));
+    .addOptions(buildDealerActionOptions(dealers, safeSelections.pause, 'Pause Dealers'));
   return [
     new ActionRowBuilder().addComponents(fireMenu),
     new ActionRowBuilder().addComponents(pauseMenu)
