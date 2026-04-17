@@ -65,6 +65,31 @@ const commands = [
     ]
   },
   {
+    name: 'cartelraiddebug',
+    description: 'Force a successful cartel raid against a player (admin only).',
+    options: [
+      { name: 'user', description: 'Target player', type: 6, required: true },
+      {
+        name: 'action',
+        description: 'Raid scope action type',
+        type: 3,
+        required: false,
+        choices: [
+          { name: 'Collect', value: 'collect' },
+          { name: 'Burn', value: 'burn' },
+          { name: 'Export', value: 'export' }
+        ]
+      },
+      {
+        name: 'collected_grams',
+        description: 'Collected Semuta grams to include in scope for collect action',
+        type: 10,
+        required: false,
+        min_value: 0
+      }
+    ]
+  },
+  {
     name: 'dicewar',
     description: 'Dice War: 2d6 vs house; doubles double pot on win (ties house).',
     options: [
