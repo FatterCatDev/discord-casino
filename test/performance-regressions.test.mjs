@@ -67,6 +67,22 @@ test('cartel read paths do not perform implicit row-creation writes', async () =
   assert.doesNotMatch(investorFn[0], /ensureCartelInvestorRow\(/);
 });
 
+test('cartel worker uses paged active-investor reads and cached guild discovery', async () => {
+  const service = await readRepoFile('src/cartel/service.mjs');
+  const db = await readRepoFile('src/db/db.pg.mjs');
+  const adapter = await readRepoFile('src/db/db.auto.mjs');
+  assert.match(service, /CARTEL_WORKER_GUILD_CACHE_TTL_MS/);
+  assert.match(service, /getCartelWorkerGuildIds\(/);
+  assert.match(service, /getCartelActiveInvestorStats\(/);
+  assert.match(service, /listCartelActiveInvestorsPage\(/);
+  assert.match(service, /CARTEL_WORKER_INVESTOR_PAGE_SIZE/);
+  assert.match(service, /CARTEL_WORKER_MAX_GUILD_CONCURRENCY/);
+  assert.match(db, /export async function getCartelActiveInvestorStats\(/);
+  assert.match(db, /export async function listCartelActiveInvestorsPage\(/);
+  assert.match(adapter, /export const getCartelActiveInvestorStats = pick\('getCartelActiveInvestorStats'\);/);
+  assert.match(adapter, /export const listCartelActiveInvestorsPage = pick\('listCartelActiveInvestorsPage'\);/);
+});
+
 test('index interaction handlers no longer use dynamic imports', async () => {
   const content = await readRepoFile('src/index.mjs');
   assert.doesNotMatch(content, /await import\('\.\/interactions/);

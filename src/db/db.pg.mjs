@@ -1511,6 +1511,37 @@ export async function listCartelInvestors(guildId) {
   return rows.map(normalizeCartelInvestor).filter(Boolean);
 }
 
+export async function getCartelActiveInvestorStats(guildId) {
+  const gid = resolveGuildId(guildId);
+  const row = await q1(
+    `SELECT
+       COALESCE(SUM(shares), 0) AS total_shares,
+       COUNT(*)::int AS active_investors
+     FROM cartel_investors
+     WHERE guild_id = $1 AND shares > 0`,
+    [gid]
+  );
+  return {
+    totalShares: Math.max(0, Number(row?.total_shares || 0)),
+    activeInvestors: Math.max(0, Number(row?.active_investors || 0))
+  };
+}
+
+export async function listCartelActiveInvestorsPage(guildId, limit = 500, offset = 0) {
+  const gid = resolveGuildId(guildId);
+  const pageSize = Math.max(1, Math.min(2_000, Math.floor(Number(limit || 500))));
+  const pageOffset = Math.max(0, Math.floor(Number(offset || 0)));
+  const rows = await q(
+    `SELECT guild_id, user_id, shares, stash_mg, warehouse_mg, rank, rank_xp, auto_sell_rule, sale_multiplier_bps, created_at, updated_at
+     FROM cartel_investors
+     WHERE guild_id = $1 AND shares > 0
+     ORDER BY user_id ASC
+     LIMIT $2 OFFSET $3`,
+    [gid, pageSize, pageOffset]
+  );
+  return rows.map(normalizeCartelInvestor).filter(Boolean);
+}
+
 export async function getCartelInvestor(guildId, userId) {
   const gid = resolveGuildId(guildId);
   const uid = String(userId || '').trim();
