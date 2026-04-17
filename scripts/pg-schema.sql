@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_users_discord_id ON users(discord_id);
+CREATE INDEX IF NOT EXISTS idx_users_guild_chips_created ON users(guild_id, chips DESC, created_at ASC);
 
 CREATE TABLE IF NOT EXISTS user_onboarding (
   guild_id        TEXT NOT NULL,

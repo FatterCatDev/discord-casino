@@ -40,8 +40,41 @@ test('getTopUsers excludes admin/mod users with NOT EXISTS', async () => {
   assert.ok(fn, 'getTopUsers function should exist');
   assert.match(fn[0], /NOT EXISTS \(SELECT 1 FROM admin_users/);
   assert.match(fn[0], /NOT EXISTS \(SELECT 1 FROM mod_users/);
+  assert.match(fn[0], /a\.guild_id = users\.guild_id/);
+  assert.match(fn[0], /m\.guild_id = users\.guild_id/);
   assert.doesNotMatch(fn[0], /NOT IN \(SELECT user_id FROM admin_users\)/);
   assert.doesNotMatch(fn[0], /NOT IN \(SELECT user_id FROM mod_users\)/);
+});
+
+test('leaderboard uses DB aggregates instead of per-admin balance fan-out and full cartel investor scans', async () => {
+  const command = await readRepoFile('src/commands/leaderboard.mjs');
+  const db = await readRepoFile('src/db/db.pg.mjs');
+  const adapter = await readRepoFile('src/db/db.auto.mjs');
+  assert.match(command, /getAdminChipTotal/);
+  assert.match(command, /getCartelShareLeaders/);
+  assert.match(command, /getCartelStaffShareTotal/);
+  assert.doesNotMatch(command, /ctx\?\.getUserBalances/);
+  assert.doesNotMatch(command, /listCartelInvestors\(/);
+  assert.match(db, /export async function getAdminChipTotal\(/);
+  assert.match(db, /export async function getCartelShareLeaders\(/);
+  assert.match(db, /export async function getCartelStaffShareTotal\(/);
+  assert.match(adapter, /export const getAdminChipTotal = pick\('getAdminChipTotal'\);/);
+  assert.match(adapter, /export const getCartelShareLeaders = pick\('getCartelShareLeaders'\);/);
+  assert.match(adapter, /export const getCartelStaffShareTotal = pick\('getCartelStaffShareTotal'\);/);
+});
+
+test('leaderboard caches names and resolves them once across chip and share views', async () => {
+  const command = await readRepoFile('src/commands/leaderboard.mjs');
+  assert.match(command, /const LEADERBOARD_NAME_CACHE_TTL_MS =/);
+  assert.match(command, /const LEADERBOARD_NAME_CACHE_MAX =/);
+  assert.match(command, /const LEADERBOARD_NAME_RESOLUTION_CONCURRENCY =/);
+  assert.match(command, /const leaderboardNameCache = new Map\(\);/);
+  assert.match(command, /async function resolveLeaderboardNames\(/);
+  assert.match(command, /const allUserIds = Array\.from\(new Set\(\[/);
+  assert.match(command, /const resolvedNames = await resolveLeaderboardNames\(interaction, allUserIds\);/);
+  assert.match(command, /resolvedNames\.get\(String\(r\.discord_id\)\)/);
+  assert.match(command, /resolvedNames\.get\(String\(inv\.user_id\)\)/);
+  assert.match(command, /while \(leaderboardNameCache\.size > LEADERBOARD_NAME_CACHE_MAX\)/);
 });
 
 test('pruneUserInteractionEvents is exported and batch-limited', async () => {
@@ -105,6 +138,7 @@ test('missing database indexes are created for cartel and access control tables'
   assert.match(content, /CREATE INDEX IF NOT EXISTS idx_admin_users_guild_user ON admin_users \(guild_id, user_id\)/);
   assert.match(content, /CREATE INDEX IF NOT EXISTS idx_cartel_investors_guild_shares ON cartel_investors \(guild_id, shares DESC\)/);
   assert.match(content, /CREATE INDEX IF NOT EXISTS idx_user_interaction_events_created ON user_interaction_events \(created_at ASC\)/);
+  assert.match(content, /CREATE INDEX IF NOT EXISTS idx_users_guild_chips_created ON users \(guild_id, chips DESC, created_at ASC\)/);
 });
 
 test('index interaction handlers no longer use dynamic imports', async () => {
@@ -145,7 +179,9 @@ test('session cleanup detaches state before async work', async () => {
 test('todo list includes top-priority scalability work', async () => {
   const content = await readRepoFile('docs/TO-DO.md');
   assert.match(content, /# Top Priority: Performance \+ Scale Work/);
-  assert.match(content, /Make cartel read paths pure reads with no implicit row creation/);
+  assert.match(content, /\[x\] Batch or cache Discord member\/user name resolution for leaderboard rendering\./);
+  assert.match(content, /\[x\] Batch admin balance lookups instead of N per-user balance reads\./);
+  assert.match(content, /Move Hold'em orphan cleanup out of startup blocking flow into a background queue/);
 });
 
 test('champion role sync avoids full guild member fetch on startup', async () => {

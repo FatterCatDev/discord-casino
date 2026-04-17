@@ -130,6 +130,7 @@ async function migrateUsersToGuildScoped() {
     await c.query('DROP TABLE users_legacy');
   });
   await q('CREATE INDEX IF NOT EXISTS idx_users_guild_discord ON users (guild_id, discord_id)');
+  await q('CREATE INDEX IF NOT EXISTS idx_users_guild_chips_created ON users (guild_id, chips DESC, created_at ASC)');
 }
 
 async function migrateTransactionsToGuildScoped() {
@@ -1043,13 +1044,29 @@ export async function getTopUsers(guildId, limit = 10) {
      FROM users
      WHERE guild_id = $1
        AND chips > 0
-       AND NOT EXISTS (SELECT 1 FROM admin_users a WHERE a.user_id = users.discord_id)
-       AND NOT EXISTS (SELECT 1 FROM mod_users m WHERE m.user_id = users.discord_id)
+       AND NOT EXISTS (SELECT 1 FROM admin_users a WHERE a.guild_id = users.guild_id AND a.user_id = users.discord_id)
+       AND NOT EXISTS (SELECT 1 FROM mod_users m WHERE m.guild_id = users.guild_id AND m.user_id = users.discord_id)
      ORDER BY chips DESC, created_at ASC
      LIMIT $2`,
     [gid, n]
   );
   return rows.map(r => ({ discord_id: r.discord_id, chips: Number(r.chips || 0) }));
+}
+
+export async function getAdminChipTotal(guildId) {
+  const gid = resolveGuildId(guildId);
+  const row = await q1(
+    `SELECT COALESCE(SUM(u.chips), 0) AS total
+     FROM users u
+     WHERE u.guild_id = $1
+       AND EXISTS (
+         SELECT 1
+         FROM admin_users a
+         WHERE a.guild_id = u.guild_id AND a.user_id = u.discord_id
+       )`,
+    [gid]
+  );
+  return Math.max(0, Number(row?.total || 0));
 }
 
 export async function getHouseBalance(guildId) {
@@ -1549,6 +1566,39 @@ export async function listCartelActiveInvestorsPage(guildId, limit = 500, offset
     [gid, pageSize, pageOffset]
   );
   return rows.map(normalizeCartelInvestor).filter(Boolean);
+}
+
+export async function getCartelShareLeaders(guildId, limit = 10) {
+  const gid = resolveGuildId(guildId);
+  const n = Math.max(1, Math.min(100, Math.floor(Number(limit || 10))));
+  const rows = await q(
+    `SELECT guild_id, user_id, shares, stash_mg, warehouse_mg, rank, rank_xp, auto_sell_rule, sale_multiplier_bps, created_at, updated_at
+     FROM cartel_investors
+     WHERE guild_id = $1
+       AND shares > 0
+       AND NOT EXISTS (SELECT 1 FROM admin_users a WHERE a.guild_id = cartel_investors.guild_id AND a.user_id = cartel_investors.user_id)
+       AND NOT EXISTS (SELECT 1 FROM mod_users m WHERE m.guild_id = cartel_investors.guild_id AND m.user_id = cartel_investors.user_id)
+     ORDER BY shares DESC, created_at ASC, user_id ASC
+     LIMIT $2`,
+    [gid, n]
+  );
+  return rows.map(normalizeCartelInvestor).filter(Boolean);
+}
+
+export async function getCartelStaffShareTotal(guildId) {
+  const gid = resolveGuildId(guildId);
+  const row = await q1(
+    `SELECT COALESCE(SUM(ci.shares), 0) AS total
+     FROM cartel_investors ci
+     WHERE ci.guild_id = $1
+       AND ci.shares > 0
+       AND (
+         EXISTS (SELECT 1 FROM admin_users a WHERE a.guild_id = ci.guild_id AND a.user_id = ci.user_id)
+         OR EXISTS (SELECT 1 FROM mod_users m WHERE m.guild_id = ci.guild_id AND m.user_id = ci.user_id)
+       )`,
+    [gid]
+  );
+  return Math.max(0, Number(row?.total || 0));
 }
 
 export async function getCartelInvestor(guildId, userId) {

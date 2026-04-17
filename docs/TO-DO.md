@@ -3,16 +3,16 @@
 ## 1) Immediate Scale Priorities
 
 ### Cartel Data Path
-- [ ] Remove cartel write-on-read behavior from pure reads (`getCartelPool`, `listCartelInvestors`, `getCartelInvestor`).
-- [ ] Rework cartel worker guild discovery to avoid full cross-table `UNION DISTINCT` scanning every tick.
-- [ ] Process cartel production in batches instead of loading all investors for a guild into memory at once.
-- [ ] Add targeted indexes for cartel read and ranking patterns.
+- [x] Remove cartel write-on-read behavior from pure reads (`getCartelPool`, `listCartelInvestors`, `getCartelInvestor`).
+- [x] Rework cartel worker guild discovery to avoid full cross-table `UNION DISTINCT` scanning every tick.
+- [x] Process cartel production in batches instead of loading all investors for a guild into memory at once.
+- [x] Add targeted indexes for cartel read and ranking patterns.
 
 ### Leaderboard Path
-- [ ] Batch admin balance lookups instead of N per-user balance reads.
-- [ ] Replace full cartel investor load in leaderboard share ranking with a DB-level top-N query.
-- [ ] Batch or cache Discord member/user name resolution for leaderboard rendering.
-- [ ] Add leaderboard-oriented indexes for user ranking queries.
+- [x] Batch admin balance lookups instead of N per-user balance reads.
+- [x] Replace full cartel investor load in leaderboard share ranking with a DB-level top-N query.
+- [x] Batch or cache Discord member/user name resolution for leaderboard rendering.
+- [x] Add leaderboard-oriented indexes for user ranking queries.
 
 ### Discord API + Startup Load
 - [ ] Move Hold'em orphan cleanup out of startup blocking flow into a background queue.
@@ -22,10 +22,10 @@
 ### Memory + Runtime Safety
 - [ ] Add hard bounds or eviction strategy for long-lived in-memory session/state maps.
 - [ ] Revisit cache structures that can grow with guild/user count and make them LRU or size-bounded.
-- [ ] Add a pruning/index strategy for `user_interaction_events` that scales with time-based cleanup.
+- [x] Add a pruning/index strategy for `user_interaction_events` that scales with time-based cleanup.
 
 ## 2) Current Step
-- [ ] Make cartel read paths pure reads with no implicit row creation.
+- [ ] Move Hold'em orphan cleanup out of startup blocking flow into a background queue.
 
 # Warehouse Raid System Design + Implementation Checklist
 
