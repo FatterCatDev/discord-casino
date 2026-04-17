@@ -289,3 +289,21 @@ test('champion role sync avoids full guild member fetch on startup', async () =>
   assert.doesNotMatch(content, /guild\.members\.fetch\(\)/);
   assert.match(content, /guild\.members\.fetch\(\{ user: topUserId, force: true \}\)/);
 });
+
+test('cartel raid debug command is admin-gated and wired through deploy and runtime handlers', async () => {
+  const command = await readRepoFile('src/commands/cartelraiddebug.mjs');
+  const service = await readRepoFile('src/cartel/service.mjs');
+  const deploy = await readRepoFile('src/cli/deploy-commands.mjs');
+  const index = await readRepoFile('src/index.mjs');
+  const commandList = await readRepoFile('commands.json');
+
+  assert.match(command, /if \(!\(await ctx\.isAdmin\(interaction\)\)\)/);
+  assert.match(command, /triggerCartelRaidDebug\(/);
+  assert.match(service, /export async function triggerCartelRaidDebug\(/);
+  assert.match(service, /rollRaid: \(\) => \(\{/);
+  assert.match(deploy, /name: 'cartelraiddebug'/);
+  assert.match(deploy, /name: 'collected_grams'/);
+  assert.match(index, /import cmdCartelRaidDebug from '\.\/commands\/cartelraiddebug\.mjs';/);
+  assert.match(index, /cartelraiddebug: cmdCartelRaidDebug,/);
+  assert.match(commandList, /"name": "cartelraiddebug"/);
+});

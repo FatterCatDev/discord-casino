@@ -138,6 +138,7 @@ import cmdCartel, {
 } from './commands/cartel.mjs';
 import cmdSetCartelShare from './commands/setcartelshare.mjs';
 import cmdCartelReset from './commands/cartelreset.mjs';
+import cmdCartelRaidDebug from './commands/cartelraiddebug.mjs';
 import cmdSetCartelRate from './commands/setcartelrate.mjs';
 import cmdSetCartelXp from './commands/setcartelxp.mjs';
 
@@ -1323,6 +1324,7 @@ const commandHandlers = {
   resetallbalance: cmdResetAllBalance,
   setcasinocategory: cmdSetCasinoCategory,
   cartelreset: cmdCartelReset,
+  cartelraiddebug: cmdCartelRaidDebug,
   kittenmode: cmdKittenMode,
   vote: cmdVote,
   news: cmdNews,

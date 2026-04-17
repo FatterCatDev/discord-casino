@@ -493,6 +493,53 @@ export async function updateCartelXpPerGram(guildId, xpPerGram) {
   };
 }
 
+export async function triggerCartelRaidDebug(guildId, userId, { actionType = 'collect', collectedGrams = 0 } = {}) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) throw new CartelError('CARTEL_USER_REQUIRED', 'Choose a valid target user.');
+  let investor = await getCartelInvestor(gid, uid);
+  investor = await normalizeInvestorState(gid, investor);
+  if (!investor) {
+    throw new CartelError('CARTEL_PROFILE_MISSING', 'Target player does not have a cartel profile yet.');
+  }
+
+  const normalizedAction = (() => {
+    const raw = String(actionType || 'collect').toLowerCase();
+    if (raw === 'burn') return 'burn';
+    if (raw === 'export') return 'export';
+    return 'collect';
+  })();
+
+  const requestedCollectedMg = gramsToMg(collectedGrams);
+  const scope = {
+    warehouseMg: Math.max(0, Number(investor?.warehouse_mg || 0)),
+    collectedMg: normalizedAction === 'collect' ? requestedCollectedMg : 0
+  };
+
+  const heat = calculateWarehouseHeat(investor);
+  const tierState = raidTierForHeat(heat);
+  const forcedTier = tierState?.name || 'DEBUG';
+  const forcedTriggerThreshold = Number(tierState?.rule?.trigger || 0);
+
+  const raid = await resolveWarehouseRaidAfterAction(gid, uid, normalizedAction, investor, scope, {
+    rollRaid: () => ({
+      triggered: true,
+      success: true,
+      heat,
+      roll: 1,
+      tier: forcedTier,
+      triggerThreshold: forcedTriggerThreshold
+    })
+  });
+
+  return {
+    actionType: normalizedAction,
+    scopeWarehouseMg: scope.warehouseMg,
+    scopeCollectedMg: scope.collectedMg,
+    raid
+  };
+}
+
 export async function cartelInvest(guildId, userId, chipAmount) {
   const pool = await getCartelPool(guildId);
   const sharePrice = sharePriceFromPool(pool);
