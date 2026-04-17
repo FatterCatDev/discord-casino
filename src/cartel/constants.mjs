@@ -53,6 +53,9 @@ export const CARTEL_DEALER_NAME_POOL = Object.freeze({
 // Warehouse raid system
 export const CARTEL_WAREHOUSE_HEAT_PER_GRAM = 0.002; // heat added per gram stored
 export const CARTEL_WAREHOUSE_HEAT_DECAY_PER_HOUR = 2; //every hour 5 grams 
+export const CARTEL_WAREHOUSE_EXPIRATION_ENABLED = String(process.env.CARTEL_WAREHOUSE_EXPIRATION_ENABLED || 'false').toLowerCase() === 'true';
+export const CARTEL_WAREHOUSE_EXPIRATION_CADENCE_SECONDS = Math.max(60, Number(process.env.CARTEL_WAREHOUSE_EXPIRATION_CADENCE_SECONDS || 3600));
+export const CARTEL_WAREHOUSE_EXPIRATION_GRAMS_PER_CADENCE = Math.max(0, Number(process.env.CARTEL_WAREHOUSE_EXPIRATION_GRAMS_PER_CADENCE || CARTEL_WAREHOUSE_HEAT_DECAY_PER_HOUR));
 
 export const CARTEL_RAID_THRESHOLDS = {
   LOW: { heat: 50, trigger: 1 },   // raid on d20 roll of 1

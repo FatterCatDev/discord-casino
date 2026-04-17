@@ -60,7 +60,10 @@ import {
   CARTEL_DEALER_TIERS,
   CARTEL_DEALER_TIERS_BY_ID,
   CARTEL_DEALER_UPKEEP_PERCENT_BY_TIER,
-  SEMUTA_CARTEL_USER_ID
+  SEMUTA_CARTEL_USER_ID,
+  CARTEL_WAREHOUSE_EXPIRATION_ENABLED,
+  CARTEL_WAREHOUSE_EXPIRATION_CADENCE_SECONDS,
+  CARTEL_WAREHOUSE_EXPIRATION_GRAMS_PER_CADENCE
 } from './constants.mjs';
 import { stashCapForRank, stashCapMgForRank, applyRankProgress, rankXpTable } from './progression.mjs';
 
@@ -225,6 +228,22 @@ function mgNeededToReachMultiplierCap(currentBps) {
   if (remainingBps <= 0) return 0;
   const unitsNeeded = Math.ceil(remainingBps / 100);
   return multiplierUnitsToMg(unitsNeeded);
+}
+
+function calculateWarehouseExpirationMg(warehouseMg, elapsedSeconds) {
+  const currentWarehouse = Math.max(0, Math.floor(Number(warehouseMg || 0)));
+  const elapsed = Math.max(0, Math.floor(Number(elapsedSeconds || 0)));
+  if (!CARTEL_WAREHOUSE_EXPIRATION_ENABLED) return 0;
+  if (currentWarehouse <= 0) return 0;
+  if (elapsed <= 0) return 0;
+  const cadence = Math.max(1, Math.floor(Number(CARTEL_WAREHOUSE_EXPIRATION_CADENCE_SECONDS || 1)));
+  const gramsPerCadence = Math.max(0, Number(CARTEL_WAREHOUSE_EXPIRATION_GRAMS_PER_CADENCE || 0));
+  if (gramsPerCadence <= 0) return 0;
+  const cycles = Math.floor(elapsed / cadence);
+  if (cycles <= 0) return 0;
+  const mgPerCadence = Math.max(0, Math.floor(gramsPerCadence * MG_PER_GRAM));
+  if (mgPerCadence <= 0) return 0;
+  return Math.min(currentWarehouse, cycles * mgPerCadence);
 }
 
 function maxExportableMgBeforeCap(investor) {
@@ -1322,6 +1341,7 @@ async function runCartelProductionTickForGuild(guildId, nowMs = Date.now()) {
 
   const rateMg = baseRateMgPerHour(totalWeight, pool);
   const deltaSeconds = lastTick ? Math.max(0, nowSeconds - lastTick) : CARTEL_MIN_TICK_SECONDS;
+  const expirationElapsedSeconds = lastTick ? Math.max(0, nowSeconds - lastTick) : 0;
   const producedMg = Math.floor((rateMg * deltaSeconds) / 3600);
   const availableMg = producedMg + Number(pool?.carryover_mg || 0);
   if (availableMg <= 0) {
@@ -1332,6 +1352,7 @@ async function runCartelProductionTickForGuild(guildId, nowMs = Date.now()) {
   const allocations = [];
   let assigned = 0;
   let processed = 0;
+  let expiredMgTotal = 0;
   for (let offset = 0; offset < activeCount; offset += CARTEL_WORKER_INVESTOR_PAGE_SIZE) {
     const page = await listCartelActiveInvestorsPage(guildId, CARTEL_WORKER_INVESTOR_PAGE_SIZE, offset);
     if (!page.length) break;
@@ -1346,13 +1367,17 @@ async function runCartelProductionTickForGuild(guildId, nowMs = Date.now()) {
       assigned += mgShare;
       const currentStash = Number(inv?.stash_mg || 0);
       const capMg = stashCapMgForRank(inv.rank);
+      const currentWarehouse = Number(inv?.warehouse_mg || 0);
+      const expiredMg = calculateWarehouseExpirationMg(currentWarehouse, expirationElapsedSeconds);
+      expiredMgTotal += expiredMg;
+      const warehouseAfterExpiration = Math.max(0, currentWarehouse - expiredMg);
       let newStash = currentStash + mgShare;
       let overflow = 0;
       if (newStash > capMg) {
         overflow = newStash - capMg;
         newStash = capMg;
       }
-      const newWarehouse = Number(inv?.warehouse_mg || 0) + overflow;
+      const newWarehouse = warehouseAfterExpiration + overflow;
       const gramsProduced = mgToGrams(mgShare);
       const xpGain = Math.floor(gramsProduced * CARTEL_XP_PER_GRAM_PRODUCED);
       const rankState = applyRankProgress(inv.rank, inv.rank_xp, xpGain);
@@ -1370,11 +1395,20 @@ async function runCartelProductionTickForGuild(guildId, nowMs = Date.now()) {
   const leftover = Math.max(0, availableMg - assigned);
   await cartelApplyProduction(guildId, allocations, { lastTickAt: nowSeconds, carryoverMg: leftover });
   const dealerResult = await runDealerAutoSales(guildId, nowSeconds, deltaSeconds);
+  if (expiredMgTotal > 0) {
+    console.info('Cartel warehouse expiration applied', {
+      guildId,
+      elapsedSeconds: expirationElapsedSeconds,
+      expiredMg: expiredMgTotal,
+      expiredGrams: mgToGrams(expiredMgTotal)
+    });
+  }
   return {
     processed: allocations.length,
     producedMg: assigned,
     leftoverMg: leftover,
     deltaSeconds,
+    warehouseExpiredMg: expiredMgTotal,
     dealerSales: dealerResult?.sales || 0
   };
 }
