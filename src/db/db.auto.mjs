@@ -74,6 +74,7 @@ export const markUserOnboardingAcknowledged = pick('markUserOnboardingAcknowledg
 export const recordUserInteraction = pick('recordUserInteraction');
 export const getUserInteractionStats = pick('getUserInteractionStats');
 export const markUserInteractionReviewPrompt = pick('markUserInteractionReviewPrompt');
+export const pruneUserInteractionEvents = pick('pruneUserInteractionEvents');
 export const recordVoteReward = pick('recordVoteReward');
 export const getPendingVoteRewards = pick('getPendingVoteRewards');
 export const redeemVoteRewards = pick('redeemVoteRewards');

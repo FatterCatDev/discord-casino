@@ -21,6 +21,7 @@ import {
   markUserOnboardingAcknowledged,
   recordUserInteraction,
   markUserInteractionReviewPrompt,
+  pruneUserInteractionEvents,
   getGlobalPlayerCount,
   setBotStatusSnapshot,
   getUserNewsSettings,
@@ -145,6 +146,23 @@ import onHelpSelect from './interactions/helpSelect.mjs';
 import onHelpPageButtons from './interactions/helpPageButtons.mjs';
 import onRequestButtons from './interactions/requestButtons.mjs';
 import onRequestRejectModal from './interactions/requestRejectModal.mjs';
+import onJobStatusButtons from './interactions/jobs/statusButtons.mjs';
+import onJobShiftButtons from './interactions/jobs/shiftButtons.mjs';
+import onRideBusButtons from './interactions/ridebusButtons.mjs';
+import onBlackjackButtons from './interactions/blackjackButtons.mjs';
+import onSlotsButtons from './interactions/slotsButtons.mjs';
+import onDiceWarButtons from './interactions/diceWarButtons.mjs';
+import onRouletteButtons from './interactions/rouletteButtons.mjs';
+import onHorseRaceButtons from './interactions/horseRaceButtons.mjs';
+import onHoldemButtons from './interactions/holdemButtons.mjs';
+import onLeaderboardButtons from './interactions/leaderboardButtons.mjs';
+import onRouletteTypeSelect from './interactions/rouletteTypeSelect.mjs';
+import onBlackjackBetModal from './interactions/blackjackBetModal.mjs';
+import onRouletteModal from './interactions/rouletteModal.mjs';
+import onHoldemBetModal from './interactions/holdemBetModal.mjs';
+import onHoldemJoinModal from './interactions/holdemJoinModal.mjs';
+import onHoldemCustomModal from './interactions/holdemCustomModal.mjs';
+import onHorseRaceBetModal from './interactions/horseRaceBetModal.mjs';
 
 const OWNER_USER_IDS = Array.from(new Set([
   '94915805375889408',
@@ -172,8 +190,115 @@ const REVIEW_PROMPT_SUPPORT_MESSAGE = [
 ].join('\n');
 
 const NEWS_COOLDOWN_SECONDS = 7 * 24 * 60 * 60;
+const GUILD_SETTINGS_TTL_MS = Math.max(5_000, Number(process.env.GUILD_SETTINGS_CACHE_TTL_MS || 45_000));
+const ACCESS_LIST_TTL_MS = Math.max(5_000, Number(process.env.ACCESS_LIST_CACHE_TTL_MS || 30_000));
+const ACTIVE_NEWS_TTL_MS = Math.max(10_000, Number(process.env.ACTIVE_NEWS_CACHE_TTL_MS || 120_000));
+const INTERACTION_EVENT_RETENTION_DAYS = Math.max(7, Number(process.env.INTERACTION_EVENT_RETENTION_DAYS || 90));
+const INTERACTION_EVENT_PRUNE_BATCH_SIZE = Math.max(100, Number(process.env.INTERACTION_EVENT_PRUNE_BATCH_SIZE || 10_000));
+const INTERACTION_EVENT_PRUNE_INTERVAL_MS = Math.max(60_000, Number(process.env.INTERACTION_EVENT_PRUNE_INTERVAL_MS || 15 * 60_000));
+const ONBOARDING_ACK_CACHE_MAX = Math.max(1_000, Number(process.env.ONBOARDING_ACK_CACHE_MAX || 100_000));
+
+const SETTINGS_MUTATION_COMMANDS = new Set([
+  'setgamelogchannel',
+  'setcashlog',
+  'setrequestchannel',
+  'setupdatech',
+  'requesttimer',
+  'setmaxbet',
+  'setrake',
+  'setcasinocategory',
+  'kittenmode'
+]);
+
+const ACCESS_MUTATION_COMMANDS = new Set(['addmod', 'removemod', 'addadmin', 'removeadmin']);
 
 let topggPoster = null;
+const guildSettingsCache = new Map();
+const accessListCache = new Map();
+const onboardingAcknowledgedUsers = new Set();
+const userNewsState = new Map();
+let activeNewsCache = { value: null, digest: null, expiresAt: 0 };
+
+function setTimedCache(map, key, value, ttlMs) {
+  map.set(key, {
+    value,
+    expiresAt: Date.now() + ttlMs
+  });
+}
+
+function getTimedCache(map, key) {
+  const entry = map.get(key);
+  if (!entry) return null;
+  if (Date.now() >= entry.expiresAt) {
+    map.delete(key);
+    return null;
+  }
+  return entry.value;
+}
+
+function accessCacheKey(guildId, roleType) {
+  return `${guildId || 'global'}:${roleType}`;
+}
+
+async function getGuildSettingsCached(guildId) {
+  if (!guildId) return null;
+  const cached = getTimedCache(guildSettingsCache, guildId);
+  if (cached) return cached;
+  const settings = await getGuildSettings(guildId);
+  setTimedCache(guildSettingsCache, guildId, settings, GUILD_SETTINGS_TTL_MS);
+  return settings;
+}
+
+function invalidateGuildSettingsCache(guildId) {
+  if (!guildId) return;
+  guildSettingsCache.delete(guildId);
+}
+
+function invalidateAccessCache(guildId) {
+  accessListCache.delete(accessCacheKey(guildId, 'admins'));
+  accessListCache.delete(accessCacheKey(guildId, 'moderators'));
+}
+
+async function getAccessListCached(guildId, roleType, loader) {
+  const key = accessCacheKey(guildId, roleType);
+  const cached = getTimedCache(accessListCache, key);
+  if (cached) return cached;
+  const ids = await loader(guildId);
+  const normalized = Array.from(new Set((ids || []).map(id => String(id))));
+  setTimedCache(accessListCache, key, normalized, ACCESS_LIST_TTL_MS);
+  return normalized;
+}
+
+async function getActiveNewsCached() {
+  if (Date.now() < activeNewsCache.expiresAt) {
+    return activeNewsCache.value;
+  }
+  const active = await getActiveNews();
+  activeNewsCache = {
+    value: active,
+    digest: newsDigest(active) || null,
+    expiresAt: Date.now() + ACTIVE_NEWS_TTL_MS
+  };
+  return active;
+}
+
+function onboardingCacheKey(guildId, userId) {
+  return `${guildId}:${userId}`;
+}
+
+function rememberOnboardingAcknowledged(guildId, userId) {
+  const key = onboardingCacheKey(guildId, userId);
+  if (onboardingAcknowledgedUsers.size >= ONBOARDING_ACK_CACHE_MAX) {
+    const oldest = onboardingAcknowledgedUsers.values().next().value;
+    if (oldest) onboardingAcknowledgedUsers.delete(oldest);
+  }
+  onboardingAcknowledgedUsers.add(key);
+}
+
+function clearUserNewsState(userId) {
+  if (!userId) return;
+  userNewsState.delete(String(userId));
+}
 
 function triggerTopggStats(reason = 'manual') {
   if (topggPoster?.trigger) {
@@ -258,10 +383,14 @@ async function maybePromptNewPlayer(interaction) {
   const guildId = interaction.guild?.id || null;
   const userId = interaction.user?.id || null;
   if (!guildId || !userId) return false;
+  if (onboardingAcknowledgedUsers.has(onboardingCacheKey(guildId, userId))) return false;
   let status = null;
   try {
     status = await getUserOnboardingStatus(guildId, userId);
-    if (status?.acknowledgedAt) return false;
+    if (status?.acknowledgedAt) {
+      rememberOnboardingAcknowledged(guildId, userId);
+      return false;
+    }
   } catch (err) {
     console.error(`Failed to read onboarding status for ${userId} in ${guildId}`, err);
     return false;
@@ -468,13 +597,11 @@ function hasOwnerOverride(userId) {
 }
 
 async function adminsForGuild(guildId) {
-  const ids = await getAdmins(guildId);
-  return Array.from(new Set(ids.map(id => String(id))));
+  return getAccessListCached(guildId, 'admins', getAdmins);
 }
 
 async function moderatorsForGuild(guildId) {
-  const ids = await getModerators(guildId);
-  return Array.from(new Set(ids.map(id => String(id))));
+  return getAccessListCached(guildId, 'moderators', getModerators);
 }
 
 async function hasAdminAccess(guildId, userId) {
@@ -486,8 +613,12 @@ async function hasAdminAccess(guildId, userId) {
 
 async function hasModeratorAccess(guildId, userId) {
   if (!userId) return false;
-  if (await hasAdminAccess(guildId, userId)) return true;
-  const moderators = await moderatorsForGuild(guildId);
+  if (hasOwnerOverride(userId)) return true;
+  const [admins, moderators] = await Promise.all([
+    adminsForGuild(guildId),
+    moderatorsForGuild(guildId)
+  ]);
+  if (admins.includes(String(userId))) return true;
   return moderators.includes(String(userId));
 }
 
@@ -524,7 +655,7 @@ client.once(Events.ClientReady, c => {
   (async () => {
     try {
       for (const [guildId] of client.guilds.cache) {
-        const settings = await getGuildSettings(guildId);
+        const settings = await getGuildSettingsCached(guildId);
         const catId = settings?.casino_category_id;
         if (!catId) continue;
         const guild = await client.guilds.fetch(guildId).catch(()=>null);
@@ -581,6 +712,14 @@ client.once(Events.ClientReady, c => {
 
   sweepVoteRewards().catch(() => {});
   setInterval(() => { sweepVoteRewards().catch(() => {}); }, intervalMs);
+
+  setInterval(() => {
+    pruneUserInteractionEvents(INTERACTION_EVENT_RETENTION_DAYS, INTERACTION_EVENT_PRUNE_BATCH_SIZE)
+      .catch(err => {
+        console.error('Failed to prune user_interaction_events', err);
+      });
+  }, INTERACTION_EVENT_PRUNE_INTERVAL_MS);
+
   startLeaderboardChampionWatcher(client);
   try {
     const timer = startCartelWorkerMod();
@@ -665,7 +804,7 @@ function buildCommandContext(interaction, extras = {}) {
     if (typeof kittenModeFlag === 'boolean') return kittenModeFlag;
     if (!guildId) return false;
     try {
-      const settings = await getGuildSettings(guildId);
+      const settings = await getGuildSettingsCached(guildId);
       kittenModeFlag = !!(settings && settings.kitten_mode_enabled);
       return kittenModeFlag;
     } catch {
@@ -926,19 +1065,33 @@ async function maybeSendNewsReminder(interaction) {
     if (typeof interaction.inGuild === 'function' && !interaction.inGuild()) return;
     const userId = interaction.user?.id;
     if (!userId) return;
-    const active = await getActiveNews();
+    const active = await getActiveNewsCached();
     if (!active || !active.body) return;
-    const settings = await getUserNewsSettings(userId);
-    if (settings?.newsOptIn === false) return;
-    const digest = newsDigest(active) || null;
+    const digest = activeNewsCache.digest || newsDigest(active) || null;
     const nowSec = Math.floor(Date.now() / 1000);
+    const cachedState = userNewsState.get(String(userId));
+    if (cachedState?.optOut) return;
+    if (cachedState && cachedState.skipUntilSec > nowSec && cachedState.digest === digest) return;
+
+    const settings = await getUserNewsSettings(userId);
+    if (settings?.newsOptIn === false) {
+      userNewsState.set(String(userId), { optOut: true, digest: null, skipUntilSec: 0 });
+      return;
+    }
     const lastSentRaw = settings?.lastDeliveredAt;
     const lastSentSec = Number.isFinite(Number(lastSentRaw))
       ? Math.trunc(Number(lastSentRaw))
       : 0;
     const lastDigest = settings?.lastDigest || null;
     const seenRecently = lastSentSec > 0 && (nowSec - lastSentSec) < NEWS_COOLDOWN_SECONDS;
-    if (seenRecently && (!digest || lastDigest === digest)) return;
+    if (seenRecently && (!digest || lastDigest === digest)) {
+      userNewsState.set(String(userId), {
+        optOut: false,
+        digest,
+        skipUntilSec: lastSentSec + NEWS_COOLDOWN_SECONDS
+      });
+      return;
+    }
     if (!(interaction.deferred || interaction.replied)) return;
     if (interaction.deferred && !interaction.replied) {
       await new Promise(resolve => setTimeout(resolve, 350));
@@ -970,6 +1123,11 @@ async function maybeSendNewsReminder(interaction) {
 
     if (delivered) {
       await markUserNewsDelivered(userId, digest, nowSec);
+      userNewsState.set(String(userId), {
+        optOut: false,
+        digest,
+        skipUntilSec: nowSec + NEWS_COOLDOWN_SECONDS
+      });
     }
   } catch (err) {
     console.error('Failed to send news reminder', err);
@@ -1072,7 +1230,7 @@ client.on(Events.InteractionCreate, async interaction => {
     let kittenModeEnabled = false;
     if (guildId) {
       try {
-        const settings = await getGuildSettings(guildId);
+        const settings = await getGuildSettingsCached(guildId);
         kittenModeEnabled = !!(settings && settings.kitten_mode_enabled);
       } catch (err) {
         console.error('Failed to read kitten mode setting:', err);
@@ -1099,6 +1257,15 @@ client.on(Events.InteractionCreate, async interaction => {
       if (typeof handler === 'function') {
         const ctx = buildCommandContext(interaction, { ...ctxExtras, sessionCleanupPromise });
         const result = await handler(interaction, ctx);
+        if (SETTINGS_MUTATION_COMMANDS.has(interaction.commandName)) {
+          invalidateGuildSettingsCache(guildId);
+        }
+        if (ACCESS_MUTATION_COMMANDS.has(interaction.commandName)) {
+          invalidateAccessCache(guildId);
+        }
+        if (interaction.commandName === 'news') {
+          clearUserNewsState(interaction.user?.id || null);
+        }
         await maybeSendNewsReminder(interaction);
         return result;
       }
@@ -1126,6 +1293,9 @@ client.on(Events.InteractionCreate, async interaction => {
           status,
           alreadyClaimed: !acknowledgedNow && (alreadyClaimed || !!(status && status.acknowledgedAt))
         });
+        if (acknowledgedNow || (status && status.acknowledgedAt)) {
+          rememberOnboardingAcknowledged(guildId, userId);
+        }
         try {
           await interaction.update({ embeds: [embed], components: [] });
         } catch (updateErr) {
@@ -1272,55 +1442,46 @@ client.on(Events.InteractionCreate, async interaction => {
     }
     else if (interaction.isButton() && interaction.customId.startsWith('jobstatus|')) {
       const ctx = buildCommandContext(interaction, ctxExtras);
-      const mod = await import('./interactions/jobs/statusButtons.mjs');
-      return mod.default(interaction, ctx);
+      return onJobStatusButtons(interaction, ctx);
     }
     else if ((interaction.isButton() || interaction.isStringSelectMenu()) && interaction.customId.startsWith('jobshift|')) {
       const ctx = buildCommandContext(interaction, ctxExtras);
-      const mod = await import('./interactions/jobs/shiftButtons.mjs');
-      return mod.default(interaction, ctx);
+      return onJobShiftButtons(interaction, ctx);
     }
     else if (interaction.isButton() && interaction.customId.startsWith('rb|')) {
       const ctx = buildCommandContext(interaction, ctxExtras);
-      const mod = await import('./interactions/ridebusButtons.mjs');
-      return mod.default(interaction, ctx);
+      return onRideBusButtons(interaction, ctx);
     }
     // Blackjack buttons
     else if (interaction.isButton() && interaction.customId.startsWith('bj|')) {
       const ctx = buildCommandContext(interaction, ctxExtras);
-      const mod = await import('./interactions/blackjackButtons.mjs');
-      return mod.default(interaction, ctx);
+      return onBlackjackButtons(interaction, ctx);
     }
     // Slots buttons
     else if (interaction.isButton() && interaction.customId.startsWith('slots|')) {
       const ctx = buildCommandContext(interaction, ctxExtras);
-      const mod = await import('./interactions/slotsButtons.mjs');
-      return mod.default(interaction, ctx);
+      return onSlotsButtons(interaction, ctx);
     }
     // Dice War buttons
     else if (interaction.isButton() && interaction.customId.startsWith('dice|')) {
       const ctx = buildCommandContext(interaction, ctxExtras);
-      const mod = await import('./interactions/diceWarButtons.mjs');
-      return mod.default(interaction, ctx);
+      return onDiceWarButtons(interaction, ctx);
     }
     // Roulette buttons
     else if (interaction.isButton() && interaction.customId.startsWith('rou|')) {
       const ctx = buildCommandContext(interaction, ctxExtras);
-      const mod = await import('./interactions/rouletteButtons.mjs');
-      return mod.default(interaction, ctx);
+      return onRouletteButtons(interaction, ctx);
     }
 
     // Horse race buttons
     else if (interaction.isButton() && interaction.customId.startsWith('horse|')) {
-      const mod = await import('./interactions/horseRaceButtons.mjs');
-      return mod.default(interaction);
+      return onHorseRaceButtons(interaction);
     }
 
     // Hold'em buttons
     else if (interaction.isButton() && interaction.customId.startsWith('hold|')) {
       const ctx = buildCommandContext(interaction, ctxExtras);
-      const mod = await import('./interactions/holdemButtons.mjs');
-      return mod.default(interaction, ctx);
+      return onHoldemButtons(interaction, ctx);
     }
 
     // Request buttons
@@ -1331,15 +1492,13 @@ client.on(Events.InteractionCreate, async interaction => {
 
     // Leaderboard buttons
     else if (interaction.isButton() && interaction.customId.startsWith('leader|')) {
-      const mod = await import('./interactions/leaderboardButtons.mjs');
-      return mod.default(interaction);
+      return onLeaderboardButtons(interaction);
     }
 
     // Roulette select menus
     else if (interaction.isStringSelectMenu() && interaction.customId === 'rou|type') {
       const ctx = buildCommandContext(interaction, ctxExtras);
-      const mod = await import('./interactions/rouletteTypeSelect.mjs');
-      return mod.default(interaction, ctx);
+      return onRouletteTypeSelect(interaction, ctx);
     }
     else if (interaction.isStringSelectMenu() && interaction.customId === 'cartel|shares|posts|select') {
       const ctx = buildCommandContext(interaction, ctxExtras);
@@ -1417,39 +1576,33 @@ client.on(Events.InteractionCreate, async interaction => {
     }
     else if (interaction.isModalSubmit() && interaction.customId.startsWith('bj|betmodal|')) {
       const ctx = buildCommandContext(interaction, ctxExtras);
-      const mod = await import('./interactions/blackjackBetModal.mjs');
-      return mod.default(interaction, ctx);
+      return onBlackjackBetModal(interaction, ctx);
     }
 
     // Roulette modal submits
     else if (interaction.isModalSubmit() && interaction.customId.startsWith('rou|modal|')) {
       const ctx = buildCommandContext(interaction, ctxExtras);
-      const mod = await import('./interactions/rouletteModal.mjs');
-      return mod.default(interaction, ctx);
+      return onRouletteModal(interaction, ctx);
     }
 
     // Hold'em bet modal submits
     else if (interaction.isModalSubmit() && interaction.customId.startsWith('hold|bet|')) {
       const ctx = buildCommandContext(interaction, ctxExtras);
-      const mod = await import('./interactions/holdemBetModal.mjs');
-      return mod.default(interaction, ctx);
+      return onHoldemBetModal(interaction, ctx);
     }
     // Hold'em join modal submits
     else if (interaction.isModalSubmit() && interaction.customId.startsWith('hold|join|')) {
       const ctx = buildCommandContext(interaction, ctxExtras);
-      const mod = await import('./interactions/holdemJoinModal.mjs');
-      return mod.default(interaction, ctx);
+      return onHoldemJoinModal(interaction, ctx);
     }
     // Hold'em custom table modal submits
     else if (interaction.isModalSubmit() && interaction.customId.startsWith('hold|custom|')) {
       const ctx = buildCommandContext(interaction, ctxExtras);
-      const mod = await import('./interactions/holdemCustomModal.mjs');
-      return mod.default(interaction, ctx);
+      return onHoldemCustomModal(interaction, ctx);
     }
 
     else if (interaction.isModalSubmit() && interaction.customId.startsWith('horse|betmodal|')) {
-      const mod = await import('./interactions/horseRaceBetModal.mjs');
-      return mod.default(interaction);
+      return onHorseRaceBetModal(interaction);
     }
 
     // ignore other interaction types

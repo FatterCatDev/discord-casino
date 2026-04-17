@@ -9,7 +9,10 @@ try { ({ Pool } = await import('pg')); } catch {
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: buildSslConfig()
+  ssl: buildSslConfig(),
+  max: Math.max(1, Number(process.env.PGPOOL_MAX || 20)),
+  idleTimeoutMillis: Math.max(1_000, Number(process.env.PGPOOL_IDLE_TIMEOUT_MS || 30_000)),
+  connectionTimeoutMillis: Math.max(1_000, Number(process.env.PGPOOL_CONNECTION_TIMEOUT_MS || 10_000))
 });
 
 function buildSslConfig() {
@@ -585,7 +588,6 @@ async function ensureGuildHouse(guildId) {
 }
 
 async function houseRow(guildId) {
-  await ensureGuildHouse(guildId);
   const row = await q1('SELECT chips FROM guild_house WHERE guild_id = $1', [guildId]);
   return { chips: Number(row?.chips || 0) };
 }
@@ -744,6 +746,27 @@ export async function recordUserInteraction(details = {}) {
   });
 
   return normalizeInteractionStats(row);
+}
+
+export async function pruneUserInteractionEvents(retentionDays = 90, batchSize = 10_000) {
+  const days = Math.max(1, Math.trunc(Number(retentionDays) || 90));
+  const n = Math.max(100, Math.min(100_000, Math.trunc(Number(batchSize) || 10_000)));
+  const cutoff = new Date(Date.now() - (days * 24 * 60 * 60 * 1000));
+  const result = await pool.query(
+    `WITH doomed AS (
+       SELECT ctid
+       FROM user_interaction_events
+       WHERE created_at < $1
+       ORDER BY created_at ASC
+       LIMIT $2
+     )
+     DELETE FROM user_interaction_events e
+     USING doomed
+     WHERE e.ctid = doomed.ctid
+     RETURNING 1`,
+    [cutoff, n]
+  );
+  return Number(result?.rowCount || 0);
 }
 
 export async function getUserInteractionStats(userId) {
@@ -937,7 +960,6 @@ export async function markUserFirstGameWin(guildId, userId, occurredAt = Math.fl
 
 export async function getUserBalances(guildId, discordId) {
   const gid = resolveGuildId(guildId);
-  await ensureGuildUser(gid, discordId);
   const row = await q1('SELECT chips, credits FROM users WHERE guild_id = $1 AND discord_id = $2', [gid, discordId]);
   return { chips: Number(row?.chips || 0), credits: Number(row?.credits || 0) };
 }
@@ -1012,8 +1034,8 @@ export async function getTopUsers(guildId, limit = 10) {
      FROM users
      WHERE guild_id = $1
        AND chips > 0
-       AND discord_id NOT IN (SELECT user_id FROM admin_users)
-       AND discord_id NOT IN (SELECT user_id FROM mod_users)
+       AND NOT EXISTS (SELECT 1 FROM admin_users a WHERE a.user_id = users.discord_id)
+       AND NOT EXISTS (SELECT 1 FROM mod_users m WHERE m.user_id = users.discord_id)
      ORDER BY chips DESC, created_at ASC
      LIMIT $2`,
     [gid, n]
