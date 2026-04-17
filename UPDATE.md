@@ -25,6 +25,7 @@ version: 1.3.2
 - Raid messaging now includes richer flavor and concrete outcome details in-channel.
 - Dealer management now uses two dropdowns (Fire Dealers, Pause Dealers) with a Confirm button, replacing the previous per-dealer button rows.
 - Both dropdowns include an All option when more than two dealers are present, and default to None until a selection is made.
+- Burn Warehouse now prompts for a specific amount before burning, so players can partially burn their warehouse overflow.
 
 ## Bug Fixes
 
