@@ -163,6 +163,49 @@ test('cartel worker uses paged active-investor reads and cached guild discovery'
   assert.match(adapter, /export const listCartelActiveInvestorsPage = pick\('listCartelActiveInvestorsPage'\);/);
 });
 
+test('cartel warehouse expiration is configurable and applied safely during production ticks', async () => {
+  const constants = await readRepoFile('src/cartel/constants.mjs');
+  const service = await readRepoFile('src/cartel/service.mjs');
+  const todo = await readRepoFile('docs/TO-DO.md');
+  assert.match(constants, /export const CARTEL_WAREHOUSE_EXPIRATION_ENABLED =/);
+  assert.match(constants, /export const CARTEL_WAREHOUSE_EXPIRATION_CADENCE_SECONDS =/);
+  assert.match(constants, /export const CARTEL_WAREHOUSE_EXPIRATION_GRAMS_PER_CADENCE =/);
+  assert.match(service, /function calculateWarehouseExpirationMg\(warehouseMg, elapsedSeconds\)/);
+  assert.match(service, /const expirationElapsedSeconds = lastTick \? Math\.max\(0, nowSeconds - lastTick\) : 0;/);
+  assert.match(service, /const expiredMg = calculateWarehouseExpirationMg\(currentWarehouse, expirationElapsedSeconds\);/);
+  assert.match(service, /const warehouseAfterExpiration = Math\.max\(0, currentWarehouse - expiredMg\);/);
+  assert.match(service, /console\.info\('Cartel warehouse expiration applied'/);
+  assert.match(todo, /\[x\] Add configurable expiration settings for warehouse Semuta/);
+  assert.match(todo, /\[x\] Define expiration cadence \(per tick\/hour\/day\)\./);
+  assert.match(todo, /\[x\] Apply expiration decay safely to warehouse Semuta\./);
+  assert.match(todo, /\[x\] Log expiration amounts for balancing and debugging\./);
+});
+
+test('warehouse raid resolution is scoped per action and surfaced in user messaging', async () => {
+  const service = await readRepoFile('src/cartel/service.mjs');
+  const commands = await readRepoFile('src/commands/cartel.mjs');
+  const db = await readRepoFile('src/db/db.pg.mjs');
+  const adapter = await readRepoFile('src/db/db.auto.mjs');
+  const todo = await readRepoFile('docs/TO-DO.md');
+  assert.match(service, /async function resolveWarehouseRaidAfterAction\(guildId, userId, actionType, postInvestor, scope = \{\}, options = \{\}\)/);
+  assert.match(service, /const scopeWarehouseMg = Math\.max\(0, Math\.floor\(Number\(scope\?\.warehouseMg \|\| 0\)\)\);/);
+  assert.match(service, /const scopeCollectedMg = Math\.max\(0, Math\.floor\(Number\(scope\?\.collectedMg \|\| 0\)\)\);/);
+  assert.match(service, /const raid = await resolveWarehouseRaidAfterAction\(guildId, userId, 'collect', postInvestor, \{/);
+  assert.match(service, /const raid = await resolveWarehouseRaidAfterAction\(guildId, userId, 'burn', postInvestor, \{/);
+  assert.match(service, /const raid = await resolveWarehouseRaidAfterAction\(guildId, userId, 'export', postInvestor, \{/);
+  assert.match(service, /const applied = await applyRaidOutcome\(guildId, userId, \{/);
+  assert.match(db, /export async function cartelApplyRaidOutcome\(/);
+  assert.match(db, /INSERT INTO cartel_transactions \(guild_id, user_id, type, amount_chips, amount_mg, metadata_json\)/);
+  assert.match(adapter, /export const cartelApplyRaidOutcome = pick\('cartelApplyRaidOutcome'\);/);
+  assert.match(service, /console\.info\('Cartel warehouse raid resolved', payload\);/);
+  assert.match(commands, /function buildWarehouseRaidLines\(raid, chipsFmt\)/);
+  assert.match(commands, /const raidLines = buildWarehouseRaidLines\(result\.raid, chipsFmt\);/);
+  assert.match(todo, /\[x\] Implement raid scope calculation per action type \(collect, burn, export\)\./);
+  assert.match(todo, /\[x\] Apply confiscation and fine atomically in storage layer\./);
+  assert.match(todo, /\[x\] Ensure raid resolution runs only after action completion\./);
+  assert.match(todo, /\[x\] Add raid trigger warning message: police are coming\./);
+});
+
 test('admin/mod queries are scoped by guild_id to prevent global reads', async () => {
   const content = await readRepoFile('src/db/db.pg.mjs');
   const getMods = content.match(/export async function getModerators\(guildId\)[\s\S]*?return rows\.map\(r => String\(r\.user_id\)\);/);
@@ -231,21 +274,36 @@ test('session cleanup detaches state before async work', async () => {
   assert.match(loggingContent, /activeSessions\.delete\(key\);/);
 });
 
-test('todo list includes top-priority scalability work', async () => {
+test('todo list includes warehouse raid implementation checklist', async () => {
   const content = await readRepoFile('docs/TO-DO.md');
-  assert.match(content, /# Top Priority: Performance \+ Scale Work/);
-  assert.match(content, /\[x\] Batch or cache Discord member\/user name resolution for leaderboard rendering\./);
-  assert.match(content, /\[x\] Batch admin balance lookups instead of N per-user balance reads\./);
-  assert.match(content, /\[x\] Move Hold'em orphan cleanup out of startup blocking flow into a background queue\./);
-  assert.match(content, /\[x\] Replace Hold'em table-number discovery that fetches all guild channels with a cheaper allocation strategy\./);
-  assert.match(content, /\[x\] Add bounded concurrency for vote reward DM delivery\./);
-  assert.match(content, /\[x\] Add hard bounds or eviction strategy for long-lived in-memory session\/state maps\./);
-  assert.match(content, /\[x\] Revisit cache structures that can grow with guild\/user count and make them LRU or size-bounded\./);
-  assert.match(content, /Top-priority scale pass complete\. Define the next optimization pass from live metrics\./);
+  assert.match(content, /# Warehouse Raid System Design \+ Implementation Checklist/);
+  assert.match(content, /## 3\) Functional Requirements/);
+  assert.match(content, /\[x\] Add configurable expiration settings for warehouse Semuta/);
+  assert.match(content, /\[x\] Define expiration cadence \(per tick\/hour\/day\)\./);
+  assert.match(content, /\[x\] Apply expiration decay safely to warehouse Semuta\./);
+  assert.match(content, /\[x\] Log expiration amounts for balancing and debugging\./);
 });
 
 test('champion role sync avoids full guild member fetch on startup', async () => {
   const content = await readRepoFile('src/services/championRole.mjs');
   assert.doesNotMatch(content, /guild\.members\.fetch\(\)/);
   assert.match(content, /guild\.members\.fetch\(\{ user: topUserId, force: true \}\)/);
+});
+
+test('cartel raid debug command is admin-gated and wired through deploy and runtime handlers', async () => {
+  const command = await readRepoFile('src/commands/cartelraiddebug.mjs');
+  const service = await readRepoFile('src/cartel/service.mjs');
+  const deploy = await readRepoFile('src/cli/deploy-commands.mjs');
+  const index = await readRepoFile('src/index.mjs');
+  const commandList = await readRepoFile('commands.json');
+
+  assert.match(command, /if \(!\(await ctx\.isAdmin\(interaction\)\)\)/);
+  assert.match(command, /triggerCartelRaidDebug\(/);
+  assert.match(service, /export async function triggerCartelRaidDebug\(/);
+  assert.match(service, /rollRaid: \(\) => \(\{/);
+  assert.match(deploy, /name: 'cartelraiddebug'/);
+  assert.match(deploy, /name: 'collected_grams'/);
+  assert.match(index, /import cmdCartelRaidDebug from '\.\/commands\/cartelraiddebug\.mjs';/);
+  assert.match(index, /cartelraiddebug: cmdCartelRaidDebug,/);
+  assert.match(commandList, /"name": "cartelraiddebug"/);
 });

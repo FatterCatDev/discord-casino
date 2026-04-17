@@ -1682,6 +1682,108 @@ export async function cartelSetHoldings(guildId, userId, stashMg, warehouseMg) {
   return getCartelInvestor(gid, uid);
 }
 
+export async function cartelApplyRaidOutcome(
+  guildId,
+  userId,
+  {
+    confiscatedWarehouseMg = 0,
+    confiscatedStashMg = 0,
+    finePerGram = 0,
+    reason = 'cartel warehouse raid fine',
+    metadata = null
+  } = {}
+) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) throw new Error('CARTEL_USER_REQUIRED');
+
+  const requestedWarehouseMg = Math.max(0, Math.floor(Number(confiscatedWarehouseMg || 0)));
+  const requestedStashMg = Math.max(0, Math.floor(Number(confiscatedStashMg || 0)));
+  const finePerGramValue = Math.max(0, Number(finePerGram || 0));
+
+  return tx(async c => {
+    await c.query('INSERT INTO cartel_investors (guild_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [gid, uid]);
+    await c.query('INSERT INTO users (guild_id, discord_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [gid, uid]);
+    await c.query('INSERT INTO guild_house (guild_id) VALUES ($1) ON CONFLICT DO NOTHING', [gid]);
+
+    const investorRes = await c.query(
+      'SELECT stash_mg, warehouse_mg FROM cartel_investors WHERE guild_id = $1 AND user_id = $2 FOR UPDATE',
+      [gid, uid]
+    );
+    const investorRow = investorRes.rows?.[0] || {};
+    const currentStashMg = Math.max(0, Math.floor(Number(investorRow.stash_mg || 0)));
+    const currentWarehouseMg = Math.max(0, Math.floor(Number(investorRow.warehouse_mg || 0)));
+
+    const confiscatedWarehouseMgActual = Math.min(currentWarehouseMg, requestedWarehouseMg);
+    const confiscatedStashMgActual = Math.min(currentStashMg, requestedStashMg);
+    const confiscatedTotalMg = Math.max(0, confiscatedWarehouseMgActual + confiscatedStashMgActual);
+
+    if (confiscatedTotalMg > 0) {
+      const nextStashMg = Math.max(0, currentStashMg - confiscatedStashMgActual);
+      const nextWarehouseMg = Math.max(0, currentWarehouseMg - confiscatedWarehouseMgActual);
+      await c.query(
+        'UPDATE cartel_investors SET stash_mg = $1, warehouse_mg = $2, updated_at = NOW() WHERE guild_id = $3 AND user_id = $4',
+        [nextStashMg, nextWarehouseMg, gid, uid]
+      );
+    }
+
+    const confiscatedGrams = confiscatedTotalMg > 0 ? (confiscatedTotalMg / MG_PER_GRAM) : 0;
+    const fineChipsCharged = confiscatedGrams > 0
+      ? Math.max(0, Math.ceil(confiscatedGrams * finePerGramValue))
+      : 0;
+
+    let fineChipsPaid = 0;
+    if (fineChipsCharged > 0) {
+      const userRes = await c.query(
+        'SELECT chips FROM users WHERE guild_id = $1 AND discord_id = $2 FOR UPDATE',
+        [gid, uid]
+      );
+      const currentUserChips = Math.max(0, Math.floor(Number(userRes.rows?.[0]?.chips || 0)));
+      fineChipsPaid = Math.min(currentUserChips, fineChipsCharged);
+      if (fineChipsPaid > 0) {
+        await c.query(
+          'UPDATE users SET chips = chips - $1, updated_at = NOW() WHERE guild_id = $2 AND discord_id = $3',
+          [fineChipsPaid, gid, uid]
+        );
+        await c.query(
+          'UPDATE guild_house SET chips = chips + $1, updated_at = NOW() WHERE guild_id = $2',
+          [fineChipsPaid, gid]
+        );
+        await c.query(
+          'INSERT INTO transactions (guild_id, account, delta, reason, currency) VALUES ($1,$2,$3,$4,$5)',
+          [gid, uid, -fineChipsPaid, reason, 'CHIPS']
+        );
+        await c.query(
+          'INSERT INTO transactions (guild_id, account, delta, reason, currency) VALUES ($1,$2,$3,$4,$5)',
+          [gid, 'HOUSE', fineChipsPaid, `raid fine from ${uid}${reason ? ': ' + reason : ''}`, 'CHIPS']
+        );
+      }
+    }
+
+    const metadataPayload = {
+      ...(metadata && typeof metadata === 'object' ? metadata : {}),
+      confiscatedWarehouseMg: confiscatedWarehouseMgActual,
+      confiscatedCollectedMg: confiscatedStashMgActual,
+      fineChipsCharged,
+      fineChipsPaid
+    };
+    const metadataJson = Object.keys(metadataPayload).length ? JSON.stringify(metadataPayload) : null;
+
+    await c.query(
+      'INSERT INTO cartel_transactions (guild_id, user_id, type, amount_chips, amount_mg, metadata_json) VALUES ($1,$2,$3,$4,$5,$6)',
+      [gid, uid, 'WAREHOUSE_RAID', fineChipsPaid, confiscatedTotalMg, metadataJson]
+    );
+
+    return {
+      confiscatedWarehouseMg: confiscatedWarehouseMgActual,
+      confiscatedCollectedMg: confiscatedStashMgActual,
+      confiscatedTotalMg,
+      fineChipsCharged,
+      fineChipsPaid
+    };
+  });
+}
+
 export async function cartelSetRankAndXp(guildId, userId, rank, rankXp) {
   const gid = resolveGuildId(guildId);
   const uid = String(userId || '').trim();

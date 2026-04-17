@@ -1,32 +1,3 @@
-# Top Priority: Performance + Scale Work
-
-## 1) Immediate Scale Priorities
-
-### Cartel Data Path
-- [x] Remove cartel write-on-read behavior from pure reads (`getCartelPool`, `listCartelInvestors`, `getCartelInvestor`).
-- [x] Rework cartel worker guild discovery to avoid full cross-table `UNION DISTINCT` scanning every tick.
-- [x] Process cartel production in batches instead of loading all investors for a guild into memory at once.
-- [x] Add targeted indexes for cartel read and ranking patterns.
-
-### Leaderboard Path
-- [x] Batch admin balance lookups instead of N per-user balance reads.
-- [x] Replace full cartel investor load in leaderboard share ranking with a DB-level top-N query.
-- [x] Batch or cache Discord member/user name resolution for leaderboard rendering.
-- [x] Add leaderboard-oriented indexes for user ranking queries.
-
-### Discord API + Startup Load
-- [x] Move Hold'em orphan cleanup out of startup blocking flow into a background queue.
-- [x] Replace Hold'em table-number discovery that fetches all guild channels with a cheaper allocation strategy.
-- [x] Add bounded concurrency for vote reward DM delivery.
-
-### Memory + Runtime Safety
-- [x] Add hard bounds or eviction strategy for long-lived in-memory session/state maps.
-- [x] Revisit cache structures that can grow with guild/user count and make them LRU or size-bounded.
-- [x] Add a pruning/index strategy for `user_interaction_events` that scales with time-based cleanup.
-
-## 2) Current Step
-- [ ] Top-priority scale pass complete. Define the next optimization pass from live metrics.
-
 # Warehouse Raid System Design + Implementation Checklist
 
 ## 1) Purpose
@@ -51,10 +22,10 @@ Add a warehouse risk system to the Cartel flow that introduces police raids base
 	- Export Warehouse
 
 ### 3.3 Heat Tiers and Trigger Rules
-- Low heat: raid triggers on a natural 20.
-- Medium heat: raid triggers on 14 or higher.
-- High heat: raid triggers on 8 or higher.
-- On fire: raid always triggers.
+- Low heat: raid triggers on d20 roll 1.
+- Medium heat: raid triggers on d20 roll 1-7.
+- High heat: raid triggers on d20 roll 1-13.
+- On fire: raid always triggers (1-20).
 - If a raid triggers, raid success chance is 50%.
 
 ### 3.4 Raid Outcome Rules
@@ -80,39 +51,39 @@ Add a warehouse risk system to the Cartel flow that introduces police raids base
 ### Data + Constants
 - [x] Define heat constants and tier thresholds in cartel constants.
 - [x] Define fine multiplier constant (6 chips per gram).
-- [ ] Add configurable expiration settings for warehouse Semuta (heat decay constant exists; expiration flow not wired).
+- [x] Add configurable expiration settings for warehouse Semuta.
 
 ### Core Cartel Service Logic
 - [x] Implement heat calculation from warehouse amount.
 - [x] Implement d20 trigger logic by heat tier.
 - [x] Implement 50% raid success check when trigger occurs.
-- [ ] Implement raid scope calculation per action type (collect, burn, export).
-- [ ] Apply confiscation and fine atomically in storage layer.
-- [ ] Ensure raid resolution runs only after action completion.
+- [x] Implement raid scope calculation per action type (collect, burn, export).
+- [x] Apply confiscation and fine atomically in storage layer.
+- [x] Ensure raid resolution runs only after action completion.
 
 ### Expiration Mechanics
-- [ ] Define expiration cadence (per tick/hour/day).
-- [ ] Apply expiration decay safely to warehouse Semuta.
-- [ ] Log expiration amounts for balancing and debugging.
+- [x] Define expiration cadence (per tick/hour/day).
+- [x] Apply expiration decay safely to warehouse Semuta.
+- [x] Log expiration amounts for balancing and debugging.
 
 ### Player UX + Messaging
-- [ ] Add raid trigger warning message: police are coming.
-- [ ] Add final outcome message for success/failure.
-- [ ] Include confiscated amount and fine in success message.
+- [x] Add raid trigger warning message: police are coming.
+- [x] Add final outcome message for success/failure.
+- [x] Include confiscated amount and fine in success message.
 
 ### Observability + Safety
-- [ ] Add structured logs for heat, roll, tier, trigger, success, scope, and penalties.
-- [ ] Guard against negative chips/warehouse values.
-- [ ] Add fallback behavior for malformed investor state.
+- [x] Add structured logs for heat, roll, tier, trigger, success, scope, and penalties.
+- [x] Guard against negative chips/warehouse values.
+- [x] Add fallback behavior for malformed investor state.
 
 ### Testing Checklist
-- [ ] Unit test heat calculation across boundary values.
-- [ ] Unit test tier mapping and d20 thresholds.
-- [ ] Unit test 50% success branch behavior.
-- [ ] Unit test raid scope for collect action.
-- [ ] Unit test raid scope for burn and export actions.
-- [ ] Unit test confiscation + fine transaction behavior.
-- [ ] Integration test full action flow with and without raid.
+- [x] Unit test heat calculation across boundary values.
+- [x] Unit test tier mapping and d20 thresholds.
+- [x] Unit test 50% success branch behavior.
+- [x] Unit test raid scope for collect action.
+- [x] Unit test raid scope for burn and export actions.
+- [x] Unit test confiscation + fine transaction behavior.
+- [x] Integration test full action flow with and without raid.
 
 ## 6) Acceptance Criteria
 - Raid logic triggers only under defined tier conditions.
