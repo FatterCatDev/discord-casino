@@ -223,7 +223,7 @@ async function main() {
 
     const nextVersion = bumpPatch(currentVersion);
 
-    const newUpdateContent = `# Pending Update\n\nversion: ${nextVersion}\n\n## Changes\n\n<!-- Add one bullet per noteworthy change below. Example: - Improved chip payout handling -->\n\n## Bug Fixes\n\n<!-- Add one bullet per bug fix below. Example: - Fixed crash when playing blackjack in DMs -->\n\n`;
+    const newUpdateContent = `# Pending Update\n\nversion: ${nextVersion}\n\n## Changes\n\n<!-- Add one bullet per noteworthy change below. Example: - Improved chip payout handling -->\n\n## Short Notes\n\n<!-- Add 2-4 concise bullets for a quick summary. Example: - Faster startup and smoother leaderboard refreshes -->\n\n## Bug Fixes\n\n<!-- Add one bullet per bug fix below. Example: - Fixed crash when playing blackjack in DMs -->\n\n`;
     await fs.writeFile(UPDATE_PATH, newUpdateContent, 'utf8');
     updateResetToPending = true;
 

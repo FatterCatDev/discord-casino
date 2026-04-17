@@ -1,10 +1,14 @@
 # Pending Update
 
-version: 1.2.12
+version: 1.3.1
 
 ## Changes
 
 <!-- Add one bullet per noteworthy change below. Example: - Improved chip payout handling -->
+
+## Short Notes
+
+<!-- Add 2-4 concise bullets for a quick summary. Example: - Faster startup and smoother leaderboard refreshes -->
 
 ## Bug Fixes
 
