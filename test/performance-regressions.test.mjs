@@ -54,6 +54,19 @@ test('pruneUserInteractionEvents is exported and batch-limited', async () => {
   assert.match(autoContent, /export const pruneUserInteractionEvents = pick\('pruneUserInteractionEvents'\);/);
 });
 
+test('cartel read paths do not perform implicit row-creation writes', async () => {
+  const content = await readRepoFile('src/db/db.pg.mjs');
+  const poolFn = content.match(/export async function getCartelPool\([\s\S]*?\n}\n/);
+  const listFn = content.match(/export async function listCartelInvestors\([\s\S]*?\n}\n/);
+  const investorFn = content.match(/export async function getCartelInvestor\([\s\S]*?\n}\n/);
+  assert.ok(poolFn, 'getCartelPool function should exist');
+  assert.ok(listFn, 'listCartelInvestors function should exist');
+  assert.ok(investorFn, 'getCartelInvestor function should exist');
+  assert.doesNotMatch(poolFn[0], /ensureCartelPoolRow\(/);
+  assert.doesNotMatch(listFn[0], /ensureCartelPoolRow\(/);
+  assert.doesNotMatch(investorFn[0], /ensureCartelInvestorRow\(/);
+});
+
 test('index interaction handlers no longer use dynamic imports', async () => {
   const content = await readRepoFile('src/index.mjs');
   assert.doesNotMatch(content, /await import\('\.\/interactions/);
@@ -87,6 +100,12 @@ test('session cleanup detaches state before async work', async () => {
   assert.match(sessionContent, /const detached = detachSessionForCleanup\(guildId, userId\);/);
   assert.match(sessionContent, /activeSessions\.delete\(k\);/);
   assert.match(loggingContent, /activeSessions\.delete\(key\);/);
+});
+
+test('todo list includes top-priority scalability work', async () => {
+  const content = await readRepoFile('docs/TO-DO.md');
+  assert.match(content, /# Top Priority: Performance \+ Scale Work/);
+  assert.match(content, /Make cartel read paths pure reads with no implicit row creation/);
 });
 
 test('champion role sync avoids full guild member fetch on startup', async () => {

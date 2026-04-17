@@ -1451,7 +1451,6 @@ export async function gameWinWithCredits(guildId, discordId, amount, detail) {
 // --- Cartel Passive System ---
 export async function getCartelPool(guildId) {
   const gid = resolveGuildId(guildId);
-  await ensureCartelPoolRow(gid);
   const row = await q1('SELECT guild_id, total_shares, base_rate_mg_per_hour, share_price, share_rate_mg_per_hour, xp_per_gram_sold, carryover_mg, last_tick_at, event_state FROM cartel_pool WHERE guild_id = $1', [gid]);
   return normalizeCartelPool(row) || {
     guild_id: gid,
@@ -1508,7 +1507,6 @@ export async function listCartelGuildIds() {
 
 export async function listCartelInvestors(guildId) {
   const gid = resolveGuildId(guildId);
-  await ensureCartelPoolRow(gid);
   const rows = await q('SELECT guild_id, user_id, shares, stash_mg, warehouse_mg, rank, rank_xp, auto_sell_rule, sale_multiplier_bps, created_at, updated_at FROM cartel_investors WHERE guild_id = $1', [gid]);
   return rows.map(normalizeCartelInvestor).filter(Boolean);
 }
@@ -1517,7 +1515,6 @@ export async function getCartelInvestor(guildId, userId) {
   const gid = resolveGuildId(guildId);
   const uid = String(userId || '').trim();
   if (!uid) return null;
-  await ensureCartelInvestorRow(gid, uid);
   const row = await q1('SELECT guild_id, user_id, shares, stash_mg, warehouse_mg, rank, rank_xp, auto_sell_rule, sale_multiplier_bps, created_at, updated_at FROM cartel_investors WHERE guild_id = $1 AND user_id = $2', [gid, uid]);
   return normalizeCartelInvestor(row);
 }
