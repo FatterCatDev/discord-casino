@@ -13,6 +13,7 @@ version: 1.3.2
 - Added per-message selection state cache so both dropdown choices persist until Confirm is pressed.
 - Added dealer pause service actions with audit transaction logging for single and bulk dealer pauses.
 - Updated interaction routing and regression coverage for dropdown-based dealer management.
+- Replaced Burn Warehouse confirm/cancel buttons with a modal prompt that accepts a gram amount or "all" (case-insensitive).
 - Expanded raid logic and regression coverage (heat boundaries, tier mapping, trigger/success behavior, scoped confiscation, and partial fine handling).
 - Improved service stability by adding missing guild-id resolution used by cartel raid-related flows.
 

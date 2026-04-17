@@ -113,6 +113,7 @@ import cmdCartel, {
   handleCartelWarehouseBurnPrompt,
   handleCartelWarehouseBurnConfirm,
   handleCartelWarehouseBurnCancel,
+  handleCartelWarehouseBurnModal,
   handleCartelWarehouseExport,
   handleCartelWarehouseExportModal,
   handleCartelSharesView,
@@ -1515,14 +1516,6 @@ client.on(Events.InteractionCreate, async interaction => {
       const ctx = buildCommandContext(interaction, ctxExtras);
       return handleCartelWarehouseBurnPrompt(interaction, ctx);
     }
-    else if (interaction.isButton() && interaction.customId.startsWith('cartel|warehouse|burn|confirm|')) {
-      const messageId = interaction.customId.substring('cartel|warehouse|burn|confirm|'.length) || '0';
-      const ctx = buildCommandContext(interaction, ctxExtras);
-      return handleCartelWarehouseBurnConfirm(interaction, ctx, messageId);
-    }
-    else if (interaction.isButton() && interaction.customId === 'cartel|warehouse|burn|cancel') {
-      return handleCartelWarehouseBurnCancel(interaction);
-    }
     else if (interaction.isButton() && interaction.customId === 'cartel|warehouse|export') {
       const ctx = buildCommandContext(interaction, ctxExtras);
       return handleCartelWarehouseExport(interaction, ctx);
@@ -1663,6 +1656,11 @@ client.on(Events.InteractionCreate, async interaction => {
     }
 
     // Request reject modal submits
+    else if (interaction.isModalSubmit() && interaction.customId.startsWith('cartel|warehouse|burn|modal|')) {
+      const messageId = interaction.customId.substring('cartel|warehouse|burn|modal|'.length) || '0';
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelWarehouseBurnModal(interaction, ctx, messageId);
+    }
     else if (interaction.isModalSubmit() && interaction.customId.startsWith('cartel|warehouse|export|modal|')) {
       const messageId = interaction.customId.substring('cartel|warehouse|export|modal|'.length) || '0';
       const ctx = buildCommandContext(interaction, ctxExtras);

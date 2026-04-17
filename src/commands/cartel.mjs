@@ -127,6 +127,8 @@ const CARTEL_WAREHOUSE_VIEW_ID = 'cartel|warehouse|view';
 const CARTEL_WAREHOUSE_BURN_BUTTON_ID = 'cartel|warehouse|burn';
 const CARTEL_WAREHOUSE_BURN_CONFIRM_ID = 'cartel|warehouse|burn|confirm';
 const CARTEL_WAREHOUSE_BURN_CANCEL_ID = 'cartel|warehouse|burn|cancel';
+const CARTEL_WAREHOUSE_BURN_MODAL_ID = 'cartel|warehouse|burn|modal';
+const CARTEL_WAREHOUSE_BURN_MODAL_INPUT_ID = 'cartel|warehouse|burn|amount';
 const CARTEL_WAREHOUSE_EXPORT_BUTTON_ID = 'cartel|warehouse|export';
 const CARTEL_WAREHOUSE_EXPORT_MODAL_ID = 'cartel|warehouse|export|modal';
 const CARTEL_WAREHOUSE_EXPORT_MODAL_INPUT_ID = 'cartel|warehouse|export|amount';
@@ -2123,62 +2125,66 @@ export async function handleCartelWarehouseBurnPrompt(interaction, ctx) {
   const allowed = await ensureCartelAccess(interaction, ctx);
   if (!allowed) return;
   try {
-    if (!interaction.deferred && !interaction.replied) {
-      await interaction.deferUpdate();
-    }
-  } catch {}
-  try {
-    const overview = await getCartelOverview(interaction.guild?.id, interaction.user.id);
-    const warehouseGrams = Math.max(0, Number(overview?.metrics?.warehouseGrams || 0));
-    if (warehouseGrams <= 0) {
-      await interaction.followUp(withAutoEphemeral(interaction, {
-        content: `${emoji('info')} Your warehouse is already empty.`
-      })).catch(() => {});
-      return;
-    }
-    const confirmRow = new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(`${CARTEL_WAREHOUSE_BURN_CONFIRM_ID}|${interaction.message?.id || '0'}`)
-        .setLabel('Burn Everything')
-        .setEmoji('🔥')
-        .setStyle(ButtonStyle.Danger),
-      new ButtonBuilder()
-        .setCustomId(CARTEL_WAREHOUSE_BURN_CANCEL_ID)
-        .setLabel('Cancel')
-        .setStyle(ButtonStyle.Secondary)
-    );
-    const description = `${emoji('fire')} Burn **${gramsFormatter.format(warehouseGrams)}g** of Semuta overflow? This cannot be undone.`;
-    await interaction.followUp(withAutoEphemeral(interaction, {
-      content: description,
-      components: [confirmRow]
-    })).catch(() => {});
+    const modal = new ModalBuilder()
+      .setCustomId(`${CARTEL_WAREHOUSE_BURN_MODAL_ID}|${interaction.message?.id || '0'}`)
+      .setTitle('Burn Semuta Overflow');
+    const input = new TextInputBuilder()
+      .setCustomId(CARTEL_WAREHOUSE_BURN_MODAL_INPUT_ID)
+      .setLabel('Amount to burn (grams)')
+      .setStyle(TextInputStyle.Short)
+      .setPlaceholder('Example: 5000 or all')
+      .setRequired(true);
+    modal.addComponents(new ActionRowBuilder().addComponents(input));
+    await interaction.showModal(modal);
   } catch (error) {
     await notifyCartelButtonError(interaction, error);
   }
 }
 
-export async function handleCartelWarehouseBurnConfirm(interaction, ctx, sourceMessageId = '0') {
+export async function handleCartelWarehouseBurnModal(interaction, ctx, sourceMessageId = '0') {
   const allowed = await ensureCartelAccess(interaction, ctx, { sourceMessageId });
   if (!allowed) return;
   const chipsFmt = getChipsFormatter(ctx);
   try {
-    await interaction.deferUpdate();
-  } catch {}
-  try {
+    const rawValue = interaction.fields.getTextInputValue(CARTEL_WAREHOUSE_BURN_MODAL_INPUT_ID) || '';
+    const normalized = rawValue.trim();
+    if (!normalized) {
+      throw new CartelError('CARTEL_AMOUNT_REQUIRED', 'Enter how many grams to burn or type all.');
+    }
     const overview = await getCartelOverview(interaction.guild?.id, interaction.user.id);
     const warehouseMg = Math.max(0, Number(overview?.investor?.warehouse_mg || 0));
     if (warehouseMg <= 0) {
-      await interaction.editReply({ content: `${emoji('info')} Your warehouse is already empty.`, components: [] }).catch(() => {});
+      await interaction.reply(withAutoEphemeral(interaction, {
+        content: `${emoji('info')} Your warehouse is already empty.`,
+        ephemeral: true
+      })).catch(() => {});
       return;
     }
-    const grams = mgToGrams(warehouseMg);
-    const result = await cartelAbandon(interaction.guild?.id, interaction.user.id, grams);
+    const warehouseGrams = mgToGrams(warehouseMg);
+    let gramsToBurn = 0;
+    if (normalized.toLowerCase() === 'all') {
+      gramsToBurn = warehouseGrams;
+    } else {
+      const cleaned = normalized.replace(/,/g, '');
+      const numeric = Number(cleaned);
+      if (!Number.isFinite(numeric) || numeric <= 0) {
+        throw new CartelError('CARTEL_AMOUNT_INVALID', 'Enter a positive number of grams or all.');
+      }
+      if (numeric > warehouseGrams) {
+        throw new CartelError(
+          'CARTEL_NOT_ENOUGH_WAREHOUSE',
+          `You only have ${gramsFormatter.format(warehouseGrams)}g of Semuta in your warehouse.`
+        );
+      }
+      gramsToBurn = numeric;
+    }
+    const result = await cartelAbandon(interaction.guild?.id, interaction.user.id, gramsToBurn);
     const raidLines = buildWarehouseRaidLines(result.raid, chipsFmt);
     const raidSuffix = raidLines.length ? `\n${raidLines.join('\n')}` : '';
-    await interaction.editReply({
+    await interaction.reply(withAutoEphemeral(interaction, {
       content: `${emoji('fire')} Burned **${gramsFormatter.format(result.burnedGrams)}g** of Semuta.${raidSuffix}`,
-      components: []
-    }).catch(() => {});
+      ephemeral: true
+    })).catch(() => {});
     await postWarehouseRaidFlavorEmbed(interaction, result.raid, chipsFmt);
     const targetMessage = await fetchMessageById(interaction, sourceMessageId);
     const payload = await buildWarehousePayload(interaction, ctx);
@@ -2190,12 +2196,24 @@ export async function handleCartelWarehouseBurnConfirm(interaction, ctx, sourceM
       `Burned ${gramsFormatter.format(result.burnedGrams)}g of Semuta from warehouse.${raidLines.length ? ` ${raidLines.join(' ')}` : ''}`
     );
   } catch (error) {
-    console.error('Cartel warehouse burn confirm failed', error);
-    await interaction.editReply({
-      content: '⚠️ Failed to burn the warehouse. Please try again.',
-      components: []
-    }).catch(() => {});
+    if (error instanceof CartelError) {
+      await interaction.reply(withAutoEphemeral(interaction, {
+        content: `⚠️ ${error.message}`,
+        ephemeral: true
+      })).catch(() => {});
+    } else {
+      console.error('Cartel warehouse burn modal failed', error);
+      await interaction.reply(withAutoEphemeral(interaction, {
+        content: '⚠️ Failed to burn the warehouse. Please try again.',
+        ephemeral: true
+      })).catch(() => {});
+    }
   }
+}
+
+export async function handleCartelWarehouseBurnConfirm(interaction, ctx, sourceMessageId = '0') {
+  // Legacy confirm path — kept for safety but superseded by handleCartelWarehouseBurnModal
+  await interaction.update({ content: 'Please use the Burn Warehouse button to enter an amount.', components: [] }).catch(() => {});
 }
 
 export async function handleCartelWarehouseBurnCancel(interaction) {
