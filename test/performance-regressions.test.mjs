@@ -340,27 +340,28 @@ test('cartel overview and warehouse views include warehouse heat bar indicators'
   assert.match(command, /CARTEL_RAID_THRESHOLDS/);
 });
 
-test('dealer list view includes pause controls and routes pause actions', async () => {
+test('dealer list view includes dropdown dealer management controls and confirm routing', async () => {
   const command = await readRepoFile('src/commands/cartel.mjs');
   const service = await readRepoFile('src/cartel/service.mjs');
   const index = await readRepoFile('src/index.mjs');
 
-  assert.match(command, /const CARTEL_DEALERS_PAUSE_PREFIX = 'cartel\|dealers\|pause\|dealer\|';/);
-  assert.match(command, /const CARTEL_DEALERS_PAUSE_ALL_ID = 'cartel\|dealers\|pause_all';/);
-  assert.match(command, /function buildDealerPauseRows\(dealers\)/);
-  assert.match(command, /function buildDealerPauseAllRow\(dealers\)/);
-  assert.match(command, /\.setCustomId\(CARTEL_DEALERS_PAUSE_ALL_ID\)/);
-  assert.match(command, /\.setCustomId\(`\$\{CARTEL_DEALERS_PAUSE_PREFIX\}\$\{dealer\.dealer_id\}`\)/);
-  assert.match(command, /export async function handleCartelDealerPause\(/);
-  assert.match(command, /export async function handleCartelDealerPauseAll\(/);
+  assert.match(command, /const CARTEL_DEALERS_MANAGE_FIRE_SELECT_ID = 'cartel\|dealers\|manage\|fire\|select';/);
+  assert.match(command, /const CARTEL_DEALERS_MANAGE_PAUSE_SELECT_ID = 'cartel\|dealers\|manage\|pause\|select';/);
+  assert.match(command, /const CARTEL_DEALERS_MANAGE_CONFIRM_ID = 'cartel\|dealers\|manage\|confirm';/);
+  assert.match(command, /function buildDealerManageSelectRows\(dealers = \[\], selections = null\)/);
+  assert.match(command, /function buildDealerManageConfirmRow\(selections = null\)/);
+  assert.match(command, /\.setPlaceholder\('Fire Dealers'\)/);
+  assert.match(command, /\.setPlaceholder\('Pause Dealers'\)/);
+  assert.match(command, /\.setLabel\('Confirm'\)/);
+  assert.match(command, /export async function handleCartelDealerManageSelect\(/);
+  assert.match(command, /export async function handleCartelDealerManageConfirm\(/);
 
   assert.match(service, /export async function pauseCartelDealer\(/);
-  assert.match(service, /export async function pauseAllCartelDealers\(/);
   assert.match(service, /recordCartelTransaction\(guildId, userId, 'DEALER_PAUSE'/);
-  assert.match(service, /recordCartelTransaction\(guildId, userId, 'DEALER_PAUSE_ALL'/);
 
-  assert.match(index, /handleCartelDealerPause,/);
-  assert.match(index, /handleCartelDealerPauseAll,/);
-  assert.match(index, /interaction\.customId === 'cartel\|dealers\|pause_all'/);
-  assert.match(index, /interaction\.customId\.startsWith\('cartel\|dealers\|pause\|dealer\|'/);
+  assert.match(index, /handleCartelDealerManageSelect,/);
+  assert.match(index, /handleCartelDealerManageConfirm,/);
+  assert.match(index, /interaction\.customId === 'cartel\|dealers\|manage\|confirm'/);
+  assert.match(index, /interaction\.customId === 'cartel\|dealers\|manage\|fire\|select'/);
+  assert.match(index, /interaction\.customId === 'cartel\|dealers\|manage\|pause\|select'/);
 });

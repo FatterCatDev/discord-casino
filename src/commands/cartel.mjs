@@ -100,6 +100,9 @@ const CARTEL_DEALERS_HIRE_VIEW_ID = 'cartel|dealers|view|hire';
 const CARTEL_DEALERS_UPKEEP_VIEW_ID = 'cartel|dealers|view|upkeep';
 const CARTEL_DEALERS_HIRE_TIER_PREFIX = 'cartel|dealers|hire|tier|';
 const CARTEL_DEALERS_UPKEEP_PREFIX = 'cartel|dealers|upkeep|';
+const CARTEL_DEALERS_MANAGE_FIRE_SELECT_ID = 'cartel|dealers|manage|fire|select';
+const CARTEL_DEALERS_MANAGE_PAUSE_SELECT_ID = 'cartel|dealers|manage|pause|select';
+const CARTEL_DEALERS_MANAGE_CONFIRM_ID = 'cartel|dealers|manage|confirm';
 const CARTEL_DEALERS_PAUSE_PREFIX = 'cartel|dealers|pause|dealer|';
 const CARTEL_DEALERS_PAUSE_ALL_ID = 'cartel|dealers|pause_all';
 const CARTEL_DEALERS_FIRE_PREFIX = 'cartel|dealers|fire|dealer|';
@@ -129,6 +132,10 @@ const CARTEL_WAREHOUSE_EXPORT_MODAL_ID = 'cartel|warehouse|export|modal';
 const CARTEL_WAREHOUSE_EXPORT_MODAL_INPUT_ID = 'cartel|warehouse|export|amount';
 const DEALER_NAME_CACHE_TTL_MS = 10 * 60 * 1000;
 const dealerRecruitmentNameCache = new Map();
+const dealerActionSelectionCache = new Map();
+const DEALER_ACTION_NONE = 'NONE';
+const DEALER_ACTION_ALL = 'ALL';
+const DEALER_ACTION_DEALER_PREFIX = 'DEALER:';
 const SEMUTA_IMAGE_NAME = 'semuta_cartel.png';
 const SEMUTA_IMAGE_PATH = `Assets/${SEMUTA_IMAGE_NAME}`;
 const DEALERS_IMAGE_NAME = 'dealers.png';
@@ -402,6 +409,64 @@ function updateDealerRecruitName(messageId, tierId, name) {
   const next = getDealerRecruitNames(messageId) || {};
   next[tierId] = trimmed;
   storeDealerRecruitNames(messageId, next);
+}
+
+function sanitizeDealerActionSelection(value) {
+  const raw = String(value || '').trim();
+  if (!raw || raw === DEALER_ACTION_NONE) return DEALER_ACTION_NONE;
+  if (raw === DEALER_ACTION_ALL) return DEALER_ACTION_ALL;
+  if (raw.startsWith(DEALER_ACTION_DEALER_PREFIX)) {
+    const dealerId = raw.slice(DEALER_ACTION_DEALER_PREFIX.length).trim();
+    if (dealerId) return `${DEALER_ACTION_DEALER_PREFIX}${dealerId}`;
+  }
+  return DEALER_ACTION_NONE;
+}
+
+function sanitizeDealerActionSelections(selections = null) {
+  if (!selections || typeof selections !== 'object') {
+    return {
+      fire: DEALER_ACTION_NONE,
+      pause: DEALER_ACTION_NONE
+    };
+  }
+  return {
+    fire: sanitizeDealerActionSelection(selections.fire),
+    pause: sanitizeDealerActionSelection(selections.pause)
+  };
+}
+
+function storeDealerActionSelections(messageId, selections) {
+  if (!messageId) return;
+  const sanitized = sanitizeDealerActionSelections(selections);
+  const existing = dealerActionSelectionCache.get(messageId);
+  if (existing?.timeout) {
+    clearTimeout(existing.timeout);
+  }
+  const timeout = setTimeout(() => {
+    dealerActionSelectionCache.delete(messageId);
+  }, DEALER_NAME_CACHE_TTL_MS);
+  if (typeof timeout.unref === 'function') timeout.unref();
+  dealerActionSelectionCache.set(messageId, { selections: sanitized, timeout });
+}
+
+function getDealerActionSelections(messageId) {
+  if (!messageId) {
+    return sanitizeDealerActionSelections();
+  }
+  const entry = dealerActionSelectionCache.get(messageId);
+  if (!entry) return sanitizeDealerActionSelections();
+  return sanitizeDealerActionSelections(entry.selections);
+}
+
+function updateDealerActionSelection(messageId, key, value) {
+  if (!messageId) return;
+  const current = getDealerActionSelections(messageId);
+  if (key === 'fire') {
+    current.fire = sanitizeDealerActionSelection(value);
+  } else if (key === 'pause') {
+    current.pause = sanitizeDealerActionSelection(value);
+  }
+  storeDealerActionSelections(messageId, current);
 }
 
 async function fetchMessageById(interaction, messageId) {
@@ -1765,85 +1830,79 @@ function buildDealerUpkeepRows(dealers) {
   return rows;
 }
 
-function buildDealerFireRows(dealers) {
-  if (!dealers.length) return [];
-  const rows = [];
-  let currentRow = new ActionRowBuilder();
-  for (const dealer of dealers) {
-    if (currentRow.components.length >= 5) {
-      rows.push(currentRow);
-      if (rows.length >= 4) break;
-      currentRow = new ActionRowBuilder();
-    }
-    currentRow.addComponents(
-      new ButtonBuilder()
-        .setCustomId(`${CARTEL_DEALERS_FIRE_PREFIX}${dealer.dealer_id}`)
-        .setLabel(dealerButtonLabel(dealer))
-        .setStyle(ButtonStyle.Danger)
-        .setEmoji(emoji('fire'))
-    );
-  }
-  if (currentRow.components.length && rows.length < 4) {
-    rows.push(currentRow);
-  }
-  return rows;
+function dealerActionOptionForDealer(dealer) {
+  if (!dealer?.dealer_id) return null;
+  const contactName = trimDealerName(dealer.display_name);
+  const label = contactName || dealerButtonLabel(dealer);
+  const status = String(dealer?.status || 'ACTIVE').toUpperCase();
+  return {
+    label,
+    value: `${DEALER_ACTION_DEALER_PREFIX}${dealer.dealer_id}`,
+    description: `ID ${shortDealerId(dealer.dealer_id)} • ${status}`
+  };
 }
 
-function buildDealerPauseRows(dealers) {
-  if (!dealers.length) return [];
-  const rows = [];
-  let currentRow = new ActionRowBuilder();
-  for (const dealer of dealers) {
-    if (currentRow.components.length >= 5) {
-      rows.push(currentRow);
-      if (rows.length >= 4) break;
-      currentRow = new ActionRowBuilder();
+function buildDealerActionOptions(dealers = [], selected = DEALER_ACTION_NONE) {
+  const options = [
+    {
+      label: 'None',
+      value: DEALER_ACTION_NONE,
+      default: selected === DEALER_ACTION_NONE
     }
-    const isPaused = String(dealer?.status || '').toUpperCase() === 'PAUSED';
-    currentRow.addComponents(
-      new ButtonBuilder()
-        .setCustomId(`${CARTEL_DEALERS_PAUSE_PREFIX}${dealer.dealer_id}`)
-        .setLabel(dealerButtonLabel(dealer))
-        .setStyle(isPaused ? ButtonStyle.Secondary : ButtonStyle.Danger)
-        .setEmoji(emoji('pause'))
-        .setDisabled(isPaused)
-    );
+  ];
+  if (dealers.length > 2) {
+    options.push({
+      label: 'All',
+      value: DEALER_ACTION_ALL,
+      default: selected === DEALER_ACTION_ALL
+    });
   }
-  if (currentRow.components.length && rows.length < 4) {
-    rows.push(currentRow);
+  for (const dealer of dealers) {
+    const option = dealerActionOptionForDealer(dealer);
+    if (!option) continue;
+    options.push({
+      ...option,
+      default: selected === option.value
+    });
   }
-  return rows;
+  return options.slice(0, 25);
 }
 
-function buildDealerPauseAllRow(dealers) {
-  if (!dealers.length) return [];
-  const activeCount = dealers.filter(dealer => String(dealer?.status || '').toUpperCase() !== 'PAUSED').length;
+function buildDealerManageSelectRows(dealers = [], selections = null) {
+  const safeSelections = sanitizeDealerActionSelections(selections);
+  const fireMenu = new StringSelectMenuBuilder()
+    .setCustomId(CARTEL_DEALERS_MANAGE_FIRE_SELECT_ID)
+    .setPlaceholder('Fire Dealers')
+    .setMinValues(1)
+    .setMaxValues(1)
+    .addOptions(buildDealerActionOptions(dealers, safeSelections.fire));
+  const pauseMenu = new StringSelectMenuBuilder()
+    .setCustomId(CARTEL_DEALERS_MANAGE_PAUSE_SELECT_ID)
+    .setPlaceholder('Pause Dealers')
+    .setMinValues(1)
+    .setMaxValues(1)
+    .addOptions(buildDealerActionOptions(dealers, safeSelections.pause));
+  return [
+    new ActionRowBuilder().addComponents(fireMenu),
+    new ActionRowBuilder().addComponents(pauseMenu)
+  ];
+}
+
+function buildDealerManageConfirmRow(selections = null) {
+  const safeSelections = sanitizeDealerActionSelections(selections);
+  const disabled = safeSelections.fire === DEALER_ACTION_NONE && safeSelections.pause === DEALER_ACTION_NONE;
   return [
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
-        .setCustomId(CARTEL_DEALERS_PAUSE_ALL_ID)
-        .setLabel('Pause All Dealers')
-        .setEmoji(emoji('pause'))
-        .setStyle(ButtonStyle.Danger)
-        .setDisabled(activeCount <= 0)
+        .setCustomId(CARTEL_DEALERS_MANAGE_CONFIRM_ID)
+        .setLabel('Confirm')
+        .setStyle(ButtonStyle.Primary)
+        .setDisabled(disabled)
     )
   ];
 }
 
-function buildDealerFireAllRow(dealers) {
-  if (!dealers.length) return [];
-  return [
-    new ActionRowBuilder().addComponents(
-      new ButtonBuilder()
-        .setCustomId(CARTEL_DEALERS_FIRE_ALL_ID)
-        .setLabel('Fire All Dealers')
-        .setEmoji(emoji('fire'))
-        .setStyle(ButtonStyle.Danger)
-    )
-  ];
-}
-
-function buildDealerViewPayload(view, { overview, dealers, chipsFmt, cachedNames }) {
+function buildDealerViewPayload(view, { overview, dealers, chipsFmt, cachedNames, dealerSelections = null }) {
   const investor = overview?.investor;
   const normalizedView = view === 'hire' || view === 'upkeep' ? view : 'list';
   const baseNames = cachedNames ? { ...cachedNames } : {};
@@ -1888,12 +1947,11 @@ function buildDealerViewPayload(view, { overview, dealers, chipsFmt, cachedNames
     };
   }
   const names = Object.keys(baseNames).length ? baseNames : null;
+  const selections = sanitizeDealerActionSelections(dealerSelections);
   const extraRows = [
     ...collectRows,
-    ...buildDealerPauseAllRow(dealers),
-    ...buildDealerPauseRows(dealers),
-    ...buildDealerFireAllRow(dealers),
-    ...buildDealerFireRows(dealers)
+    ...buildDealerManageSelectRows(dealers, selections),
+    ...buildDealerManageConfirmRow(selections)
   ];
   return {
     payload: {
@@ -1903,7 +1961,8 @@ function buildDealerViewPayload(view, { overview, dealers, chipsFmt, cachedNames
       components: buildDealerNavComponents('list', extraRows),
       files: [buildDealersImageAttachment()]
     },
-    recruitNames: names
+    recruitNames: names,
+    dealerSelections: selections
   };
 }
 
@@ -1913,11 +1972,18 @@ async function renderDealerView(interaction, ctx, view = 'list', { targetMessage
   const userId = interaction.user?.id;
   const messageId = interaction.message?.id || targetMessage?.id || null;
   const cachedNames = messageId ? getDealerRecruitNames(messageId) : null;
+  const cachedDealerSelections = messageId ? getDealerActionSelections(messageId) : sanitizeDealerActionSelections();
   const [overview, dealers] = await Promise.all([
     getCartelOverview(guildId, userId),
     listUserDealers(guildId, userId)
   ]);
-  const { payload, recruitNames } = buildDealerViewPayload(view, { overview, dealers, chipsFmt, cachedNames });
+  const { payload, recruitNames, dealerSelections } = buildDealerViewPayload(view, {
+    overview,
+    dealers,
+    chipsFmt,
+    cachedNames,
+    dealerSelections: cachedDealerSelections
+  });
   let response = null;
   if (targetMessage && typeof targetMessage.edit === 'function') {
     response = await targetMessage.edit(payload).catch(err => {
@@ -1932,6 +1998,7 @@ async function renderDealerView(interaction, ctx, view = 'list', { targetMessage
   if (nextMessageId) {
     const namesToStore = recruitNames ?? cachedNames ?? null;
     storeDealerRecruitNames(nextMessageId, namesToStore);
+    storeDealerActionSelections(nextMessageId, dealerSelections || cachedDealerSelections);
   }
   return response;
 }
@@ -2381,6 +2448,108 @@ export async function handleCartelDealerUpkeep(interaction, ctx, dealerId) {
   }
 }
 
+function resolveDealerActionTargets(selection, dealers = []) {
+  const normalized = sanitizeDealerActionSelection(selection);
+  if (normalized === DEALER_ACTION_NONE) return [];
+  const byId = new Map((dealers || []).map(dealer => [String(dealer.dealer_id), dealer]));
+  if (normalized === DEALER_ACTION_ALL) {
+    if ((dealers || []).length <= 2) return [];
+    return dealers.map(dealer => String(dealer.dealer_id)).filter(Boolean);
+  }
+  if (!normalized.startsWith(DEALER_ACTION_DEALER_PREFIX)) return [];
+  const dealerId = normalized.slice(DEALER_ACTION_DEALER_PREFIX.length).trim();
+  if (!dealerId || !byId.has(dealerId)) return [];
+  return [dealerId];
+}
+
+export async function handleCartelDealerManageSelect(interaction, ctx, actionType = 'fire') {
+  const allowed = await ensureCartelAccess(interaction, ctx);
+  if (!allowed) return;
+  try {
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferUpdate();
+    }
+  } catch {}
+  try {
+    const messageId = interaction.message?.id || null;
+    if (!messageId) return;
+    const selected = sanitizeDealerActionSelection(interaction.values?.[0]);
+    if (String(actionType).toLowerCase() === 'pause') {
+      updateDealerActionSelection(messageId, 'pause', selected);
+    } else {
+      updateDealerActionSelection(messageId, 'fire', selected);
+    }
+    await renderDealerView(interaction, ctx, 'list', { targetMessage: interaction.message });
+  } catch (error) {
+    console.error('Cartel dealer manage select failed', error);
+    await interaction.followUp(withAutoEphemeral(interaction, { content: '⚠️ Failed to update dealer selection. Please try again.' })).catch(() => {});
+  }
+}
+
+export async function handleCartelDealerManageConfirm(interaction, ctx) {
+  const allowed = await ensureCartelAccess(interaction, ctx);
+  if (!allowed) return;
+  try {
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferUpdate();
+    }
+  } catch {}
+  try {
+    const messageId = interaction.message?.id || null;
+    const selections = getDealerActionSelections(messageId);
+    const guildId = interaction.guild?.id;
+    const userId = interaction.user.id;
+    const currentDealers = await listUserDealers(guildId, userId);
+
+    const fireTargets = resolveDealerActionTargets(selections.fire, currentDealers);
+    let firedCount = 0;
+    for (const dealerId of fireTargets) {
+      await fireCartelDealer(guildId, userId, dealerId);
+      firedCount += 1;
+    }
+
+    const remainingDealers = await listUserDealers(guildId, userId);
+    const firedSet = new Set(fireTargets);
+    const pauseTargets = resolveDealerActionTargets(selections.pause, remainingDealers)
+      .filter(dealerId => !firedSet.has(dealerId));
+    let pausedCount = 0;
+    let newlyPausedCount = 0;
+    for (const dealerId of pauseTargets) {
+      const result = await pauseCartelDealer(guildId, userId, dealerId);
+      pausedCount += 1;
+      if (result?.changed !== false) newlyPausedCount += 1;
+    }
+
+    await updateDealerActionSelection(messageId, 'fire', DEALER_ACTION_NONE);
+    await updateDealerActionSelection(messageId, 'pause', DEALER_ACTION_NONE);
+    await renderDealerView(interaction, ctx, 'list', { targetMessage: interaction.message });
+
+    if (firedCount <= 0 && pausedCount <= 0) {
+      await interaction.followUp(withAutoEphemeral(interaction, {
+        content: `${emoji('info')} No dealer action selected. Choose a Fire/Pause option and press Confirm.`
+      })).catch(() => {});
+      return;
+    }
+
+    const summaryParts = [];
+    if (firedCount > 0) {
+      summaryParts.push(`${emoji('fire')} Fired **${firedCount}** dealer${firedCount === 1 ? '' : 's'}`);
+    }
+    if (pausedCount > 0) {
+      summaryParts.push(`${emoji('pauseButton')} Paused **${newlyPausedCount}** of **${pausedCount}** selected dealer${pausedCount === 1 ? '' : 's'}`);
+    }
+    await interaction.followUp(withAutoEphemeral(interaction, {
+      content: `${summaryParts.join(' · ')}.`
+    })).catch(() => {});
+    await logCartelActivity(
+      interaction,
+      `Dealer manage confirm: fired ${firedCount}, paused ${newlyPausedCount}/${pausedCount}.`
+    );
+  } catch (error) {
+    await notifyCartelButtonError(interaction, error);
+  }
+}
+
 export async function handleCartelDealerFire(interaction, ctx, dealerId) {
   const allowed = await ensureCartelAccess(interaction, ctx);
   if (!allowed) return;
@@ -2446,7 +2615,7 @@ export async function handleCartelDealerPause(interaction, ctx, dealerId) {
     await interaction.followUp(withAutoEphemeral(interaction, {
       content: alreadyPaused
         ? `${emoji('info')} **${tierName}**${contactLabel} (ID \`${shortDealerId(dealerId)}\`) is already paused.`
-        : `${emoji('pause')} Paused **${tierName}**${contactLabel} (ID \`${shortDealerId(dealerId)}\`).`
+        : `${emoji('pauseButton')} Paused **${tierName}**${contactLabel} (ID \`${shortDealerId(dealerId)}\`).`
     })).catch(() => {});
     await logCartelActivity(
       interaction,
@@ -2469,7 +2638,7 @@ export async function handleCartelDealerPauseAll(interaction, ctx) {
     const result = await pauseAllCartelDealers(interaction.guild?.id, interaction.user.id);
     await renderDealerView(interaction, ctx, 'list');
     await interaction.followUp(withAutoEphemeral(interaction, {
-      content: `${emoji('pause')} Paused **${result.changedCount}** of **${result.count}** dealer${result.count === 1 ? '' : 's'}.`
+      content: `${emoji('pauseButton')} Paused **${result.changedCount}** of **${result.count}** dealer${result.count === 1 ? '' : 's'}.`
     })).catch(() => {});
     await logCartelActivity(
       interaction,
