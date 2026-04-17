@@ -90,6 +90,19 @@ const commands = [
     ]
   },
   {
+    name: 'cartelwarehousedebug',
+    description: 'Add Semuta directly to your own warehouse for debugging (admin only).',
+    options: [
+      {
+        name: 'grams',
+        description: 'Semuta grams to add to your warehouse',
+        type: 10,
+        required: true,
+        min_value: 0.01
+      }
+    ]
+  },
+  {
     name: 'dicewar',
     description: 'Dice War: 2d6 vs house; doubles double pot on win (ties house).',
     options: [

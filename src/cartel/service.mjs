@@ -540,6 +540,37 @@ export async function triggerCartelRaidDebug(guildId, userId, { actionType = 'co
   };
 }
 
+export async function addCartelWarehouseDebug(guildId, userId, grams) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(userId || '').trim();
+  if (!uid) throw new CartelError('CARTEL_USER_REQUIRED', 'Choose a valid target user.');
+
+  const mgToAdd = gramsToMg(grams);
+  ensurePositiveAmount(mgToAdd, 'CARTEL_AMOUNT_REQUIRED', 'Enter a positive Semuta grams amount to add.');
+
+  let investor = await getCartelInvestor(gid, uid);
+  investor = await normalizeInvestorState(gid, investor);
+  if (!investor) {
+    throw new CartelError('CARTEL_PROFILE_MISSING', 'You need to run /cartel first to create your cartel profile.');
+  }
+
+  const stashMg = Math.max(0, Number(investor?.stash_mg || 0));
+  const beforeWarehouseMg = Math.max(0, Number(investor?.warehouse_mg || 0));
+  const afterWarehouseMg = beforeWarehouseMg + mgToAdd;
+
+  await cartelSetHoldings(gid, uid, stashMg, afterWarehouseMg);
+  await recordCartelTransaction(gid, uid, 'WAREHOUSE_DEBUG_ADD', 0, mgToAdd, {
+    grams: mgToGrams(mgToAdd),
+    source: 'cartelwarehousedebug'
+  });
+
+  return {
+    addedMg: mgToAdd,
+    beforeWarehouseMg,
+    afterWarehouseMg
+  };
+}
+
 export async function cartelInvest(guildId, userId, chipAmount) {
   const pool = await getCartelPool(guildId);
   const sharePrice = sharePriceFromPool(pool);

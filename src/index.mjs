@@ -139,6 +139,7 @@ import cmdCartel, {
 import cmdSetCartelShare from './commands/setcartelshare.mjs';
 import cmdCartelReset from './commands/cartelreset.mjs';
 import cmdCartelRaidDebug from './commands/cartelraiddebug.mjs';
+import cmdCartelWarehouseDebug from './commands/cartelwarehousedebug.mjs';
 import cmdSetCartelRate from './commands/setcartelrate.mjs';
 import cmdSetCartelXp from './commands/setcartelxp.mjs';
 
@@ -1325,6 +1326,7 @@ const commandHandlers = {
   setcasinocategory: cmdSetCasinoCategory,
   cartelreset: cmdCartelReset,
   cartelraiddebug: cmdCartelRaidDebug,
+  cartelwarehousedebug: cmdCartelWarehouseDebug,
   kittenmode: cmdKittenMode,
   vote: cmdVote,
   news: cmdNews,

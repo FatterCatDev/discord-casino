@@ -470,6 +470,59 @@ function buildWarehouseRaidLines(raid, chipsFmt) {
   ];
 }
 
+function formatRaidActionLabel(actionType) {
+  const raw = String(actionType || '').toLowerCase();
+  if (raw === 'collect') return 'Collect';
+  if (raw === 'burn') return 'Burn';
+  if (raw === 'export') return 'Export';
+  return 'Unknown';
+}
+
+function buildWarehouseRaidFlavorEmbed(interaction, raid, chipsFmt) {
+  if (!raid?.triggered || !interaction?.user) return null;
+  const playerMention = `<@${interaction.user.id}>`;
+  const playerLabel = formatPlayerLabel(interaction.user);
+  const tierLabel = raid?.tier ? String(raid.tier).toLowerCase() : 'unknown';
+  const actionLabel = formatRaidActionLabel(raid?.actionType);
+  const roll = Math.max(0, Number(raid?.roll || 0));
+  const triggerThreshold = Math.max(0, Number(raid?.triggerThreshold || 0));
+  const confiscatedGrams = Math.max(0, Number(raid?.confiscatedGrams || 0));
+  const fineCharged = Math.max(0, Number(raid?.fineChipsCharged || 0));
+  const finePaid = Math.max(0, Number(raid?.fineChipsPaid || 0));
+  const fineOutstanding = Math.max(0, fineCharged - finePaid);
+
+  const takenLine = raid.success
+    ? `Confiscated: **${gramsFormatter.format(confiscatedGrams)}g**\nFine charged: **${chipsFmt(fineCharged)}**\nFine paid: **${chipsFmt(finePaid)}**${fineOutstanding > 0 ? `\nOutstanding unpaid: **${chipsFmt(fineOutstanding)}**` : ''}`
+    : 'Confiscated: **0g**\nFine charged: **0 chips**\nFine paid: **0 chips**';
+
+  const embed = new EmbedBuilder()
+    .setColor(raid.success ? 0xD83C3E : 0xF39C12)
+    .setTitle(raid.success ? 'Warehouse Raid: Authorities Strike' : 'Warehouse Raid: Close Call')
+    .setDescription(
+      raid.success
+        ? 'Sirens cut through the block as officers stormed the operation and seized contraband.'
+        : 'Spotters caught movement early. The crew scattered before authorities could make arrests.'
+    )
+    .addFields(
+      { name: 'Raided Player', value: `${playerMention} (${playerLabel})`, inline: false },
+      { name: 'Action', value: actionLabel, inline: true },
+      { name: 'Raid Roll', value: `${roll}/20 (trigger <= ${triggerThreshold})`, inline: true },
+      { name: 'Heat Tier', value: tierLabel, inline: true },
+      { name: 'What Was Taken', value: takenLine, inline: false }
+    )
+    .setTimestamp(new Date());
+  return embed;
+}
+
+async function postWarehouseRaidFlavorEmbed(interaction, raid, chipsFmt) {
+  if (!raid?.triggered || !interaction?.channel?.send) return;
+  const embed = buildWarehouseRaidFlavorEmbed(interaction, raid, chipsFmt);
+  if (!embed) return;
+  await interaction.channel.send({ embeds: [embed] }).catch((err) => {
+    console.error('Failed to post warehouse raid flavor embed', err);
+  });
+}
+
 function handleCartelFailure(interaction, error) {
   if (error instanceof CartelError) {
     const message = error.message || 'Action failed.';
@@ -2012,6 +2065,7 @@ export async function handleCartelWarehouseBurnConfirm(interaction, ctx, sourceM
       content: `${emoji('fire')} Burned **${gramsFormatter.format(result.burnedGrams)}g** of Semuta.${raidSuffix}`,
       components: []
     }).catch(() => {});
+    await postWarehouseRaidFlavorEmbed(interaction, result.raid, chipsFmt);
     const targetMessage = await fetchMessageById(interaction, sourceMessageId);
     const payload = await buildWarehousePayload(interaction, ctx);
     if (targetMessage) {
@@ -2125,6 +2179,7 @@ export async function handleCartelWarehouseExportModal(interaction, ctx, sourceM
       content: `${emoji('rocket')} Exported **${exportedLabel}g** of Semuta ${bonusLine} (now **+${totalPercent}%**).${feeDetail}${raidSuffix}`,
       ephemeral: true
     })).catch(() => {});
+    await postWarehouseRaidFlavorEmbed(interaction, result.raid, chipsFmt);
     const targetMessage = await fetchMessageById(interaction, sourceMessageId);
     const payload = await buildWarehousePayload(interaction, ctx);
     if (targetMessage) {
@@ -2770,6 +2825,7 @@ export async function handleCartelCollectModal(interaction, ctx, messageId) {
     await interaction.editReply({
       content: `${emoji('package')} Collected **${gramsFormatter.format(result.collectedGrams)}g** of Semuta (fee **${chipsFmt(result.fee)}**).${overflowLine}${raidSuffix}`
     });
+    await postWarehouseRaidFlavorEmbed(interaction, result.raid, chipsFmt);
     if (messageId && messageId !== '0') {
       const targetMessage = await fetchMessageById(interaction, messageId);
       if (targetMessage) {

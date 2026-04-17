@@ -199,6 +199,10 @@ test('warehouse raid resolution is scoped per action and surfaced in user messag
   assert.match(adapter, /export const cartelApplyRaidOutcome = pick\('cartelApplyRaidOutcome'\);/);
   assert.match(service, /console\.info\('Cartel warehouse raid resolved', payload\);/);
   assert.match(commands, /function buildWarehouseRaidLines\(raid, chipsFmt\)/);
+  assert.match(commands, /function buildWarehouseRaidFlavorEmbed\(interaction, raid, chipsFmt\)/);
+  assert.match(commands, /name: 'Raided Player'/);
+  assert.match(commands, /name: 'What Was Taken'/);
+  assert.match(commands, /await postWarehouseRaidFlavorEmbed\(interaction, result\.raid, chipsFmt\);/);
   assert.match(commands, /const raidLines = buildWarehouseRaidLines\(result\.raid, chipsFmt\);/);
   assert.match(todo, /\[x\] Implement raid scope calculation per action type \(collect, burn, export\)\./);
   assert.match(todo, /\[x\] Apply confiscation and fine atomically in storage layer\./);
@@ -306,6 +310,25 @@ test('cartel raid debug command is admin-gated and wired through deploy and runt
   assert.match(index, /import cmdCartelRaidDebug from '\.\/commands\/cartelraiddebug\.mjs';/);
   assert.match(index, /cartelraiddebug: cmdCartelRaidDebug,/);
   assert.match(commandList, /"name": "cartelraiddebug"/);
+});
+
+test('cartel warehouse debug command is admin-gated and wired through deploy and runtime handlers', async () => {
+  const command = await readRepoFile('src/commands/cartelwarehousedebug.mjs');
+  const service = await readRepoFile('src/cartel/service.mjs');
+  const deploy = await readRepoFile('src/cli/deploy-commands.mjs');
+  const index = await readRepoFile('src/index.mjs');
+  const commandList = await readRepoFile('commands.json');
+
+  assert.match(command, /if \(!\(await ctx\.isAdmin\(interaction\)\)\)/);
+  assert.match(command, /interaction\.options\.getNumber\('grams', true\)/);
+  assert.match(command, /addCartelWarehouseDebug\(/);
+  assert.match(service, /export async function addCartelWarehouseDebug\(/);
+  assert.match(service, /recordCartelTransaction\(gid, uid, 'WAREHOUSE_DEBUG_ADD'/);
+  assert.match(deploy, /name: 'cartelwarehousedebug'/);
+  assert.match(deploy, /name: 'grams'/);
+  assert.match(index, /import cmdCartelWarehouseDebug from '\.\/commands\/cartelwarehousedebug\.mjs';/);
+  assert.match(index, /cartelwarehousedebug: cmdCartelWarehouseDebug,/);
+  assert.match(commandList, /"name": "cartelwarehousedebug"/);
 });
 
 test('cartel overview and warehouse views include warehouse heat bar indicators', async () => {
