@@ -176,6 +176,12 @@ CREATE TABLE IF NOT EXISTS cartel_pool (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS holdem_table_number_state (
+  guild_id TEXT PRIMARY KEY,
+  next_table_number BIGINT NOT NULL DEFAULT 1,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS cartel_investors (
   guild_id TEXT NOT NULL,
   user_id TEXT NOT NULL,

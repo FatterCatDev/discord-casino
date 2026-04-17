@@ -1,7 +1,7 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, ChannelType, PermissionFlagsBits } from 'discord.js';
 import crypto from 'node:crypto';
 import { postGameLog, postGameLogByIds } from './logging.mjs';
-import { getGuildSettings, ensureHoldemTable, createHoldemHand, escrowAdd, escrowReturn, escrowCommit, escrowCreditMany, settleRake, finalizeHoldemHand, getEscrowBalance, getUserBalances, getHouseBalance } from '../db/db.auto.mjs';
+import { getGuildSettings, ensureHoldemTable, reserveHoldemTableNumber, createHoldemHand, escrowAdd, escrowReturn, escrowCommit, escrowCreditMany, settleRake, finalizeHoldemHand, getEscrowBalance, getUserBalances, getHouseBalance } from '../db/db.auto.mjs';
 import { chipsAmount, chipsAmountSigned } from './format.mjs';
 import { emoji } from '../lib/emojis.mjs';
 import { withInsufficientFundsTip } from '../lib/fundsTip.mjs';
@@ -1068,18 +1068,10 @@ export async function hostTable(interaction, ctx, { sb, bb, min, max, cap, rakeB
   if (!casino_category_id) {
     return interaction.reply({ content: '❌ I need a configured casino category to host Hold’em tables. Ask a server admin to run /setcasinocategory first.', ephemeral: true });
   }
-  // Compute next table number within the category
+  // Reserve a per-guild table number without scanning all channels.
   let tableNumber = 1;
   try {
-    const all = await interaction.guild.channels.fetch();
-    const used = new Set();
-    for (const ch of all.values()) {
-      if (!ch || ch.type !== ChannelType.GuildText) continue;
-      if (ch.parentId !== casino_category_id) continue;
-      const m = /^holdem-table-(\d+)$/.exec(ch.name);
-      if (m) used.add(Number(m[1]));
-    }
-    while (used.has(tableNumber)) tableNumber++;
+    tableNumber = await reserveHoldemTableNumber(interaction.guild.id);
   } catch {}
   const name = `holdem-table-${tableNumber}`;
   // Create the channel

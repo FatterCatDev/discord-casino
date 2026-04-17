@@ -144,6 +144,7 @@ export const setCartelXpPerGram = pick('setCartelXpPerGram');
 
 // Hold'em escrow and hands
 export const ensureHoldemTable = pick('ensureHoldemTable');
+export const reserveHoldemTableNumber = pick('reserveHoldemTableNumber');
 export const createHoldemHand = pick('createHoldemHand');
 export const getEscrowBalance = pick('getEscrowBalance');
 export const escrowAdd = pick('escrowAdd');

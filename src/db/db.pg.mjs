@@ -480,6 +480,16 @@ async function ensureBotStatusTable() {
   `);
 }
 
+async function ensureHoldemTableNumberState() {
+  await q(`
+    CREATE TABLE IF NOT EXISTS holdem_table_number_state (
+      guild_id TEXT PRIMARY KEY,
+      next_table_number BIGINT NOT NULL DEFAULT 1,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+}
+
 async function mergeEconomyToGlobalScope() {
   const gid = ECONOMY_GUILD_ID;
 
@@ -540,6 +550,7 @@ await ensureOnboardingTable();
 await ensureInteractionTables();
 await ensureBotStatusTable();
 await ensureNewsSettingsTable();
+await ensureHoldemTableNumberState();
 
 try {
   if (await tableExists('guild_settings') && !(await tableHasColumn('guild_settings', 'kitten_mode_enabled'))) {
@@ -2372,6 +2383,25 @@ export async function ensureHoldemTable(params) {
     [String(tableId), String(guildId), String(channelId), Number(sb) || 0, Number(bb) || 0, Number(min) || 0, Number(max) || 0, Number(rakeBps) || 0, hostId ? String(hostId) : null]
   );
   return { tableId: String(tableId) };
+}
+
+export async function reserveHoldemTableNumber(guildId) {
+  const gid = resolveGuildId(guildId);
+  const row = await q1(
+    `WITH state AS (
+       INSERT INTO holdem_table_number_state (guild_id, next_table_number)
+       VALUES ($1, 2)
+       ON CONFLICT (guild_id)
+       DO UPDATE SET
+         next_table_number = holdem_table_number_state.next_table_number + 1,
+         updated_at = NOW()
+       RETURNING next_table_number
+     )
+     SELECT GREATEST(1, next_table_number - 1)::BIGINT AS table_number
+     FROM state`,
+    [gid]
+  );
+  return Math.max(1, Number(row?.table_number || 1));
 }
 
 export async function createHoldemHand(tableId, handNo, board = '', winnersJson = '[]', rakePaid = 0) {

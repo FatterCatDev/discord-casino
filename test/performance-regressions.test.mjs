@@ -88,6 +88,20 @@ test('startup holdem orphan cleanup is queued in delayed background batches', as
   assert.doesNotMatch(content, /On startup, sweep orphan Hold'em table channels under the casino category/);
 });
 
+test('holdem table allocation uses DB reservation instead of full channel fetch scanning', async () => {
+  const holdem = await readRepoFile('src/games/holdem.mjs');
+  const db = await readRepoFile('src/db/db.pg.mjs');
+  const adapter = await readRepoFile('src/db/db.auto.mjs');
+  assert.match(holdem, /reserveHoldemTableNumber/);
+  assert.match(holdem, /tableNumber = await reserveHoldemTableNumber\(interaction\.guild\.id\);/);
+  const hostFn = holdem.match(/export async function hostTable\([\s\S]*?const name = `holdem-table-\$\{tableNumber\}`;/);
+  assert.ok(hostFn, 'hostTable allocation snippet should exist');
+  assert.doesNotMatch(hostFn[0], /interaction\.guild\.channels\.fetch\(/);
+  assert.match(db, /CREATE TABLE IF NOT EXISTS holdem_table_number_state/);
+  assert.match(db, /export async function reserveHoldemTableNumber\(/);
+  assert.match(adapter, /export const reserveHoldemTableNumber = pick\('reserveHoldemTableNumber'\);/);
+});
+
 test('pruneUserInteractionEvents is exported and batch-limited', async () => {
   const dbContent = await readRepoFile('src/db/db.pg.mjs');
   const autoContent = await readRepoFile('src/db/db.auto.mjs');
@@ -193,7 +207,8 @@ test('todo list includes top-priority scalability work', async () => {
   assert.match(content, /\[x\] Batch or cache Discord member\/user name resolution for leaderboard rendering\./);
   assert.match(content, /\[x\] Batch admin balance lookups instead of N per-user balance reads\./);
   assert.match(content, /\[x\] Move Hold'em orphan cleanup out of startup blocking flow into a background queue\./);
-  assert.match(content, /Replace Hold'em table-number discovery that fetches all guild channels with a cheaper allocation strategy/);
+  assert.match(content, /\[x\] Replace Hold'em table-number discovery that fetches all guild channels with a cheaper allocation strategy\./);
+  assert.match(content, /\[ \] Add bounded concurrency for vote reward DM delivery\./);
 });
 
 test('champion role sync avoids full guild member fetch on startup', async () => {
