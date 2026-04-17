@@ -1386,6 +1386,30 @@ export async function fireCartelDealer(guildId, userId, dealerId) {
   };
 }
 
+export async function pauseCartelDealer(guildId, userId, dealerId) {
+  if (!dealerId) {
+    throw new CartelError('CARTEL_DEALER_NOT_FOUND', 'Dealer not found.');
+  }
+  const dealer = await getCartelDealer(guildId, dealerId);
+  if (!dealer || dealer.user_id !== String(userId)) {
+    throw new CartelError('CARTEL_DEALER_NOT_FOUND', 'Dealer not found.');
+  }
+  const nextStatus = 'PAUSED';
+  const updated = await cartelSetDealerStatus(guildId, dealerId, nextStatus);
+  await recordCartelTransaction(guildId, userId, 'DEALER_PAUSE', 0, 0, {
+    dealerId,
+    tier: dealer.tier,
+    fromStatus: dealer.status,
+    toStatus: nextStatus,
+    contactName: dealer.display_name || null
+  });
+  return {
+    ...(updated || dealer),
+    tierInfo: CARTEL_DEALER_TIERS_BY_ID[dealer.tier] || null,
+    changed: String(dealer.status || '').toUpperCase() !== nextStatus
+  };
+}
+
 export async function fireAllCartelDealers(guildId, userId) {
   const dealers = await listCartelDealersForUser(guildId, userId);
   if (!dealers.length) {
@@ -1401,6 +1425,37 @@ export async function fireAllCartelDealers(guildId, userId) {
       ...dealer,
       tierInfo: CARTEL_DEALER_TIERS_BY_ID[dealer.tier] || null
     }))
+  };
+}
+
+export async function pauseAllCartelDealers(guildId, userId) {
+  const dealers = await listCartelDealersForUser(guildId, userId);
+  if (!dealers.length) {
+    throw new CartelError('CARTEL_NO_DEALERS', 'You have no dealers to pause.');
+  }
+  const paused = [];
+  for (const dealer of dealers) {
+    const nextStatus = 'PAUSED';
+    const changed = String(dealer.status || '').toUpperCase() !== nextStatus;
+    if (changed) {
+      await cartelSetDealerStatus(guildId, dealer.dealer_id, nextStatus);
+    }
+    paused.push({
+      ...dealer,
+      status: nextStatus,
+      changed,
+      tierInfo: CARTEL_DEALER_TIERS_BY_ID[dealer.tier] || null
+    });
+  }
+  const changedCount = paused.filter(dealer => dealer.changed).length;
+  await recordCartelTransaction(guildId, userId, 'DEALER_PAUSE_ALL', 0, 0, {
+    count: paused.length,
+    changedCount
+  });
+  return {
+    count: paused.length,
+    changedCount,
+    dealers: paused
   };
 }
 

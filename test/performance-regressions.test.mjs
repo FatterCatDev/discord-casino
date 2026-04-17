@@ -339,3 +339,28 @@ test('cartel overview and warehouse views include warehouse heat bar indicators'
   assert.match(command, /CARTEL_WAREHOUSE_HEAT_PER_GRAM/);
   assert.match(command, /CARTEL_RAID_THRESHOLDS/);
 });
+
+test('dealer list view includes pause controls and routes pause actions', async () => {
+  const command = await readRepoFile('src/commands/cartel.mjs');
+  const service = await readRepoFile('src/cartel/service.mjs');
+  const index = await readRepoFile('src/index.mjs');
+
+  assert.match(command, /const CARTEL_DEALERS_PAUSE_PREFIX = 'cartel\|dealers\|pause\|dealer\|';/);
+  assert.match(command, /const CARTEL_DEALERS_PAUSE_ALL_ID = 'cartel\|dealers\|pause_all';/);
+  assert.match(command, /function buildDealerPauseRows\(dealers\)/);
+  assert.match(command, /function buildDealerPauseAllRow\(dealers\)/);
+  assert.match(command, /\.setCustomId\(CARTEL_DEALERS_PAUSE_ALL_ID\)/);
+  assert.match(command, /\.setCustomId\(`\$\{CARTEL_DEALERS_PAUSE_PREFIX\}\$\{dealer\.dealer_id\}`\)/);
+  assert.match(command, /export async function handleCartelDealerPause\(/);
+  assert.match(command, /export async function handleCartelDealerPauseAll\(/);
+
+  assert.match(service, /export async function pauseCartelDealer\(/);
+  assert.match(service, /export async function pauseAllCartelDealers\(/);
+  assert.match(service, /recordCartelTransaction\(guildId, userId, 'DEALER_PAUSE'/);
+  assert.match(service, /recordCartelTransaction\(guildId, userId, 'DEALER_PAUSE_ALL'/);
+
+  assert.match(index, /handleCartelDealerPause,/);
+  assert.match(index, /handleCartelDealerPauseAll,/);
+  assert.match(index, /interaction\.customId === 'cartel\|dealers\|pause_all'/);
+  assert.match(index, /interaction\.customId\.startsWith\('cartel\|dealers\|pause\|dealer\|'/);
+});

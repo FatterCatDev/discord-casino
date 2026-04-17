@@ -23,6 +23,8 @@ import {
   payCartelDealerUpkeep,
   fireCartelDealer,
   fireAllCartelDealers,
+  pauseCartelDealer,
+  pauseAllCartelDealers,
   CartelError,
   formatSemuta,
   buildRankTableEmbed,
@@ -98,6 +100,8 @@ const CARTEL_DEALERS_HIRE_VIEW_ID = 'cartel|dealers|view|hire';
 const CARTEL_DEALERS_UPKEEP_VIEW_ID = 'cartel|dealers|view|upkeep';
 const CARTEL_DEALERS_HIRE_TIER_PREFIX = 'cartel|dealers|hire|tier|';
 const CARTEL_DEALERS_UPKEEP_PREFIX = 'cartel|dealers|upkeep|';
+const CARTEL_DEALERS_PAUSE_PREFIX = 'cartel|dealers|pause|dealer|';
+const CARTEL_DEALERS_PAUSE_ALL_ID = 'cartel|dealers|pause_all';
 const CARTEL_DEALERS_FIRE_PREFIX = 'cartel|dealers|fire|dealer|';
 const CARTEL_DEALERS_FIRE_ALL_ID = 'cartel|dealers|fire_all';
 const CARTEL_DEALERS_UPKEEP_MODAL_PREFIX = 'cartel|dealers|upkeep_modal|';
@@ -1785,6 +1789,47 @@ function buildDealerFireRows(dealers) {
   return rows;
 }
 
+function buildDealerPauseRows(dealers) {
+  if (!dealers.length) return [];
+  const rows = [];
+  let currentRow = new ActionRowBuilder();
+  for (const dealer of dealers) {
+    if (currentRow.components.length >= 5) {
+      rows.push(currentRow);
+      if (rows.length >= 4) break;
+      currentRow = new ActionRowBuilder();
+    }
+    const isPaused = String(dealer?.status || '').toUpperCase() === 'PAUSED';
+    currentRow.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`${CARTEL_DEALERS_PAUSE_PREFIX}${dealer.dealer_id}`)
+        .setLabel(dealerButtonLabel(dealer))
+        .setStyle(isPaused ? ButtonStyle.Secondary : ButtonStyle.Danger)
+        .setEmoji(emoji('pause'))
+        .setDisabled(isPaused)
+    );
+  }
+  if (currentRow.components.length && rows.length < 4) {
+    rows.push(currentRow);
+  }
+  return rows;
+}
+
+function buildDealerPauseAllRow(dealers) {
+  if (!dealers.length) return [];
+  const activeCount = dealers.filter(dealer => String(dealer?.status || '').toUpperCase() !== 'PAUSED').length;
+  return [
+    new ActionRowBuilder().addComponents(
+      new ButtonBuilder()
+        .setCustomId(CARTEL_DEALERS_PAUSE_ALL_ID)
+        .setLabel('Pause All Dealers')
+        .setEmoji(emoji('pause'))
+        .setStyle(ButtonStyle.Danger)
+        .setDisabled(activeCount <= 0)
+    )
+  ];
+}
+
 function buildDealerFireAllRow(dealers) {
   if (!dealers.length) return [];
   return [
@@ -1845,6 +1890,8 @@ function buildDealerViewPayload(view, { overview, dealers, chipsFmt, cachedNames
   const names = Object.keys(baseNames).length ? baseNames : null;
   const extraRows = [
     ...collectRows,
+    ...buildDealerPauseAllRow(dealers),
+    ...buildDealerPauseRows(dealers),
     ...buildDealerFireAllRow(dealers),
     ...buildDealerFireRows(dealers)
   ];
@@ -2376,6 +2423,57 @@ export async function handleCartelDealerFireAll(interaction, ctx) {
     await logCartelActivity(
       interaction,
       `Fired all dealers (${result.count}).`
+    );
+  } catch (error) {
+    await notifyCartelButtonError(interaction, error);
+  }
+}
+
+export async function handleCartelDealerPause(interaction, ctx, dealerId) {
+  const allowed = await ensureCartelAccess(interaction, ctx);
+  if (!allowed) return;
+  try {
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferUpdate();
+    }
+  } catch {}
+  try {
+    const dealer = await pauseCartelDealer(interaction.guild?.id, interaction.user.id, dealerId);
+    await renderDealerView(interaction, ctx, 'list');
+    const tierName = dealer?.tierInfo?.name || `Tier ${dealer?.tier || '?'}`;
+    const contactLabel = dealer?.display_name ? ` "${dealer.display_name}"` : '';
+    const alreadyPaused = dealer?.changed === false;
+    await interaction.followUp(withAutoEphemeral(interaction, {
+      content: alreadyPaused
+        ? `${emoji('info')} **${tierName}**${contactLabel} (ID \`${shortDealerId(dealerId)}\`) is already paused.`
+        : `${emoji('pause')} Paused **${tierName}**${contactLabel} (ID \`${shortDealerId(dealerId)}\`).`
+    })).catch(() => {});
+    await logCartelActivity(
+      interaction,
+      `${alreadyPaused ? 'Pause requested for already paused' : 'Paused'} ${tierName}${contactLabel} dealer (ID ${shortDealerId(dealerId)}).`
+    );
+  } catch (error) {
+    await notifyCartelButtonError(interaction, error);
+  }
+}
+
+export async function handleCartelDealerPauseAll(interaction, ctx) {
+  const allowed = await ensureCartelAccess(interaction, ctx);
+  if (!allowed) return;
+  try {
+    if (!interaction.deferred && !interaction.replied) {
+      await interaction.deferUpdate();
+    }
+  } catch {}
+  try {
+    const result = await pauseAllCartelDealers(interaction.guild?.id, interaction.user.id);
+    await renderDealerView(interaction, ctx, 'list');
+    await interaction.followUp(withAutoEphemeral(interaction, {
+      content: `${emoji('pause')} Paused **${result.changedCount}** of **${result.count}** dealer${result.count === 1 ? '' : 's'}.`
+    })).catch(() => {});
+    await logCartelActivity(
+      interaction,
+      `Paused dealers (${result.changedCount}/${result.count}).`
     );
   } catch (error) {
     await notifyCartelButtonError(interaction, error);

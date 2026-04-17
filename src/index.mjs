@@ -119,6 +119,8 @@ import cmdCartel, {
   handleCartelDealersView,
   handleCartelDealerHireTier,
   handleCartelDealerUpkeep,
+  handleCartelDealerPause,
+  handleCartelDealerPauseAll,
   handleCartelDealerFire,
   handleCartelDealerFireAll,
   handleCartelDealerUpkeepModal,
@@ -1538,6 +1540,10 @@ client.on(Events.InteractionCreate, async interaction => {
       const ctx = buildCommandContext(interaction, ctxExtras);
       return handleCartelDealerUpkeep(interaction, ctx, dealerId);
     }
+    else if (interaction.isButton() && interaction.customId === 'cartel|dealers|pause_all') {
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelDealerPauseAll(interaction, ctx);
+    }
     else if (interaction.isButton() && interaction.customId === 'cartel|dealers|fire_all') {
       const ctx = buildCommandContext(interaction, ctxExtras);
       return handleCartelDealerFireAll(interaction, ctx);
@@ -1545,6 +1551,11 @@ client.on(Events.InteractionCreate, async interaction => {
     else if (interaction.isButton() && interaction.customId === 'cartel|dealers|collect') {
       const ctx = buildCommandContext(interaction, ctxExtras);
       return handleCartelDealerCollect(interaction, ctx);
+    }
+    else if (interaction.isButton() && interaction.customId.startsWith('cartel|dealers|pause|dealer|')) {
+      const dealerId = interaction.customId.substring('cartel|dealers|pause|dealer|'.length);
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelDealerPause(interaction, ctx, dealerId);
     }
     else if (interaction.isButton() && interaction.customId.startsWith('cartel|dealers|fire|dealer|')) {
       const dealerId = interaction.customId.substring('cartel|dealers|fire|dealer|'.length);
