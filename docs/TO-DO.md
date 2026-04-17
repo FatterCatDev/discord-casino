@@ -57,9 +57,9 @@ Add a warehouse risk system to the Cartel flow that introduces police raids base
 - [x] Implement heat calculation from warehouse amount.
 - [x] Implement d20 trigger logic by heat tier.
 - [x] Implement 50% raid success check when trigger occurs.
-- [ ] Implement raid scope calculation per action type (collect, burn, export).
+- [x] Implement raid scope calculation per action type (collect, burn, export).
 - [ ] Apply confiscation and fine atomically in storage layer.
-- [ ] Ensure raid resolution runs only after action completion.
+- [x] Ensure raid resolution runs only after action completion.
 
 ### Expiration Mechanics
 - [x] Define expiration cadence (per tick/hour/day).
@@ -67,14 +67,14 @@ Add a warehouse risk system to the Cartel flow that introduces police raids base
 - [x] Log expiration amounts for balancing and debugging.
 
 ### Player UX + Messaging
-- [ ] Add raid trigger warning message: police are coming.
-- [ ] Add final outcome message for success/failure.
-- [ ] Include confiscated amount and fine in success message.
+- [x] Add raid trigger warning message: police are coming.
+- [x] Add final outcome message for success/failure.
+- [x] Include confiscated amount and fine in success message.
 
 ### Observability + Safety
-- [ ] Add structured logs for heat, roll, tier, trigger, success, scope, and penalties.
-- [ ] Guard against negative chips/warehouse values.
-- [ ] Add fallback behavior for malformed investor state.
+- [x] Add structured logs for heat, roll, tier, trigger, success, scope, and penalties.
+- [x] Guard against negative chips/warehouse values.
+- [x] Add fallback behavior for malformed investor state.
 
 ### Testing Checklist
 - [ ] Unit test heat calculation across boundary values.

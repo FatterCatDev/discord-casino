@@ -448,6 +448,26 @@ function getChipsFormatter(ctx) {
   return (amount) => `${amount} chips`;
 }
 
+function buildWarehouseRaidLines(raid, chipsFmt) {
+  if (!raid?.triggered) return [];
+  const tierLabel = raid?.tier ? String(raid.tier).toLowerCase() : 'unknown';
+  const warningLine = `🚨 Raid warning: Heat reached **${tierLabel}** threshold (roll ${raid.roll}/20, trigger <= ${raid.triggerThreshold || 0}).`;
+  if (!raid.success) {
+    return [warningLine, '🛡️ Outcome: You evaded the raid this time.'];
+  }
+  const confiscatedGrams = Math.max(0, Number(raid.confiscatedGrams || 0));
+  const finePaid = Math.max(0, Number(raid.fineChipsPaid || 0));
+  const fineCharged = Math.max(0, Number(raid.fineChipsCharged || 0));
+  const fineDisplay = finePaid > 0 ? finePaid : fineCharged;
+  const fineTail = fineDisplay > 0
+    ? ` Fine: **${chipsFmt(fineDisplay)}**${finePaid < fineCharged ? ' (partial due to low chips)' : ''}.`
+    : '';
+  return [
+    warningLine,
+    `🚓 Outcome: Authorities confiscated **${gramsFormatter.format(confiscatedGrams)}g** from the raid scope.${fineTail}`
+  ];
+}
+
 function handleCartelFailure(interaction, error) {
   if (error instanceof CartelError) {
     const message = error.message || 'Action failed.';
@@ -1948,6 +1968,7 @@ export async function handleCartelWarehouseBurnPrompt(interaction, ctx) {
 export async function handleCartelWarehouseBurnConfirm(interaction, ctx, sourceMessageId = '0') {
   const allowed = await ensureCartelAccess(interaction, ctx, { sourceMessageId });
   if (!allowed) return;
+  const chipsFmt = getChipsFormatter(ctx);
   try {
     await interaction.deferUpdate();
   } catch {}
@@ -1960,8 +1981,10 @@ export async function handleCartelWarehouseBurnConfirm(interaction, ctx, sourceM
     }
     const grams = mgToGrams(warehouseMg);
     const result = await cartelAbandon(interaction.guild?.id, interaction.user.id, grams);
+    const raidLines = buildWarehouseRaidLines(result.raid, chipsFmt);
+    const raidSuffix = raidLines.length ? `\n${raidLines.join('\n')}` : '';
     await interaction.editReply({
-      content: `${emoji('fire')} Burned **${gramsFormatter.format(result.burnedGrams)}g** of Semuta.`,
+      content: `${emoji('fire')} Burned **${gramsFormatter.format(result.burnedGrams)}g** of Semuta.${raidSuffix}`,
       components: []
     }).catch(() => {});
     const targetMessage = await fetchMessageById(interaction, sourceMessageId);
@@ -1971,7 +1994,7 @@ export async function handleCartelWarehouseBurnConfirm(interaction, ctx, sourceM
     }
     await logCartelActivity(
       interaction,
-      `Burned ${gramsFormatter.format(result.burnedGrams)}g of Semuta from warehouse.`
+      `Burned ${gramsFormatter.format(result.burnedGrams)}g of Semuta from warehouse.${raidLines.length ? ` ${raidLines.join(' ')}` : ''}`
     );
   } catch (error) {
     console.error('Cartel warehouse burn confirm failed', error);
@@ -2071,8 +2094,10 @@ export async function handleCartelWarehouseExportModal(interaction, ctx, sourceM
       ? `for a permanent **+${gainedPercent}%** sale bonus`
       : 'without changing your sale bonus';
     const feeDetail = feeChips > 0 ? ` Fee: **${chipsFmt(feeChips)}** paid to the house.` : '';
+    const raidLines = buildWarehouseRaidLines(result.raid, chipsFmt);
+    const raidSuffix = raidLines.length ? `\n${raidLines.join('\n')}` : '';
     await interaction.reply(withAutoEphemeral(interaction, {
-      content: `${emoji('rocket')} Exported **${exportedLabel}g** of Semuta ${bonusLine} (now **+${totalPercent}%**).${feeDetail}`,
+      content: `${emoji('rocket')} Exported **${exportedLabel}g** of Semuta ${bonusLine} (now **+${totalPercent}%**).${feeDetail}${raidSuffix}`,
       ephemeral: true
     })).catch(() => {});
     const targetMessage = await fetchMessageById(interaction, sourceMessageId);
@@ -2084,7 +2109,7 @@ export async function handleCartelWarehouseExportModal(interaction, ctx, sourceM
     const activityLine = result.bonusBps > 0
       ? `Exported ${exportedLabel}g of Semuta for +${gainedPercent}% sale multiplier (now +${totalPercent}%).${feeLog}`
       : `Exported ${exportedLabel}g of Semuta (multiplier remains +${totalPercent}%).${feeLog}`;
-    await logCartelActivity(interaction, activityLine);
+    await logCartelActivity(interaction, `${activityLine}${raidLines.length ? ` ${raidLines.join(' ')}` : ''}`);
   } catch (error) {
     if (error instanceof CartelError) {
       await interaction.reply(withAutoEphemeral(interaction, {
@@ -2715,8 +2740,10 @@ export async function handleCartelCollectModal(interaction, ctx, messageId) {
     const overflowLine = result.overflowReturnedGrams > 0
       ? ` Overflow ${gramsFormatter.format(result.overflowReturnedGrams)}g of Semuta returned to warehouse.`
       : '';
+    const raidLines = buildWarehouseRaidLines(result.raid, chipsFmt);
+    const raidSuffix = raidLines.length ? `\n${raidLines.join('\n')}` : '';
     await interaction.editReply({
-      content: `${emoji('package')} Collected **${gramsFormatter.format(result.collectedGrams)}g** of Semuta (fee **${chipsFmt(result.fee)}**).${overflowLine}`
+      content: `${emoji('package')} Collected **${gramsFormatter.format(result.collectedGrams)}g** of Semuta (fee **${chipsFmt(result.fee)}**).${overflowLine}${raidSuffix}`
     });
     if (messageId && messageId !== '0') {
       const targetMessage = await fetchMessageById(interaction, messageId);
@@ -2727,7 +2754,7 @@ export async function handleCartelCollectModal(interaction, ctx, messageId) {
     }
     await logCartelActivity(
       interaction,
-      `Collected ${gramsFormatter.format(result.collectedGrams)}g of Semuta from warehouse (fee ${chipsFmt(result.fee)}).${overflowLine}`
+      `Collected ${gramsFormatter.format(result.collectedGrams)}g of Semuta from warehouse (fee ${chipsFmt(result.fee)}).${overflowLine}${raidLines.length ? ` ${raidLines.join(' ')}` : ''}`
     );
   } catch (error) {
     if (interaction.deferred || interaction.replied) {

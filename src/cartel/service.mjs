@@ -61,6 +61,9 @@ import {
   CARTEL_DEALER_TIERS_BY_ID,
   CARTEL_DEALER_UPKEEP_PERCENT_BY_TIER,
   SEMUTA_CARTEL_USER_ID,
+  CARTEL_WAREHOUSE_HEAT_PER_GRAM,
+  CARTEL_RAID_THRESHOLDS,
+  CARTEL_RAID_FINE_MULTIPLIER,
   CARTEL_WAREHOUSE_EXPIRATION_ENABLED,
   CARTEL_WAREHOUSE_EXPIRATION_CADENCE_SECONDS,
   CARTEL_WAREHOUSE_EXPIRATION_GRAMS_PER_CADENCE
@@ -961,10 +964,16 @@ export async function cartelCollect(guildId, userId, grams) {
   const newWarehouse = currentWarehouse - mgRequested + overflow;
   await cartelSetHoldings(guildId, userId, finalStash, newWarehouse);
   await recordCartelTransaction(guildId, userId, 'COLLECT_FEE', fee, mgRequested, { grams: gramsRequested, overflow: mgToGrams(overflow) });
+  const postInvestor = await getCartelInvestor(guildId, userId);
+  const raid = await resolveWarehouseRaidAfterAction(guildId, userId, 'collect', postInvestor, {
+    warehouseMg: Number(postInvestor?.warehouse_mg || 0),
+    collectedMg: mgRequested
+  });
   return {
     collectedGrams: gramsRequested - mgToGrams(overflow),
     overflowReturnedGrams: mgToGrams(overflow),
-    fee
+    fee,
+    raid
   };
 }
 
@@ -979,7 +988,12 @@ export async function cartelAbandon(guildId, userId, grams) {
   const newWarehouse = currentWarehouse - mgToBurn;
   await cartelSetHoldings(guildId, userId, Number(investor?.stash_mg || 0), newWarehouse);
   await recordCartelTransaction(guildId, userId, 'WAREHOUSE_BURN', 0, mgToBurn, { grams: mgToGrams(mgToBurn) });
-  return { burnedGrams: mgToGrams(mgToBurn) };
+  const postInvestor = await getCartelInvestor(guildId, userId);
+  const raid = await resolveWarehouseRaidAfterAction(guildId, userId, 'burn', postInvestor, {
+    warehouseMg: Number(postInvestor?.warehouse_mg || 0),
+    collectedMg: 0
+  });
+  return { burnedGrams: mgToGrams(mgToBurn), raid };
 }
 
 export async function cartelExportWarehouse(guildId, userId, mgAmount = null) {
@@ -1044,12 +1058,18 @@ export async function cartelExportWarehouse(guildId, userId, mgAmount = null) {
     multiplierBpsTotal: totalMultiplierBps,
     feeChips
   });
+  const postInvestor = await getCartelInvestor(guildId, userId);
+  const raid = await resolveWarehouseRaidAfterAction(guildId, userId, 'export', postInvestor, {
+    warehouseMg: Number(postInvestor?.warehouse_mg || 0),
+    collectedMg: 0
+  });
   return {
     exportedMg: mgToExport,
     exportedGrams,
     bonusBps,
     totalMultiplierBps,
-    feeChips
+    feeChips,
+    raid
   };
 }
 
@@ -1517,25 +1537,126 @@ function calculateWarehouseHeat(investor) {
   const warehouseGrams = mgToGrams(Number(investor?.warehouse_mg || 0));
   return warehouseGrams * CARTEL_WAREHOUSE_HEAT_PER_GRAM;
 }
+
+function raidTierForHeat(heat) {
+  const value = Math.max(0, Number(heat || 0));
+  if (value >= CARTEL_RAID_THRESHOLDS.EXTREME.heat) return { name: 'EXTREME', rule: CARTEL_RAID_THRESHOLDS.EXTREME };
+  if (value >= CARTEL_RAID_THRESHOLDS.HIGH.heat) return { name: 'HIGH', rule: CARTEL_RAID_THRESHOLDS.HIGH };
+  if (value >= CARTEL_RAID_THRESHOLDS.MED.heat) return { name: 'MED', rule: CARTEL_RAID_THRESHOLDS.MED };
+  if (value >= CARTEL_RAID_THRESHOLDS.LOW.heat) return { name: 'LOW', rule: CARTEL_RAID_THRESHOLDS.LOW };
+  return { name: null, rule: null };
+}
+
 function rollRaidIfNeeded(investor) {
   const heat = calculateWarehouseHeat(investor);
   const roll = Math.ceil(Math.random() * 20);
 
-  let tier = null;
-
-  if (heat >= CARTEL_RAID_THRESHOLDS.EXTREME.heat) tier = CARTEL_RAID_THRESHOLDS.EXTREME;
-  else if (heat >= CARTEL_RAID_THRESHOLDS.HIGH.heat) tier = CARTEL_RAID_THRESHOLDS.HIGH;
-  else if (heat >= CARTEL_RAID_THRESHOLDS.MED.heat) tier = CARTEL_RAID_THRESHOLDS.MED;
-  else if (heat >= CARTEL_RAID_THRESHOLDS.LOW.heat) tier = CARTEL_RAID_THRESHOLDS.LOW;
-
-  if (!tier) return { raided: false, success: false };
-
-  // First check: did the raid trigger?
-  if (roll <= tier.trigger) {
-    // Second check: does the raid succeed? 50% chance
-    const success = Math.random() < 0.5; // 50% chance
-    return { raided: true, success };
+  const tierState = raidTierForHeat(heat);
+  if (!tierState.rule) {
+    return {
+      triggered: false,
+      success: false,
+      heat,
+      roll,
+      tier: null,
+      triggerThreshold: null
+    };
   }
 
-  return { raided: false, success: false };
+  const triggered = roll <= Number(tierState.rule.trigger || 0);
+  const success = triggered ? (Math.random() < 0.5) : false;
+  return {
+    triggered,
+    success,
+    heat,
+    roll,
+    tier: tierState.name,
+    triggerThreshold: Number(tierState.rule.trigger || 0)
+  };
+}
+
+function raidFineForMgLoss(mgLoss) {
+  const gramsLost = mgToGrams(Math.max(0, Number(mgLoss || 0)));
+  if (gramsLost <= 0) return 0;
+  return Math.max(0, Math.ceil(gramsLost * CARTEL_RAID_FINE_MULTIPLIER));
+}
+
+async function resolveWarehouseRaidAfterAction(guildId, userId, actionType, postInvestor, scope = {}) {
+  const currentWarehouse = Math.max(0, Number(postInvestor?.warehouse_mg || 0));
+  const currentStash = Math.max(0, Number(postInvestor?.stash_mg || 0));
+  const scopeWarehouseMg = Math.max(0, Math.floor(Number(scope?.warehouseMg || 0)));
+  const scopeCollectedMg = Math.max(0, Math.floor(Number(scope?.collectedMg || 0)));
+  const scopeTotalMg = Math.max(0, scopeWarehouseMg + scopeCollectedMg);
+
+  const raidRoll = rollRaidIfNeeded(postInvestor);
+  let confiscatedWarehouseMg = 0;
+  let confiscatedCollectedMg = 0;
+  let fineChipsCharged = 0;
+  let fineChipsPaid = 0;
+
+  if (raidRoll.triggered && raidRoll.success && scopeTotalMg > 0) {
+    confiscatedWarehouseMg = Math.min(currentWarehouse, scopeWarehouseMg);
+    if (actionType === 'collect' && scopeCollectedMg > 0) {
+      confiscatedCollectedMg = Math.min(currentStash, scopeCollectedMg);
+    }
+    const totalConfiscatedMg = Math.max(0, confiscatedWarehouseMg + confiscatedCollectedMg);
+    if (totalConfiscatedMg > 0) {
+      const nextWarehouse = Math.max(0, currentWarehouse - confiscatedWarehouseMg);
+      const nextStash = Math.max(0, currentStash - confiscatedCollectedMg);
+      await cartelSetHoldings(guildId, userId, nextStash, nextWarehouse);
+      fineChipsCharged = raidFineForMgLoss(totalConfiscatedMg);
+      if (fineChipsCharged > 0) {
+        try {
+          await takeFromUserToHouse(guildId, userId, fineChipsCharged, 'cartel warehouse raid fine');
+          fineChipsPaid = fineChipsCharged;
+        } catch (err) {
+          if (!isDbError(err, 'INSUFFICIENT_USER')) {
+            throw err;
+          }
+        }
+      }
+      await recordCartelTransaction(guildId, userId, 'WAREHOUSE_RAID', fineChipsPaid, totalConfiscatedMg, {
+        actionType,
+        heat: raidRoll.heat,
+        roll: raidRoll.roll,
+        tier: raidRoll.tier,
+        triggerThreshold: raidRoll.triggerThreshold,
+        success: true,
+        scopeWarehouseMg,
+        scopeCollectedMg,
+        confiscatedWarehouseMg,
+        confiscatedCollectedMg,
+        fineChipsCharged,
+        fineChipsPaid
+      });
+    }
+  }
+
+  const raidSummary = {
+    triggered: !!raidRoll.triggered,
+    success: !!raidRoll.success,
+    actionType,
+    heat: Math.max(0, Number(raidRoll.heat || 0)),
+    roll: Number(raidRoll.roll || 0),
+    tier: raidRoll.tier || null,
+    triggerThreshold: Number(raidRoll.triggerThreshold || 0),
+    scopeWarehouseMg,
+    scopeCollectedMg,
+    scopeTotalMg,
+    confiscatedWarehouseMg,
+    confiscatedCollectedMg,
+    confiscatedTotalMg: Math.max(0, confiscatedWarehouseMg + confiscatedCollectedMg),
+    confiscatedGrams: mgToGrams(Math.max(0, confiscatedWarehouseMg + confiscatedCollectedMg)),
+    fineChipsCharged,
+    fineChipsPaid
+  };
+
+  if (raidSummary.triggered) {
+    console.info('Cartel warehouse raid resolved', {
+      guildId,
+      userId,
+      ...raidSummary
+    });
+  }
+  return raidSummary;
 }
