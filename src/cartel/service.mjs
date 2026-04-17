@@ -11,6 +11,7 @@ import {
   cartelAddShares,
   cartelRemoveShares,
   cartelSetHoldings,
+  cartelApplyRaidOutcome,
   cartelSetRankAndXp,
   cartelSetSaleMultiplier,
   cartelAdjustSaleMultiplier,
@@ -1575,12 +1576,6 @@ function rollRaidIfNeeded(investor) {
   };
 }
 
-function raidFineForMgLoss(mgLoss) {
-  const gramsLost = mgToGrams(Math.max(0, Number(mgLoss || 0)));
-  if (gramsLost <= 0) return 0;
-  return Math.max(0, Math.ceil(gramsLost * CARTEL_RAID_FINE_MULTIPLIER));
-}
-
 async function resolveWarehouseRaidAfterAction(guildId, userId, actionType, postInvestor, scope = {}) {
   const currentWarehouse = Math.max(0, Number(postInvestor?.warehouse_mg || 0));
   const currentStash = Math.max(0, Number(postInvestor?.stash_mg || 0));
@@ -1595,40 +1590,37 @@ async function resolveWarehouseRaidAfterAction(guildId, userId, actionType, post
   let fineChipsPaid = 0;
 
   if (raidRoll.triggered && raidRoll.success && scopeTotalMg > 0) {
-    confiscatedWarehouseMg = Math.min(currentWarehouse, scopeWarehouseMg);
+    const requestedWarehouseMg = Math.min(currentWarehouse, scopeWarehouseMg);
+    let requestedCollectedMg = 0;
     if (actionType === 'collect' && scopeCollectedMg > 0) {
-      confiscatedCollectedMg = Math.min(currentStash, scopeCollectedMg);
+      requestedCollectedMg = Math.min(currentStash, scopeCollectedMg);
     }
-    const totalConfiscatedMg = Math.max(0, confiscatedWarehouseMg + confiscatedCollectedMg);
-    if (totalConfiscatedMg > 0) {
-      const nextWarehouse = Math.max(0, currentWarehouse - confiscatedWarehouseMg);
-      const nextStash = Math.max(0, currentStash - confiscatedCollectedMg);
-      await cartelSetHoldings(guildId, userId, nextStash, nextWarehouse);
-      fineChipsCharged = raidFineForMgLoss(totalConfiscatedMg);
-      if (fineChipsCharged > 0) {
-        try {
-          await takeFromUserToHouse(guildId, userId, fineChipsCharged, 'cartel warehouse raid fine');
-          fineChipsPaid = fineChipsCharged;
-        } catch (err) {
-          if (!isDbError(err, 'INSUFFICIENT_USER')) {
-            throw err;
-          }
+    if (requestedWarehouseMg > 0 || requestedCollectedMg > 0) {
+      const applied = await cartelApplyRaidOutcome(guildId, userId, {
+        confiscatedWarehouseMg: requestedWarehouseMg,
+        confiscatedStashMg: requestedCollectedMg,
+        finePerGram: CARTEL_RAID_FINE_MULTIPLIER,
+        reason: 'cartel warehouse raid fine',
+        metadata: {
+          actionType,
+          heat: raidRoll.heat,
+          roll: raidRoll.roll,
+          tier: raidRoll.tier,
+          triggerThreshold: raidRoll.triggerThreshold,
+          success: true,
+          scopeWarehouseMg,
+          scopeCollectedMg
         }
-      }
-      await recordCartelTransaction(guildId, userId, 'WAREHOUSE_RAID', fineChipsPaid, totalConfiscatedMg, {
-        actionType,
-        heat: raidRoll.heat,
-        roll: raidRoll.roll,
-        tier: raidRoll.tier,
-        triggerThreshold: raidRoll.triggerThreshold,
-        success: true,
-        scopeWarehouseMg,
-        scopeCollectedMg,
-        confiscatedWarehouseMg,
-        confiscatedCollectedMg,
-        fineChipsCharged,
-        fineChipsPaid
       });
+      confiscatedWarehouseMg = Math.max(0, Number(applied?.confiscatedWarehouseMg || 0));
+      confiscatedCollectedMg = Math.max(0, Number(applied?.confiscatedCollectedMg || 0));
+      fineChipsCharged = Math.max(0, Number(applied?.fineChipsCharged || 0));
+      fineChipsPaid = Math.max(0, Number(applied?.fineChipsPaid || 0));
+      const totalConfiscatedMg = Math.max(0, confiscatedWarehouseMg + confiscatedCollectedMg);
+      if (totalConfiscatedMg <= 0) {
+        fineChipsCharged = 0;
+        fineChipsPaid = 0;
+      }
     }
   }
 

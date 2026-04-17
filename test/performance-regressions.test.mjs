@@ -184,6 +184,8 @@ test('cartel warehouse expiration is configurable and applied safely during prod
 test('warehouse raid resolution is scoped per action and surfaced in user messaging', async () => {
   const service = await readRepoFile('src/cartel/service.mjs');
   const commands = await readRepoFile('src/commands/cartel.mjs');
+  const db = await readRepoFile('src/db/db.pg.mjs');
+  const adapter = await readRepoFile('src/db/db.auto.mjs');
   const todo = await readRepoFile('docs/TO-DO.md');
   assert.match(service, /async function resolveWarehouseRaidAfterAction\(guildId, userId, actionType, postInvestor, scope = \{\}\)/);
   assert.match(service, /const scopeWarehouseMg = Math\.max\(0, Math\.floor\(Number\(scope\?\.warehouseMg \|\| 0\)\)\);/);
@@ -191,11 +193,15 @@ test('warehouse raid resolution is scoped per action and surfaced in user messag
   assert.match(service, /const raid = await resolveWarehouseRaidAfterAction\(guildId, userId, 'collect', postInvestor, \{/);
   assert.match(service, /const raid = await resolveWarehouseRaidAfterAction\(guildId, userId, 'burn', postInvestor, \{/);
   assert.match(service, /const raid = await resolveWarehouseRaidAfterAction\(guildId, userId, 'export', postInvestor, \{/);
-  assert.match(service, /await recordCartelTransaction\(guildId, userId, 'WAREHOUSE_RAID', fineChipsPaid, totalConfiscatedMg, \{/);
+  assert.match(service, /const applied = await cartelApplyRaidOutcome\(guildId, userId, \{/);
+  assert.match(db, /export async function cartelApplyRaidOutcome\(/);
+  assert.match(db, /INSERT INTO cartel_transactions \(guild_id, user_id, type, amount_chips, amount_mg, metadata_json\)/);
+  assert.match(adapter, /export const cartelApplyRaidOutcome = pick\('cartelApplyRaidOutcome'\);/);
   assert.match(service, /console\.info\('Cartel warehouse raid resolved', \{/);
   assert.match(commands, /function buildWarehouseRaidLines\(raid, chipsFmt\)/);
   assert.match(commands, /const raidLines = buildWarehouseRaidLines\(result\.raid, chipsFmt\);/);
   assert.match(todo, /\[x\] Implement raid scope calculation per action type \(collect, burn, export\)\./);
+  assert.match(todo, /\[x\] Apply confiscation and fine atomically in storage layer\./);
   assert.match(todo, /\[x\] Ensure raid resolution runs only after action completion\./);
   assert.match(todo, /\[x\] Add raid trigger warning message: police are coming\./);
 });

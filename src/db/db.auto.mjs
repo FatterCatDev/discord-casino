@@ -112,6 +112,7 @@ export const getCartelInvestor = pick('getCartelInvestor');
 export const cartelAddShares = pick('cartelAddShares');
 export const cartelRemoveShares = pick('cartelRemoveShares');
 export const cartelSetHoldings = pick('cartelSetHoldings');
+export const cartelApplyRaidOutcome = pick('cartelApplyRaidOutcome');
 export const cartelSetRankAndXp = pick('cartelSetRankAndXp');
 export const cartelSetSaleMultiplier = pick('cartelSetSaleMultiplier');
 export const cartelAdjustSaleMultiplier = pick('cartelAdjustSaleMultiplier');

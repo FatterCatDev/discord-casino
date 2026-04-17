@@ -58,7 +58,7 @@ Add a warehouse risk system to the Cartel flow that introduces police raids base
 - [x] Implement d20 trigger logic by heat tier.
 - [x] Implement 50% raid success check when trigger occurs.
 - [x] Implement raid scope calculation per action type (collect, burn, export).
-- [ ] Apply confiscation and fine atomically in storage layer.
+- [x] Apply confiscation and fine atomically in storage layer.
 - [x] Ensure raid resolution runs only after action completion.
 
 ### Expiration Mechanics
