@@ -27,3 +27,4 @@ google-cloud-sdk/
 
 # Debug local config
 debug/
+.github/
