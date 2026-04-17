@@ -911,7 +911,6 @@ function buildCommandContext(interaction, extras = {}) {
     endActiveSessionForUser,
     awaitSessionCleanup: waitForSessionCleanup,
     startRideBus: async (interaction, bet) => {
-      await waitForSessionCleanup();
       return startRideBusMod(interaction, bet, {
         kittenMode: await ensureKittenMode(),
         kittenizeText: kittenizeIfNeeded,
@@ -919,15 +918,12 @@ function buildCommandContext(interaction, extras = {}) {
       });
     },
     startBlackjack: async (interaction, table, bet) => {
-      await waitForSessionCleanup();
       return startBlackjackMod(interaction, table, bet);
     },
     runSlotsSpin: async (interaction, bet, key) => {
-      await waitForSessionCleanup();
       return runSlotsSpinMod(interaction, bet, key);
     },
     startRouletteSession: async (interaction) => {
-      await waitForSessionCleanup();
       return startRouletteSessionMod(interaction);
     },
     guildId,

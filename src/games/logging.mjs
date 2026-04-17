@@ -178,18 +178,36 @@ export async function sweepExpiredSessions(client) {
       const [guildId, userId] = parseKey(key);
       if (!guildId || !userId) { activeSessions.delete(key); continue; }
       try {
+        const current = activeSessions.get(key);
+        if (current !== s) continue;
+
+        let gameState = null;
+        if (s.type === 'ridebus') {
+          gameState = ridebusGames.get(key) || null;
+          ridebusGames.delete(key);
+        } else if (s.type === 'blackjack') {
+          gameState = blackjackGames.get(key) || null;
+          blackjackGames.delete(key);
+        } else if (s.type === 'roulette') {
+          gameState = rouletteSessions.get(key) || null;
+          rouletteSessions.delete(key);
+        } else if (s.type === 'slots') {
+          gameState = slotSessions.get(key) || null;
+          slotSessions.delete(key);
+        }
+        activeSessions.delete(key);
+
         await finalizeSessionUIByIds(client, guildId, userId, s);
         if (s.type === 'ridebus') {
-          const st = ridebusGames.get(key);
+          const st = gameState;
           const chipsStake = st?.chipsStake || 0;
           if (st) { try { await burnUpToCredits(guildId, userId, Number(st.creditsStake) || 0, 'ridebus expired (timer)'); } catch {} }
           if (chipsStake > 0) {
             await refundChipsStake(guildId, userId, chipsStake, 'ridebus refund (expired)');
           }
-          ridebusGames.delete(key);
           await postGameSessionEndByIds(client, guildId, userId, { game: 'Ride the Bus', houseNet: (s.houseNet || 0) });
         } else if (s.type === 'blackjack') {
-          const st = blackjackGames.get(key);
+          const st = gameState;
           let chipsStake = 0;
           if (st) {
             if (st.split && Array.isArray(st.hands)) chipsStake = (st.hands?.[0]?.chipsStake || 0) + (st.hands?.[1]?.chipsStake || 0);
@@ -199,21 +217,17 @@ export async function sweepExpiredSessions(client) {
           if (chipsStake > 0) {
             await refundChipsStake(guildId, userId, chipsStake, 'blackjack refund (expired)');
           }
-          blackjackGames.delete(key);
           await postGameSessionEndByIds(client, guildId, userId, { game: 'Blackjack', houseNet: (s.houseNet || 0) });
         } else if (s.type === 'roulette') {
-          rouletteSessions.delete(key);
           await postGameSessionEndByIds(client, guildId, userId, { game: 'Roulette', houseNet: (s.houseNet || 0) });
         } else if (s.type === 'slots') {
-          const ss = slotSessions.get(key);
+          const ss = gameState;
           const houseNet = (ss && Number.isFinite(ss.houseNet)) ? ss.houseNet : 0;
-          slotSessions.delete(key);
           await postGameSessionEndByIds(client, guildId, userId, { game: 'Slots', houseNet });
         } else if (s.type === 'dicewar') {
           await postGameSessionEndByIds(client, guildId, userId, { game: 'Dice War', houseNet: (s.houseNet || 0) });
         }
       } catch (e) { console.error('sweep end error:', e); }
-      activeSessions.delete(key);
     }
   } catch (e) { console.error('sweepExpiredSessions error:', e); }
 }

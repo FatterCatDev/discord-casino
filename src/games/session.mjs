@@ -271,27 +271,58 @@ export async function burnUpToCredits(guildId, userId, stake, reason) {
   }
 }
 
+function detachSessionForCleanup(guildId, userId, sessionOverride = null) {
+  const k = activeKey(guildId, userId);
+  const current = activeSessions.get(k) || null;
+  const target = sessionOverride || current;
+  if (!target) return null;
+  if (sessionOverride && current !== sessionOverride) return null;
+
+  let gameState = null;
+  if (target.type === 'ridebus') {
+    gameState = ridebusGames.get(k) || null;
+    ridebusGames.delete(k);
+  } else if (target.type === 'blackjack') {
+    gameState = blackjackGames.get(k) || null;
+    blackjackGames.delete(k);
+  } else if (target.type === 'roulette') {
+    gameState = rouletteSessions.get(k) || null;
+    rouletteSessions.delete(k);
+  } else if (target.type === 'slots') {
+    gameState = slotSessions.get(k) || null;
+    slotSessions.delete(k);
+  }
+
+  if (activeSessions.get(k) === target) {
+    activeSessions.delete(k);
+  }
+
+  return {
+    key: k,
+    session: { ...target },
+    gameState
+  };
+}
+
 export async function endActiveSessionForUser(interaction, cause = 'new_command') {
   try {
     const guildId = interaction.guild?.id; if (!guildId) return;
     const userId = interaction.user?.id; if (!userId) return;
-    const k = `${guildId}:${userId}`;
-    const s = activeSessions.get(k);
-    if (!s) return;
+    const detached = detachSessionForCleanup(guildId, userId);
+    if (!detached) return;
+    const s = detached.session;
+    const st = detached.gameState;
     // Update UI to session summary before logging
     await finalizeSessionUIByIds(interaction.client, guildId, userId, s);
     // Clean up per-game state; treat as loss where stakes already moved to house
     if (s.type === 'ridebus') {
-      const st = ridebusGames.get(k);
       if (st) { try { await burnUpToCredits(guildId, userId, Number(st.creditsStake) || 0, `ridebus expired (${cause})`); } catch {} }
       if (st?.chipsStake) {
         await refundChipsStake(guildId, userId, st.chipsStake, `ridebus refund (${cause})`);
       }
       const net = (s.houseNet || 0);
       try { await postGameSessionEndByIds(interaction.client, guildId, userId, { game: 'Ride the Bus', houseNet: net }); } catch {}
-      ridebusGames.delete(k);
     } else if (s.type === 'blackjack') {
-      const st = blackjackGames.get(k);
       if (st) { try { await burnUpToCredits(guildId, userId, Number(st.creditsStake) || 0, `blackjack expired (${cause})`); } catch {} }
       const chipsStake = st && st.split && Array.isArray(st.hands)
         ? (st.hands?.[0]?.chipsStake || 0) + (st.hands?.[1]?.chipsStake || 0)
@@ -301,22 +332,14 @@ export async function endActiveSessionForUser(interaction, cause = 'new_command'
       }
       const net = (s.houseNet || 0);
       try { await postGameSessionEndByIds(interaction.client, guildId, userId, { game: 'Blackjack', houseNet: net }); } catch {}
-      blackjackGames.delete(k);
     } else if (s.type === 'roulette') {
       try { await postGameSessionEndByIds(interaction.client, guildId, userId, { game: 'Roulette', houseNet: (s.houseNet || 0) }); } catch {}
-      rouletteSessions.delete(k);
     } else if (s.type === 'slots') {
-      const ss = slotSessions.get(k);
-      const houseNet = (ss && Number.isFinite(ss.houseNet)) ? ss.houseNet : (s.houseNet || 0);
+      const houseNet = (st && Number.isFinite(st.houseNet)) ? st.houseNet : (s.houseNet || 0);
       try { await postGameSessionEndByIds(interaction.client, guildId, userId, { game: 'Slots', houseNet }); } catch {}
-      slotSessions.delete(k);
     } else if (s.type === 'dicewar') {
 // Shared: Game sessions — track active sessions, UI message refs, timeouts, and summary embeds.
       try { await postGameSessionEndByIds(interaction.client, guildId, userId, { game: 'Dice War', houseNet: (s.houseNet || 0) }); } catch {}
-    }
-    const current = activeSessions.get(k);
-    if (!current || current === s) {
-      clearActiveSession(guildId, userId);
     }
   } catch (e) {
     console.error('endActiveSessionForUser error:', e);
