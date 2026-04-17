@@ -77,6 +77,17 @@ test('leaderboard caches names and resolves them once across chip and share view
   assert.match(command, /while \(leaderboardNameCache\.size > LEADERBOARD_NAME_CACHE_MAX\)/);
 });
 
+test('startup holdem orphan cleanup is queued in delayed background batches', async () => {
+  const content = await readRepoFile('src/index.mjs');
+  assert.match(content, /const HOLDEM_ORPHAN_SWEEP_START_DELAY_MS =/);
+  assert.match(content, /const HOLDEM_ORPHAN_SWEEP_GUILD_BATCH_SIZE =/);
+  assert.match(content, /const HOLDEM_ORPHAN_SWEEP_BATCH_INTERVAL_MS =/);
+  assert.match(content, /function scheduleStartupHoldemOrphanSweep\(client\)/);
+  assert.match(content, /function processHoldemOrphanSweepBatch\(client\)/);
+  assert.match(content, /scheduleStartupHoldemOrphanSweep\(client\);/);
+  assert.doesNotMatch(content, /On startup, sweep orphan Hold'em table channels under the casino category/);
+});
+
 test('pruneUserInteractionEvents is exported and batch-limited', async () => {
   const dbContent = await readRepoFile('src/db/db.pg.mjs');
   const autoContent = await readRepoFile('src/db/db.auto.mjs');
@@ -181,7 +192,8 @@ test('todo list includes top-priority scalability work', async () => {
   assert.match(content, /# Top Priority: Performance \+ Scale Work/);
   assert.match(content, /\[x\] Batch or cache Discord member\/user name resolution for leaderboard rendering\./);
   assert.match(content, /\[x\] Batch admin balance lookups instead of N per-user balance reads\./);
-  assert.match(content, /Move Hold'em orphan cleanup out of startup blocking flow into a background queue/);
+  assert.match(content, /\[x\] Move Hold'em orphan cleanup out of startup blocking flow into a background queue\./);
+  assert.match(content, /Replace Hold'em table-number discovery that fetches all guild channels with a cheaper allocation strategy/);
 });
 
 test('champion role sync avoids full guild member fetch on startup', async () => {

@@ -15,7 +15,7 @@
 - [x] Add leaderboard-oriented indexes for user ranking queries.
 
 ### Discord API + Startup Load
-- [ ] Move Hold'em orphan cleanup out of startup blocking flow into a background queue.
+- [x] Move Hold'em orphan cleanup out of startup blocking flow into a background queue.
 - [ ] Replace Hold'em table-number discovery that fetches all guild channels with a cheaper allocation strategy.
 - [ ] Add bounded concurrency for vote reward DM delivery.
 
@@ -25,7 +25,7 @@
 - [x] Add a pruning/index strategy for `user_interaction_events` that scales with time-based cleanup.
 
 ## 2) Current Step
-- [ ] Move Hold'em orphan cleanup out of startup blocking flow into a background queue.
+- [ ] Replace Hold'em table-number discovery that fetches all guild channels with a cheaper allocation strategy.
 
 # Warehouse Raid System Design + Implementation Checklist
 

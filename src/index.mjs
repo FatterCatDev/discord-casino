@@ -197,6 +197,9 @@ const INTERACTION_EVENT_RETENTION_DAYS = Math.max(7, Number(process.env.INTERACT
 const INTERACTION_EVENT_PRUNE_BATCH_SIZE = Math.max(100, Number(process.env.INTERACTION_EVENT_PRUNE_BATCH_SIZE || 10_000));
 const INTERACTION_EVENT_PRUNE_INTERVAL_MS = Math.max(60_000, Number(process.env.INTERACTION_EVENT_PRUNE_INTERVAL_MS || 15 * 60_000));
 const ONBOARDING_ACK_CACHE_MAX = Math.max(1_000, Number(process.env.ONBOARDING_ACK_CACHE_MAX || 100_000));
+const HOLDEM_ORPHAN_SWEEP_START_DELAY_MS = Math.max(1_000, Number(process.env.HOLDEM_ORPHAN_SWEEP_START_DELAY_MS || 20_000));
+const HOLDEM_ORPHAN_SWEEP_GUILD_BATCH_SIZE = Math.max(1, Math.min(10, Number(process.env.HOLDEM_ORPHAN_SWEEP_GUILD_BATCH_SIZE || 2)));
+const HOLDEM_ORPHAN_SWEEP_BATCH_INTERVAL_MS = Math.max(100, Number(process.env.HOLDEM_ORPHAN_SWEEP_BATCH_INTERVAL_MS || 1_500));
 
 const SETTINGS_MUTATION_COMMANDS = new Set([
   'setgamelogchannel',
@@ -218,6 +221,9 @@ const accessListCache = new Map();
 const onboardingAcknowledgedUsers = new Set();
 const userNewsState = new Map();
 let activeNewsCache = { value: null, digest: null, expiresAt: 0 };
+let holdemOrphanSweepQueue = [];
+let holdemOrphanSweepTimer = null;
+let holdemOrphanSweepStarted = false;
 
 function setTimedCache(map, key, value, ttlMs) {
   map.set(key, {
@@ -304,6 +310,71 @@ function triggerTopggStats(reason = 'manual') {
   if (topggPoster?.trigger) {
     topggPoster.trigger(reason).catch(() => {});
   }
+}
+
+function collectActiveHoldemChannelIds() {
+  return new Set(Array.from(holdemTables.values()).map(state => state?.channelId).filter(Boolean));
+}
+
+async function sweepOrphanHoldemChannelsForGuild(client, guildId) {
+  try {
+    const settings = await getGuildSettingsCached(guildId);
+    const catId = settings?.casino_category_id;
+    if (!catId) return;
+    const guild = await client.guilds.fetch(guildId).catch(() => null);
+    if (!guild) return;
+    const channels = await guild.channels.fetch().catch(() => null);
+    if (!channels) return;
+    const activeIds = collectActiveHoldemChannelIds();
+    for (const ch of channels.values()) {
+      if (!ch || !ch.isTextBased?.() || ch.parentId !== catId) continue;
+      if (!/^holdem-table-\d+$/.test(ch.name)) continue;
+      if (activeIds.has(ch.id)) continue;
+      try {
+        const escrows = await listEscrowForTable(ch.id) || [];
+        for (const row of escrows) {
+          try {
+            if ((row.balance || 0) > 0) await escrowReturn(ch.id, row.user_id, row.balance || 0);
+          } catch {}
+        }
+      } catch {}
+      try {
+        if (ch.deletable) await ch.delete('Cleanup orphan Hold\'em table');
+      } catch {}
+    }
+  } catch {}
+}
+
+function processHoldemOrphanSweepBatch(client) {
+  if (!holdemOrphanSweepQueue.length) {
+    if (holdemOrphanSweepTimer) clearTimeout(holdemOrphanSweepTimer);
+    holdemOrphanSweepTimer = null;
+    return;
+  }
+  const guildIds = holdemOrphanSweepQueue.splice(0, HOLDEM_ORPHAN_SWEEP_GUILD_BATCH_SIZE);
+  Promise.all(guildIds.map(guildId => sweepOrphanHoldemChannelsForGuild(client, guildId)))
+    .catch(() => {})
+    .finally(() => {
+      if (!holdemOrphanSweepQueue.length) {
+        if (holdemOrphanSweepTimer) clearTimeout(holdemOrphanSweepTimer);
+        holdemOrphanSweepTimer = null;
+        return;
+      }
+      holdemOrphanSweepTimer = setTimeout(() => {
+        processHoldemOrphanSweepBatch(client);
+      }, HOLDEM_ORPHAN_SWEEP_BATCH_INTERVAL_MS);
+      if (typeof holdemOrphanSweepTimer?.unref === 'function') holdemOrphanSweepTimer.unref();
+    });
+}
+
+function scheduleStartupHoldemOrphanSweep(client) {
+  if (holdemOrphanSweepStarted) return;
+  holdemOrphanSweepStarted = true;
+  holdemOrphanSweepQueue = Array.from(client.guilds.cache.keys());
+  holdemOrphanSweepTimer = setTimeout(() => {
+    processHoldemOrphanSweepBatch(client);
+  }, HOLDEM_ORPHAN_SWEEP_START_DELAY_MS);
+  if (typeof holdemOrphanSweepTimer?.unref === 'function') holdemOrphanSweepTimer.unref();
 }
 
 function buildWelcomePromptEmbed({ status = null, bonusJustGranted = false, bonusError = null } = {}) {
@@ -651,33 +722,7 @@ client.once(Events.ClientReady, c => {
   }, botStatusIntervalMs);
   // Periodically sweep inactive game sessions and finalize them
   setInterval(() => { sweepExpiredSessionsMod(client).catch(() => {}); }, 15 * 1000);
-  // On startup, sweep orphan Hold'em table channels under the casino category
-  (async () => {
-    try {
-      for (const [guildId] of client.guilds.cache) {
-        const settings = await getGuildSettingsCached(guildId);
-        const catId = settings?.casino_category_id;
-        if (!catId) continue;
-        const guild = await client.guilds.fetch(guildId).catch(()=>null);
-        if (!guild) continue;
-        const channels = await guild.channels.fetch().catch(()=>null);
-        if (!channels) continue;
-        const activeIds = new Set(Array.from(holdemTables.values()).map(st => st.channelId));
-        for (const ch of channels.values()) {
-          if (!ch || !ch.isTextBased?.() || ch.parentId !== catId) continue;
-          if (!/^holdem-table-\d+$/.test(ch.name)) continue;
-          if (activeIds.has(ch.id)) continue; // tracked table, skip
-          try {
-            const escrows = await listEscrowForTable(ch.id) || [];
-            for (const row of escrows) {
-              try { if ((row.balance||0) > 0) await escrowReturn(ch.id, row.user_id, row.balance||0); } catch {}
-            }
-          } catch {}
-          try { if (ch.deletable) await ch.delete('Cleanup orphan Hold’em table'); } catch {}
-        }
-      }
-    } catch {}
-  })();
+  scheduleStartupHoldemOrphanSweep(client);
 
   const intervalMs = Math.max(5_000, Number(process.env.VOTE_REWARD_AUTO_INTERVAL_MS || 15_000));
   const sweepVoteRewards = async () => {
