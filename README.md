@@ -1,5 +1,5 @@
 # Semuta Casino — Discord Casino Bot
-Last update: 1.3.1
+Last update: 1.3.2
 
 
 Bring a living casino floor to your Discord server. Semuta’s shared house vault, interactive slash commands, and global ledgers mean your chips, credits, and job ranks follow you anywhere the bot is invited.
