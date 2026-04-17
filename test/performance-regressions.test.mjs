@@ -83,6 +83,30 @@ test('cartel worker uses paged active-investor reads and cached guild discovery'
   assert.match(adapter, /export const listCartelActiveInvestorsPage = pick\('listCartelActiveInvestorsPage'\);/);
 });
 
+test('admin/mod queries are scoped by guild_id to prevent global reads', async () => {
+  const content = await readRepoFile('src/db/db.pg.mjs');
+  const getMods = content.match(/export async function getModerators\(guildId\)[\s\S]*?return rows\.map\(r => String\(r\.user_id\)\);/);
+  const removeMods = content.match(/export async function removeModerator\(guildId, userId\)[\s\S]*?return getModerators\(guildId\);/);
+  const getAdmins = content.match(/export async function getAdmins\(guildId\)[\s\S]*?return rows\.map\(r => String\(r\.user_id\)\);/);
+  const removeAdmins = content.match(/export async function removeAdmin\(guildId, userId\)[\s\S]*?return getAdmins\(guildId\);/);
+  assert.ok(getMods, 'getModerators should exist');
+  assert.ok(removeMods, 'removeModerator should exist');
+  assert.ok(getAdmins, 'getAdmins should exist');
+  assert.ok(removeAdmins, 'removeAdmin should exist');
+  assert.match(getMods[0], /WHERE guild_id = \$1/);
+  assert.match(removeMods[0], /WHERE guild_id = \$1 AND user_id = \$2/);
+  assert.match(getAdmins[0], /WHERE guild_id = \$1/);
+  assert.match(removeAdmins[0], /WHERE guild_id = \$1 AND user_id = \$2/);
+});
+
+test('missing database indexes are created for cartel and access control tables', async () => {
+  const content = await readRepoFile('src/db/db.pg.mjs');
+  assert.match(content, /CREATE INDEX IF NOT EXISTS idx_mod_users_guild_user ON mod_users \(guild_id, user_id\)/);
+  assert.match(content, /CREATE INDEX IF NOT EXISTS idx_admin_users_guild_user ON admin_users \(guild_id, user_id\)/);
+  assert.match(content, /CREATE INDEX IF NOT EXISTS idx_cartel_investors_guild_shares ON cartel_investors \(guild_id, shares DESC\)/);
+  assert.match(content, /CREATE INDEX IF NOT EXISTS idx_user_interaction_events_created ON user_interaction_events \(created_at ASC\)/);
+});
+
 test('index interaction handlers no longer use dynamic imports', async () => {
   const content = await readRepoFile('src/index.mjs');
   assert.doesNotMatch(content, /await import\('\.\/interactions/);

@@ -192,6 +192,7 @@ async function ensureAccessControlTables() {
       PRIMARY KEY (guild_id, user_id)
     )
   `);
+  await q('CREATE INDEX IF NOT EXISTS idx_mod_users_guild_user ON mod_users (guild_id, user_id)');
   await q(`
     CREATE TABLE IF NOT EXISTS admin_users (
       guild_id TEXT NOT NULL,
@@ -199,6 +200,7 @@ async function ensureAccessControlTables() {
       PRIMARY KEY (guild_id, user_id)
     )
   `);
+  await q('CREATE INDEX IF NOT EXISTS idx_admin_users_guild_user ON admin_users (guild_id, user_id)');
   await q(`
     CREATE TABLE IF NOT EXISTS daily_spin_last (
       guild_id TEXT NOT NULL,
@@ -318,6 +320,7 @@ async function ensureInteractionTables() {
     )
   `);
   await q('CREATE INDEX IF NOT EXISTS idx_user_interaction_events_user ON user_interaction_events (user_id, created_at DESC)');
+  await q('CREATE INDEX IF NOT EXISTS idx_user_interaction_events_created ON user_interaction_events (created_at ASC)');
 }
 
 async function ensureNewsSettingsTable() {
@@ -366,6 +369,8 @@ async function ensureCartelTables() {
       CHECK (warehouse_mg >= 0)
     )
   `);
+  await q('CREATE INDEX IF NOT EXISTS idx_cartel_investors_guild ON cartel_investors (guild_id)');
+  await q('CREATE INDEX IF NOT EXISTS idx_cartel_investors_guild_shares ON cartel_investors (guild_id, shares DESC)');
   await q(`
     CREATE TABLE IF NOT EXISTS cartel_dealers (
       dealer_id TEXT PRIMARY KEY,
@@ -902,31 +907,35 @@ function normalizeCartelMarketOrder(row) {
 }
 
 export async function getModerators(guildId) {
-  const rows = await q('SELECT DISTINCT user_id FROM mod_users', []);
+  const gid = canonicalGuildId(guildId);
+  const rows = await q('SELECT DISTINCT user_id FROM mod_users WHERE guild_id = $1', [gid]);
   return rows.map(r => String(r.user_id));
 }
 export async function addModerator(guildId, userId) {
   const gid = canonicalGuildId(guildId);
   await q('INSERT INTO mod_users (guild_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [gid, String(userId)]);
-  return getModerators();
+  return getModerators(guildId);
 }
 export async function removeModerator(guildId, userId) {
-  await q('DELETE FROM mod_users WHERE user_id = $1', [String(userId)]);
-  return getModerators();
+  const gid = canonicalGuildId(guildId);
+  await q('DELETE FROM mod_users WHERE guild_id = $1 AND user_id = $2', [gid, String(userId)]);
+  return getModerators(guildId);
 }
 
 export async function getAdmins(guildId) {
-  const rows = await q('SELECT DISTINCT user_id FROM admin_users', []);
+  const gid = canonicalGuildId(guildId);
+  const rows = await q('SELECT DISTINCT user_id FROM admin_users WHERE guild_id = $1', [gid]);
   return rows.map(r => String(r.user_id));
 }
 export async function addAdmin(guildId, userId) {
   const gid = canonicalGuildId(guildId);
   await q('INSERT INTO admin_users (guild_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [gid, String(userId)]);
-  return getAdmins();
+  return getAdmins(guildId);
 }
 export async function removeAdmin(guildId, userId) {
-  await q('DELETE FROM admin_users WHERE user_id = $1', [String(userId)]);
-  return getAdmins();
+  const gid = canonicalGuildId(guildId);
+  await q('DELETE FROM admin_users WHERE guild_id = $1 AND user_id = $2', [gid, String(userId)]);
+  return getAdmins(guildId);
 }
 
 export async function getLastDailySpinAt(guildId, userId) {
