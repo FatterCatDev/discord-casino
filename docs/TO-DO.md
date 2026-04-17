@@ -1,3 +1,32 @@
+# Top Priority: Performance + Scale Work
+
+## 1) Immediate Scale Priorities
+
+### Cartel Data Path
+- [x] Remove cartel write-on-read behavior from pure reads (`getCartelPool`, `listCartelInvestors`, `getCartelInvestor`).
+- [x] Rework cartel worker guild discovery to avoid full cross-table `UNION DISTINCT` scanning every tick.
+- [x] Process cartel production in batches instead of loading all investors for a guild into memory at once.
+- [x] Add targeted indexes for cartel read and ranking patterns.
+
+### Leaderboard Path
+- [x] Batch admin balance lookups instead of N per-user balance reads.
+- [x] Replace full cartel investor load in leaderboard share ranking with a DB-level top-N query.
+- [x] Batch or cache Discord member/user name resolution for leaderboard rendering.
+- [x] Add leaderboard-oriented indexes for user ranking queries.
+
+### Discord API + Startup Load
+- [x] Move Hold'em orphan cleanup out of startup blocking flow into a background queue.
+- [x] Replace Hold'em table-number discovery that fetches all guild channels with a cheaper allocation strategy.
+- [x] Add bounded concurrency for vote reward DM delivery.
+
+### Memory + Runtime Safety
+- [x] Add hard bounds or eviction strategy for long-lived in-memory session/state maps.
+- [x] Revisit cache structures that can grow with guild/user count and make them LRU or size-bounded.
+- [x] Add a pruning/index strategy for `user_interaction_events` that scales with time-based cleanup.
+
+## 2) Current Step
+- [ ] Top-priority scale pass complete. Define the next optimization pass from live metrics.
+
 # Warehouse Raid System Design + Implementation Checklist
 
 ## 1) Purpose

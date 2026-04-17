@@ -52,6 +52,7 @@ export const setLastRequestNow = pick('setLastRequestNow');
 // Users & house
 export const getUserBalances = pick('getUserBalances');
 export const getTopUsers = pick('getTopUsers');
+export const getAdminChipTotal = pick('getAdminChipTotal');
 export const getHouseBalance = pick('getHouseBalance');
 export const getCasinoNetworth = pick('getCasinoNetworth');
 export const getGlobalPlayerCount = pick('getGlobalPlayerCount');
@@ -74,6 +75,7 @@ export const markUserOnboardingAcknowledged = pick('markUserOnboardingAcknowledg
 export const recordUserInteraction = pick('recordUserInteraction');
 export const getUserInteractionStats = pick('getUserInteractionStats');
 export const markUserInteractionReviewPrompt = pick('markUserInteractionReviewPrompt');
+export const pruneUserInteractionEvents = pick('pruneUserInteractionEvents');
 export const recordVoteReward = pick('recordVoteReward');
 export const getPendingVoteRewards = pick('getPendingVoteRewards');
 export const redeemVoteRewards = pick('redeemVoteRewards');
@@ -102,6 +104,10 @@ export const listCartelGuildIds = pick('listCartelGuildIds');
 export const setCartelSharePrice = pick('setCartelSharePrice');
 export const setCartelShareRate = pick('setCartelShareRate');
 export const listCartelInvestors = pick('listCartelInvestors');
+export const getCartelActiveInvestorStats = pick('getCartelActiveInvestorStats');
+export const listCartelActiveInvestorsPage = pick('listCartelActiveInvestorsPage');
+export const getCartelShareLeaders = pick('getCartelShareLeaders');
+export const getCartelStaffShareTotal = pick('getCartelStaffShareTotal');
 export const getCartelInvestor = pick('getCartelInvestor');
 export const cartelAddShares = pick('cartelAddShares');
 export const cartelRemoveShares = pick('cartelRemoveShares');
@@ -138,6 +144,7 @@ export const setCartelXpPerGram = pick('setCartelXpPerGram');
 
 // Hold'em escrow and hands
 export const ensureHoldemTable = pick('ensureHoldemTable');
+export const reserveHoldemTableNumber = pick('reserveHoldemTableNumber');
 export const createHoldemHand = pick('createHoldemHand');
 export const getEscrowBalance = pick('getEscrowBalance');
 export const escrowAdd = pick('escrowAdd');

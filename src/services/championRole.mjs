@@ -8,7 +8,6 @@ const SYNC_INTERVAL_MS = Math.max(60_000, Number(process.env.HOME_LEADERBOARD_RO
 const NOTICE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // expire notices after a week
 
 let cachedHomeGuild = null;
-let cachePrimed = false;
 let syncInFlight = false;
 let syncTimer = null;
 let currentTopUserId = null;
@@ -59,17 +58,6 @@ async function fetchHomeGuild(client) {
     cachedHomeGuild = null;
     return null;
   }
-}
-
-async function ensureMemberCache(guild) {
-  if (cachePrimed || !guild) return cachePrimed;
-  try {
-    await guild.members.fetch();
-    cachePrimed = true;
-  } catch (err) {
-    console.warn('Champion role: failed to prime member cache, continuing with partial data', err);
-  }
-  return cachePrimed;
 }
 
 async function getLeaderboardTop() {
@@ -146,7 +134,6 @@ async function syncChampionRole(client, trigger = 'interval') {
   try {
     const guild = await fetchHomeGuild(client);
     if (!guild) return;
-    await ensureMemberCache(guild);
     const role =
       guild.roles.cache.get(LEADERBOARD_ROLE_ID) ||
       (await guild.roles.fetch(LEADERBOARD_ROLE_ID).catch(() => null));

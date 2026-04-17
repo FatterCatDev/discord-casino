@@ -17,6 +17,7 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at  timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX IF NOT EXISTS idx_users_discord_id ON users(discord_id);
+CREATE INDEX IF NOT EXISTS idx_users_guild_chips_created ON users(guild_id, chips DESC, created_at ASC);
 
 CREATE TABLE IF NOT EXISTS user_onboarding (
   guild_id        TEXT NOT NULL,
@@ -27,6 +28,20 @@ CREATE TABLE IF NOT EXISTS user_onboarding (
   PRIMARY KEY (guild_id, user_id)
 );
 CREATE INDEX IF NOT EXISTS idx_user_onboarding_guild_ack ON user_onboarding(guild_id, acknowledged_at);
+
+CREATE TABLE IF NOT EXISTS mod_users (
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  PRIMARY KEY (guild_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_mod_users_guild_user ON mod_users(guild_id, user_id);
+
+CREATE TABLE IF NOT EXISTS admin_users (
+  guild_id TEXT NOT NULL,
+  user_id TEXT NOT NULL,
+  PRIMARY KEY (guild_id, user_id)
+);
+CREATE INDEX IF NOT EXISTS idx_admin_users_guild_user ON admin_users(guild_id, user_id);
 
 CREATE TABLE IF NOT EXISTS transactions (
   id         BIGSERIAL PRIMARY KEY,
@@ -161,6 +176,12 @@ CREATE TABLE IF NOT EXISTS cartel_pool (
   updated_at timestamptz NOT NULL DEFAULT now()
 );
 
+CREATE TABLE IF NOT EXISTS holdem_table_number_state (
+  guild_id TEXT PRIMARY KEY,
+  next_table_number BIGINT NOT NULL DEFAULT 1,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+
 CREATE TABLE IF NOT EXISTS cartel_investors (
   guild_id TEXT NOT NULL,
   user_id TEXT NOT NULL,
@@ -178,6 +199,7 @@ CREATE TABLE IF NOT EXISTS cartel_investors (
   CHECK (warehouse_mg >= 0)
 );
 CREATE INDEX IF NOT EXISTS idx_cartel_investors_guild ON cartel_investors(guild_id);
+CREATE INDEX IF NOT EXISTS idx_cartel_investors_guild_shares ON cartel_investors(guild_id, shares DESC);
 
 CREATE TABLE IF NOT EXISTS cartel_transactions (
   id BIGSERIAL PRIMARY KEY,
@@ -237,3 +259,17 @@ CREATE INDEX IF NOT EXISTS idx_cartel_dealers_guild ON cartel_dealers(guild_id);
 CREATE INDEX IF NOT EXISTS idx_cartel_dealers_user ON cartel_dealers(guild_id, user_id);
 ALTER TABLE cartel_dealers
   ADD COLUMN IF NOT EXISTS chip_remainder_units BIGINT NOT NULL DEFAULT 0;
+
+CREATE TABLE IF NOT EXISTS user_interaction_events (
+  id BIGSERIAL PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  interaction_type TEXT,
+  interaction_key TEXT,
+  guild_id TEXT,
+  channel_id TEXT,
+  locale TEXT,
+  metadata_json TEXT,
+  created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS idx_user_interaction_events_user ON user_interaction_events(user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_user_interaction_events_created ON user_interaction_events(created_at ASC);

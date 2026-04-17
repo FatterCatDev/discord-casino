@@ -9,7 +9,10 @@ try { ({ Pool } = await import('pg')); } catch {
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: buildSslConfig()
+  ssl: buildSslConfig(),
+  max: Math.max(1, Number(process.env.PGPOOL_MAX || 20)),
+  idleTimeoutMillis: Math.max(1_000, Number(process.env.PGPOOL_IDLE_TIMEOUT_MS || 30_000)),
+  connectionTimeoutMillis: Math.max(1_000, Number(process.env.PGPOOL_CONNECTION_TIMEOUT_MS || 10_000))
 });
 
 function buildSslConfig() {
@@ -127,6 +130,7 @@ async function migrateUsersToGuildScoped() {
     await c.query('DROP TABLE users_legacy');
   });
   await q('CREATE INDEX IF NOT EXISTS idx_users_guild_discord ON users (guild_id, discord_id)');
+  await q('CREATE INDEX IF NOT EXISTS idx_users_guild_chips_created ON users (guild_id, chips DESC, created_at ASC)');
 }
 
 async function migrateTransactionsToGuildScoped() {
@@ -189,6 +193,7 @@ async function ensureAccessControlTables() {
       PRIMARY KEY (guild_id, user_id)
     )
   `);
+  await q('CREATE INDEX IF NOT EXISTS idx_mod_users_guild_user ON mod_users (guild_id, user_id)');
   await q(`
     CREATE TABLE IF NOT EXISTS admin_users (
       guild_id TEXT NOT NULL,
@@ -196,6 +201,7 @@ async function ensureAccessControlTables() {
       PRIMARY KEY (guild_id, user_id)
     )
   `);
+  await q('CREATE INDEX IF NOT EXISTS idx_admin_users_guild_user ON admin_users (guild_id, user_id)');
   await q(`
     CREATE TABLE IF NOT EXISTS daily_spin_last (
       guild_id TEXT NOT NULL,
@@ -315,6 +321,7 @@ async function ensureInteractionTables() {
     )
   `);
   await q('CREATE INDEX IF NOT EXISTS idx_user_interaction_events_user ON user_interaction_events (user_id, created_at DESC)');
+  await q('CREATE INDEX IF NOT EXISTS idx_user_interaction_events_created ON user_interaction_events (created_at ASC)');
 }
 
 async function ensureNewsSettingsTable() {
@@ -363,6 +370,8 @@ async function ensureCartelTables() {
       CHECK (warehouse_mg >= 0)
     )
   `);
+  await q('CREATE INDEX IF NOT EXISTS idx_cartel_investors_guild ON cartel_investors (guild_id)');
+  await q('CREATE INDEX IF NOT EXISTS idx_cartel_investors_guild_shares ON cartel_investors (guild_id, shares DESC)');
   await q(`
     CREATE TABLE IF NOT EXISTS cartel_dealers (
       dealer_id TEXT PRIMARY KEY,
@@ -471,6 +480,16 @@ async function ensureBotStatusTable() {
   `);
 }
 
+async function ensureHoldemTableNumberState() {
+  await q(`
+    CREATE TABLE IF NOT EXISTS holdem_table_number_state (
+      guild_id TEXT PRIMARY KEY,
+      next_table_number BIGINT NOT NULL DEFAULT 1,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+}
+
 async function mergeEconomyToGlobalScope() {
   const gid = ECONOMY_GUILD_ID;
 
@@ -531,6 +550,7 @@ await ensureOnboardingTable();
 await ensureInteractionTables();
 await ensureBotStatusTable();
 await ensureNewsSettingsTable();
+await ensureHoldemTableNumberState();
 
 try {
   if (await tableExists('guild_settings') && !(await tableHasColumn('guild_settings', 'kitten_mode_enabled'))) {
@@ -585,7 +605,6 @@ async function ensureGuildHouse(guildId) {
 }
 
 async function houseRow(guildId) {
-  await ensureGuildHouse(guildId);
   const row = await q1('SELECT chips FROM guild_house WHERE guild_id = $1', [guildId]);
   return { chips: Number(row?.chips || 0) };
 }
@@ -746,6 +765,27 @@ export async function recordUserInteraction(details = {}) {
   return normalizeInteractionStats(row);
 }
 
+export async function pruneUserInteractionEvents(retentionDays = 90, batchSize = 10_000) {
+  const days = Math.max(1, Math.trunc(Number(retentionDays) || 90));
+  const n = Math.max(100, Math.min(100_000, Math.trunc(Number(batchSize) || 10_000)));
+  const cutoff = new Date(Date.now() - (days * 24 * 60 * 60 * 1000));
+  const result = await pool.query(
+    `WITH doomed AS (
+       SELECT ctid
+       FROM user_interaction_events
+       WHERE created_at < $1
+       ORDER BY created_at ASC
+       LIMIT $2
+     )
+     DELETE FROM user_interaction_events e
+     USING doomed
+     WHERE e.ctid = doomed.ctid
+     RETURNING 1`,
+    [cutoff, n]
+  );
+  return Number(result?.rowCount || 0);
+}
+
 export async function getUserInteractionStats(userId) {
   if (!userId) return null;
   const row = await q1(SELECT_INTERACTION_STAT_SQL, [String(userId)]);
@@ -879,31 +919,35 @@ function normalizeCartelMarketOrder(row) {
 }
 
 export async function getModerators(guildId) {
-  const rows = await q('SELECT DISTINCT user_id FROM mod_users', []);
+  const gid = canonicalGuildId(guildId);
+  const rows = await q('SELECT DISTINCT user_id FROM mod_users WHERE guild_id = $1', [gid]);
   return rows.map(r => String(r.user_id));
 }
 export async function addModerator(guildId, userId) {
   const gid = canonicalGuildId(guildId);
   await q('INSERT INTO mod_users (guild_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [gid, String(userId)]);
-  return getModerators();
+  return getModerators(guildId);
 }
 export async function removeModerator(guildId, userId) {
-  await q('DELETE FROM mod_users WHERE user_id = $1', [String(userId)]);
-  return getModerators();
+  const gid = canonicalGuildId(guildId);
+  await q('DELETE FROM mod_users WHERE guild_id = $1 AND user_id = $2', [gid, String(userId)]);
+  return getModerators(guildId);
 }
 
 export async function getAdmins(guildId) {
-  const rows = await q('SELECT DISTINCT user_id FROM admin_users', []);
+  const gid = canonicalGuildId(guildId);
+  const rows = await q('SELECT DISTINCT user_id FROM admin_users WHERE guild_id = $1', [gid]);
   return rows.map(r => String(r.user_id));
 }
 export async function addAdmin(guildId, userId) {
   const gid = canonicalGuildId(guildId);
   await q('INSERT INTO admin_users (guild_id, user_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [gid, String(userId)]);
-  return getAdmins();
+  return getAdmins(guildId);
 }
 export async function removeAdmin(guildId, userId) {
-  await q('DELETE FROM admin_users WHERE user_id = $1', [String(userId)]);
-  return getAdmins();
+  const gid = canonicalGuildId(guildId);
+  await q('DELETE FROM admin_users WHERE guild_id = $1 AND user_id = $2', [gid, String(userId)]);
+  return getAdmins(guildId);
 }
 
 export async function getLastDailySpinAt(guildId, userId) {
@@ -937,7 +981,6 @@ export async function markUserFirstGameWin(guildId, userId, occurredAt = Math.fl
 
 export async function getUserBalances(guildId, discordId) {
   const gid = resolveGuildId(guildId);
-  await ensureGuildUser(gid, discordId);
   const row = await q1('SELECT chips, credits FROM users WHERE guild_id = $1 AND discord_id = $2', [gid, discordId]);
   return { chips: Number(row?.chips || 0), credits: Number(row?.credits || 0) };
 }
@@ -1012,13 +1055,29 @@ export async function getTopUsers(guildId, limit = 10) {
      FROM users
      WHERE guild_id = $1
        AND chips > 0
-       AND discord_id NOT IN (SELECT user_id FROM admin_users)
-       AND discord_id NOT IN (SELECT user_id FROM mod_users)
+       AND NOT EXISTS (SELECT 1 FROM admin_users a WHERE a.guild_id = users.guild_id AND a.user_id = users.discord_id)
+       AND NOT EXISTS (SELECT 1 FROM mod_users m WHERE m.guild_id = users.guild_id AND m.user_id = users.discord_id)
      ORDER BY chips DESC, created_at ASC
      LIMIT $2`,
     [gid, n]
   );
   return rows.map(r => ({ discord_id: r.discord_id, chips: Number(r.chips || 0) }));
+}
+
+export async function getAdminChipTotal(guildId) {
+  const gid = resolveGuildId(guildId);
+  const row = await q1(
+    `SELECT COALESCE(SUM(u.chips), 0) AS total
+     FROM users u
+     WHERE u.guild_id = $1
+       AND EXISTS (
+         SELECT 1
+         FROM admin_users a
+         WHERE a.guild_id = u.guild_id AND a.user_id = u.discord_id
+       )`,
+    [gid]
+  );
+  return Math.max(0, Number(row?.total || 0));
 }
 
 export async function getHouseBalance(guildId) {
@@ -1429,7 +1488,6 @@ export async function gameWinWithCredits(guildId, discordId, amount, detail) {
 // --- Cartel Passive System ---
 export async function getCartelPool(guildId) {
   const gid = resolveGuildId(guildId);
-  await ensureCartelPoolRow(gid);
   const row = await q1('SELECT guild_id, total_shares, base_rate_mg_per_hour, share_price, share_rate_mg_per_hour, xp_per_gram_sold, carryover_mg, last_tick_at, event_state FROM cartel_pool WHERE guild_id = $1', [gid]);
   return normalizeCartelPool(row) || {
     guild_id: gid,
@@ -1486,16 +1544,78 @@ export async function listCartelGuildIds() {
 
 export async function listCartelInvestors(guildId) {
   const gid = resolveGuildId(guildId);
-  await ensureCartelPoolRow(gid);
   const rows = await q('SELECT guild_id, user_id, shares, stash_mg, warehouse_mg, rank, rank_xp, auto_sell_rule, sale_multiplier_bps, created_at, updated_at FROM cartel_investors WHERE guild_id = $1', [gid]);
   return rows.map(normalizeCartelInvestor).filter(Boolean);
+}
+
+export async function getCartelActiveInvestorStats(guildId) {
+  const gid = resolveGuildId(guildId);
+  const row = await q1(
+    `SELECT
+       COALESCE(SUM(shares), 0) AS total_shares,
+       COUNT(*)::int AS active_investors
+     FROM cartel_investors
+     WHERE guild_id = $1 AND shares > 0`,
+    [gid]
+  );
+  return {
+    totalShares: Math.max(0, Number(row?.total_shares || 0)),
+    activeInvestors: Math.max(0, Number(row?.active_investors || 0))
+  };
+}
+
+export async function listCartelActiveInvestorsPage(guildId, limit = 500, offset = 0) {
+  const gid = resolveGuildId(guildId);
+  const pageSize = Math.max(1, Math.min(2_000, Math.floor(Number(limit || 500))));
+  const pageOffset = Math.max(0, Math.floor(Number(offset || 0)));
+  const rows = await q(
+    `SELECT guild_id, user_id, shares, stash_mg, warehouse_mg, rank, rank_xp, auto_sell_rule, sale_multiplier_bps, created_at, updated_at
+     FROM cartel_investors
+     WHERE guild_id = $1 AND shares > 0
+     ORDER BY user_id ASC
+     LIMIT $2 OFFSET $3`,
+    [gid, pageSize, pageOffset]
+  );
+  return rows.map(normalizeCartelInvestor).filter(Boolean);
+}
+
+export async function getCartelShareLeaders(guildId, limit = 10) {
+  const gid = resolveGuildId(guildId);
+  const n = Math.max(1, Math.min(100, Math.floor(Number(limit || 10))));
+  const rows = await q(
+    `SELECT guild_id, user_id, shares, stash_mg, warehouse_mg, rank, rank_xp, auto_sell_rule, sale_multiplier_bps, created_at, updated_at
+     FROM cartel_investors
+     WHERE guild_id = $1
+       AND shares > 0
+       AND NOT EXISTS (SELECT 1 FROM admin_users a WHERE a.guild_id = cartel_investors.guild_id AND a.user_id = cartel_investors.user_id)
+       AND NOT EXISTS (SELECT 1 FROM mod_users m WHERE m.guild_id = cartel_investors.guild_id AND m.user_id = cartel_investors.user_id)
+     ORDER BY shares DESC, created_at ASC, user_id ASC
+     LIMIT $2`,
+    [gid, n]
+  );
+  return rows.map(normalizeCartelInvestor).filter(Boolean);
+}
+
+export async function getCartelStaffShareTotal(guildId) {
+  const gid = resolveGuildId(guildId);
+  const row = await q1(
+    `SELECT COALESCE(SUM(ci.shares), 0) AS total
+     FROM cartel_investors ci
+     WHERE ci.guild_id = $1
+       AND ci.shares > 0
+       AND (
+         EXISTS (SELECT 1 FROM admin_users a WHERE a.guild_id = ci.guild_id AND a.user_id = ci.user_id)
+         OR EXISTS (SELECT 1 FROM mod_users m WHERE m.guild_id = ci.guild_id AND m.user_id = ci.user_id)
+       )`,
+    [gid]
+  );
+  return Math.max(0, Number(row?.total || 0));
 }
 
 export async function getCartelInvestor(guildId, userId) {
   const gid = resolveGuildId(guildId);
   const uid = String(userId || '').trim();
   if (!uid) return null;
-  await ensureCartelInvestorRow(gid, uid);
   const row = await q1('SELECT guild_id, user_id, shares, stash_mg, warehouse_mg, rank, rank_xp, auto_sell_rule, sale_multiplier_bps, created_at, updated_at FROM cartel_investors WHERE guild_id = $1 AND user_id = $2', [gid, uid]);
   return normalizeCartelInvestor(row);
 }
@@ -2263,6 +2383,25 @@ export async function ensureHoldemTable(params) {
     [String(tableId), String(guildId), String(channelId), Number(sb) || 0, Number(bb) || 0, Number(min) || 0, Number(max) || 0, Number(rakeBps) || 0, hostId ? String(hostId) : null]
   );
   return { tableId: String(tableId) };
+}
+
+export async function reserveHoldemTableNumber(guildId) {
+  const gid = resolveGuildId(guildId);
+  const row = await q1(
+    `WITH state AS (
+       INSERT INTO holdem_table_number_state (guild_id, next_table_number)
+       VALUES ($1, 2)
+       ON CONFLICT (guild_id)
+       DO UPDATE SET
+         next_table_number = holdem_table_number_state.next_table_number + 1,
+         updated_at = NOW()
+       RETURNING next_table_number
+     )
+     SELECT GREATEST(1, next_table_number - 1)::BIGINT AS table_number
+     FROM state`,
+    [gid]
+  );
+  return Math.max(1, Number(row?.table_number || 1));
 }
 
 export async function createHoldemHand(tableId, handNo, board = '', winnersJson = '[]', rakePaid = 0) {

@@ -5,6 +5,8 @@ import { chipsAmount } from '../games/format.mjs';
 import {
   getCartelPool,
   listCartelInvestors,
+  getCartelActiveInvestorStats,
+  listCartelActiveInvestorsPage,
   getCartelInvestor,
   cartelAddShares,
   cartelRemoveShares,
@@ -83,6 +85,26 @@ const SHARE_MARKET_MAX_PRICE = 1_000_000;
 const SHARE_MARKET_LIST_LIMIT = 10;
 const SHARE_MARKET_USER_LIMIT = 25;
 const ORDER_EXPIRATION_SECONDS = 14 * 24 * 60 * 60;
+const CARTEL_WORKER_GUILD_CACHE_TTL_MS = Math.max(10_000, Number(process.env.CARTEL_WORKER_GUILD_CACHE_TTL_MS || 300_000));
+const CARTEL_WORKER_INVESTOR_PAGE_SIZE = Math.max(50, Math.min(2_000, Number(process.env.CARTEL_WORKER_INVESTOR_PAGE_SIZE || 500)));
+const CARTEL_WORKER_MAX_GUILD_CONCURRENCY = Math.max(1, Math.min(16, Number(process.env.CARTEL_WORKER_MAX_GUILD_CONCURRENCY || 3)));
+
+let cartelWorkerGuildCache = {
+  guildIds: [],
+  expiresAt: 0
+};
+
+async function getCartelWorkerGuildIds(nowMs = Date.now(), forceRefresh = false) {
+  if (!forceRefresh && nowMs < cartelWorkerGuildCache.expiresAt) {
+    return Array.isArray(cartelWorkerGuildCache.guildIds) ? [...cartelWorkerGuildCache.guildIds] : [];
+  }
+  const guildIds = await listCartelGuildIds();
+  cartelWorkerGuildCache = {
+    guildIds,
+    expiresAt: nowMs + CARTEL_WORKER_GUILD_CACHE_TTL_MS
+  };
+  return [...guildIds];
+}
 function isSemutaSellOrder(orderId) {
   return typeof orderId === 'string' && orderId.startsWith('sell_SEMUTA_CARTEL');
 }
@@ -1268,55 +1290,83 @@ export async function fireAllCartelDealers(guildId, userId) {
 }
 
 async function runCartelProductionTickForGuild(guildId, nowMs = Date.now()) {
-  const state = await loadCartelState(guildId);
-  const pool = state.pool;
+  const pool = await getCartelPool(guildId);
   const nowSeconds = Math.floor(nowMs / 1000);
   const lastTick = Number(pool?.last_tick_at || 0);
   if (lastTick && nowSeconds - lastTick < CARTEL_MIN_TICK_SECONDS) {
     return { skipped: 'interval' };
   }
-  if (!state.activeInvestors.length || state.totalWeight <= 0) {
+
+  const stats = await getCartelActiveInvestorStats(guildId);
+  const totalShares = Math.max(0, Number(stats?.totalShares || 0));
+  const activeCount = Math.max(0, Number(stats?.activeInvestors || 0));
+  if (activeCount <= 0 || totalShares <= 0) {
     await cartelUpdatePoolTick(guildId, nowSeconds, pool?.carryover_mg || 0);
     return { skipped: 'no_investors' };
   }
-  const totalWeight = state.totalWeight;
+
+  let totalWeight = 0;
+  for (let offset = 0; offset < activeCount; offset += CARTEL_WORKER_INVESTOR_PAGE_SIZE) {
+    const page = await listCartelActiveInvestorsPage(guildId, CARTEL_WORKER_INVESTOR_PAGE_SIZE, offset);
+    if (!page.length) break;
+    for (const inv of page) {
+      const weight = computeInvestorWeight(inv, totalShares);
+      if (weight > 0) totalWeight += weight;
+    }
+    if (page.length < CARTEL_WORKER_INVESTOR_PAGE_SIZE) break;
+  }
+  if (totalWeight <= 0) {
+    await cartelUpdatePoolTick(guildId, nowSeconds, pool?.carryover_mg || 0);
+    return { skipped: 'no_investors' };
+  }
+
   const rateMg = baseRateMgPerHour(totalWeight, pool);
   const deltaSeconds = lastTick ? Math.max(0, nowSeconds - lastTick) : CARTEL_MIN_TICK_SECONDS;
   const producedMg = Math.floor((rateMg * deltaSeconds) / 3600);
-  let availableMg = producedMg + Number(pool?.carryover_mg || 0);
+  const availableMg = producedMg + Number(pool?.carryover_mg || 0);
   if (availableMg <= 0) {
     await cartelUpdatePoolTick(guildId, nowSeconds, 0);
     return { skipped: 'no_output' };
   }
+
   const allocations = [];
   let assigned = 0;
-  const investors = state.activeInvestors;
-  investors.forEach((inv, idx) => {
-    let mgShare = Math.floor((availableMg * inv.weight) / totalWeight);
-    if (idx === investors.length - 1) {
-      mgShare = Math.max(0, availableMg - assigned);
+  let processed = 0;
+  for (let offset = 0; offset < activeCount; offset += CARTEL_WORKER_INVESTOR_PAGE_SIZE) {
+    const page = await listCartelActiveInvestorsPage(guildId, CARTEL_WORKER_INVESTOR_PAGE_SIZE, offset);
+    if (!page.length) break;
+    for (const inv of page) {
+      const weight = computeInvestorWeight(inv, totalShares);
+      if (weight <= 0) continue;
+      processed += 1;
+      let mgShare = Math.floor((availableMg * weight) / totalWeight);
+      if (processed === activeCount) {
+        mgShare = Math.max(0, availableMg - assigned);
+      }
+      assigned += mgShare;
+      const currentStash = Number(inv?.stash_mg || 0);
+      const capMg = stashCapMgForRank(inv.rank);
+      let newStash = currentStash + mgShare;
+      let overflow = 0;
+      if (newStash > capMg) {
+        overflow = newStash - capMg;
+        newStash = capMg;
+      }
+      const newWarehouse = Number(inv?.warehouse_mg || 0) + overflow;
+      const gramsProduced = mgToGrams(mgShare);
+      const xpGain = Math.floor(gramsProduced * CARTEL_XP_PER_GRAM_PRODUCED);
+      const rankState = applyRankProgress(inv.rank, inv.rank_xp, xpGain);
+      allocations.push({
+        userId: inv.user_id,
+        stashMg: newStash,
+        warehouseMg: newWarehouse,
+        rank: rankState.rank,
+        rankXp: rankState.rankXp
+      });
     }
-    assigned += mgShare;
-    const currentStash = Number(inv?.stash_mg || 0);
-    const capMg = stashCapMgForRank(inv.rank);
-    let newStash = currentStash + mgShare;
-    let overflow = 0;
-    if (newStash > capMg) {
-      overflow = newStash - capMg;
-      newStash = capMg;
-    }
-    const newWarehouse = Number(inv?.warehouse_mg || 0) + overflow;
-    const gramsProduced = mgToGrams(mgShare);
-    const xpGain = Math.floor(gramsProduced * CARTEL_XP_PER_GRAM_PRODUCED);
-    const rankState = applyRankProgress(inv.rank, inv.rank_xp, xpGain);
-    allocations.push({
-      userId: inv.user_id,
-      stashMg: newStash,
-      warehouseMg: newWarehouse,
-      rank: rankState.rank,
-      rankXp: rankState.rankXp
-    });
-  });
+    if (page.length < CARTEL_WORKER_INVESTOR_PAGE_SIZE) break;
+  }
+
   const leftover = Math.max(0, availableMg - assigned);
   await cartelApplyProduction(guildId, allocations, { lastTickAt: nowSeconds, carryoverMg: leftover });
   const dealerResult = await runDealerAutoSales(guildId, nowSeconds, deltaSeconds);
@@ -1331,19 +1381,28 @@ async function runCartelProductionTickForGuild(guildId, nowMs = Date.now()) {
 
 export async function runCartelProductionTick(guildId = null, nowMs = Date.now()) {
   if (!guildId) {
-    const guildIds = await listCartelGuildIds();
+    const guildIds = await getCartelWorkerGuildIds(nowMs);
     if (!guildIds.length) {
       return { skipped: 'no_guilds' };
     }
+
     const results = [];
-    for (const gid of guildIds) {
-      try {
-        const res = await runCartelProductionTickForGuild(gid, nowMs);
-        results.push({ guildId: gid, ...res });
-      } catch (err) {
-        console.error('Cartel worker tick failed for guild', gid, err);
+    let cursor = 0;
+    const maxConcurrency = Math.min(CARTEL_WORKER_MAX_GUILD_CONCURRENCY, guildIds.length);
+    const workers = Array.from({ length: maxConcurrency }, async () => {
+      while (cursor < guildIds.length) {
+        const idx = cursor;
+        cursor += 1;
+        const gid = guildIds[idx];
+        try {
+          const res = await runCartelProductionTickForGuild(gid, nowMs);
+          results.push({ guildId: gid, ...res });
+        } catch (err) {
+          console.error('Cartel worker tick failed for guild', gid, err);
+        }
       }
-    }
+    });
+    await Promise.all(workers);
     return { guildsProcessed: results.length, results };
   }
   return runCartelProductionTickForGuild(guildId, nowMs);
