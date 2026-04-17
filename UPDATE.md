@@ -18,6 +18,7 @@ version: 1.3.2
 - Added raid-notice handling for raid-blocked action paths so successful raids still post their in-channel notice even when the action is canceled.
 - Updated raid-blocked collect/burn/export responses to include the raid embed directly (action trigger, confiscation, and fine details).
 - Added explicit cartel activity logging for raid-intercepted warehouse actions with confiscation and fine breakdowns.
+- Updated burn/export raid confiscation scope to use full pre-action warehouse holdings (not post-action remainder).
 - Expanded raid logic and regression coverage (heat boundaries, tier mapping, trigger/success behavior, scoped confiscation, and partial fine handling).
 - Improved service stability by adding missing guild-id resolution used by cartel raid-related flows.
 
@@ -29,6 +30,7 @@ version: 1.3.2
 - Raid messaging now includes richer flavor and concrete outcome details in-channel.
 - A successful raid now hard-stops the attempted warehouse action, and the raid notice is still posted in channel.
 - When raids intercept warehouse actions, players now see the detailed raid embed in the same action response and the intercept is logged.
+- Burn/export raids now evaluate confiscation from pre-action warehouse totals, so attempted action amounts do not reduce raid seizure scope.
 - Dealer management now uses two dropdowns (Fire Dealers, Pause Dealers) with a Confirm button, replacing the previous per-dealer button rows.
 - Both dropdowns include an All option when more than two dealers are present, and default to None until a selection is made.
 - Burn Warehouse now prompts for a specific amount before burning, so players can partially burn their warehouse overflow.

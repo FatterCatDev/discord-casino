@@ -1838,13 +1838,13 @@ async function runPreActionWarehouseRaidCheck(guildId, userId, actionType, { col
     }
     if (action === 'burn') {
       return {
-        warehouseMg: Math.max(0, currentWarehouse - plannedBurnMg),
+        warehouseMg: currentWarehouse,
         collectedMg: 0
       };
     }
     if (action === 'export') {
       return {
-        warehouseMg: Math.max(0, currentWarehouse - plannedExportMg),
+        warehouseMg: currentWarehouse,
         collectedMg: 0
       };
     }

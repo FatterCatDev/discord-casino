@@ -107,7 +107,7 @@ test('unit: raid scope for collect action includes warehouse and collected semut
   assert.equal(summary.confiscatedCollectedMg, 7_000);
 });
 
-test('unit: raid scope for burn and export excludes collected semuta', async () => {
+test('unit: raid scope for burn and export uses full pre-action warehouse and excludes collected semuta', async () => {
   const calls = [];
   const options = {
     rollRaid: () => ({ triggered: true, success: true, heat: 100, roll: 2, tier: 'MED', triggerThreshold: 7 }),
@@ -129,7 +129,7 @@ test('unit: raid scope for burn and export excludes collected semuta', async () 
     'u1',
     'burn',
     { warehouse_mg: 11_000, stash_mg: 5_000 },
-    { warehouseMg: 9_000, collectedMg: 4_000 },
+    { warehouseMg: 11_000, collectedMg: 4_000 },
     options
   );
 
@@ -138,14 +138,14 @@ test('unit: raid scope for burn and export excludes collected semuta', async () 
     'u1',
     'export',
     { warehouse_mg: 10_000, stash_mg: 3_000 },
-    { warehouseMg: 8_000, collectedMg: 3_000 },
+    { warehouseMg: 10_000, collectedMg: 3_000 },
     options
   );
 
   assert.equal(calls.length, 2);
-  assert.equal(calls[0].confiscatedWarehouseMg, 9_000);
+  assert.equal(calls[0].confiscatedWarehouseMg, 11_000);
   assert.equal(calls[0].confiscatedStashMg, 0);
-  assert.equal(calls[1].confiscatedWarehouseMg, 8_000);
+  assert.equal(calls[1].confiscatedWarehouseMg, 10_000);
   assert.equal(calls[1].confiscatedStashMg, 0);
 });
 
