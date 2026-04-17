@@ -14,6 +14,8 @@ version: 1.3.2
 - Added dealer pause service actions with audit transaction logging for single and bulk dealer pauses.
 - Updated interaction routing and regression coverage for dropdown-based dealer management.
 - Replaced Burn Warehouse confirm/cancel buttons with a modal prompt that accepts a gram amount or "all" (case-insensitive).
+- Changed warehouse action behavior so successful raids now cancel the triggering action (`collect`, `burn`, `export`) instead of allowing it to complete.
+- Added raid-notice handling for raid-blocked action paths so successful raids still post their in-channel notice even when the action is canceled.
 - Expanded raid logic and regression coverage (heat boundaries, tier mapping, trigger/success behavior, scoped confiscation, and partial fine handling).
 - Improved service stability by adding missing guild-id resolution used by cartel raid-related flows.
 
@@ -23,6 +25,7 @@ version: 1.3.2
 - Raid penalties are processed atomically and logged consistently for auditability.
 - Cartel UI now surfaces warehouse heat visually, making raid risk easier to read.
 - Raid messaging now includes richer flavor and concrete outcome details in-channel.
+- A successful raid now hard-stops the attempted warehouse action, and the raid notice is still posted in channel.
 - Dealer management now uses two dropdowns (Fire Dealers, Pause Dealers) with a Confirm button, replacing the previous per-dealer button rows.
 - Both dropdowns include an All option when more than two dealers are present, and default to None until a selection is made.
 - Burn Warehouse now prompts for a specific amount before burning, so players can partially burn their warehouse overflow.

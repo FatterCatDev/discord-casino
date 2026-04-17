@@ -193,6 +193,7 @@ test('warehouse raid resolution is scoped per action and surfaced in user messag
   assert.match(service, /const raid = await runPreActionWarehouseRaidCheck\(guildId, userId, 'collect', \{ collectedMg: mgRequested \}\);/);
   assert.match(service, /const raid = await runPreActionWarehouseRaidCheck\(guildId, userId, 'burn', \{ burnMg: mgToBurn \}\);/);
   assert.match(service, /const raid = await runPreActionWarehouseRaidCheck\(guildId, userId, 'export', \{ exportMg: mgToExport \}\);/);
+  assert.match(service, /if \(raid\?\.success\) \{\s*throw new CartelError\('CARTEL_RAID_ACTION_BLOCKED'/);
   assert.match(service, /const applied = await applyRaidOutcome\(guildId, userId, \{/);
   assert.match(db, /export async function cartelApplyRaidOutcome\(/);
   assert.match(db, /INSERT INTO cartel_transactions \(guild_id, user_id, type, amount_chips, amount_mg, metadata_json\)/);
@@ -203,6 +204,8 @@ test('warehouse raid resolution is scoped per action and surfaced in user messag
   assert.match(commands, /name: 'Raided Player'/);
   assert.match(commands, /name: 'What Was Taken'/);
   assert.match(commands, /await postWarehouseRaidFlavorEmbed\(interaction, result\.raid, chipsFmt\);/);
+  assert.match(commands, /const raidFromError = error instanceof CartelError \? error\?\.extra\?\.raid : null;/);
+  assert.match(commands, /if \(raidFromError\?\.triggered\) \{\s*await postWarehouseRaidFlavorEmbed\(interaction, raidFromError, chipsFmt\);/);
   assert.match(commands, /const raidLines = buildWarehouseRaidLines\(result\.raid, chipsFmt\);/);
   assert.match(todo, /\[x\] Implement raid scope calculation per action type \(collect, burn, export\)\./);
   assert.match(todo, /\[x\] Apply confiscation and fine atomically in storage layer\./);

@@ -1021,6 +1021,9 @@ export async function cartelCollect(guildId, userId, grams) {
   const mgRequested = gramsToMg(grams);
   ensurePositiveAmount(mgRequested, 'CARTEL_AMOUNT_REQUIRED', 'Enter at least 1g to collect.');
   const raid = await runPreActionWarehouseRaidCheck(guildId, userId, 'collect', { collectedMg: mgRequested });
+  if (raid?.success) {
+    throw new CartelError('CARTEL_RAID_ACTION_BLOCKED', 'Raid intercepted your operation before collection completed.', { raid });
+  }
   const investor = await getCartelInvestor(guildId, userId);
   const currentWarehouse = Number(investor?.warehouse_mg || 0);
   if (currentWarehouse < mgRequested) {
@@ -1064,6 +1067,9 @@ export async function cartelAbandon(guildId, userId, grams) {
   const mgToBurn = gramsToMg(grams);
   ensurePositiveAmount(mgToBurn, 'CARTEL_AMOUNT_REQUIRED', 'Enter at least 1g to abandon.');
   const raid = await runPreActionWarehouseRaidCheck(guildId, userId, 'burn', { burnMg: mgToBurn });
+  if (raid?.success) {
+    throw new CartelError('CARTEL_RAID_ACTION_BLOCKED', 'Raid intercepted your operation before burn completed.', { raid });
+  }
   const investor = await getCartelInvestor(guildId, userId);
   const currentWarehouse = Number(investor?.warehouse_mg || 0);
   if (currentWarehouse < mgToBurn) {
@@ -1112,6 +1118,9 @@ export async function cartelExportWarehouse(guildId, userId, mgAmount = null) {
     );
   }
   const raid = await runPreActionWarehouseRaidCheck(guildId, userId, 'export', { exportMg: mgToExport });
+  if (raid?.success) {
+    throw new CartelError('CARTEL_RAID_ACTION_BLOCKED', 'Raid intercepted your operation before export completed.', { raid });
+  }
   investor = await getCartelInvestor(guildId, userId);
   const feeChips = warehouseExportFeeChips(mgToExport);
   if (feeChips > 0) {

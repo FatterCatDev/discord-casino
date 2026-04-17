@@ -2196,6 +2196,10 @@ export async function handleCartelWarehouseBurnModal(interaction, ctx, sourceMes
       `Burned ${gramsFormatter.format(result.burnedGrams)}g of Semuta from warehouse.${raidLines.length ? ` ${raidLines.join(' ')}` : ''}`
     );
   } catch (error) {
+    const raidFromError = error instanceof CartelError ? error?.extra?.raid : null;
+    if (raidFromError?.triggered) {
+      await postWarehouseRaidFlavorEmbed(interaction, raidFromError, chipsFmt);
+    }
     if (error instanceof CartelError) {
       await interaction.reply(withAutoEphemeral(interaction, {
         content: `⚠️ ${error.message}`,
@@ -2323,6 +2327,10 @@ export async function handleCartelWarehouseExportModal(interaction, ctx, sourceM
       : `Exported ${exportedLabel}g of Semuta (multiplier remains +${totalPercent}%).${feeLog}`;
     await logCartelActivity(interaction, `${activityLine}${raidLines.length ? ` ${raidLines.join(' ')}` : ''}`);
   } catch (error) {
+    const raidFromError = error instanceof CartelError ? error?.extra?.raid : null;
+    if (raidFromError?.triggered) {
+      await postWarehouseRaidFlavorEmbed(interaction, raidFromError, chipsFmt);
+    }
     if (error instanceof CartelError) {
       await interaction.reply(withAutoEphemeral(interaction, {
         content: `⚠️ ${error.message}`,
@@ -3123,6 +3131,10 @@ export async function handleCartelCollectModal(interaction, ctx, messageId) {
       `Collected ${gramsFormatter.format(result.collectedGrams)}g of Semuta from warehouse (fee ${chipsFmt(result.fee)}).${overflowLine}${raidLines.length ? ` ${raidLines.join(' ')}` : ''}`
     );
   } catch (error) {
+    const raidFromError = error instanceof CartelError ? error?.extra?.raid : null;
+    if (raidFromError?.triggered) {
+      await postWarehouseRaidFlavorEmbed(interaction, raidFromError, chipsFmt);
+    }
     if (interaction.deferred || interaction.replied) {
       const content = error instanceof CartelError
         ? `⚠️ ${error.message || 'Action failed.'}`
