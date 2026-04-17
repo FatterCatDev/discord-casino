@@ -344,6 +344,14 @@ function ensurePositiveAmount(value, code, message) {
   }
 }
 
+function resolveGuildId(guildId) {
+  const gid = String(guildId || '').trim();
+  if (!gid) {
+    throw new CartelError('CARTEL_GUILD_REQUIRED', 'This command must be used inside a server.');
+  }
+  return gid;
+}
+
 function normalizeMarketSide(side) {
   return String(side || 'SELL').toUpperCase() === 'BUY' ? 'BUY' : 'SELL';
 }
