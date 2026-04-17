@@ -15,7 +15,7 @@
     "sql:createdb": "node scripts/create-db.mjs",
     "sql:up": "node -e 'console.log(\"Set PGSSLMODE=require and run: npm run sql:createdb && npm run sql:migrate:node\")'",
     "cartel:recalc-ranks": "node scripts/cartel-recalc-ranks.mjs",
-    "test": "node --test test/*.test.mjs",
+    "test": "node --test test",
     "updatepush": "node scripts/updatepush.mjs"
   },
   "keywords": [],

@@ -1535,7 +1535,7 @@ async function normalizeInvestorState(guildId, investor) {
   return updated;
 }
 function calculateWarehouseHeat(investor) {
-  const warehouseGrams = mgToGrams(Number(investor?.warehouse_mg || 0));
+  const warehouseGrams = Math.max(0, mgToGrams(Number(investor?.warehouse_mg || 0)));
   return warehouseGrams * CARTEL_WAREHOUSE_HEAT_PER_GRAM;
 }
 
@@ -1548,9 +1548,10 @@ function raidTierForHeat(heat) {
   return { name: null, rule: null };
 }
 
-function rollRaidIfNeeded(investor) {
+function rollRaidIfNeeded(investor, randomFn = Math.random) {
   const heat = calculateWarehouseHeat(investor);
-  const roll = Math.ceil(Math.random() * 20);
+  const rawRoll = Math.ceil(Number(randomFn()) * 20);
+  const roll = Math.max(1, Math.min(20, Number.isFinite(rawRoll) ? rawRoll : 20));
 
   const tierState = raidTierForHeat(heat);
   if (!tierState.rule) {
@@ -1565,7 +1566,7 @@ function rollRaidIfNeeded(investor) {
   }
 
   const triggered = roll <= Number(tierState.rule.trigger || 0);
-  const success = triggered ? (Math.random() < 0.5) : false;
+  const success = triggered ? (Number(randomFn()) < 0.5) : false;
   return {
     triggered,
     success,
@@ -1576,14 +1577,21 @@ function rollRaidIfNeeded(investor) {
   };
 }
 
-async function resolveWarehouseRaidAfterAction(guildId, userId, actionType, postInvestor, scope = {}) {
+async function resolveWarehouseRaidAfterAction(guildId, userId, actionType, postInvestor, scope = {}, options = {}) {
   const currentWarehouse = Math.max(0, Number(postInvestor?.warehouse_mg || 0));
   const currentStash = Math.max(0, Number(postInvestor?.stash_mg || 0));
   const scopeWarehouseMg = Math.max(0, Math.floor(Number(scope?.warehouseMg || 0)));
   const scopeCollectedMg = Math.max(0, Math.floor(Number(scope?.collectedMg || 0)));
   const scopeTotalMg = Math.max(0, scopeWarehouseMg + scopeCollectedMg);
 
-  const raidRoll = rollRaidIfNeeded(postInvestor);
+  const rollRaid = typeof options?.rollRaid === 'function' ? options.rollRaid : rollRaidIfNeeded;
+  const applyRaidOutcome = typeof options?.applyRaidOutcome === 'function'
+    ? options.applyRaidOutcome
+    : cartelApplyRaidOutcome;
+  const logRaidResolution = typeof options?.logRaidResolution === 'function'
+    ? options.logRaidResolution
+    : (payload) => console.info('Cartel warehouse raid resolved', payload);
+  const raidRoll = rollRaid(postInvestor);
   let confiscatedWarehouseMg = 0;
   let confiscatedCollectedMg = 0;
   let fineChipsCharged = 0;
@@ -1596,7 +1604,7 @@ async function resolveWarehouseRaidAfterAction(guildId, userId, actionType, post
       requestedCollectedMg = Math.min(currentStash, scopeCollectedMg);
     }
     if (requestedWarehouseMg > 0 || requestedCollectedMg > 0) {
-      const applied = await cartelApplyRaidOutcome(guildId, userId, {
+      const applied = await applyRaidOutcome(guildId, userId, {
         confiscatedWarehouseMg: requestedWarehouseMg,
         confiscatedStashMg: requestedCollectedMg,
         finePerGram: CARTEL_RAID_FINE_MULTIPLIER,
@@ -1644,7 +1652,7 @@ async function resolveWarehouseRaidAfterAction(guildId, userId, actionType, post
   };
 
   if (raidSummary.triggered) {
-    console.info('Cartel warehouse raid resolved', {
+    logRaidResolution({
       guildId,
       userId,
       ...raidSummary
@@ -1652,3 +1660,10 @@ async function resolveWarehouseRaidAfterAction(guildId, userId, actionType, post
   }
   return raidSummary;
 }
+
+export const __test__ = Object.freeze({
+  calculateWarehouseHeat,
+  raidTierForHeat,
+  rollRaidIfNeeded,
+  resolveWarehouseRaidAfterAction
+});

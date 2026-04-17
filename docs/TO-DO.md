@@ -22,10 +22,10 @@ Add a warehouse risk system to the Cartel flow that introduces police raids base
 	- Export Warehouse
 
 ### 3.3 Heat Tiers and Trigger Rules
-- Low heat: raid triggers on a natural 20.
-- Medium heat: raid triggers on 14 or higher.
-- High heat: raid triggers on 8 or higher.
-- On fire: raid always triggers.
+- Low heat: raid triggers on d20 roll 1.
+- Medium heat: raid triggers on d20 roll 1-7.
+- High heat: raid triggers on d20 roll 1-13.
+- On fire: raid always triggers (1-20).
 - If a raid triggers, raid success chance is 50%.
 
 ### 3.4 Raid Outcome Rules
@@ -51,7 +51,7 @@ Add a warehouse risk system to the Cartel flow that introduces police raids base
 ### Data + Constants
 - [x] Define heat constants and tier thresholds in cartel constants.
 - [x] Define fine multiplier constant (6 chips per gram).
-- [x] Add configurable expiration settings for warehouse Semuta (heat decay constant exists; expiration flow not wired).
+- [x] Add configurable expiration settings for warehouse Semuta.
 
 ### Core Cartel Service Logic
 - [x] Implement heat calculation from warehouse amount.
@@ -77,13 +77,13 @@ Add a warehouse risk system to the Cartel flow that introduces police raids base
 - [x] Add fallback behavior for malformed investor state.
 
 ### Testing Checklist
-- [ ] Unit test heat calculation across boundary values.
-- [ ] Unit test tier mapping and d20 thresholds.
-- [ ] Unit test 50% success branch behavior.
-- [ ] Unit test raid scope for collect action.
-- [ ] Unit test raid scope for burn and export actions.
-- [ ] Unit test confiscation + fine transaction behavior.
-- [ ] Integration test full action flow with and without raid.
+- [x] Unit test heat calculation across boundary values.
+- [x] Unit test tier mapping and d20 thresholds.
+- [x] Unit test 50% success branch behavior.
+- [x] Unit test raid scope for collect action.
+- [x] Unit test raid scope for burn and export actions.
+- [x] Unit test confiscation + fine transaction behavior.
+- [x] Integration test full action flow with and without raid.
 
 ## 6) Acceptance Criteria
 - Raid logic triggers only under defined tier conditions.
