@@ -197,6 +197,9 @@ const INTERACTION_EVENT_RETENTION_DAYS = Math.max(7, Number(process.env.INTERACT
 const INTERACTION_EVENT_PRUNE_BATCH_SIZE = Math.max(100, Number(process.env.INTERACTION_EVENT_PRUNE_BATCH_SIZE || 10_000));
 const INTERACTION_EVENT_PRUNE_INTERVAL_MS = Math.max(60_000, Number(process.env.INTERACTION_EVENT_PRUNE_INTERVAL_MS || 15 * 60_000));
 const ONBOARDING_ACK_CACHE_MAX = Math.max(1_000, Number(process.env.ONBOARDING_ACK_CACHE_MAX || 100_000));
+const GUILD_SETTINGS_CACHE_MAX = Math.max(100, Number(process.env.GUILD_SETTINGS_CACHE_MAX || 5_000));
+const ACCESS_LIST_CACHE_MAX = Math.max(100, Number(process.env.ACCESS_LIST_CACHE_MAX || 5_000));
+const USER_NEWS_STATE_MAX = Math.max(500, Number(process.env.USER_NEWS_STATE_MAX || 100_000));
 const VOTE_REWARD_DM_CONCURRENCY = Math.max(1, Math.min(10, Number(process.env.VOTE_REWARD_DM_CONCURRENCY || 3)));
 const HOLDEM_ORPHAN_SWEEP_START_DELAY_MS = Math.max(1_000, Number(process.env.HOLDEM_ORPHAN_SWEEP_START_DELAY_MS || 20_000));
 const HOLDEM_ORPHAN_SWEEP_GUILD_BATCH_SIZE = Math.max(1, Math.min(10, Number(process.env.HOLDEM_ORPHAN_SWEEP_GUILD_BATCH_SIZE || 2)));
@@ -227,10 +230,20 @@ let holdemOrphanSweepTimer = null;
 let holdemOrphanSweepStarted = false;
 
 function setTimedCache(map, key, value, ttlMs) {
+  map.delete(key);
   map.set(key, {
     value,
     expiresAt: Date.now() + ttlMs
   });
+}
+
+function enforceMapCapacity(map, maxSize) {
+  const limit = Math.max(1, Number(maxSize) || 1);
+  while (map.size > limit) {
+    const oldestKey = map.keys().next().value;
+    if (!oldestKey) break;
+    map.delete(oldestKey);
+  }
 }
 
 function getTimedCache(map, key) {
@@ -240,6 +253,9 @@ function getTimedCache(map, key) {
     map.delete(key);
     return null;
   }
+  // Touch hit so iteration order keeps least-recently-used entries first.
+  map.delete(key);
+  map.set(key, entry);
   return entry.value;
 }
 
@@ -253,6 +269,7 @@ async function getGuildSettingsCached(guildId) {
   if (cached) return cached;
   const settings = await getGuildSettings(guildId);
   setTimedCache(guildSettingsCache, guildId, settings, GUILD_SETTINGS_TTL_MS);
+  enforceMapCapacity(guildSettingsCache, GUILD_SETTINGS_CACHE_MAX);
   return settings;
 }
 
@@ -273,6 +290,7 @@ async function getAccessListCached(guildId, roleType, loader) {
   const ids = await loader(guildId);
   const normalized = Array.from(new Set((ids || []).map(id => String(id))));
   setTimedCache(accessListCache, key, normalized, ACCESS_LIST_TTL_MS);
+  enforceMapCapacity(accessListCache, ACCESS_LIST_CACHE_MAX);
   return normalized;
 }
 
@@ -305,6 +323,24 @@ function rememberOnboardingAcknowledged(guildId, userId) {
 function clearUserNewsState(userId) {
   if (!userId) return;
   userNewsState.delete(String(userId));
+}
+
+function getUserNewsState(userId) {
+  const key = String(userId || '').trim();
+  if (!key) return null;
+  const entry = userNewsState.get(key);
+  if (!entry) return null;
+  userNewsState.delete(key);
+  userNewsState.set(key, entry);
+  return entry;
+}
+
+function setUserNewsState(userId, state) {
+  const key = String(userId || '').trim();
+  if (!key) return;
+  userNewsState.delete(key);
+  userNewsState.set(key, state);
+  enforceMapCapacity(userNewsState, USER_NEWS_STATE_MAX);
 }
 
 function triggerTopggStats(reason = 'manual') {
@@ -1140,13 +1176,13 @@ async function maybeSendNewsReminder(interaction) {
     if (!active || !active.body) return;
     const digest = activeNewsCache.digest || newsDigest(active) || null;
     const nowSec = Math.floor(Date.now() / 1000);
-    const cachedState = userNewsState.get(String(userId));
+    const cachedState = getUserNewsState(userId);
     if (cachedState?.optOut) return;
     if (cachedState && cachedState.skipUntilSec > nowSec && cachedState.digest === digest) return;
 
     const settings = await getUserNewsSettings(userId);
     if (settings?.newsOptIn === false) {
-      userNewsState.set(String(userId), { optOut: true, digest: null, skipUntilSec: 0 });
+      setUserNewsState(userId, { optOut: true, digest: null, skipUntilSec: 0 });
       return;
     }
     const lastSentRaw = settings?.lastDeliveredAt;
@@ -1156,7 +1192,7 @@ async function maybeSendNewsReminder(interaction) {
     const lastDigest = settings?.lastDigest || null;
     const seenRecently = lastSentSec > 0 && (nowSec - lastSentSec) < NEWS_COOLDOWN_SECONDS;
     if (seenRecently && (!digest || lastDigest === digest)) {
-      userNewsState.set(String(userId), {
+      setUserNewsState(userId, {
         optOut: false,
         digest,
         skipUntilSec: lastSentSec + NEWS_COOLDOWN_SECONDS
@@ -1194,7 +1230,7 @@ async function maybeSendNewsReminder(interaction) {
 
     if (delivered) {
       await markUserNewsDelivered(userId, digest, nowSec);
-      userNewsState.set(String(userId), {
+      setUserNewsState(userId, {
         optOut: false,
         digest,
         skipUntilSec: nowSec + NEWS_COOLDOWN_SECONDS

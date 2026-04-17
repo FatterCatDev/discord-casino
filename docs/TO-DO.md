@@ -21,11 +21,11 @@
 
 ### Memory + Runtime Safety
 - [x] Add hard bounds or eviction strategy for long-lived in-memory session/state maps.
-- [ ] Revisit cache structures that can grow with guild/user count and make them LRU or size-bounded.
+- [x] Revisit cache structures that can grow with guild/user count and make them LRU or size-bounded.
 - [x] Add a pruning/index strategy for `user_interaction_events` that scales with time-based cleanup.
 
 ## 2) Current Step
-- [ ] Revisit cache structures that can grow with guild/user count and make them LRU or size-bounded.
+- [ ] Top-priority scale pass complete. Define the next optimization pass from live metrics.
 
 # Warehouse Raid System Design + Implementation Checklist
 

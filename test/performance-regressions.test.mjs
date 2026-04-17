@@ -198,6 +198,14 @@ test('index includes cache constants and cache invalidation sets', async () => {
   assert.match(content, /const GUILD_SETTINGS_TTL_MS =/);
   assert.match(content, /const ACCESS_LIST_TTL_MS =/);
   assert.match(content, /const ACTIVE_NEWS_TTL_MS =/);
+  assert.match(content, /const GUILD_SETTINGS_CACHE_MAX =/);
+  assert.match(content, /const ACCESS_LIST_CACHE_MAX =/);
+  assert.match(content, /const USER_NEWS_STATE_MAX =/);
+  assert.match(content, /function enforceMapCapacity\(map, maxSize\)/);
+  assert.match(content, /enforceMapCapacity\(guildSettingsCache, GUILD_SETTINGS_CACHE_MAX\);/);
+  assert.match(content, /enforceMapCapacity\(accessListCache, ACCESS_LIST_CACHE_MAX\);/);
+  assert.match(content, /function setUserNewsState\(userId, state\)/);
+  assert.match(content, /enforceMapCapacity\(userNewsState, USER_NEWS_STATE_MAX\);/);
   assert.match(content, /const SETTINGS_MUTATION_COMMANDS = new Set\(/);
   assert.match(content, /const ACCESS_MUTATION_COMMANDS = new Set\(/);
 });
@@ -232,7 +240,8 @@ test('todo list includes top-priority scalability work', async () => {
   assert.match(content, /\[x\] Replace Hold'em table-number discovery that fetches all guild channels with a cheaper allocation strategy\./);
   assert.match(content, /\[x\] Add bounded concurrency for vote reward DM delivery\./);
   assert.match(content, /\[x\] Add hard bounds or eviction strategy for long-lived in-memory session\/state maps\./);
-  assert.match(content, /\[ \] Revisit cache structures that can grow with guild\/user count and make them LRU or size-bounded\./);
+  assert.match(content, /\[x\] Revisit cache structures that can grow with guild\/user count and make them LRU or size-bounded\./);
+  assert.match(content, /Top-priority scale pass complete\. Define the next optimization pass from live metrics\./);
 });
 
 test('champion role sync avoids full guild member fetch on startup', async () => {
