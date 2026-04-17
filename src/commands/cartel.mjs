@@ -53,6 +53,8 @@ import {
   CARTEL_DEALER_TIERS,
   CARTEL_DEALER_NAME_POOL,
   CARTEL_DEFAULT_XP_PER_GRAM_SOLD,
+  CARTEL_WAREHOUSE_HEAT_PER_GRAM,
+  CARTEL_RAID_THRESHOLDS,
   MG_PER_GRAM,
   SEMUTA_CARTEL_USER_ID
 } from '../cartel/constants.mjs';
@@ -565,6 +567,27 @@ function formatPercentDisplay(value) {
   return `${percentFormatter.format(value * 100)}%`;
 }
 
+function heatTierForWarehouse(heat) {
+  const value = Math.max(0, Number(heat || 0));
+  if (value >= Number(CARTEL_RAID_THRESHOLDS?.EXTREME?.heat || 0)) return 'EXTREME';
+  if (value >= Number(CARTEL_RAID_THRESHOLDS?.HIGH?.heat || 0)) return 'HIGH';
+  if (value >= Number(CARTEL_RAID_THRESHOLDS?.MED?.heat || 0)) return 'MED';
+  if (value >= Number(CARTEL_RAID_THRESHOLDS?.LOW?.heat || 0)) return 'LOW';
+  return 'NONE';
+}
+
+function buildHeatBar(warehouseGrams) {
+  const grams = Math.max(0, Number(warehouseGrams || 0));
+  const heat = Math.max(0, grams * Number(CARTEL_WAREHOUSE_HEAT_PER_GRAM || 0));
+  const maxHeat = Math.max(1, Number(CARTEL_RAID_THRESHOLDS?.EXTREME?.heat || 500));
+  const progress = Math.max(0, Math.min(1, heat / maxHeat));
+  const segments = 10;
+  const filled = Math.max(0, Math.min(segments, Math.round(progress * segments)));
+  const bar = `${'█'.repeat(filled)}${'░'.repeat(Math.max(0, segments - filled))}`;
+  const tier = heatTierForWarehouse(heat);
+  return `Heat: [${bar}] **${tier}** (${percentFormatter.format(progress * 100)}%, ${percentFormatter.format(heat)})`;
+}
+
 function formatDuration(seconds) {
   const total = Math.max(0, Math.floor(Number(seconds || 0)));
   if (total >= SECONDS_PER_DAY) {
@@ -631,6 +654,7 @@ function buildOverviewEmbed(overview, chipsFmt) {
       value: joinSections([
         `${emoji('semuta')} Stash: **${gramsFormatter.format(metrics.stashGrams)}g of Semuta** / ${gramsFormatter.format(metrics.stashCapGrams)}g of Semuta cap`,
         `${emoji('vault')} Warehouse (overflow): **${gramsFormatter.format(metrics.warehouseGrams)}g of Semuta**`,
+        `${emoji('warning')} ${buildHeatBar(metrics.warehouseGrams)}`,
         `${emoji('sparkles')} Sale multiplier: **+${percentFormatter.format(metrics.saleMultiplierPercent || 0)}%** on Semuta sells`
       ])
     },
@@ -658,6 +682,7 @@ function buildWarehouseEmbed(overview, chipsFmt) {
   const details = [
     `${emoji('semuta')} Stash: **${gramsFormatter.format(metrics.stashGrams)}g** / ${gramsFormatter.format(metrics.stashCapGrams)}g cap`,
     `${emoji('vault')} Warehouse: **${gramsFormatter.format(metrics.warehouseGrams)}g** overflow`,
+    `${emoji('warning')} ${buildHeatBar(metrics.warehouseGrams)}`,
     `${emoji('sparkles')} Sale multiplier: **+${percentFormatter.format(metrics.saleMultiplierPercent || 0)}%** on Semuta sells`
   ];
   const tipLines = [

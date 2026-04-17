@@ -15,8 +15,8 @@ Add a warehouse risk system to the Cartel flow that introduces police raids base
 - Heat should be calculated from warehouse holdings.
 
 ### 3.2 Raid Trigger Timing
-- On each Cartel command usage, roll a d20 to determine whether a raid triggers.
-- A raid check only executes after one of these actions completes:
+- On each warehouse command attempt, roll a d20 to determine whether a raid triggers.
+- A raid check executes before one of these actions completes:
 	- Collect Warehouse
 	- Burn Warehouse
 	- Export Warehouse

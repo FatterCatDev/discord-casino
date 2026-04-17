@@ -981,6 +981,7 @@ export async function cartelPayoutReservedSale(guildId, userId, mgAmount) {
 export async function cartelCollect(guildId, userId, grams) {
   const mgRequested = gramsToMg(grams);
   ensurePositiveAmount(mgRequested, 'CARTEL_AMOUNT_REQUIRED', 'Enter at least 1g to collect.');
+  const raid = await runPreActionWarehouseRaidCheck(guildId, userId, 'collect', { collectedMg: mgRequested });
   const investor = await getCartelInvestor(guildId, userId);
   const currentWarehouse = Number(investor?.warehouse_mg || 0);
   if (currentWarehouse < mgRequested) {
@@ -1012,11 +1013,6 @@ export async function cartelCollect(guildId, userId, grams) {
   const newWarehouse = currentWarehouse - mgRequested + overflow;
   await cartelSetHoldings(guildId, userId, finalStash, newWarehouse);
   await recordCartelTransaction(guildId, userId, 'COLLECT_FEE', fee, mgRequested, { grams: gramsRequested, overflow: mgToGrams(overflow) });
-  const postInvestor = await getCartelInvestor(guildId, userId);
-  const raid = await resolveWarehouseRaidAfterAction(guildId, userId, 'collect', postInvestor, {
-    warehouseMg: Number(postInvestor?.warehouse_mg || 0),
-    collectedMg: mgRequested
-  });
   return {
     collectedGrams: gramsRequested - mgToGrams(overflow),
     overflowReturnedGrams: mgToGrams(overflow),
@@ -1028,6 +1024,7 @@ export async function cartelCollect(guildId, userId, grams) {
 export async function cartelAbandon(guildId, userId, grams) {
   const mgToBurn = gramsToMg(grams);
   ensurePositiveAmount(mgToBurn, 'CARTEL_AMOUNT_REQUIRED', 'Enter at least 1g to abandon.');
+  const raid = await runPreActionWarehouseRaidCheck(guildId, userId, 'burn', { burnMg: mgToBurn });
   const investor = await getCartelInvestor(guildId, userId);
   const currentWarehouse = Number(investor?.warehouse_mg || 0);
   if (currentWarehouse < mgToBurn) {
@@ -1036,11 +1033,6 @@ export async function cartelAbandon(guildId, userId, grams) {
   const newWarehouse = currentWarehouse - mgToBurn;
   await cartelSetHoldings(guildId, userId, Number(investor?.stash_mg || 0), newWarehouse);
   await recordCartelTransaction(guildId, userId, 'WAREHOUSE_BURN', 0, mgToBurn, { grams: mgToGrams(mgToBurn) });
-  const postInvestor = await getCartelInvestor(guildId, userId);
-  const raid = await resolveWarehouseRaidAfterAction(guildId, userId, 'burn', postInvestor, {
-    warehouseMg: Number(postInvestor?.warehouse_mg || 0),
-    collectedMg: 0
-  });
   return { burnedGrams: mgToGrams(mgToBurn), raid };
 }
 
@@ -1080,6 +1072,8 @@ export async function cartelExportWarehouse(guildId, userId, mgAmount = null) {
       `Export at most ${gramsNeeded}g of Semuta to reach the +500% sale multiplier cap, then burn or collect the rest.`
     );
   }
+  const raid = await runPreActionWarehouseRaidCheck(guildId, userId, 'export', { exportMg: mgToExport });
+  investor = await getCartelInvestor(guildId, userId);
   const feeChips = warehouseExportFeeChips(mgToExport);
   if (feeChips > 0) {
     try {
@@ -1105,11 +1099,6 @@ export async function cartelExportWarehouse(guildId, userId, mgAmount = null) {
     multiplierBpsGained: bonusBps,
     multiplierBpsTotal: totalMultiplierBps,
     feeChips
-  });
-  const postInvestor = await getCartelInvestor(guildId, userId);
-  const raid = await resolveWarehouseRaidAfterAction(guildId, userId, 'export', postInvestor, {
-    warehouseMg: Number(postInvestor?.warehouse_mg || 0),
-    collectedMg: 0
   });
   return {
     exportedMg: mgToExport,
@@ -1708,9 +1697,67 @@ async function resolveWarehouseRaidAfterAction(guildId, userId, actionType, post
   return raidSummary;
 }
 
+async function runPreActionWarehouseRaidCheck(guildId, userId, actionType, { collectedMg = 0, burnMg = 0, exportMg = 0 } = {}) {
+  let investor = await getCartelInvestor(guildId, userId);
+  investor = await normalizeInvestorState(guildId, investor);
+  if (!investor) {
+    return {
+      triggered: false,
+      success: false,
+      actionType,
+      heat: 0,
+      roll: 0,
+      tier: null,
+      triggerThreshold: 0,
+      scopeWarehouseMg: 0,
+      scopeCollectedMg: 0,
+      scopeTotalMg: 0,
+      confiscatedWarehouseMg: 0,
+      confiscatedCollectedMg: 0,
+      confiscatedTotalMg: 0,
+      confiscatedGrams: 0,
+      fineChipsCharged: 0,
+      fineChipsPaid: 0
+    };
+  }
+  const currentWarehouse = Math.max(0, Number(investor?.warehouse_mg || 0));
+  const plannedCollectedMg = Math.max(0, Math.floor(Number(collectedMg || 0)));
+  const plannedBurnMg = Math.max(0, Math.floor(Number(burnMg || 0)));
+  const plannedExportMg = Math.max(0, Math.floor(Number(exportMg || 0)));
+
+  const scope = (() => {
+    const action = String(actionType || '').toLowerCase();
+    if (action === 'collect') {
+      return {
+        warehouseMg: currentWarehouse,
+        collectedMg: plannedCollectedMg
+      };
+    }
+    if (action === 'burn') {
+      return {
+        warehouseMg: Math.max(0, currentWarehouse - plannedBurnMg),
+        collectedMg: 0
+      };
+    }
+    if (action === 'export') {
+      return {
+        warehouseMg: Math.max(0, currentWarehouse - plannedExportMg),
+        collectedMg: 0
+      };
+    }
+    return {
+      warehouseMg: currentWarehouse,
+      collectedMg: 0
+    };
+  })();
+
+  return resolveWarehouseRaidAfterAction(guildId, userId, actionType, investor, scope);
+}
+
 export const __test__ = Object.freeze({
   calculateWarehouseHeat,
   raidTierForHeat,
   rollRaidIfNeeded,
-  resolveWarehouseRaidAfterAction
+  resolveWarehouseRaidAfterAction,
+  runPreActionWarehouseRaidCheck
 });

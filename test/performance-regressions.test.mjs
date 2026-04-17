@@ -190,9 +190,9 @@ test('warehouse raid resolution is scoped per action and surfaced in user messag
   assert.match(service, /async function resolveWarehouseRaidAfterAction\(guildId, userId, actionType, postInvestor, scope = \{\}, options = \{\}\)/);
   assert.match(service, /const scopeWarehouseMg = Math\.max\(0, Math\.floor\(Number\(scope\?\.warehouseMg \|\| 0\)\)\);/);
   assert.match(service, /const scopeCollectedMg = Math\.max\(0, Math\.floor\(Number\(scope\?\.collectedMg \|\| 0\)\)\);/);
-  assert.match(service, /const raid = await resolveWarehouseRaidAfterAction\(guildId, userId, 'collect', postInvestor, \{/);
-  assert.match(service, /const raid = await resolveWarehouseRaidAfterAction\(guildId, userId, 'burn', postInvestor, \{/);
-  assert.match(service, /const raid = await resolveWarehouseRaidAfterAction\(guildId, userId, 'export', postInvestor, \{/);
+  assert.match(service, /const raid = await runPreActionWarehouseRaidCheck\(guildId, userId, 'collect', \{ collectedMg: mgRequested \}\);/);
+  assert.match(service, /const raid = await runPreActionWarehouseRaidCheck\(guildId, userId, 'burn', \{ burnMg: mgToBurn \}\);/);
+  assert.match(service, /const raid = await runPreActionWarehouseRaidCheck\(guildId, userId, 'export', \{ exportMg: mgToExport \}\);/);
   assert.match(service, /const applied = await applyRaidOutcome\(guildId, userId, \{/);
   assert.match(db, /export async function cartelApplyRaidOutcome\(/);
   assert.match(db, /INSERT INTO cartel_transactions \(guild_id, user_id, type, amount_chips, amount_mg, metadata_json\)/);
@@ -202,7 +202,7 @@ test('warehouse raid resolution is scoped per action and surfaced in user messag
   assert.match(commands, /const raidLines = buildWarehouseRaidLines\(result\.raid, chipsFmt\);/);
   assert.match(todo, /\[x\] Implement raid scope calculation per action type \(collect, burn, export\)\./);
   assert.match(todo, /\[x\] Apply confiscation and fine atomically in storage layer\./);
-  assert.match(todo, /\[x\] Ensure raid resolution runs only after action completion\./);
+  assert.match(todo, /\- A raid check executes before one of these actions completes:/);
   assert.match(todo, /\[x\] Add raid trigger warning message: police are coming\./);
 });
 
@@ -306,4 +306,13 @@ test('cartel raid debug command is admin-gated and wired through deploy and runt
   assert.match(index, /import cmdCartelRaidDebug from '\.\/commands\/cartelraiddebug\.mjs';/);
   assert.match(index, /cartelraiddebug: cmdCartelRaidDebug,/);
   assert.match(commandList, /"name": "cartelraiddebug"/);
+});
+
+test('cartel overview and warehouse views include warehouse heat bar indicators', async () => {
+  const command = await readRepoFile('src/commands/cartel.mjs');
+  assert.match(command, /function buildHeatBar\(warehouseGrams\)/);
+  assert.match(command, /function heatTierForWarehouse\(heat\)/);
+  assert.match(command, /\$\{emoji\('warning'\)\} \$\{buildHeatBar\(metrics\.warehouseGrams\)\}/);
+  assert.match(command, /CARTEL_WAREHOUSE_HEAT_PER_GRAM/);
+  assert.match(command, /CARTEL_RAID_THRESHOLDS/);
 });
