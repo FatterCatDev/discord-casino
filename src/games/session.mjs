@@ -10,6 +10,7 @@ import { emoji } from '../lib/emojis.mjs';
 import { applyEmbedThumbnail, resolveGameThumbnail } from '../lib/assets.mjs';
 
 export const ACTIVE_TIMEOUT_MS = 2 * 60 * 1000; // 2 minutes
+export const ACTIVE_SESSION_MAP_MAX = Math.max(100, Number(process.env.ACTIVE_SESSION_MAP_MAX || 5_000));
 export const activeSessions = new Map(); // key: `${guildId}:${userId}` -> state
 
 const CARTEL_PITCH_MIN_CHIPS = 1_000;
@@ -18,6 +19,39 @@ const CARTEL_PITCH_MIN_CHIPS = 1_000;
 export function activeKey(guildId, userId) { return `${guildId}:${userId}`; }
 export function keyFor(interaction) { return `${interaction.guild.id}:${interaction.user.id}`; }
 export function getActiveSession(guildId, userId) { return activeSessions.get(activeKey(guildId, userId)) || null; }
+
+function cleanupDetachedGameState(key, type) {
+  if (!key || !type) return;
+  if (type === 'ridebus') ridebusGames.delete(key);
+  else if (type === 'blackjack') blackjackGames.delete(key);
+  else if (type === 'roulette') rouletteSessions.delete(key);
+  else if (type === 'slots') slotSessions.delete(key);
+}
+
+function pruneActiveSessionsCapacity() {
+  if (activeSessions.size <= ACTIVE_SESSION_MAP_MAX) return;
+  const now = Date.now();
+
+  for (const [key, session] of activeSessions) {
+    const age = now - Number(session?.lastAt || 0);
+    if (age > ACTIVE_TIMEOUT_MS) {
+      activeSessions.delete(key);
+      cleanupDetachedGameState(key, session?.type);
+    }
+    if (activeSessions.size <= ACTIVE_SESSION_MAP_MAX) return;
+  }
+
+  const overflow = activeSessions.size - ACTIVE_SESSION_MAP_MAX;
+  if (overflow <= 0) return;
+  const oldest = Array.from(activeSessions.entries())
+    .sort((a, b) => Number(a?.[1]?.lastAt || 0) - Number(b?.[1]?.lastAt || 0))
+    .slice(0, overflow);
+  for (const [key, session] of oldest) {
+    activeSessions.delete(key);
+    cleanupDetachedGameState(key, session?.type);
+  }
+}
+
 export function setActiveSession(guildId, userId, type, gameLabel, opts = {}) {
   const now = Date.now();
   const k = activeKey(guildId, userId);
@@ -29,6 +63,7 @@ export function setActiveSession(guildId, userId, type, gameLabel, opts = {}) {
     return;
   }
   activeSessions.set(k, { type, lastAt: now, startedAt: now, houseNet: 0, playerNet: 0, games: 0, gameLabel: gameLabel || type });
+  pruneActiveSessionsCapacity();
 }
 export function touchActiveSession(guildId, userId, type) {
   const k = activeKey(guildId, userId);

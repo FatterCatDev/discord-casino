@@ -112,6 +112,18 @@ test('vote reward DM delivery uses bounded concurrency workers', async () => {
   assert.match(content, /await deliverVoteRewardDms\(client, dmEntries\);/);
 });
 
+test('long-lived in-memory session maps enforce hard bounds', async () => {
+  const session = await readRepoFile('src/games/session.mjs');
+  const leaderboardSessions = await readRepoFile('src/lib/leaderboardSessions.mjs');
+  assert.match(session, /export const ACTIVE_SESSION_MAP_MAX =/);
+  assert.match(session, /function pruneActiveSessionsCapacity\(\)/);
+  assert.match(session, /cleanupDetachedGameState\(key, session\?\.type\);/);
+  assert.match(session, /pruneActiveSessionsCapacity\(\);/);
+  assert.match(leaderboardSessions, /const MAX_SESSIONS =/);
+  assert.match(leaderboardSessions, /function enforceSessionCapacity\(\)/);
+  assert.match(leaderboardSessions, /enforceSessionCapacity\(\);/);
+});
+
 test('pruneUserInteractionEvents is exported and batch-limited', async () => {
   const dbContent = await readRepoFile('src/db/db.pg.mjs');
   const autoContent = await readRepoFile('src/db/db.auto.mjs');
@@ -219,7 +231,8 @@ test('todo list includes top-priority scalability work', async () => {
   assert.match(content, /\[x\] Move Hold'em orphan cleanup out of startup blocking flow into a background queue\./);
   assert.match(content, /\[x\] Replace Hold'em table-number discovery that fetches all guild channels with a cheaper allocation strategy\./);
   assert.match(content, /\[x\] Add bounded concurrency for vote reward DM delivery\./);
-  assert.match(content, /\[ \] Add hard bounds or eviction strategy for long-lived in-memory session\/state maps\./);
+  assert.match(content, /\[x\] Add hard bounds or eviction strategy for long-lived in-memory session\/state maps\./);
+  assert.match(content, /\[ \] Revisit cache structures that can grow with guild\/user count and make them LRU or size-bounded\./);
 });
 
 test('champion role sync avoids full guild member fetch on startup', async () => {

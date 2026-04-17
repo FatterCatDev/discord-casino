@@ -20,12 +20,12 @@
 - [x] Add bounded concurrency for vote reward DM delivery.
 
 ### Memory + Runtime Safety
-- [ ] Add hard bounds or eviction strategy for long-lived in-memory session/state maps.
+- [x] Add hard bounds or eviction strategy for long-lived in-memory session/state maps.
 - [ ] Revisit cache structures that can grow with guild/user count and make them LRU or size-bounded.
 - [x] Add a pruning/index strategy for `user_interaction_events` that scales with time-based cleanup.
 
 ## 2) Current Step
-- [ ] Add hard bounds or eviction strategy for long-lived in-memory session/state maps.
+- [ ] Revisit cache structures that can grow with guild/user count and make them LRU or size-bounded.
 
 # Warehouse Raid System Design + Implementation Checklist
 

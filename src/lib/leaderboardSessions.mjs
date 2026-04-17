@@ -5,6 +5,7 @@ const sessions = new Map();
 const TTL_MS = 10 * 60 * 1000; // 10 minutes
 const PAGE_SIZE = 10;
 const MAX_PAGES = 10;
+const MAX_SESSIONS = Math.max(100, Number(process.env.LEADERBOARD_SESSION_MAP_MAX || 5_000));
 
 function cleanupSessions() {
   const now = Date.now();
@@ -12,6 +13,18 @@ function cleanupSessions() {
     if (now - (session.updatedAt || session.createdAt || 0) > TTL_MS) {
       sessions.delete(id);
     }
+  }
+}
+
+function enforceSessionCapacity() {
+  if (sessions.size <= MAX_SESSIONS) return;
+  const overflow = sessions.size - MAX_SESSIONS;
+  if (overflow <= 0) return;
+  const oldest = Array.from(sessions.entries())
+    .sort((a, b) => Number(a?.[1]?.updatedAt || a?.[1]?.createdAt || 0) - Number(b?.[1]?.updatedAt || b?.[1]?.createdAt || 0))
+    .slice(0, overflow);
+  for (const [id] of oldest) {
+    sessions.delete(id);
   }
 }
 
@@ -95,6 +108,7 @@ export function createLeaderboardSession({ title, lines, leadingLines = [], meta
     createdAt: Date.now(),
     updatedAt: Date.now()
   });
+  enforceSessionCapacity();
   return id;
 }
 
