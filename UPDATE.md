@@ -10,13 +10,15 @@ version: 1.3.3
 - Switched broadcast targeting to active-only eligible users via `listBroadcastEligibleUserIds()` and excluded staff/admin accounts.
 - Wired slash-command reactivation flow: inactive users are reactivated on command and can receive cycle-safe comeback bonus grants.
 - Added welcome-back DM embed delivery after successful reactivation handling.
+- Added inactivity sweep worker (`src/services/inactivity.mjs`) that periodically batch-marks inactive users, sends one-time inactive DMs, and records all DM outcomes and transition events to the lifecycle audit log.
 
 ## Short Notes
 
 <!-- Add 2-4 concise bullets for a quick summary. Example: - Faster startup and smoother leaderboard refreshes -->
 - Step 1 shipped: lifecycle schema + helper plumbing + broadcast audience filtering.
 - Step 2 shipped: command-path reactivation and comeback bonus transaction path.
-- Full regression suite currently passes with the new lifecycle and broadcast checks.
+- Step 3 shipped: inactivity sweep worker wired into bot startup with env-configurable interval, batch size, threshold, and DM enable gate.
+- Full regression suite passes at 40/40 with the new lifecycle, broadcast, and sweep worker checks.
 
 ## Bug Fixes
 

@@ -58,6 +58,7 @@ import { kittenizeTextContent, kittenizeReplyArg } from './services/persona.mjs'
 import { BOT_VERSION, pushUpdateAnnouncement } from './services/updates.mjs';
 import { getActiveNews, newsDigest } from './services/news.mjs';
 import { startLeaderboardChampionWatcher, claimChampionNotice } from './services/championRole.mjs';
+import { startInactivitySweep } from './services/inactivity.mjs';
 import { emoji } from './lib/emojis.mjs';
 import { startCartelWorker as startCartelWorkerMod } from './cartel/service.mjs';
 import { startTopggStatsPoster } from './services/topgg.mjs';
@@ -843,6 +844,11 @@ client.once(Events.ClientReady, c => {
   }, INTERACTION_EVENT_PRUNE_INTERVAL_MS);
 
   startLeaderboardChampionWatcher(client);
+  try {
+    startInactivitySweep(client);
+  } catch (err) {
+    console.error('Failed to start inactivity sweep', err);
+  }
   try {
     const timer = startCartelWorkerMod();
     if (typeof timer?.unref === 'function') timer.unref();

@@ -187,6 +187,28 @@ test('broadcast script uses active lifecycle eligible audience list', async () =
   assert.match(autoContent, /export const listBroadcastEligibleUserIds = pick\('listBroadcastEligibleUserIds'\);/);
 });
 
+test('inactivity sweep service exists with correct wiring and env guards', async () => {
+  const sweep = await readRepoFile('src/services/inactivity.mjs');
+  const index = await readRepoFile('src/index.mjs');
+  // service internals
+  assert.match(sweep, /import \{[\s\S]*listUsersToMarkInactive/);
+  assert.match(sweep, /markUsersInactive/);
+  assert.match(sweep, /markUserInactiveDmResult/);
+  assert.match(sweep, /recordUserActivityLifecycleEvent/);
+  assert.match(sweep, /INACTIVE_DAYS_THRESHOLD/);
+  assert.match(sweep, /INACTIVE_SWEEP_INTERVAL_MS/);
+  assert.match(sweep, /INACTIVE_DM_ENABLED/);
+  assert.match(sweep, /export function startInactivitySweep\(client\)/);
+  assert.match(sweep, /scanned=\$\{counters\.scanned\}/);
+  assert.match(sweep, /newInactive=\$\{counters\.newInactive\}/);
+  assert.match(sweep, /MARK_INACTIVE/);
+  assert.match(sweep, /INACTIVE_DM_SENT/);
+  assert.match(sweep, /INACTIVE_DM_FAIL/);
+  // wired in bot startup
+  assert.match(index, /import \{ startInactivitySweep \} from '\.\/services\/inactivity\.mjs';/);
+  assert.match(index, /startInactivitySweep\(client\)/);
+});
+
 test('cartel read paths do not perform implicit row-creation writes', async () => {
   const content = await readRepoFile('src/db/db.pg.mjs');
   const poolFn = content.match(/export async function getCartelPool\([\s\S]*?\n}\n/);

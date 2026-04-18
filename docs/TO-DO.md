@@ -71,10 +71,10 @@ Implement the inactivity lifecycle described in the design doc so users inactive
 - [x] On inactive user command, run reactivation + bonus path before normal command completion.
 
 ### Sweep Worker
-- [ ] Add periodic inactivity sweep scheduler.
-- [ ] Add env-configurable sweep interval.
-- [ ] Process in bounded batches to avoid DB spikes.
-- [ ] Emit sweep summary logs (`scanned`, `newInactive`, `dmSent`, `dmFailed`).
+- [x] Add periodic inactivity sweep scheduler.
+- [x] Add env-configurable sweep interval.
+- [x] Process in bounded batches to avoid DB spikes.
+- [x] Emit sweep summary logs (`scanned`, `newInactive`, `dmSent`, `dmFailed`).
 
 ### Welcome-Back UX
 - [x] Implement welcome-back embed builder.
