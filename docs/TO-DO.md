@@ -1,93 +1,142 @@
-# Warehouse Raid System Design + Implementation Checklist
+# Inactive User Cleanup + Comeback Bonus Checklist
 
 ## 1) Purpose
-Add a warehouse risk system to the Cartel flow that introduces police raids based on stored Semuta heat.
+Implement the inactivity lifecycle described in the design doc so users inactive for 30+ days are marked inactive, excluded from broadcast DMs, and rewarded when they return.
 
 ## 2) Goals
-- Add warehouse Semuta expiration mechanics.
-- Trigger police raids based on a heat model (more Semuta in warehouse = more risk).
-- Keep raid behavior deterministic enough for balancing and clear player communication.
+- Mark users inactive after 30 days without command interaction.
+- Attempt a one-time inactivity DM offer for 10,000 chips.
+- Exclude inactive users from bulk broadcast audiences.
+- Reactivate users on next command and grant comeback bonus once per inactivity cycle.
+- Keep lifecycle and bonus events auditable.
 
 ## 3) Functional Requirements
 
-### 3.1 Heat Model
-- Raid chance is driven by a heat value (higher heat means higher trigger odds).
-- Heat should be calculated from warehouse holdings.
+### 3.1 Lifecycle Tracking
+- Track `last_interaction_at` for command-triggering users.
+- Mark user inactive when `last_interaction_at` exceeds threshold.
+- Store inactivity timestamps and DM attempt metadata.
 
-### 3.2 Raid Trigger Timing
-- On each warehouse command attempt, roll a d20 to determine whether a raid triggers.
-- A raid check executes before one of these actions completes:
-	- Collect Warehouse
-	- Burn Warehouse
-	- Export Warehouse
+### 3.2 Inactive DM Flow
+- Send one DM attempt when user transitions to inactive.
+- DM failure must not block state transitions.
+- Record DM attempt outcome in lifecycle event logs.
 
-### 3.3 Heat Tiers and Trigger Rules
-- Low heat: raid triggers on d20 roll 1.
-- Medium heat: raid triggers on d20 roll 1-7.
-- High heat: raid triggers on d20 roll 1-13.
-- On fire: raid always triggers (1-20).
-- If a raid triggers, raid success chance is 50%.
+### 3.3 Broadcast Audience Filtering
+- Broadcast scripts must target only active users.
+- Staff/admin users are excluded from inactivity/broadcast lifecycle audience handling.
 
-### 3.4 Raid Outcome Rules
-- On successful raid:
-	- Confiscate Semuta in raid scope.
-	- Fine the player using: grams_lost * 6 chips.
+### 3.4 Reactivation + Bonus
+- On first command from inactive user, reactivate user.
+- Grant comeback bonus once per inactivity cycle.
+- Send welcome-back embed with bonus amount and timestamp.
+- Ignore DM send failures on reactivation path.
 
-### 3.5 Raid Scope Rules
-- Collect Warehouse action: raid scope includes warehouse contents plus amount being collected.
-- Burn Warehouse action: raid scope includes only Semuta remaining in warehouse after burn.
-- Export Warehouse action: raid scope includes only Semuta remaining in warehouse after export.
+## 4) Data + Migration Checklist
 
-### 3.6 Player Messaging
-- When a raid triggers, notify the player that police are coming.
+### Schema
+- [ ] Add `user_activity_lifecycle` table.
+- [ ] Add `user_activity_lifecycle_events` audit table.
+- [ ] Add index on lifecycle `last_interaction_at`.
+- [ ] Add index on lifecycle `is_inactive`.
 
-## 4) Non-Functional Requirements
-- Keep behavior auditable in logs (trigger roll, tier, success/fail, confiscated amount, fine).
-- Ensure no double-confiscation or negative balances.
-- Ensure race-safe updates for warehouse and chips during raid resolution.
+### Safety + Backward Compatibility
+- [ ] Ensure migration is idempotent (`IF NOT EXISTS` guards).
+- [ ] Add normalization/parsing helpers for lifecycle rows in DB layer.
+- [ ] Add transactional boundaries where lifecycle and bonus updates co-occur.
 
-## 5) Implementation Checklist
+## 5) DB Helper Checklist
 
-### Data + Constants
-- [x] Define heat constants and tier thresholds in cartel constants.
-- [x] Define fine multiplier constant (6 chips per gram).
-- [x] Add configurable expiration settings for warehouse Semuta.
+### Lifecycle Read/Write Helpers
+- [ ] Upsert/update `last_interaction_at` on interaction.
+- [ ] Query users eligible to become inactive in sweep batches.
+- [ ] Mark user inactive and set `inactive_since`.
+- [ ] Record inactive DM success/failure metadata.
+- [ ] Reactivate inactive user with cycle-safe bonus grant transaction.
 
-### Core Cartel Service Logic
-- [x] Implement heat calculation from warehouse amount.
-- [x] Implement d20 trigger logic by heat tier.
-- [x] Implement 50% raid success check when trigger occurs.
-- [x] Implement raid scope calculation per action type (collect, burn, export).
-- [x] Apply confiscation and fine atomically in storage layer.
-- [x] Ensure raid resolution runs only after action completion.
+### Broadcast Helpers
+- [ ] Add `listBroadcastEligibleUserIds()` (or equivalent active-only helper).
+- [ ] Exclude inactive users from results.
+- [ ] Exclude admin/mod users from results.
 
-### Expiration Mechanics
-- [x] Define expiration cadence (per tick/hour/day).
-- [x] Apply expiration decay safely to warehouse Semuta.
-- [x] Log expiration amounts for balancing and debugging.
+### Audit Helpers
+- [ ] Add lifecycle event insert helper for all transitions.
+- [ ] Ensure event metadata is JSON-safe and bounded.
 
-### Player UX + Messaging
-- [x] Add raid trigger warning message: police are coming.
-- [x] Add final outcome message for success/failure.
-- [x] Include confiscated amount and fine in success message.
+## 6) Runtime Integration Checklist
 
-### Observability + Safety
-- [x] Add structured logs for heat, roll, tier, trigger, success, scope, and penalties.
-- [x] Guard against negative chips/warehouse values.
-- [x] Add fallback behavior for malformed investor state.
+### Interaction Hooking
+- [ ] Wire lifecycle touchpoint into global command interaction path.
+- [ ] Skip staff/admin users from inactivity lifecycle handling.
+- [ ] On inactive user command, run reactivation + bonus path before normal command completion.
 
-### Testing Checklist
-- [x] Unit test heat calculation across boundary values.
-- [x] Unit test tier mapping and d20 thresholds.
-- [x] Unit test 50% success branch behavior.
-- [x] Unit test raid scope for collect action.
-- [x] Unit test raid scope for burn and export actions.
-- [x] Unit test confiscation + fine transaction behavior.
-- [x] Integration test full action flow with and without raid.
+### Sweep Worker
+- [ ] Add periodic inactivity sweep scheduler.
+- [ ] Add env-configurable sweep interval.
+- [ ] Process in bounded batches to avoid DB spikes.
+- [ ] Emit sweep summary logs (`scanned`, `newInactive`, `dmSent`, `dmFailed`).
 
-## 6) Acceptance Criteria
-- Raid logic triggers only under defined tier conditions.
-- Raid executes only after collect, burn, or export completes.
-- Successful raid confiscates correct Semuta scope and fines grams_lost * 6 chips.
-- Player receives raid warning when triggered and outcome message after resolution.
-- Expiration mechanics apply consistently and are logged.
+### Welcome-Back UX
+- [ ] Implement welcome-back embed builder.
+- [ ] Include bonus amount, trigger command (if known), and timestamp.
+- [ ] Fail open if DM cannot be delivered.
+
+## 7) Script + Ops Checklist
+
+### Broadcast Script Integration
+- [ ] Update `scripts/broadcast-job-promo.mjs` (and similar scripts) to use active-only audience helper.
+- [ ] Ensure script output reports skipped inactive/staff users.
+
+### Configuration
+- [ ] Add and document env vars:
+  - `INACTIVE_DAYS_THRESHOLD=30`
+  - `COMEBACK_BONUS_CHIPS=10000`
+  - `INACTIVE_SWEEP_INTERVAL_MS=21600000`
+  - `INACTIVE_DM_ENABLED=true`
+  - `COMEBACK_BONUS_ENABLED=true`
+- [ ] Validate env parsing and sane fallbacks.
+
+## 8) Testing Checklist
+
+### Unit Tests
+- [ ] Marks inactive only after threshold.
+- [ ] Does not mark inactive before threshold.
+- [ ] Reactivation flips status and grants bonus exactly once per cycle.
+- [ ] Broadcast audience helper excludes inactive users.
+- [ ] Broadcast audience helper excludes admin/mod users.
+
+### Integration Tests
+- [ ] End-to-end: active -> inactive transition with DM attempt.
+- [ ] End-to-end: inactive -> command -> reactivated + bonus granted.
+- [ ] End-to-end: second command in same cycle does not duplicate bonus.
+
+### Regression Tests
+- [ ] Existing command handling unaffected for active users.
+- [ ] Existing announcement flows continue for active users.
+- [ ] No duplicate grants under concurrent command attempts.
+
+## 9) Rollout Checklist
+
+### Phase 1: Schema + Dry Run
+- [ ] Deploy schema and helpers.
+- [ ] Enable sweep with `INACTIVE_DM_ENABLED=false`.
+- [ ] Validate inactive counts and batch behavior in logs.
+
+### Phase 2: Enable DMs + Bonus
+- [ ] Enable inactivity DM attempts.
+- [ ] Enable comeback bonus grants.
+- [ ] Monitor transaction volume and DM failure rates.
+
+### Phase 3: Stabilization
+- [ ] Verify staff/admin exclusion behavior in production.
+- [ ] Verify broadcast audience reduction metrics.
+- [ ] Confirm no duplicate bonuses after one week.
+
+## 10) Acceptance Criteria
+- [ ] Users inactive >30 days are marked inactive.
+- [ ] Inactive users receive one DM attempt with comeback offer.
+- [ ] Inactive users are excluded from broadcast DM scripts.
+- [ ] Staff/admin users are excluded from inactivity/broadcast lifecycle handling.
+- [ ] Returning inactive users are reactivated and receive 10,000 chips.
+- [ ] Comeback bonus is granted once per inactivity cycle.
+- [ ] Lifecycle and bonus events are auditable.
