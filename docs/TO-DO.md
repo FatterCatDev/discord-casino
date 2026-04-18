@@ -35,40 +35,40 @@ Implement the inactivity lifecycle described in the design doc so users inactive
 ## 4) Data + Migration Checklist
 
 ### Schema
-- [ ] Add `user_activity_lifecycle` table.
-- [ ] Add `user_activity_lifecycle_events` audit table.
-- [ ] Add index on lifecycle `last_interaction_at`.
-- [ ] Add index on lifecycle `is_inactive`.
+- [x] Add `user_activity_lifecycle` table.
+- [x] Add `user_activity_lifecycle_events` audit table.
+- [x] Add index on lifecycle `last_interaction_at`.
+- [x] Add index on lifecycle `is_inactive`.
 
 ### Safety + Backward Compatibility
-- [ ] Ensure migration is idempotent (`IF NOT EXISTS` guards).
-- [ ] Add normalization/parsing helpers for lifecycle rows in DB layer.
-- [ ] Add transactional boundaries where lifecycle and bonus updates co-occur.
+- [x] Ensure migration is idempotent (`IF NOT EXISTS` guards).
+- [x] Add normalization/parsing helpers for lifecycle rows in DB layer.
+- [x] Add transactional boundaries where lifecycle and bonus updates co-occur.
 
 ## 5) DB Helper Checklist
 
 ### Lifecycle Read/Write Helpers
-- [ ] Upsert/update `last_interaction_at` on interaction.
-- [ ] Query users eligible to become inactive in sweep batches.
-- [ ] Mark user inactive and set `inactive_since`.
-- [ ] Record inactive DM success/failure metadata.
-- [ ] Reactivate inactive user with cycle-safe bonus grant transaction.
+- [x] Upsert/update `last_interaction_at` on interaction.
+- [x] Query users eligible to become inactive in sweep batches.
+- [x] Mark user inactive and set `inactive_since`.
+- [x] Record inactive DM success/failure metadata.
+- [x] Reactivate inactive user with cycle-safe bonus grant transaction.
 
 ### Broadcast Helpers
-- [ ] Add `listBroadcastEligibleUserIds()` (or equivalent active-only helper).
-- [ ] Exclude inactive users from results.
-- [ ] Exclude admin/mod users from results.
+- [x] Add `listBroadcastEligibleUserIds()` (or equivalent active-only helper).
+- [x] Exclude inactive users from results.
+- [x] Exclude admin/mod users from results.
 
 ### Audit Helpers
-- [ ] Add lifecycle event insert helper for all transitions.
-- [ ] Ensure event metadata is JSON-safe and bounded.
+- [x] Add lifecycle event insert helper for all transitions.
+- [x] Ensure event metadata is JSON-safe and bounded.
 
 ## 6) Runtime Integration Checklist
 
 ### Interaction Hooking
-- [ ] Wire lifecycle touchpoint into global command interaction path.
-- [ ] Skip staff/admin users from inactivity lifecycle handling.
-- [ ] On inactive user command, run reactivation + bonus path before normal command completion.
+- [x] Wire lifecycle touchpoint into global command interaction path.
+- [x] Skip staff/admin users from inactivity lifecycle handling.
+- [x] On inactive user command, run reactivation + bonus path before normal command completion.
 
 ### Sweep Worker
 - [ ] Add periodic inactivity sweep scheduler.
@@ -77,14 +77,14 @@ Implement the inactivity lifecycle described in the design doc so users inactive
 - [ ] Emit sweep summary logs (`scanned`, `newInactive`, `dmSent`, `dmFailed`).
 
 ### Welcome-Back UX
-- [ ] Implement welcome-back embed builder.
-- [ ] Include bonus amount, trigger command (if known), and timestamp.
-- [ ] Fail open if DM cannot be delivered.
+- [x] Implement welcome-back embed builder.
+- [x] Include bonus amount, trigger command (if known), and timestamp.
+- [x] Fail open if DM cannot be delivered.
 
 ## 7) Script + Ops Checklist
 
 ### Broadcast Script Integration
-- [ ] Update `scripts/broadcast-job-promo.mjs` (and similar scripts) to use active-only audience helper.
+- [x] Update `scripts/broadcast-job-promo.mjs` (and similar scripts) to use active-only audience helper.
 - [ ] Ensure script output reports skipped inactive/staff users.
 
 ### Configuration

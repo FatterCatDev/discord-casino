@@ -324,6 +324,36 @@ async function ensureInteractionTables() {
   await q('CREATE INDEX IF NOT EXISTS idx_user_interaction_events_created ON user_interaction_events (created_at ASC)');
 }
 
+async function ensureUserActivityLifecycleTables() {
+  await q(`
+    CREATE TABLE IF NOT EXISTS user_activity_lifecycle (
+      discord_user_id TEXT PRIMARY KEY,
+      last_interaction_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      is_inactive BOOLEAN NOT NULL DEFAULT FALSE,
+      inactive_since TIMESTAMPTZ,
+      inactive_dm_sent_at TIMESTAMPTZ,
+      inactive_dm_fail_count INTEGER NOT NULL DEFAULT 0,
+      reactivated_at TIMESTAMPTZ,
+      comeback_bonus_granted_at TIMESTAMPTZ,
+      comeback_bonus_amount BIGINT NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await q(`
+    CREATE TABLE IF NOT EXISTS user_activity_lifecycle_events (
+      id BIGSERIAL PRIMARY KEY,
+      discord_user_id TEXT NOT NULL,
+      event_type TEXT NOT NULL,
+      metadata_json TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    )
+  `);
+  await q('CREATE INDEX IF NOT EXISTS idx_user_activity_last_interaction ON user_activity_lifecycle (last_interaction_at)');
+  await q('CREATE INDEX IF NOT EXISTS idx_user_activity_inactive ON user_activity_lifecycle (is_inactive, inactive_since)');
+  await q('CREATE INDEX IF NOT EXISTS idx_user_activity_events_user_time ON user_activity_lifecycle_events (discord_user_id, created_at DESC)');
+}
+
 async function ensureNewsSettingsTable() {
   await q(`
     CREATE TABLE IF NOT EXISTS user_news_settings (
@@ -552,6 +582,7 @@ await ensureJobTables();
 await ensureCartelTables();
 await ensureOnboardingTable();
 await ensureInteractionTables();
+await ensureUserActivityLifecycleTables();
 await ensureBotStatusTable();
 await ensureNewsSettingsTable();
 await ensureHoldemTableNumberState();
@@ -801,6 +832,306 @@ export async function markUserInteractionReviewPrompt(userId, { status = 'sent',
   const ts = Number.isFinite(timestamp) ? Math.floor(timestamp) : Math.floor(Date.now() / 1000);
   const row = await q1(MARK_REVIEW_PROMPT_SQL, [String(userId), ts, status || null, error || null]);
   return normalizeInteractionStats(row);
+}
+
+function normalizeUserActivityLifecycle(row) {
+  if (!row) return null;
+  return {
+    discord_user_id: row.discord_user_id,
+    last_interaction_at: toEpochSeconds(row.last_interaction_at),
+    is_inactive: !!row.is_inactive,
+    inactive_since: toEpochSeconds(row.inactive_since),
+    inactive_dm_sent_at: toEpochSeconds(row.inactive_dm_sent_at),
+    inactive_dm_fail_count: Math.max(0, Number(row.inactive_dm_fail_count || 0)),
+    reactivated_at: toEpochSeconds(row.reactivated_at),
+    comeback_bonus_granted_at: toEpochSeconds(row.comeback_bonus_granted_at),
+    comeback_bonus_amount: Math.max(0, Number(row.comeback_bonus_amount || 0)),
+    created_at: toEpochSeconds(row.created_at),
+    updated_at: toEpochSeconds(row.updated_at)
+  };
+}
+
+export async function recordUserActivityLifecycleEvent(discordUserId, eventType, metadata = null) {
+  const uid = String(discordUserId || '').trim();
+  const type = String(eventType || '').trim();
+  if (!uid || !type) return;
+  const payload = metadata == null
+    ? null
+    : (typeof metadata === 'string' ? metadata : JSON.stringify(metadata));
+  await q(
+    `INSERT INTO user_activity_lifecycle_events (discord_user_id, event_type, metadata_json)
+     VALUES ($1, $2, $3)`,
+    [uid, type, payload]
+  );
+}
+
+export async function touchUserActivityLifecycle(discordUserId, interactionAt = Math.floor(Date.now() / 1000)) {
+  const uid = String(discordUserId || '').trim();
+  if (!uid) return null;
+  const at = Number.isFinite(Number(interactionAt)) ? Math.floor(Number(interactionAt)) : Math.floor(Date.now() / 1000);
+  const row = await q1(
+    `INSERT INTO user_activity_lifecycle (discord_user_id, last_interaction_at, updated_at)
+     VALUES ($1, TO_TIMESTAMP($2), NOW())
+     ON CONFLICT (discord_user_id) DO UPDATE SET
+       last_interaction_at = TO_TIMESTAMP($2),
+       updated_at = NOW()
+     RETURNING
+       discord_user_id,
+       last_interaction_at,
+       is_inactive,
+       inactive_since,
+       inactive_dm_sent_at,
+       inactive_dm_fail_count,
+       reactivated_at,
+       comeback_bonus_granted_at,
+       comeback_bonus_amount,
+       created_at,
+       updated_at`,
+    [uid, at]
+  );
+  return normalizeUserActivityLifecycle(row);
+}
+
+export async function listUsersToMarkInactive(thresholdDays = 30, limit = 500) {
+  const days = Math.max(1, Math.trunc(Number(thresholdDays) || 30));
+  const n = Math.max(1, Math.min(10_000, Math.trunc(Number(limit) || 500)));
+  const rows = await q(
+    `SELECT discord_user_id, last_interaction_at
+     FROM user_activity_lifecycle
+     WHERE is_inactive = FALSE
+       AND last_interaction_at < NOW() - ($1 * INTERVAL '1 day')
+     ORDER BY last_interaction_at ASC
+     LIMIT $2`,
+    [days, n]
+  );
+  return rows.map(row => ({
+    discord_user_id: row.discord_user_id,
+    last_interaction_at: toEpochSeconds(row.last_interaction_at)
+  }));
+}
+
+export async function markUsersInactive(discordUserIds = [], inactiveSince = Math.floor(Date.now() / 1000)) {
+  const ids = Array.isArray(discordUserIds)
+    ? Array.from(new Set(discordUserIds.map(id => String(id || '').trim()).filter(Boolean)))
+    : [];
+  if (!ids.length) return [];
+  const since = Number.isFinite(Number(inactiveSince)) ? Math.floor(Number(inactiveSince)) : Math.floor(Date.now() / 1000);
+  const rows = await q(
+    `UPDATE user_activity_lifecycle
+     SET is_inactive = TRUE,
+         inactive_since = TO_TIMESTAMP($1),
+         updated_at = NOW()
+     WHERE discord_user_id = ANY($2::TEXT[])
+       AND is_inactive = FALSE
+     RETURNING
+       discord_user_id,
+       last_interaction_at,
+       is_inactive,
+       inactive_since,
+       inactive_dm_sent_at,
+       inactive_dm_fail_count,
+       reactivated_at,
+       comeback_bonus_granted_at,
+       comeback_bonus_amount,
+       created_at,
+       updated_at`,
+    [since, ids]
+  );
+  return rows.map(normalizeUserActivityLifecycle).filter(Boolean);
+}
+
+export async function getUserActivityLifecycle(discordUserId) {
+  const uid = String(discordUserId || '').trim();
+  if (!uid) return null;
+  const row = await q1(
+    `SELECT
+       discord_user_id,
+       last_interaction_at,
+       is_inactive,
+       inactive_since,
+       inactive_dm_sent_at,
+       inactive_dm_fail_count,
+       reactivated_at,
+       comeback_bonus_granted_at,
+       comeback_bonus_amount,
+       created_at,
+       updated_at
+     FROM user_activity_lifecycle
+     WHERE discord_user_id = $1`,
+    [uid]
+  );
+  return normalizeUserActivityLifecycle(row);
+}
+
+export async function markUserInactiveDmResult(discordUserId, { sent = false, timestamp = Math.floor(Date.now() / 1000) } = {}) {
+  const uid = String(discordUserId || '').trim();
+  if (!uid) return null;
+  const ts = Number.isFinite(Number(timestamp)) ? Math.floor(Number(timestamp)) : Math.floor(Date.now() / 1000);
+  const row = sent
+    ? await q1(
+      `UPDATE user_activity_lifecycle
+       SET inactive_dm_sent_at = TO_TIMESTAMP($2),
+           updated_at = NOW()
+       WHERE discord_user_id = $1
+       RETURNING
+         discord_user_id,
+         last_interaction_at,
+         is_inactive,
+         inactive_since,
+         inactive_dm_sent_at,
+         inactive_dm_fail_count,
+         reactivated_at,
+         comeback_bonus_granted_at,
+         comeback_bonus_amount,
+         created_at,
+         updated_at`,
+      [uid, ts]
+    )
+    : await q1(
+      `UPDATE user_activity_lifecycle
+       SET inactive_dm_fail_count = inactive_dm_fail_count + 1,
+           updated_at = NOW()
+       WHERE discord_user_id = $1
+       RETURNING
+         discord_user_id,
+         last_interaction_at,
+         is_inactive,
+         inactive_since,
+         inactive_dm_sent_at,
+         inactive_dm_fail_count,
+         reactivated_at,
+         comeback_bonus_granted_at,
+         comeback_bonus_amount,
+         created_at,
+         updated_at`,
+      [uid]
+    );
+  return normalizeUserActivityLifecycle(row);
+}
+
+export async function reactivateUserWithComebackBonus(
+  guildId,
+  discordUserId,
+  {
+    bonusAmount = 0,
+    reason = 'comeback bonus',
+    adminId = 'comeback:auto',
+    timestamp = Math.floor(Date.now() / 1000),
+    triggerCommand = null
+  } = {}
+) {
+  const gid = resolveGuildId(guildId);
+  const uid = String(discordUserId || '').trim();
+  if (!uid) throw new Error('LIFECYCLE_USER_REQUIRED');
+  const ts = Number.isFinite(Number(timestamp)) ? Math.floor(Number(timestamp)) : Math.floor(Date.now() / 1000);
+  const grant = Math.max(0, Math.floor(Number(bonusAmount || 0)));
+
+  return tx(async c => {
+    await c.query(
+      `INSERT INTO user_activity_lifecycle (discord_user_id, last_interaction_at, updated_at)
+       VALUES ($1, TO_TIMESTAMP($2), NOW())
+       ON CONFLICT (discord_user_id) DO NOTHING`,
+      [uid, ts]
+    );
+
+    const currentRes = await c.query(
+      `SELECT
+         discord_user_id,
+         last_interaction_at,
+         is_inactive,
+         inactive_since,
+         inactive_dm_sent_at,
+         inactive_dm_fail_count,
+         reactivated_at,
+         comeback_bonus_granted_at,
+         comeback_bonus_amount,
+         created_at,
+         updated_at
+       FROM user_activity_lifecycle
+       WHERE discord_user_id = $1
+       FOR UPDATE`,
+      [uid]
+    );
+    const current = currentRes.rows?.[0] || null;
+    if (!current) {
+      return {
+        reactivated: false,
+        bonusGranted: false,
+        bonusAmount: 0,
+        lifecycle: null
+      };
+    }
+
+    const isInactive = !!current.is_inactive;
+    if (!isInactive) {
+      return {
+        reactivated: false,
+        bonusGranted: false,
+        bonusAmount: 0,
+        lifecycle: normalizeUserActivityLifecycle(current)
+      };
+    }
+
+    const inactiveSinceEpoch = toEpochSeconds(current.inactive_since);
+    const bonusGrantedAtEpoch = toEpochSeconds(current.comeback_bonus_granted_at);
+    const eligibleByCycle = inactiveSinceEpoch != null && (bonusGrantedAtEpoch == null || bonusGrantedAtEpoch < inactiveSinceEpoch);
+    const shouldGrantBonus = grant > 0 && eligibleByCycle;
+
+    if (shouldGrantBonus) {
+      await c.query('INSERT INTO users (guild_id, discord_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [gid, uid]);
+      await c.query('UPDATE users SET chips = chips + $1, updated_at = NOW() WHERE guild_id = $2 AND discord_id = $3', [grant, gid, uid]);
+      await c.query(
+        'INSERT INTO transactions (guild_id, account, delta, reason, admin_id, currency) VALUES ($1,$2,$3,$4,$5,$6)',
+        [gid, uid, grant, reason || 'comeback bonus', adminId || null, 'CHIPS']
+      );
+    }
+
+    const updatedRes = await c.query(
+      `UPDATE user_activity_lifecycle
+       SET is_inactive = FALSE,
+           last_interaction_at = TO_TIMESTAMP($2),
+           reactivated_at = TO_TIMESTAMP($2),
+           comeback_bonus_granted_at = CASE WHEN $3::BOOLEAN THEN TO_TIMESTAMP($2) ELSE comeback_bonus_granted_at END,
+           comeback_bonus_amount = CASE WHEN $3::BOOLEAN THEN $4 ELSE comeback_bonus_amount END,
+           updated_at = NOW()
+       WHERE discord_user_id = $1
+       RETURNING
+         discord_user_id,
+         last_interaction_at,
+         is_inactive,
+         inactive_since,
+         inactive_dm_sent_at,
+         inactive_dm_fail_count,
+         reactivated_at,
+         comeback_bonus_granted_at,
+         comeback_bonus_amount,
+         created_at,
+         updated_at`,
+      [uid, ts, shouldGrantBonus, grant]
+    );
+
+    const lifecycle = normalizeUserActivityLifecycle(updatedRes.rows?.[0] || null);
+
+    await c.query(
+      `INSERT INTO user_activity_lifecycle_events (discord_user_id, event_type, metadata_json)
+       VALUES ($1, 'REACTIVATED', $2)`,
+      [uid, JSON.stringify({ triggerCommand: triggerCommand || null, timestamp: ts })]
+    );
+    if (shouldGrantBonus) {
+      await c.query(
+        `INSERT INTO user_activity_lifecycle_events (discord_user_id, event_type, metadata_json)
+         VALUES ($1, 'COMEBACK_BONUS_GRANTED', $2)`,
+        [uid, JSON.stringify({ amount: grant, reason: reason || 'comeback bonus', triggerCommand: triggerCommand || null, timestamp: ts })]
+      );
+    }
+
+    return {
+      reactivated: true,
+      bonusGranted: shouldGrantBonus,
+      bonusAmount: shouldGrantBonus ? grant : 0,
+      lifecycle
+    };
+  });
 }
 
 async function recordTxn(guildId, account, delta, reason, adminId, currency = 'CHIPS') {
@@ -1104,6 +1435,26 @@ export async function getGlobalPlayerCount() {
 
 export async function listAllUserIds() {
   const rows = await q('SELECT DISTINCT discord_id FROM users ORDER BY discord_id ASC');
+  return rows.map(row => String(row.discord_id));
+}
+
+export async function listBroadcastEligibleUserIds() {
+  const rows = await q(
+    `SELECT DISTINCT u.discord_id
+     FROM users u
+     LEFT JOIN user_activity_lifecycle l
+       ON l.discord_user_id = u.discord_id
+     WHERE COALESCE(l.is_inactive, FALSE) = FALSE
+       AND NOT EXISTS (
+         SELECT 1 FROM admin_users a
+         WHERE a.guild_id = u.guild_id AND a.user_id = u.discord_id
+       )
+       AND NOT EXISTS (
+         SELECT 1 FROM mod_users m
+         WHERE m.guild_id = u.guild_id AND m.user_id = u.discord_id
+       )
+     ORDER BY u.discord_id ASC`
+  );
   return rows.map(row => String(row.discord_id));
 }
 

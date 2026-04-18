@@ -24,6 +24,8 @@ import {
   pruneUserInteractionEvents,
   getGlobalPlayerCount,
   setBotStatusSnapshot,
+  touchUserActivityLifecycle,
+  reactivateUserWithComebackBonus,
   getUserNewsSettings,
   markUserNewsDelivered
 } from './db/db.auto.mjs';
@@ -211,6 +213,8 @@ const VOTE_REWARD_DM_CONCURRENCY = Math.max(1, Math.min(10, Number(process.env.V
 const HOLDEM_ORPHAN_SWEEP_START_DELAY_MS = Math.max(1_000, Number(process.env.HOLDEM_ORPHAN_SWEEP_START_DELAY_MS || 20_000));
 const HOLDEM_ORPHAN_SWEEP_GUILD_BATCH_SIZE = Math.max(1, Math.min(10, Number(process.env.HOLDEM_ORPHAN_SWEEP_GUILD_BATCH_SIZE || 2)));
 const HOLDEM_ORPHAN_SWEEP_BATCH_INTERVAL_MS = Math.max(100, Number(process.env.HOLDEM_ORPHAN_SWEEP_BATCH_INTERVAL_MS || 1_500));
+const COMEBACK_BONUS_CHIPS = Math.max(0, Number(process.env.COMEBACK_BONUS_CHIPS || 10_000));
+const COMEBACK_BONUS_ENABLED = String(process.env.COMEBACK_BONUS_ENABLED ?? 'true').toLowerCase() !== 'false';
 
 const SETTINGS_MUTATION_COMMANDS = new Set([
   'setgamelogchannel',
@@ -1285,6 +1289,59 @@ async function maybeSendChampionNotice(interaction) {
   }
 }
 
+function buildComebackWelcomeEmbed(interaction, result) {
+  const amount = Math.max(0, Number(result?.bonusAmount || 0));
+  const commandName = interaction?.commandName ? `/${interaction.commandName}` : 'Unknown';
+  const ts = Math.floor(Date.now() / 1000);
+  const fields = [
+    { name: 'Bonus Granted', value: amount > 0 ? chipsAmount(amount) : 'No bonus this cycle', inline: true },
+    { name: 'Triggered By', value: commandName, inline: true },
+    { name: 'Time', value: `<t:${ts}:F>`, inline: false }
+  ];
+  return new EmbedBuilder()
+    .setColor(0x2ECC71)
+    .setTitle('Welcome Back to Semuta Casino')
+    .setDescription('Your inactivity status has been cleared and your comeback flow is complete.')
+    .addFields(fields);
+}
+
+async function maybeHandleInactivityLifecycle(interaction) {
+  try {
+    if (!interaction || typeof interaction.isChatInputCommand !== 'function' || !interaction.isChatInputCommand()) return null;
+    const userId = interaction.user?.id;
+    if (!userId) return null;
+    const guildId = interaction.guild?.id || null;
+    if (await hasModeratorAccess(guildId, userId)) return null;
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    const touched = await touchUserActivityLifecycle(userId, nowSec);
+    if (!touched?.is_inactive) return null;
+
+    const result = await reactivateUserWithComebackBonus(guildId, userId, {
+      bonusAmount: COMEBACK_BONUS_ENABLED ? COMEBACK_BONUS_CHIPS : 0,
+      reason: 'comeback bonus',
+      adminId: 'comeback:auto',
+      timestamp: nowSec,
+      triggerCommand: interaction.commandName || null
+    });
+    if (!result?.reactivated) return null;
+    return result;
+  } catch (err) {
+    console.error('Inactivity lifecycle handling failed', err);
+    return null;
+  }
+}
+
+async function maybeSendComebackWelcomeDm(interaction, result) {
+  try {
+    if (!result?.reactivated) return;
+    const embed = buildComebackWelcomeEmbed(interaction, result);
+    await interaction.user.send({ embeds: [embed] });
+  } catch (err) {
+    console.warn(`Failed to send comeback welcome DM to ${interaction?.user?.id || 'unknown'}`, err);
+  }
+}
+
 const commandHandlers = {
   ping: cmdPing,
   status: cmdStatus,
@@ -1368,6 +1425,8 @@ client.on(Events.InteractionCreate, async interaction => {
         console.error('endActiveSessionForUser (command) error:', err);
       });
 
+      const comebackResult = await maybeHandleInactivityLifecycle(interaction);
+
       // Modular command dispatch
       const handler = commandHandlers[interaction.commandName];
       if (typeof handler === 'function') {
@@ -1383,9 +1442,11 @@ client.on(Events.InteractionCreate, async interaction => {
           clearUserNewsState(interaction.user?.id || null);
         }
         await maybeSendNewsReminder(interaction);
+        await maybeSendComebackWelcomeDm(interaction, comebackResult);
         return result;
       }
       // Fallback if no handler registered
+      await maybeSendComebackWelcomeDm(interaction, comebackResult);
       return interaction.reply({ content: '❌ Unknown command.', ephemeral: true });
 
       }

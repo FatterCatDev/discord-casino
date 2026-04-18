@@ -140,6 +140,53 @@ test('pruneUserInteractionEvents is exported and batch-limited', async () => {
   assert.match(autoContent, /export const pruneUserInteractionEvents = pick\('pruneUserInteractionEvents'\);/);
 });
 
+test('inactivity lifecycle schema and helper exports exist for cleanup/comeback flow', async () => {
+  const dbContent = await readRepoFile('src/db/db.pg.mjs');
+  const autoContent = await readRepoFile('src/db/db.auto.mjs');
+  assert.match(dbContent, /CREATE TABLE IF NOT EXISTS user_activity_lifecycle/);
+  assert.match(dbContent, /CREATE TABLE IF NOT EXISTS user_activity_lifecycle_events/);
+  assert.match(dbContent, /CREATE INDEX IF NOT EXISTS idx_user_activity_last_interaction/);
+  assert.match(dbContent, /CREATE INDEX IF NOT EXISTS idx_user_activity_inactive/);
+  assert.match(dbContent, /export async function touchUserActivityLifecycle\(/);
+  assert.match(dbContent, /export async function listUsersToMarkInactive\(/);
+  assert.match(dbContent, /export async function markUsersInactive\(/);
+  assert.match(dbContent, /export async function markUserInactiveDmResult\(/);
+  assert.match(dbContent, /export async function recordUserActivityLifecycleEvent\(/);
+  assert.match(dbContent, /export async function reactivateUserWithComebackBonus\(/);
+  assert.match(autoContent, /export const touchUserActivityLifecycle = pick\('touchUserActivityLifecycle'\);/);
+  assert.match(autoContent, /export const getUserActivityLifecycle = pick\('getUserActivityLifecycle'\);/);
+  assert.match(autoContent, /export const listUsersToMarkInactive = pick\('listUsersToMarkInactive'\);/);
+  assert.match(autoContent, /export const markUsersInactive = pick\('markUsersInactive'\);/);
+  assert.match(autoContent, /export const markUserInactiveDmResult = pick\('markUserInactiveDmResult'\);/);
+  assert.match(autoContent, /export const recordUserActivityLifecycleEvent = pick\('recordUserActivityLifecycleEvent'\);/);
+  assert.match(autoContent, /export const reactivateUserWithComebackBonus = pick\('reactivateUserWithComebackBonus'\);/);
+});
+
+test('interaction flow handles inactivity reactivation and comeback DM wiring', async () => {
+  const index = await readRepoFile('src/index.mjs');
+  assert.match(index, /touchUserActivityLifecycle,/);
+  assert.match(index, /reactivateUserWithComebackBonus,/);
+  assert.match(index, /const COMEBACK_BONUS_CHIPS =/);
+  assert.match(index, /const COMEBACK_BONUS_ENABLED =/);
+  assert.match(index, /async function maybeHandleInactivityLifecycle\(interaction\)/);
+  assert.match(index, /const touched = await touchUserActivityLifecycle\(userId, nowSec\);/);
+  assert.match(index, /const result = await reactivateUserWithComebackBonus\(guildId, userId, \{/);
+  assert.match(index, /async function maybeSendComebackWelcomeDm\(interaction, result\)/);
+  assert.match(index, /const comebackResult = await maybeHandleInactivityLifecycle\(interaction\);/);
+  assert.match(index, /await maybeSendComebackWelcomeDm\(interaction, comebackResult\);/);
+});
+
+test('broadcast script uses active lifecycle eligible audience list', async () => {
+  const scriptContent = await readRepoFile('scripts/broadcast-job-promo.mjs');
+  const dbContent = await readRepoFile('src/db/db.pg.mjs');
+  const autoContent = await readRepoFile('src/db/db.auto.mjs');
+  assert.match(scriptContent, /import \{ listBroadcastEligibleUserIds \} from '\.\.\/src\/db\/db\.auto\.mjs';/);
+  assert.match(scriptContent, /const rawIds = await listBroadcastEligibleUserIds\(\);/);
+  assert.match(dbContent, /export async function listBroadcastEligibleUserIds\(/);
+  assert.match(dbContent, /COALESCE\(l\.is_inactive, FALSE\) = FALSE/);
+  assert.match(autoContent, /export const listBroadcastEligibleUserIds = pick\('listBroadcastEligibleUserIds'\);/);
+});
+
 test('cartel read paths do not perform implicit row-creation writes', async () => {
   const content = await readRepoFile('src/db/db.pg.mjs');
   const poolFn = content.match(/export async function getCartelPool\([\s\S]*?\n}\n/);
@@ -186,7 +233,6 @@ test('paused cartel dealers freeze upkeep remaining time and restore it on resum
 test('cartel warehouse expiration is configurable and applied safely during production ticks', async () => {
   const constants = await readRepoFile('src/cartel/constants.mjs');
   const service = await readRepoFile('src/cartel/service.mjs');
-  const todo = await readRepoFile('docs/TO-DO.md');
   assert.match(constants, /export const CARTEL_WAREHOUSE_EXPIRATION_ENABLED =/);
   assert.match(constants, /export const CARTEL_WAREHOUSE_EXPIRATION_CADENCE_SECONDS =/);
   assert.match(constants, /export const CARTEL_WAREHOUSE_EXPIRATION_GRAMS_PER_CADENCE =/);
@@ -195,10 +241,6 @@ test('cartel warehouse expiration is configurable and applied safely during prod
   assert.match(service, /const expiredMg = calculateWarehouseExpirationMg\(currentWarehouse, expirationElapsedSeconds\);/);
   assert.match(service, /const warehouseAfterExpiration = Math\.max\(0, currentWarehouse - expiredMg\);/);
   assert.match(service, /console\.info\('Cartel warehouse expiration applied'/);
-  assert.match(todo, /\[x\] Add configurable expiration settings for warehouse Semuta/);
-  assert.match(todo, /\[x\] Define expiration cadence \(per tick\/hour\/day\)\./);
-  assert.match(todo, /\[x\] Apply expiration decay safely to warehouse Semuta\./);
-  assert.match(todo, /\[x\] Log expiration amounts for balancing and debugging\./);
 });
 
 test('warehouse raid resolution is scoped per action and surfaced in user messaging', async () => {
@@ -206,7 +248,6 @@ test('warehouse raid resolution is scoped per action and surfaced in user messag
   const commands = await readRepoFile('src/commands/cartel.mjs');
   const db = await readRepoFile('src/db/db.pg.mjs');
   const adapter = await readRepoFile('src/db/db.auto.mjs');
-  const todo = await readRepoFile('docs/TO-DO.md');
   assert.match(service, /async function resolveWarehouseRaidAfterAction\(guildId, userId, actionType, postInvestor, scope = \{\}, options = \{\}\)/);
   assert.match(service, /const scopeWarehouseMg = Math\.max\(0, Math\.floor\(Number\(scope\?\.warehouseMg \|\| 0\)\)\);/);
   assert.match(service, /const scopeCollectedMg = Math\.max\(0, Math\.floor\(Number\(scope\?\.collectedMg \|\| 0\)\)\);/);
@@ -231,10 +272,6 @@ test('warehouse raid resolution is scoped per action and surfaced in user messag
   assert.match(commands, /await logCartelActivity\(interaction, interceptLog\)\.catch\(\(\) => \{\}\);/);
   assert.match(commands, /\.\.\.\(raidEmbed \? \{ embeds: \[raidEmbed\] \} : \{\}\)/);
   assert.match(commands, /const raidLines = buildWarehouseRaidLines\(result\.raid, chipsFmt\);/);
-  assert.match(todo, /\[x\] Implement raid scope calculation per action type \(collect, burn, export\)\./);
-  assert.match(todo, /\[x\] Apply confiscation and fine atomically in storage layer\./);
-  assert.match(todo, /\- A raid check executes before one of these actions completes:/);
-  assert.match(todo, /\[x\] Add raid trigger warning message: police are coming\./);
 });
 
 test('admin/mod queries are scoped by guild_id to prevent global reads', async () => {
@@ -305,14 +342,14 @@ test('session cleanup detaches state before async work', async () => {
   assert.match(loggingContent, /activeSessions\.delete\(key\);/);
 });
 
-test('todo list includes warehouse raid implementation checklist', async () => {
+test('todo list tracks inactive cleanup and comeback bonus implementation checklist', async () => {
   const content = await readRepoFile('docs/TO-DO.md');
-  assert.match(content, /# Warehouse Raid System Design \+ Implementation Checklist/);
+  assert.match(content, /# Inactive User Cleanup \+ Comeback Bonus Checklist/);
   assert.match(content, /## 3\) Functional Requirements/);
-  assert.match(content, /\[x\] Add configurable expiration settings for warehouse Semuta/);
-  assert.match(content, /\[x\] Define expiration cadence \(per tick\/hour\/day\)\./);
-  assert.match(content, /\[x\] Apply expiration decay safely to warehouse Semuta\./);
-  assert.match(content, /\[x\] Log expiration amounts for balancing and debugging\./);
+  assert.match(content, /### 3\.2 Inactive DM Flow/);
+  assert.match(content, /### Broadcast Script Integration/);
+  assert.match(content, /INACTIVE_DAYS_THRESHOLD=30/);
+  assert.match(content, /COMEBACK_BONUS_CHIPS=10000/);
 });
 
 test('champion role sync avoids full guild member fetch on startup', async () => {

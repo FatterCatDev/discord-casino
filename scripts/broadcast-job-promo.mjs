@@ -3,7 +3,7 @@ import 'dotenv/config';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { Client, GatewayIntentBits, Partials } from 'discord.js';
-import { listAllUserIds } from '../src/db/db.auto.mjs';
+import { listBroadcastEligibleUserIds } from '../src/db/db.auto.mjs';
 
 const FALLBACK_MESSAGE = [
   '💼 **Semuta Casino Job System Is Live**',
@@ -81,7 +81,7 @@ async function main() {
   await client.login(token);
   console.log(`Logged in as ${client.user?.tag ?? client.user?.id ?? 'unknown user'}`);
 
-  const rawIds = await listAllUserIds();
+  const rawIds = await listBroadcastEligibleUserIds();
   const uniqueIds = Array.from(new Set((rawIds || []).map(id => String(id).trim()).filter(Boolean)));
   console.log(`Preparing to DM ${uniqueIds.length} unique user(s). Delay per DM: ${delayMs}ms`);
 
