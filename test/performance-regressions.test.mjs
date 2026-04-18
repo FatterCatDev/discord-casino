@@ -169,6 +169,20 @@ test('cartel worker uses paged active-investor reads and cached guild discovery'
   assert.match(adapter, /export const listCartelActiveInvestorsPage = pick\('listCartelActiveInvestorsPage'\);/);
 });
 
+test('paused cartel dealers freeze upkeep remaining time and restore it on resume payment', async () => {
+  const service = await readRepoFile('src/cartel/service.mjs');
+  const db = await readRepoFile('src/db/db.pg.mjs');
+  const adapter = await readRepoFile('src/db/db.auto.mjs');
+  assert.match(db, /paused_upkeep_remaining_seconds INTEGER NOT NULL DEFAULT 0/);
+  assert.match(db, /export async function cartelPauseDealerWithFrozenUpkeep\(/);
+  assert.match(db, /paused_upkeep_remaining_seconds = 0/);
+  assert.match(adapter, /export const cartelPauseDealerWithFrozenUpkeep = pick\('cartelPauseDealerWithFrozenUpkeep'\);/);
+  assert.match(service, /await cartelPauseDealerWithFrozenUpkeep\(guildId, dealerId, remainingUpkeepSeconds\)/);
+  assert.match(service, /const frozenRemainingSeconds = Math\.max\(0, Number\(dealer\.paused_upkeep_remaining_seconds \|\| 0\)\);/);
+  assert.match(service, /const baseRemainingSeconds = status === 'PAUSED' \? frozenRemainingSeconds : liveRemainingSeconds;/);
+  assert.match(service, /const nextDue = nowSeconds \+ baseRemainingSeconds \+ secondsPurchased;/);
+});
+
 test('cartel warehouse expiration is configurable and applied safely during production ticks', async () => {
   const constants = await readRepoFile('src/cartel/constants.mjs');
   const service = await readRepoFile('src/cartel/service.mjs');

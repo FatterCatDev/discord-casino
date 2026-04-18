@@ -22,8 +22,8 @@ import {
   listCartelDealers,
   listCartelDealersForUser,
   getCartelDealer,
-  cartelSetDealerStatus,
   cartelSetDealerUpkeep,
+  cartelPauseDealerWithFrozenUpkeep,
   cartelRecordDealerSale,
   cartelDeleteDealer,
   cartelDeleteDealersForUser,
@@ -1177,7 +1177,7 @@ export async function runDealerAutoSales(
       const autoAmount = Math.max(1, Math.round(calculateDealerUpkeepChipsPerHour(dealer)));
       const autoSeconds = calculateDealerSecondsPurchased(dealer, autoAmount);
       if (autoSeconds <= 0) {
-        await cartelSetDealerStatus(guildId, dealer.dealer_id, 'PAUSED');
+        await cartelPauseDealerWithFrozenUpkeep(guildId, dealer.dealer_id, 0);
         dealer.status = 'PAUSED';
         continue;
       }
@@ -1189,7 +1189,7 @@ export async function runDealerAutoSales(
         await recordCartelTransaction(guildId, dealer.user_id, 'DEALER_UPKEEP_AUTO', autoAmount, 0, { dealerId: dealer.dealer_id, secondsPurchased: autoSeconds });
       } catch (err) {
         if (isDbError(err, 'INSUFFICIENT_USER')) {
-          await cartelSetDealerStatus(guildId, dealer.dealer_id, 'PAUSED');
+          await cartelPauseDealerWithFrozenUpkeep(guildId, dealer.dealer_id, 0);
           dealer.status = 'PAUSED';
           continue;
         }
@@ -1363,8 +1363,11 @@ export async function payCartelDealerUpkeep(guildId, userId, dealerId, chipAmoun
   }
   const nowSeconds = Math.floor(Date.now() / 1000);
   const currentDue = Number(dealer.upkeep_due_at || 0);
-  const baseDue = currentDue > nowSeconds ? currentDue : nowSeconds;
-  const nextDue = baseDue + secondsPurchased;
+  const liveRemainingSeconds = currentDue > nowSeconds ? (currentDue - nowSeconds) : 0;
+  const frozenRemainingSeconds = Math.max(0, Number(dealer.paused_upkeep_remaining_seconds || 0));
+  const status = String(dealer.status || '').toUpperCase();
+  const baseRemainingSeconds = status === 'PAUSED' ? frozenRemainingSeconds : liveRemainingSeconds;
+  const nextDue = nowSeconds + baseRemainingSeconds + secondsPurchased;
   await recordCartelTransaction(guildId, userId, 'DEALER_UPKEEP', chips, 0, { dealerId, secondsPurchased });
   const updated = await cartelSetDealerUpkeep(guildId, dealerId, nextDue, 'ACTIVE');
   return {
@@ -1404,18 +1407,25 @@ export async function pauseCartelDealer(guildId, userId, dealerId) {
     throw new CartelError('CARTEL_DEALER_NOT_FOUND', 'Dealer not found.');
   }
   const nextStatus = 'PAUSED';
-  const updated = await cartelSetDealerStatus(guildId, dealerId, nextStatus);
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const dueAt = Number(dealer.upkeep_due_at || 0);
+  const remainingUpkeepSeconds = dueAt > nowSeconds ? (dueAt - nowSeconds) : 0;
+  const changed = String(dealer.status || '').toUpperCase() !== nextStatus;
+  const updated = changed
+    ? await cartelPauseDealerWithFrozenUpkeep(guildId, dealerId, remainingUpkeepSeconds)
+    : dealer;
   await recordCartelTransaction(guildId, userId, 'DEALER_PAUSE', 0, 0, {
     dealerId,
     tier: dealer.tier,
     fromStatus: dealer.status,
     toStatus: nextStatus,
-    contactName: dealer.display_name || null
+    contactName: dealer.display_name || null,
+    remainingUpkeepSeconds
   });
   return {
     ...(updated || dealer),
     tierInfo: CARTEL_DEALER_TIERS_BY_ID[dealer.tier] || null,
-    changed: String(dealer.status || '').toUpperCase() !== nextStatus
+    changed
   };
 }
 
@@ -1442,16 +1452,20 @@ export async function pauseAllCartelDealers(guildId, userId) {
   if (!dealers.length) {
     throw new CartelError('CARTEL_NO_DEALERS', 'You have no dealers to pause.');
   }
+  const nowSeconds = Math.floor(Date.now() / 1000);
   const paused = [];
   for (const dealer of dealers) {
     const nextStatus = 'PAUSED';
     const changed = String(dealer.status || '').toUpperCase() !== nextStatus;
+    const dueAt = Number(dealer.upkeep_due_at || 0);
+    const remainingUpkeepSeconds = dueAt > nowSeconds ? (dueAt - nowSeconds) : 0;
     if (changed) {
-      await cartelSetDealerStatus(guildId, dealer.dealer_id, nextStatus);
+      await cartelPauseDealerWithFrozenUpkeep(guildId, dealer.dealer_id, remainingUpkeepSeconds);
     }
     paused.push({
       ...dealer,
       status: nextStatus,
+      paused_upkeep_remaining_seconds: remainingUpkeepSeconds,
       changed,
       tierInfo: CARTEL_DEALER_TIERS_BY_ID[dealer.tier] || null
     });

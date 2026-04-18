@@ -136,6 +136,7 @@ export const listCartelDealersForUser = pick('listCartelDealersForUser');
 export const getCartelDealer = pick('getCartelDealer');
 export const cartelSetDealerStatus = pick('cartelSetDealerStatus');
 export const cartelSetDealerUpkeep = pick('cartelSetDealerUpkeep');
+export const cartelPauseDealerWithFrozenUpkeep = pick('cartelPauseDealerWithFrozenUpkeep');
 export const cartelRecordDealerSale = pick('cartelRecordDealerSale');
 export const cartelDeleteDealer = pick('cartelDeleteDealer');
 export const cartelDeleteDealersForUser = pick('cartelDeleteDealersForUser');

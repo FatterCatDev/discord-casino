@@ -386,6 +386,7 @@ async function ensureCartelTables() {
       upkeep_cost BIGINT NOT NULL,
       upkeep_interval_seconds INTEGER NOT NULL DEFAULT 3600,
       upkeep_due_at BIGINT NOT NULL,
+      paused_upkeep_remaining_seconds INTEGER NOT NULL DEFAULT 0,
       bust_until BIGINT,
       last_sold_at BIGINT,
       lifetime_sold_mg BIGINT NOT NULL DEFAULT 0,
@@ -463,6 +464,9 @@ async function ensureCartelTables() {
   }
   if (!(await tableHasColumn('cartel_dealers', 'chip_remainder_units'))) {
     await q('ALTER TABLE cartel_dealers ADD COLUMN chip_remainder_units BIGINT NOT NULL DEFAULT 0');
+  }
+  if (!(await tableHasColumn('cartel_dealers', 'paused_upkeep_remaining_seconds'))) {
+    await q('ALTER TABLE cartel_dealers ADD COLUMN paused_upkeep_remaining_seconds INTEGER NOT NULL DEFAULT 0');
   }
   if (!(await tableHasColumn('cartel_investors', 'sale_multiplier_bps'))) {
     await q('ALTER TABLE cartel_investors ADD COLUMN sale_multiplier_bps BIGINT NOT NULL DEFAULT 0');
@@ -892,6 +896,7 @@ function normalizeCartelDealer(row) {
     upkeep_cost: Number(row.upkeep_cost || 0),
     upkeep_interval_seconds: Number(row.upkeep_interval_seconds || 3600),
     upkeep_due_at: row.upkeep_due_at !== null && row.upkeep_due_at !== undefined ? Number(row.upkeep_due_at) : null,
+    paused_upkeep_remaining_seconds: Math.max(0, Number(row.paused_upkeep_remaining_seconds || 0)),
     bust_until: row.bust_until !== null && row.bust_until !== undefined ? Number(row.bust_until) : null,
     last_sold_at: row.last_sold_at !== null && row.last_sold_at !== undefined ? Number(row.last_sold_at) : null,
     lifetime_sold_mg: Number(row.lifetime_sold_mg || 0),
@@ -2086,7 +2091,7 @@ export async function cartelDeleteDealersForUser(guildId, userId) {
 export async function listCartelDealers(guildId) {
   const gid = resolveGuildId(guildId);
   const rows = await q(
-    'SELECT dealer_id, guild_id, user_id, tier, trait, display_name, status, hourly_sell_cap_mg, price_multiplier_bps, upkeep_cost, upkeep_interval_seconds, upkeep_due_at, bust_until, last_sold_at, lifetime_sold_mg, pending_chips, pending_mg, chip_remainder_units, created_at, updated_at FROM cartel_dealers WHERE guild_id = $1 ORDER BY created_at ASC',
+    'SELECT dealer_id, guild_id, user_id, tier, trait, display_name, status, hourly_sell_cap_mg, price_multiplier_bps, upkeep_cost, upkeep_interval_seconds, upkeep_due_at, paused_upkeep_remaining_seconds, bust_until, last_sold_at, lifetime_sold_mg, pending_chips, pending_mg, chip_remainder_units, created_at, updated_at FROM cartel_dealers WHERE guild_id = $1 ORDER BY created_at ASC',
     [gid]
   );
   return rows.map(normalizeCartelDealer).filter(Boolean);
@@ -2097,7 +2102,7 @@ export async function listCartelDealersForUser(guildId, userId) {
   const uid = String(userId || '').trim();
   if (!uid) return [];
   const rows = await q(
-    'SELECT dealer_id, guild_id, user_id, tier, trait, display_name, status, hourly_sell_cap_mg, price_multiplier_bps, upkeep_cost, upkeep_interval_seconds, upkeep_due_at, bust_until, last_sold_at, lifetime_sold_mg, pending_chips, pending_mg, chip_remainder_units, created_at, updated_at FROM cartel_dealers WHERE guild_id = $1 AND user_id = $2 ORDER BY created_at ASC',
+    'SELECT dealer_id, guild_id, user_id, tier, trait, display_name, status, hourly_sell_cap_mg, price_multiplier_bps, upkeep_cost, upkeep_interval_seconds, upkeep_due_at, paused_upkeep_remaining_seconds, bust_until, last_sold_at, lifetime_sold_mg, pending_chips, pending_mg, chip_remainder_units, created_at, updated_at FROM cartel_dealers WHERE guild_id = $1 AND user_id = $2 ORDER BY created_at ASC',
     [gid, uid]
   );
   return rows.map(normalizeCartelDealer).filter(Boolean);
@@ -2107,7 +2112,7 @@ export async function getCartelDealer(guildId, dealerId) {
   const gid = resolveGuildId(guildId);
   if (!dealerId) return null;
   const row = await q1(
-    'SELECT dealer_id, guild_id, user_id, tier, trait, display_name, status, hourly_sell_cap_mg, price_multiplier_bps, upkeep_cost, upkeep_interval_seconds, upkeep_due_at, bust_until, last_sold_at, lifetime_sold_mg, pending_chips, pending_mg, chip_remainder_units, created_at, updated_at FROM cartel_dealers WHERE guild_id = $1 AND dealer_id = $2',
+    'SELECT dealer_id, guild_id, user_id, tier, trait, display_name, status, hourly_sell_cap_mg, price_multiplier_bps, upkeep_cost, upkeep_interval_seconds, upkeep_due_at, paused_upkeep_remaining_seconds, bust_until, last_sold_at, lifetime_sold_mg, pending_chips, pending_mg, chip_remainder_units, created_at, updated_at FROM cartel_dealers WHERE guild_id = $1 AND dealer_id = $2',
     [gid, dealerId]
   );
   return normalizeCartelDealer(row);
@@ -2125,7 +2130,18 @@ export async function cartelSetDealerUpkeep(guildId, dealerId, upkeepDueAt, stat
   if (!dealerId) throw new Error('CARTEL_DEALER_REQUIRED');
   const due = upkeepDueAt !== null && upkeepDueAt !== undefined ? Math.floor(Number(upkeepDueAt)) : 0;
   const state = status || 'ACTIVE';
-  await q('UPDATE cartel_dealers SET upkeep_due_at = $1, status = $2, updated_at = NOW() WHERE guild_id = $3 AND dealer_id = $4', [due, state, gid, dealerId]);
+  await q('UPDATE cartel_dealers SET upkeep_due_at = $1, status = $2, paused_upkeep_remaining_seconds = 0, updated_at = NOW() WHERE guild_id = $3 AND dealer_id = $4', [due, state, gid, dealerId]);
+  return getCartelDealer(gid, dealerId);
+}
+
+export async function cartelPauseDealerWithFrozenUpkeep(guildId, dealerId, remainingSeconds = 0) {
+  const gid = resolveGuildId(guildId);
+  if (!dealerId) throw new Error('CARTEL_DEALER_REQUIRED');
+  const remaining = Math.max(0, Math.floor(Number(remainingSeconds || 0)));
+  await q(
+    'UPDATE cartel_dealers SET status = $1, paused_upkeep_remaining_seconds = $2, updated_at = NOW() WHERE guild_id = $3 AND dealer_id = $4',
+    ['PAUSED', remaining, gid, dealerId]
+  );
   return getCartelDealer(gid, dealerId);
 }
 
