@@ -112,6 +112,12 @@ test('vote reward DM delivery uses bounded concurrency workers', async () => {
   assert.match(content, /await deliverVoteRewardDms\(client, dmEntries\);/);
 });
 
+test('vote reward defaults use 1000 chips base and DBL inherits it', async () => {
+  const votes = await readRepoFile('src/services/votes.mjs');
+  assert.match(votes, /const TOPGG_BASE_REWARD = toPositiveInt\(process\.env\.VOTE_REWARD_TOPGG, 1000\);/);
+  assert.match(votes, /const DBL_VOTE_REWARD = toPositiveInt\(process\.env\.DBL_VOTE_REWARD, TOPGG_BASE_REWARD\);/);
+});
+
 test('long-lived in-memory session maps enforce hard bounds', async () => {
   const session = await readRepoFile('src/games/session.mjs');
   const leaderboardSessions = await readRepoFile('src/lib/leaderboardSessions.mjs');
