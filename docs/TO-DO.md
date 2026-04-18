@@ -88,13 +88,13 @@ Implement the inactivity lifecycle described in the design doc so users inactive
 - [ ] Ensure script output reports skipped inactive/staff users.
 
 ### Configuration
-- [ ] Add and document env vars:
+- [x] Add and document env vars:
   - `INACTIVE_DAYS_THRESHOLD=30`
   - `COMEBACK_BONUS_CHIPS=10000`
   - `INACTIVE_SWEEP_INTERVAL_MS=21600000`
   - `INACTIVE_DM_ENABLED=true`
   - `COMEBACK_BONUS_ENABLED=true`
-- [ ] Validate env parsing and sane fallbacks.
+- [x] Validate env parsing and sane fallbacks.
 
 ## 8) Testing Checklist
 

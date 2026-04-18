@@ -5,11 +5,25 @@ import {
   recordUserActivityLifecycleEvent,
 } from '../db/db.auto.mjs';
 
-const INACTIVE_DAYS_THRESHOLD = Math.max(1, Number(process.env.INACTIVE_DAYS_THRESHOLD || 30));
-const INACTIVE_SWEEP_INTERVAL_MS = Math.max(60_000, Number(process.env.INACTIVE_SWEEP_INTERVAL_MS || 6 * 60 * 60 * 1000));
-const INACTIVE_DM_ENABLED = String(process.env.INACTIVE_DM_ENABLED ?? 'true').toLowerCase() !== 'false';
-const INACTIVE_SWEEP_BATCH_SIZE = Math.max(1, Number(process.env.INACTIVE_SWEEP_BATCH_SIZE || 100));
-const COMEBACK_BONUS_CHIPS = Math.max(0, Number(process.env.COMEBACK_BONUS_CHIPS || 10_000));
+function toMinInt(raw, fallback, min) {
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.floor(parsed));
+}
+
+function toBool(raw, fallback = true) {
+  if (raw == null || raw === '') return fallback;
+  const normalized = String(raw).trim().toLowerCase();
+  if (normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on') return true;
+  if (normalized === 'false' || normalized === '0' || normalized === 'no' || normalized === 'off') return false;
+  return fallback;
+}
+
+const INACTIVE_DAYS_THRESHOLD = toMinInt(process.env.INACTIVE_DAYS_THRESHOLD, 30, 1);
+const INACTIVE_SWEEP_INTERVAL_MS = toMinInt(process.env.INACTIVE_SWEEP_INTERVAL_MS, 6 * 60 * 60 * 1000, 60_000);
+const INACTIVE_DM_ENABLED = toBool(process.env.INACTIVE_DM_ENABLED, true);
+const INACTIVE_SWEEP_BATCH_SIZE = toMinInt(process.env.INACTIVE_SWEEP_BATCH_SIZE, 100, 1);
+const COMEBACK_BONUS_CHIPS = toMinInt(process.env.COMEBACK_BONUS_CHIPS, 10_000, 0);
 
 const INACTIVE_DM_MESSAGE =
   `You have not played Semuta Casino in over ${INACTIVE_DAYS_THRESHOLD} days.\n\n` +

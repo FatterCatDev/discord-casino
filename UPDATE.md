@@ -11,6 +11,8 @@ version: 1.3.3
 - Wired slash-command reactivation flow: inactive users are reactivated on command and can receive cycle-safe comeback bonus grants.
 - Added welcome-back DM embed delivery after successful reactivation handling.
 - Added inactivity sweep worker (`src/services/inactivity.mjs`) that periodically batch-marks inactive users, sends one-time inactive DMs, and records all DM outcomes and transition events to the lifecycle audit log.
+- Hardened inactivity/comeback env parsing with numeric and boolean fallbacks to avoid invalid config values causing runtime drift.
+- Documented inactivity lifecycle env controls in `docs/DEVELOPER_GUIDE.md`.
 
 ## Short Notes
 
@@ -18,7 +20,8 @@ version: 1.3.3
 - Step 1 shipped: lifecycle schema + helper plumbing + broadcast audience filtering.
 - Step 2 shipped: command-path reactivation and comeback bonus transaction path.
 - Step 3 shipped: inactivity sweep worker wired into bot startup with env-configurable interval, batch size, threshold, and DM enable gate.
-- Full regression suite passes at 40/40 with the new lifecycle, broadcast, and sweep worker checks.
+- Step 4 shipped: configuration hardening and developer-facing env documentation for inactivity lifecycle controls.
+- Full regression suite passes with lifecycle, broadcast, sweep worker, and env-doc coverage checks.
 
 ## Bug Fixes
 

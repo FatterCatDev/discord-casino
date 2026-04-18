@@ -214,8 +214,22 @@ const VOTE_REWARD_DM_CONCURRENCY = Math.max(1, Math.min(10, Number(process.env.V
 const HOLDEM_ORPHAN_SWEEP_START_DELAY_MS = Math.max(1_000, Number(process.env.HOLDEM_ORPHAN_SWEEP_START_DELAY_MS || 20_000));
 const HOLDEM_ORPHAN_SWEEP_GUILD_BATCH_SIZE = Math.max(1, Math.min(10, Number(process.env.HOLDEM_ORPHAN_SWEEP_GUILD_BATCH_SIZE || 2)));
 const HOLDEM_ORPHAN_SWEEP_BATCH_INTERVAL_MS = Math.max(100, Number(process.env.HOLDEM_ORPHAN_SWEEP_BATCH_INTERVAL_MS || 1_500));
-const COMEBACK_BONUS_CHIPS = Math.max(0, Number(process.env.COMEBACK_BONUS_CHIPS || 10_000));
-const COMEBACK_BONUS_ENABLED = String(process.env.COMEBACK_BONUS_ENABLED ?? 'true').toLowerCase() !== 'false';
+function toMinInt(raw, fallback, min) {
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.floor(parsed));
+}
+
+function toBool(raw, fallback = true) {
+  if (raw == null || raw === '') return fallback;
+  const normalized = String(raw).trim().toLowerCase();
+  if (normalized === 'true' || normalized === '1' || normalized === 'yes' || normalized === 'on') return true;
+  if (normalized === 'false' || normalized === '0' || normalized === 'no' || normalized === 'off') return false;
+  return fallback;
+}
+
+const COMEBACK_BONUS_CHIPS = toMinInt(process.env.COMEBACK_BONUS_CHIPS, 10_000, 0);
+const COMEBACK_BONUS_ENABLED = toBool(process.env.COMEBACK_BONUS_ENABLED, true);
 
 const SETTINGS_MUTATION_COMMANDS = new Set([
   'setgamelogchannel',

@@ -263,6 +263,15 @@ Vote integrations are in `src/services/votes.mjs`.
 - DiscordBotList: webhook verification and rewards.
 - Auto-redeem flow can be enabled via env vars.
 
+**Inactivity Lifecycle Configuration**
+Inactivity tracking, sweep behavior, and comeback bonus controls use the following env vars.
+- `INACTIVE_DAYS_THRESHOLD` (default `30`): minimum inactive days before a user is marked inactive.
+- `INACTIVE_SWEEP_INTERVAL_MS` (default `21600000`): interval for the inactivity sweep worker (minimum `60000`).
+- `INACTIVE_SWEEP_BATCH_SIZE` (default `100`): max users processed per sweep pass.
+- `INACTIVE_DM_ENABLED` (default `true`): enables one-time inactivity DM attempts on inactive transitions.
+- `COMEBACK_BONUS_ENABLED` (default `true`): enables comeback bonus grants when inactive users return.
+- `COMEBACK_BONUS_CHIPS` (default `10000`): comeback bonus amount in chips.
+
 **News and Updates**
 - Update notes: `UPDATE.md`
 - News items: `news.md`

@@ -198,6 +198,12 @@ test('inactivity sweep service exists with correct wiring and env guards', async
   assert.match(sweep, /INACTIVE_DAYS_THRESHOLD/);
   assert.match(sweep, /INACTIVE_SWEEP_INTERVAL_MS/);
   assert.match(sweep, /INACTIVE_DM_ENABLED/);
+  assert.match(sweep, /function toMinInt\(raw, fallback, min\)/);
+  assert.match(sweep, /function toBool\(raw, fallback = true\)/);
+  assert.match(sweep, /const INACTIVE_DAYS_THRESHOLD = toMinInt\(process\.env\.INACTIVE_DAYS_THRESHOLD, 30, 1\);/);
+  assert.match(sweep, /const INACTIVE_SWEEP_INTERVAL_MS = toMinInt\(process\.env\.INACTIVE_SWEEP_INTERVAL_MS, 6 \* 60 \* 60 \* 1000, 60_000\);/);
+  assert.match(sweep, /const INACTIVE_DM_ENABLED = toBool\(process\.env\.INACTIVE_DM_ENABLED, true\);/);
+  assert.match(sweep, /const INACTIVE_SWEEP_BATCH_SIZE = toMinInt\(process\.env\.INACTIVE_SWEEP_BATCH_SIZE, 100, 1\);/);
   assert.match(sweep, /export function startInactivitySweep\(client\)/);
   assert.match(sweep, /scanned=\$\{counters\.scanned\}/);
   assert.match(sweep, /newInactive=\$\{counters\.newInactive\}/);
@@ -207,6 +213,21 @@ test('inactivity sweep service exists with correct wiring and env guards', async
   // wired in bot startup
   assert.match(index, /import \{ startInactivitySweep \} from '\.\/services\/inactivity\.mjs';/);
   assert.match(index, /startInactivitySweep\(client\)/);
+  assert.match(index, /function toMinInt\(raw, fallback, min\)/);
+  assert.match(index, /function toBool\(raw, fallback = true\)/);
+  assert.match(index, /const COMEBACK_BONUS_CHIPS = toMinInt\(process\.env\.COMEBACK_BONUS_CHIPS, 10_000, 0\);/);
+  assert.match(index, /const COMEBACK_BONUS_ENABLED = toBool\(process\.env\.COMEBACK_BONUS_ENABLED, true\);/);
+});
+
+test('developer guide documents inactivity lifecycle env configuration', async () => {
+  const guide = await readRepoFile('docs/DEVELOPER_GUIDE.md');
+  assert.match(guide, /\*\*Inactivity Lifecycle Configuration\*\*/);
+  assert.match(guide, /INACTIVE_DAYS_THRESHOLD/);
+  assert.match(guide, /INACTIVE_SWEEP_INTERVAL_MS/);
+  assert.match(guide, /INACTIVE_SWEEP_BATCH_SIZE/);
+  assert.match(guide, /INACTIVE_DM_ENABLED/);
+  assert.match(guide, /COMEBACK_BONUS_ENABLED/);
+  assert.match(guide, /COMEBACK_BONUS_CHIPS/);
 });
 
 test('cartel read paths do not perform implicit row-creation writes', async () => {
