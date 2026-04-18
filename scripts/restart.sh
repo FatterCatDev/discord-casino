@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Usage: npm run restart [service-name]
-# Default systemd service name is "discord-casino". Override by arg or SERVICE_NAME env.
+# Usage: npm run restart [service-name] [api-service-name]
+# Defaults are "discord-casino" for the bot and "discord-casino-api" for the API.
+# Override with args or SERVICE_NAME/API_SERVICE_NAME env vars.
 
 SERVICE_NAME="${1:-${SERVICE_NAME:-discord-casino}}"
+API_SERVICE_NAME="${2:-${API_SERVICE_NAME:-discord-casino-api}}"
 
 log() { printf "[restart] %s\n" "$*"; }
 
@@ -29,8 +31,24 @@ if command -v systemctl >/dev/null 2>&1; then
       sudo systemctl start "$SERVICE_NAME"
       log "Started $SERVICE_NAME"
     fi
+
+    if [[ "$API_SERVICE_NAME" != "$SERVICE_NAME" ]] && (systemctl is-enabled --quiet "$API_SERVICE_NAME" 2>/dev/null || systemctl status "$API_SERVICE_NAME" >/dev/null 2>&1); then
+      if systemctl is-active --quiet "$API_SERVICE_NAME"; then
+        sudo systemctl restart "$API_SERVICE_NAME"
+        log "Restarted $API_SERVICE_NAME"
+      else
+        sudo systemctl start "$API_SERVICE_NAME"
+        log "Started $API_SERVICE_NAME"
+      fi
+    else
+      log "API service $API_SERVICE_NAME not found in systemd (or same as primary); skipping API restart."
+    fi
+
     # Show a brief status summary
     sudo systemctl status "$SERVICE_NAME" --no-pager -l | sed -n '1,30p' || true
+    if [[ "$API_SERVICE_NAME" != "$SERVICE_NAME" ]]; then
+      sudo systemctl status "$API_SERVICE_NAME" --no-pager -l | sed -n '1,30p' || true
+    fi
     exit 0
   else
     log "Service $SERVICE_NAME not found in systemd."
