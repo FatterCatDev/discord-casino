@@ -26,6 +26,7 @@ import {
   setBotStatusSnapshot,
   touchUserActivityLifecycle,
   reactivateUserWithComebackBonus,
+  markVoteRewardDmStatus,
   getUserNewsSettings,
   markUserNewsDelivered
 } from './db/db.auto.mjs';
@@ -449,6 +450,24 @@ async function sendVoteRewardDm(client, entry) {
   await user.send(message);
 }
 
+async function updateVoteRewardDmDeliveryStatus(entry, { sent, error = null } = {}) {
+  const voteRewardIds = Array.isArray(entry?.claimedRewards)
+    ? entry.claimedRewards
+        .map(reward => Number(reward?.id))
+        .filter(id => Number.isInteger(id) && id > 0)
+    : [];
+  if (!voteRewardIds.length) return;
+  try {
+    await markVoteRewardDmStatus(voteRewardIds, {
+      sent,
+      timestamp: Math.floor(Date.now() / 1000),
+      error: error?.message || error || null,
+    });
+  } catch (statusErr) {
+    console.error('Failed to persist vote reward DM delivery status', entry?.userId, statusErr);
+  }
+}
+
 async function deliverVoteRewardDms(client, entries, concurrency = VOTE_REWARD_DM_CONCURRENCY) {
   const queue = Array.isArray(entries) ? entries : [];
   if (!queue.length) return;
@@ -467,7 +486,9 @@ async function deliverVoteRewardDms(client, entries, concurrency = VOTE_REWARD_D
       if (!entry) return;
       try {
         await sendVoteRewardDm(client, entry);
+        await updateVoteRewardDmDeliveryStatus(entry, { sent: true });
       } catch (err) {
+        await updateVoteRewardDmDeliveryStatus(entry, { sent: false, error: err });
         console.error('Failed to DM vote reward notice', entry.userId, err);
       }
     }

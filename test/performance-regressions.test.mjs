@@ -104,12 +104,28 @@ test('holdem table allocation uses DB reservation instead of full channel fetch 
 
 test('vote reward DM delivery uses bounded concurrency workers', async () => {
   const content = await readRepoFile('src/index.mjs');
+  const db = await readRepoFile('src/db/db.pg.mjs');
+  const auto = await readRepoFile('src/db/db.auto.mjs');
+  const voteCommand = await readRepoFile('src/commands/vote.mjs');
   assert.match(content, /const VOTE_REWARD_DM_CONCURRENCY =/);
   assert.match(content, /async function sendVoteRewardDm\(client, entry\)/);
+  assert.match(content, /async function updateVoteRewardDmDeliveryStatus\(entry, \{ sent, error = null \} = \{\}\)/);
+  assert.match(content, /await markVoteRewardDmStatus\(voteRewardIds, \{/);
   assert.match(content, /async function deliverVoteRewardDms\(client, entries, concurrency = VOTE_REWARD_DM_CONCURRENCY\)/);
   assert.match(content, /const workerCount = Math\.min\(Math\.max\(1, Number\(concurrency\) \|\| 1\), queue\.length\);/);
   assert.match(content, /await Promise\.all\(workers\);/);
   assert.match(content, /await deliverVoteRewardDms\(client, dmEntries\);/);
+  assert.match(db, /ALTER TABLE vote_rewards ADD COLUMN dm_attempted_at BIGINT/);
+  assert.match(db, /ALTER TABLE vote_rewards ADD COLUMN dm_sent_at BIGINT/);
+  assert.match(db, /ALTER TABLE vote_rewards ADD COLUMN dm_failed_at BIGINT/);
+  assert.match(db, /ALTER TABLE vote_rewards ADD COLUMN dm_failure_reason TEXT/);
+  assert.match(db, /export async function getRecentClaimedVoteRewards\(/);
+  assert.match(db, /export async function markVoteRewardDmStatus\(/);
+  assert.match(auto, /export const getRecentClaimedVoteRewards = pick\('getRecentClaimedVoteRewards'\);/);
+  assert.match(auto, /export const markVoteRewardDmStatus = pick\('markVoteRewardDmStatus'\);/);
+  assert.match(voteCommand, /latestClaimedReward\?\.dm_failed_at/);
+  assert.match(voteCommand, /Your latest vote reward of/);
+  assert.match(voteCommand, /could not deliver the confirmation DM/);
 });
 
 test('vote reward defaults use 1000 chips base and DBL inherits it', async () => {

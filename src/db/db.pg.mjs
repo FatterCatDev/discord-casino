@@ -612,6 +612,38 @@ try {
 }
 
 try {
+  if (await tableExists('vote_rewards') && !(await tableHasColumn('vote_rewards', 'dm_attempted_at'))) {
+    await q('ALTER TABLE vote_rewards ADD COLUMN dm_attempted_at BIGINT');
+  }
+} catch (err) {
+  console.error('Failed to ensure dm_attempted_at column on vote_rewards:', err);
+}
+
+try {
+  if (await tableExists('vote_rewards') && !(await tableHasColumn('vote_rewards', 'dm_sent_at'))) {
+    await q('ALTER TABLE vote_rewards ADD COLUMN dm_sent_at BIGINT');
+  }
+} catch (err) {
+  console.error('Failed to ensure dm_sent_at column on vote_rewards:', err);
+}
+
+try {
+  if (await tableExists('vote_rewards') && !(await tableHasColumn('vote_rewards', 'dm_failed_at'))) {
+    await q('ALTER TABLE vote_rewards ADD COLUMN dm_failed_at BIGINT');
+  }
+} catch (err) {
+  console.error('Failed to ensure dm_failed_at column on vote_rewards:', err);
+}
+
+try {
+  if (await tableExists('vote_rewards') && !(await tableHasColumn('vote_rewards', 'dm_failure_reason'))) {
+    await q('ALTER TABLE vote_rewards ADD COLUMN dm_failure_reason TEXT');
+  }
+} catch (err) {
+  console.error('Failed to ensure dm_failure_reason column on vote_rewards:', err);
+}
+
+try {
   if (await tableExists('vote_rewards')) {
     await q('CREATE UNIQUE INDEX IF NOT EXISTS idx_vote_rewards_source_external ON vote_rewards(source, external_id) WHERE external_id IS NOT NULL');
   }
@@ -660,6 +692,12 @@ function mapVoteRow(row) {
     source: row.source,
     reward_amount: Number(row.reward_amount || 0),
     earned_at: Number(row.earned_at || 0),
+    claimed_at: row.claimed_at == null ? null : Number(row.claimed_at),
+    claim_guild_id: row.claim_guild_id || null,
+    dm_attempted_at: row.dm_attempted_at == null ? null : Number(row.dm_attempted_at),
+    dm_sent_at: row.dm_sent_at == null ? null : Number(row.dm_sent_at),
+    dm_failed_at: row.dm_failed_at == null ? null : Number(row.dm_failed_at),
+    dm_failure_reason: row.dm_failure_reason || null,
     metadata: safeParseJson(row.metadata_json)
   };
 }
@@ -1671,8 +1709,28 @@ export async function getPendingVoteRewards(discordId) {
   const userId = String(discordId || '').trim();
   if (!userId) return [];
   const rows = await q(
-    'SELECT id, source, reward_amount, earned_at, metadata_json FROM vote_rewards WHERE discord_user_id = $1 AND claimed_at IS NULL ORDER BY earned_at ASC, id ASC',
+    `SELECT id, source, reward_amount, earned_at, metadata_json,
+            claimed_at, claim_guild_id, dm_attempted_at, dm_sent_at, dm_failed_at, dm_failure_reason
+       FROM vote_rewards
+      WHERE discord_user_id = $1 AND claimed_at IS NULL
+      ORDER BY earned_at ASC, id ASC`,
     [userId]
+  );
+  return rows.map(mapVoteRow).filter(Boolean);
+}
+
+export async function getRecentClaimedVoteRewards(discordId, limit = 5) {
+  const userId = String(discordId || '').trim();
+  if (!userId) return [];
+  const n = Math.max(1, Math.min(20, Number(limit) || 5));
+  const rows = await q(
+    `SELECT id, source, reward_amount, earned_at, metadata_json,
+            claimed_at, claim_guild_id, dm_attempted_at, dm_sent_at, dm_failed_at, dm_failure_reason
+       FROM vote_rewards
+      WHERE discord_user_id = $1 AND claimed_at IS NOT NULL
+      ORDER BY claimed_at DESC, id DESC
+      LIMIT $2`,
+    [userId, n]
   );
   return rows.map(mapVoteRow).filter(Boolean);
 }
@@ -1688,7 +1746,11 @@ export async function redeemVoteRewards(_guildId, discordId, options = {}) {
   return tx(async c => {
     await c.query('INSERT INTO users (guild_id, discord_id) VALUES ($1,$2) ON CONFLICT DO NOTHING', [gid, userId]);
     const pendingRes = await c.query(
-      'SELECT id, source, reward_amount, earned_at, metadata_json FROM vote_rewards WHERE discord_user_id = $1 AND claimed_at IS NULL ORDER BY earned_at ASC, id ASC',
+      `SELECT id, source, reward_amount, earned_at, metadata_json,
+              claimed_at, claim_guild_id, dm_attempted_at, dm_sent_at, dm_failed_at, dm_failure_reason
+         FROM vote_rewards
+        WHERE discord_user_id = $1 AND claimed_at IS NULL
+        ORDER BY earned_at ASC, id ASC`,
       [userId]
     );
     const pendingRows = pendingRes.rows || [];
@@ -1738,6 +1800,35 @@ export async function redeemVoteRewards(_guildId, discordId, options = {}) {
       remaining: pendingRows.length - selected.length
     };
   });
+}
+
+export async function markVoteRewardDmStatus(voteRewardIds, options = {}) {
+  const ids = Array.isArray(voteRewardIds)
+    ? voteRewardIds
+        .map(id => Number(id))
+        .filter(id => Number.isInteger(id) && id > 0)
+    : [];
+  if (!ids.length) return 0;
+  const ts = Number.isInteger(options?.timestamp) && options.timestamp > 0
+    ? Number(options.timestamp)
+    : Math.floor(Date.now() / 1000);
+  const sent = options?.sent === true;
+  const failureReason = sent
+    ? null
+    : String(options?.error || options?.reason || '')
+        .trim()
+        .slice(0, 300) || null;
+  const result = await q(
+    `UPDATE vote_rewards
+        SET dm_attempted_at = $2,
+            dm_sent_at = $3,
+            dm_failed_at = $4,
+            dm_failure_reason = $5
+      WHERE id = ANY($1::bigint[])
+        AND claimed_at IS NOT NULL`,
+    [ids, ts, sent ? ts : null, sent ? null : ts, failureReason]
+  );
+  return Number(result?.rowCount || 0);
 }
 
 export async function listUsersWithPendingVoteRewards(limit = 50) {

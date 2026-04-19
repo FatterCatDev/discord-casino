@@ -13,6 +13,8 @@ version: 1.3.3
 - Added inactivity sweep worker (`src/services/inactivity.mjs`) that periodically batch-marks inactive users, sends one-time inactive DMs, and records all DM outcomes and transition events to the lifecycle audit log.
 - Hardened inactivity/comeback env parsing with numeric and boolean fallbacks to avoid invalid config values causing runtime drift.
 - Documented inactivity lifecycle env controls in `docs/DEVELOPER_GUIDE.md`.
+- Added inactivity lifecycle behavior tests covering threshold-based inactive marking and DM success/failure bookkeeping for sweep transitions.
+- Fixed vote reward confirmations by persisting DM delivery status for claimed vote rewards and surfacing credited fallback status in `/vote` when Discord blocks or drops the receipt DM.
 
 ## Short Notes
 
@@ -21,10 +23,12 @@ version: 1.3.3
 - Step 2 shipped: command-path reactivation and comeback bonus transaction path.
 - Step 3 shipped: inactivity sweep worker wired into bot startup with env-configurable interval, batch size, threshold, and DM enable gate.
 - Step 4 shipped: configuration hardening and developer-facing env documentation for inactivity lifecycle controls.
-- Full regression suite passes with lifecycle, broadcast, sweep worker, and env-doc coverage checks.
+- Step 5 in progress: behavior tests added for inactivity threshold and DM outcome bookkeeping.
+- Full regression suite passes at 44/44 with lifecycle, broadcast, sweep worker, env-doc, and inactivity behavior coverage checks.
 
 ## Bug Fixes
 
 <!-- Add one bullet per bug fix below. Example: - Fixed crash when playing blackjack in DMs -->
 - Fixed stale restart behavior by making `npm run restart` restart both bot and API systemd services by default.
+- Fixed vote reward confirmations silently disappearing by tracking vote DM delivery outcomes and exposing credited status in the vote command.
 

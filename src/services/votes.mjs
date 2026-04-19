@@ -1,4 +1,4 @@
-import { recordVoteReward, getPendingVoteRewards, redeemVoteRewards, listUsersWithPendingVoteRewards } from '../db/db.auto.mjs';
+import { recordVoteReward, getPendingVoteRewards, getRecentClaimedVoteRewards, redeemVoteRewards, listUsersWithPendingVoteRewards } from '../db/db.auto.mjs';
 import { emoji } from '../lib/emojis.mjs';
 
 const TOPGG_BASE_REWARD = toPositiveInt(process.env.VOTE_REWARD_TOPGG, 1000);
@@ -168,11 +168,14 @@ export function formatSourceLabel(sourceId) {
 
 export async function getVoteSummary(discordId) {
   const rewards = await getPendingVoteRewards(discordId);
+  const recentClaimedRewards = await getRecentClaimedVoteRewards(discordId, 5);
   const totalPendingAmount = rewards.reduce((sum, reward) => sum + Number(reward?.reward_amount || 0), 0);
   return {
     rewards,
     totalPendingAmount,
-    breakdown: summarizeBySource(rewards)
+    breakdown: summarizeBySource(rewards),
+    recentClaimedRewards,
+    recentClaimedBreakdown: summarizeBySource(recentClaimedRewards)
   };
 }
 

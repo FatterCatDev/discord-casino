@@ -99,8 +99,8 @@ Implement the inactivity lifecycle described in the design doc so users inactive
 ## 8) Testing Checklist
 
 ### Unit Tests
-- [ ] Marks inactive only after threshold.
-- [ ] Does not mark inactive before threshold.
+- [x] Marks inactive only after threshold.
+- [x] Does not mark inactive before threshold.
 - [ ] Reactivation flips status and grants bonus exactly once per cycle.
 - [ ] Broadcast audience helper excludes inactive users.
 - [ ] Broadcast audience helper excludes admin/mod users.

@@ -94,7 +94,11 @@ CREATE TABLE IF NOT EXISTS vote_rewards (
   earned_at        BIGINT NOT NULL,
   external_id      TEXT,
   claimed_at       BIGINT,
-  claim_guild_id   TEXT
+  claim_guild_id   TEXT,
+  dm_attempted_at  BIGINT,
+  dm_sent_at       BIGINT,
+  dm_failed_at     BIGINT,
+  dm_failure_reason TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_vote_rewards_user_claimed ON vote_rewards(discord_user_id, claimed_at);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_vote_rewards_source_external ON vote_rewards(source, external_id) WHERE external_id IS NOT NULL;

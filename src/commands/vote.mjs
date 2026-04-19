@@ -39,12 +39,32 @@ export function buildVoteResponse({ ctx, kittenMode, summary, sites }) {
 
   const totalPending = Number(summary?.totalPendingAmount || 0);
   const breakdownText = describeBreakdown(summary?.breakdown || []);
+  const recentClaimedRewards = Array.isArray(summary?.recentClaimedRewards) ? summary.recentClaimedRewards : [];
+  const latestClaimedReward = recentClaimedRewards[0] || null;
+  const latestClaimedAmount = Number(latestClaimedReward?.reward_amount || 0);
+  const latestClaimedSource = latestClaimedReward?.source ? describeBreakdown([{ source: latestClaimedReward.source, count: 1 }]) : 'your latest vote';
   if (totalPending > 0) {
     embed.addFields({
       name: say(`${emoji('hourglass')} In Flight`, `${emoji('hourglass')} In Flight`),
       value: say(
         `Top.gg just pinged but I have not finished spoiling you yet. Expect **${ctx.chipsAmount(totalPending)}** to land any moment now.${breakdownText ? ` (${breakdownText})` : ''}`,
         `Top.gg has pinged us, but the chips are still processing: **${ctx.chipsAmount(totalPending)}**${breakdownText ? ` (${breakdownText})` : ''}. I’ll DM you as soon as they drop.`
+      )
+    });
+  } else if (latestClaimedReward?.dm_failed_at) {
+    embed.addFields({
+      name: say(`${emoji('loveLetter')} Delivery`, `${emoji('loveLetter')} Delivery`),
+      value: say(
+        `I already tucked **${ctx.chipsAmount(latestClaimedAmount)}** from ${latestClaimedSource} into your stash, but Discord would not let my receipt DM through. Your reward still landed.`,
+        `Your latest vote reward of **${ctx.chipsAmount(latestClaimedAmount)}** from ${latestClaimedSource} was credited, but I could not deliver the confirmation DM. Your chips still landed.`
+      )
+    });
+  } else if (latestClaimedReward?.claimed_at) {
+    embed.addFields({
+      name: say(`${emoji('loveLetter')} Delivery`, `${emoji('loveLetter')} Delivery`),
+      value: say(
+        `Your latest vote reward of **${ctx.chipsAmount(latestClaimedAmount)}** from ${latestClaimedSource} has already been credited. If my DM receipt did not show up, your chips still landed.`,
+        `Your latest vote reward of **${ctx.chipsAmount(latestClaimedAmount)}** from ${latestClaimedSource} has already been credited. If the DM receipt did not show up, your chips still landed.`
       )
     });
   } else {
