@@ -5,10 +5,13 @@ version: 1.3.4
 ## What's New for Players
 
 <!-- Add one bullet per player-visible feature or behavior update. -->
+- Daily Spin now opens with a reward breakdown embed and a Confirm button before claiming.
+- Daily Spin rewards were increased to a new base tier set: 2,000 / 3,200 / 4,800 / 8,000 / 20,000 Chips.
 
 ## Quality Improvements
 
 <!-- Add one bullet per reliability/performance/polish improvement. -->
+- Daily Spin now shows active cooldown time directly in the embed and disables the Confirm button until ready.
 
 ## Bug Fixes
 
@@ -17,4 +20,7 @@ version: 1.3.4
 ## Quick Summary
 
 <!-- Add 2-4 short bullets for patch highlights. -->
+- Daily Spin moved to a confirm-first embed flow.
+- Cooldown status is visible up front, with a greyed-out button when unavailable.
+- Daily Spin payout tiers now start at 2,000 Chips with a 20,000 jackpot tier.
 
