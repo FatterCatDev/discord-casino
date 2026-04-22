@@ -28,7 +28,7 @@ Everything runs through slash commands with responsive embeds, timers, and “pl
 
 ### Easy Ways to Earn
 - `/dailyspin` — Free reward wheel every 24 hours, with jackpots in chips.
-- `/vote` — Support the bot on Top.gg/DiscordBotList and get automatic chip drops via DM.
+- `/vote` — Support the bot on Top.gg/DiscordBotList and get automatic chip drops via DM. Each site has its own 12-hour cooldown timer and is tracked separately.
 - `/job` — Work interactive shifts (Dealer, Bartender, Bouncer, and more). Good runs pay chips, XP, and streak bonuses.
 - `/request type:buyin amount:<chips>` — Ask moderators for a manual bankroll when events call for it.
 
@@ -53,8 +53,13 @@ Need channel structure? Staff run `/setcasinocategory` once and the bot enforces
 - Run `/job` anywhere to open the Semuta Career Board. Stamina, cooldowns, and XP sync globally.
 - Each shift is a short interactive scenario. Answer before the timer expires to keep your streak alive.
 - Stamina caps at five charges; you regenerate one every two hours. Finishing five shifts triggers a short rest before you can grind again.
-- XP ranks unlock better chip bonuses. `/job stats` shows your history, ranks, and timers (yours or a friend’s).
+- XP ranks unlock better chip bonuses. Job payout caps are tuned aggressively (10x higher than earlier tables), so higher ranks feel meaningfully stronger. `/job stats` shows your history, ranks, and timers (yours or a friend’s).
 - Staff helpers get `/job reset` (refill stamina) and `/job resetstats` for appeals—but the default flow keeps progress honest.
+
+## Cartel Dealer Upkeep
+- Dealer upkeep is enforced on status changes: if upkeep expires, dealers are auto-paused.
+- Dealers with unpaid upkeep cannot be unpaused until upkeep is funded.
+- Dealer management screens now normalize expired ACTIVE dealers into PAUSED state when viewed.
 
 ---
 
