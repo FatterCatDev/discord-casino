@@ -1897,8 +1897,16 @@ function buildDealerManageActionRows(dealers = [], selections = null) {
   const targetsById = new Map((dealers || []).map(dealer => [String(dealer.dealer_id), dealer]));
   const targetDealers = targets.map(id => targetsById.get(String(id))).filter(Boolean);
   const hasTargets = targetDealers.length > 0;
+  const nowSeconds = Math.floor(Date.now() / 1000);
   const canPause = hasTargets && targetDealers.some(dealer => String(dealer?.status || 'ACTIVE').toUpperCase() !== 'PAUSED');
-  const canUnpause = hasTargets && targetDealers.some(dealer => String(dealer?.status || 'ACTIVE').toUpperCase() === 'PAUSED');
+  const canUnpause = hasTargets && targetDealers.some(dealer => {
+    const status = String(dealer?.status || 'ACTIVE').toUpperCase();
+    if (status !== 'PAUSED') return false;
+    const frozenRemainingSeconds = Math.max(0, Number(dealer?.paused_upkeep_remaining_seconds || 0));
+    const dueAt = Number(dealer?.upkeep_due_at || 0);
+    const liveRemainingSeconds = dueAt > nowSeconds ? (dueAt - nowSeconds) : 0;
+    return Math.max(frozenRemainingSeconds, liveRemainingSeconds) > 0;
+  });
   return [
     new ActionRowBuilder().addComponents(
       new ButtonBuilder()
@@ -2565,6 +2573,9 @@ export async function handleCartelDealerManageAction(interaction, ctx, actionTyp
     let newlyPausedCount = 0;
     let unpausedCount = 0;
     let newlyUnpausedCount = 0;
+    let blockedUnpauseCount = 0;
+    const nowSeconds = Math.floor(Date.now() / 1000);
+    const dealersById = new Map(currentDealers.map(dealer => [String(dealer.dealer_id), dealer]));
 
     if (normalizedAction === 'pause') {
       for (const dealerId of targets) {
@@ -2574,6 +2585,15 @@ export async function handleCartelDealerManageAction(interaction, ctx, actionTyp
       }
     } else if (normalizedAction === 'unpause') {
       for (const dealerId of targets) {
+        const dealer = dealersById.get(String(dealerId));
+        const status = String(dealer?.status || 'ACTIVE').toUpperCase();
+        const frozenRemainingSeconds = Math.max(0, Number(dealer?.paused_upkeep_remaining_seconds || 0));
+        const dueAt = Number(dealer?.upkeep_due_at || 0);
+        const liveRemainingSeconds = dueAt > nowSeconds ? (dueAt - nowSeconds) : 0;
+        if (status === 'PAUSED' && Math.max(frozenRemainingSeconds, liveRemainingSeconds) <= 0) {
+          blockedUnpauseCount += 1;
+          continue;
+        }
         const result = await unpauseCartelDealer(guildId, userId, dealerId);
         unpausedCount += 1;
         if (result?.changed !== false) newlyUnpausedCount += 1;
@@ -2602,6 +2622,9 @@ export async function handleCartelDealerManageAction(interaction, ctx, actionTyp
     }
     if (unpausedCount > 0) {
       summaryParts.push(`${emoji('check')} Unpaused **${newlyUnpausedCount}** of **${unpausedCount}** selected dealer${unpausedCount === 1 ? '' : 's'}`);
+    }
+    if (blockedUnpauseCount > 0) {
+      summaryParts.push(`${emoji('alarmClock')} Skipped **${blockedUnpauseCount}** dealer${blockedUnpauseCount === 1 ? '' : 's'} with unpaid upkeep`);
     }
     if (!summaryParts.length) {
       const actionLabel = normalizedAction === 'pause' ? 'pause' : normalizedAction === 'unpause' ? 'unpause' : 'fire';

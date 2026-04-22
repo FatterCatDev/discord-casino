@@ -1281,6 +1281,16 @@ export async function collectDealerChips(guildId, userId) {
 
 export async function listUserDealers(guildId, userId) {
   const dealers = await listCartelDealersForUser(guildId, userId);
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  for (const dealer of dealers) {
+    const status = String(dealer?.status || '').toUpperCase();
+    if (status !== 'ACTIVE') continue;
+    const dueAt = Number(dealer?.upkeep_due_at || 0);
+    if (dueAt > nowSeconds) continue;
+    await cartelPauseDealerWithFrozenUpkeep(guildId, dealer.dealer_id, 0);
+    dealer.status = 'PAUSED';
+    dealer.paused_upkeep_remaining_seconds = 0;
+  }
   return dealers.map(dealer => ({
     ...dealer,
     tierInfo: CARTEL_DEALER_TIERS_BY_ID[dealer.tier] || null
@@ -1438,15 +1448,19 @@ export async function unpauseCartelDealer(guildId, userId, dealerId) {
     throw new CartelError('CARTEL_DEALER_NOT_FOUND', 'Dealer not found.');
   }
   const nextStatus = 'ACTIVE';
+  const currentStatus = String(dealer.status || '').toUpperCase();
   const nowSeconds = Math.floor(Date.now() / 1000);
   const dueAt = Number(dealer.upkeep_due_at || 0);
   const liveRemainingSeconds = dueAt > nowSeconds ? (dueAt - nowSeconds) : 0;
   const frozenRemainingSeconds = Math.max(0, Number(dealer.paused_upkeep_remaining_seconds || 0));
-  const remainingUpkeepSeconds = String(dealer.status || '').toUpperCase() === 'PAUSED'
+  const remainingUpkeepSeconds = currentStatus === 'PAUSED'
     ? frozenRemainingSeconds
     : liveRemainingSeconds;
+  if (currentStatus === 'PAUSED' && remainingUpkeepSeconds <= 0) {
+    throw new CartelError('CARTEL_DEALER_UPKEEP_EXPIRED', 'This dealer has unpaid upkeep. Pay upkeep before unpausing.');
+  }
   const nextDueAt = nowSeconds + remainingUpkeepSeconds;
-  const changed = String(dealer.status || '').toUpperCase() !== nextStatus;
+  const changed = currentStatus !== nextStatus;
   const updated = changed
     ? await cartelSetDealerUpkeep(guildId, dealerId, nextDueAt, nextStatus)
     : dealer;
