@@ -16,6 +16,8 @@ const AUTO_REDEEM_LIMIT = toPositiveInt(process.env.VOTE_REWARD_AUTO_BATCH_LIMIT
 const AUTO_REDEEM_ENABLED = String(process.env.VOTE_AUTO_REDEEM ?? 'true').toLowerCase() !== 'false';
 const AUTO_REDEEM_REASON = process.env.VOTE_REWARD_REASON || 'vote reward';
 
+export const VOTE_COOLDOWN_SECONDS = 12 * 3600; // 12 hours
+
 const EXTRA_SITES = parseExtraSites(process.env.VOTE_EXTRA_LINKS);
 
 const BUILT_SITES = buildVoteSites();
@@ -170,12 +172,21 @@ export async function getVoteSummary(discordId) {
   const rewards = await getPendingVoteRewards(discordId);
   const recentClaimedRewards = await getRecentClaimedVoteRewards(discordId, 5);
   const totalPendingAmount = rewards.reduce((sum, reward) => sum + Number(reward?.reward_amount || 0), 0);
+  const latestClaimed = recentClaimedRewards[0] || null;
+  const lastClaimedAt = latestClaimed?.claimed_at ? Number(latestClaimed.claimed_at) : null;
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const cooldownExpiresAt = lastClaimedAt ? lastClaimedAt + VOTE_COOLDOWN_SECONDS : null;
+  const cooldownRemainingSeconds = cooldownExpiresAt && cooldownExpiresAt > nowSeconds
+    ? cooldownExpiresAt - nowSeconds
+    : 0;
   return {
     rewards,
     totalPendingAmount,
     breakdown: summarizeBySource(rewards),
     recentClaimedRewards,
-    recentClaimedBreakdown: summarizeBySource(recentClaimedRewards)
+    recentClaimedBreakdown: summarizeBySource(recentClaimedRewards),
+    cooldownExpiresAt: cooldownRemainingSeconds > 0 ? cooldownExpiresAt : null,
+    cooldownRemainingSeconds
   };
 }
 

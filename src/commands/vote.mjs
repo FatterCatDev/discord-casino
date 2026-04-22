@@ -1,5 +1,5 @@
 import { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder } from 'discord.js';
-import { getVoteSites, getVoteSummary, describeBreakdown } from '../services/votes.mjs';
+import { getVoteSites, getVoteSummary, describeBreakdown, VOTE_COOLDOWN_SECONDS } from '../services/votes.mjs';
 import { emoji } from '../lib/emojis.mjs';
 
 function chunk(array, size = 5) {
@@ -77,6 +77,18 @@ export function buildVoteResponse({ ctx, kittenMode, summary, sites }) {
     });
   }
 
+  const cooldownExpiresAt = summary?.cooldownExpiresAt || null;
+  const cooldownRemaining = summary?.cooldownRemainingSeconds || 0;
+  if (cooldownRemaining > 0) {
+    embed.addFields({
+      name: say(`${emoji('hourglass')} Vote Cooldown`, `${emoji('hourglass')} Vote Cooldown`),
+      value: say(
+        `You already spoiled me with a vote — next vote ready <t:${cooldownExpiresAt}:R>. ${emoji('kiss')}`,
+        `Your next vote will be ready <t:${cooldownExpiresAt}:R>. Votes reset every ${Math.round(VOTE_COOLDOWN_SECONDS / 3600)} hours.`
+      )
+    });
+  }
+
   embed.setFooter({
     text: say('Votes reset every 12 hours. Weekend votes on Top.gg pay double.', 'Votes reset every 12 hours. Weekend votes on Top.gg pay extra.')
   });
@@ -87,12 +99,17 @@ export function buildVoteResponse({ ctx, kittenMode, summary, sites }) {
     if (!group.length) continue;
     const row = new ActionRowBuilder();
     for (const site of group) {
+      const isOnCooldown = cooldownRemaining > 0;
       const button = new ButtonBuilder()
-        .setStyle(ButtonStyle.Link)
         .setLabel(site.label)
-        .setURL(site.url);
+        .setURL(site.url)
+        .setStyle(ButtonStyle.Link);
       if (site.emoji) {
         button.setEmoji(site.emoji);
+      }
+      // Link buttons cannot be disabled via setDisabled, so we indicate cooldown in the label
+      if (isOnCooldown) {
+        button.setLabel(`${site.label} (on cooldown)`);
       }
       row.addComponents(button);
     }

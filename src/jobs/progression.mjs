@@ -1,6 +1,7 @@
 import crypto from 'node:crypto';
 
 export const JOB_PAYOUT_DIVISOR = 5;
+export const JOB_PAY_MULTIPLIER = 10;
 
 export const JOB_SHIFT_STAGE_COUNT = 1;
 
@@ -31,7 +32,7 @@ export function maxPayForRank(rank) {
 export function maxBasePayForRank(rank) {
   const maxPay = maxPayForRank(rank);
   if (!Number.isFinite(maxPay) || maxPay <= 0) return 0;
-  return Math.floor(maxPay / JOB_PAYOUT_DIVISOR);
+  return Math.floor((maxPay / JOB_PAYOUT_DIVISOR) * JOB_PAY_MULTIPLIER);
 }
 
 export function clampPerformance(score) {
