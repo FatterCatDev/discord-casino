@@ -10,6 +10,18 @@ function chunk(array, size = 5) {
   return groups;
 }
 
+function getSourceCooldown(summary, sourceId) {
+  const cooldown = summary?.cooldowns?.[sourceId];
+  if (!cooldown) {
+    return { active: false, expiresAt: null, remainingSeconds: 0 };
+  }
+  return {
+    active: Boolean(cooldown.active),
+    expiresAt: cooldown.expiresAt || null,
+    remainingSeconds: Number(cooldown.remainingSeconds || 0)
+  };
+}
+
 export function buildVoteResponse({ ctx, kittenMode, summary, sites }) {
   const say = (kitten, normal) => (kittenMode ? kitten : normal);
   const embed = new EmbedBuilder()
@@ -77,14 +89,21 @@ export function buildVoteResponse({ ctx, kittenMode, summary, sites }) {
     });
   }
 
-  const cooldownExpiresAt = summary?.cooldownExpiresAt || null;
-  const cooldownRemaining = summary?.cooldownRemainingSeconds || 0;
-  if (cooldownRemaining > 0) {
+  const topggCooldown = getSourceCooldown(summary, 'topgg');
+  const dblCooldown = getSourceCooldown(summary, 'dbl');
+  if (topggCooldown.active || dblCooldown.active) {
+    const lines = [];
+    if (topggCooldown.active && topggCooldown.expiresAt) {
+      lines.push(`- Top.gg: <t:${topggCooldown.expiresAt}:R>`);
+    }
+    if (dblCooldown.active && dblCooldown.expiresAt) {
+      lines.push(`- DiscordBotList.com: <t:${dblCooldown.expiresAt}:R>`);
+    }
     embed.addFields({
       name: say(`${emoji('hourglass')} Vote Cooldown`, `${emoji('hourglass')} Vote Cooldown`),
       value: say(
-        `You already spoiled me with a vote — next vote ready <t:${cooldownExpiresAt}:R>. ${emoji('kiss')}`,
-        `Your next vote will be ready <t:${cooldownExpiresAt}:R>. Votes reset every ${Math.round(VOTE_COOLDOWN_SECONDS / 3600)} hours.`
+        `You already spoiled me with a vote. Site timers:\n${lines.join('\n')}\n${emoji('kiss')}`,
+        `Your next vote windows by site:\n${lines.join('\n')}\nEach site resets every ${Math.round(VOTE_COOLDOWN_SECONDS / 3600)} hours.`
       )
     });
   }
@@ -99,7 +118,8 @@ export function buildVoteResponse({ ctx, kittenMode, summary, sites }) {
     if (!group.length) continue;
     const row = new ActionRowBuilder();
     for (const site of group) {
-      const isOnCooldown = cooldownRemaining > 0;
+      const siteCooldown = getSourceCooldown(summary, String(site?.id || ''));
+      const isOnCooldown = siteCooldown.active;
       const button = new ButtonBuilder()
         .setLabel(site.label)
         .setURL(site.url)

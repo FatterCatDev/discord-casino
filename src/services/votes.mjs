@@ -155,6 +155,29 @@ function summarizeBySource(rewards = []) {
   return Array.from(map.values());
 }
 
+function computeSourceCooldown(recentClaimedRewards, sourceId, nowSeconds) {
+  const latestForSource = (recentClaimedRewards || []).find(reward => String(reward?.source || '') === sourceId) || null;
+  const claimedAt = latestForSource?.claimed_at == null ? null : Number(latestForSource.claimed_at);
+  if (!claimedAt || claimedAt <= 0) {
+    return {
+      source: sourceId,
+      expiresAt: null,
+      remainingSeconds: 0,
+      active: false
+    };
+  }
+
+  const expiresAt = claimedAt + VOTE_COOLDOWN_SECONDS;
+  const remainingSeconds = expiresAt > nowSeconds ? (expiresAt - nowSeconds) : 0;
+  return {
+    source: sourceId,
+    claimedAt,
+    expiresAt: remainingSeconds > 0 ? expiresAt : null,
+    remainingSeconds,
+    active: remainingSeconds > 0
+  };
+}
+
 export function getVoteSites() {
   return BUILT_SITES;
 }
@@ -172,21 +195,25 @@ export async function getVoteSummary(discordId) {
   const rewards = await getPendingVoteRewards(discordId);
   const recentClaimedRewards = await getRecentClaimedVoteRewards(discordId, 5);
   const totalPendingAmount = rewards.reduce((sum, reward) => sum + Number(reward?.reward_amount || 0), 0);
-  const latestClaimed = recentClaimedRewards[0] || null;
-  const lastClaimedAt = latestClaimed?.claimed_at ? Number(latestClaimed.claimed_at) : null;
   const nowSeconds = Math.floor(Date.now() / 1000);
-  const cooldownExpiresAt = lastClaimedAt ? lastClaimedAt + VOTE_COOLDOWN_SECONDS : null;
-  const cooldownRemainingSeconds = cooldownExpiresAt && cooldownExpiresAt > nowSeconds
-    ? cooldownExpiresAt - nowSeconds
-    : 0;
+  const cooldowns = {
+    topgg: computeSourceCooldown(recentClaimedRewards, 'topgg', nowSeconds),
+    dbl: computeSourceCooldown(recentClaimedRewards, 'dbl', nowSeconds)
+  };
+
+  const fallbackCooldown = cooldowns.topgg?.active
+    ? cooldowns.topgg
+    : (cooldowns.dbl?.active ? cooldowns.dbl : { expiresAt: null, remainingSeconds: 0 });
+
   return {
     rewards,
     totalPendingAmount,
     breakdown: summarizeBySource(rewards),
     recentClaimedRewards,
     recentClaimedBreakdown: summarizeBySource(recentClaimedRewards),
-    cooldownExpiresAt: cooldownRemainingSeconds > 0 ? cooldownExpiresAt : null,
-    cooldownRemainingSeconds
+    cooldowns,
+    cooldownExpiresAt: fallbackCooldown.expiresAt,
+    cooldownRemainingSeconds: fallbackCooldown.remainingSeconds
   };
 }
 
