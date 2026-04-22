@@ -110,6 +110,7 @@ import cmdNews from './commands/news.mjs';
 import cmdBeg from './commands/beg.mjs';
 import cmdEightBall from './commands/eightball.mjs';
 import cmdDebugVote from './commands/debugvote.mjs';
+import cmdDebugDspin from './commands/debugdspin.mjs';
 import cmdCartel, {
   handleCartelOverviewRefresh,
   handleCartelRankTable,
@@ -168,6 +169,7 @@ import onRouletteButtons from './interactions/rouletteButtons.mjs';
 import onHorseRaceButtons from './interactions/horseRaceButtons.mjs';
 import onHoldemButtons from './interactions/holdemButtons.mjs';
 import onLeaderboardButtons from './interactions/leaderboardButtons.mjs';
+import onDailySpinButtons from './interactions/dailyspinButtons.mjs';
 import onRouletteTypeSelect from './interactions/rouletteTypeSelect.mjs';
 import onBlackjackBetModal from './interactions/blackjackBetModal.mjs';
 import onRouletteModal from './interactions/rouletteModal.mjs';
@@ -1434,6 +1436,7 @@ const commandHandlers = {
   kittenmode: cmdKittenMode,
   vote: cmdVote,
   debugvote: cmdDebugVote,
+  debugdspin: cmdDebugDspin,
   news: cmdNews,
   cartel: cmdCartel,
   '8ball': cmdEightBall
@@ -1718,6 +1721,12 @@ client.on(Events.InteractionCreate, async interaction => {
     // Leaderboard buttons
     else if (interaction.isButton() && interaction.customId.startsWith('leader|')) {
       return onLeaderboardButtons(interaction);
+    }
+
+    // Daily spin buttons
+    else if (interaction.isButton() && interaction.customId.startsWith('dailyspin|')) {
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return onDailySpinButtons(interaction, ctx);
     }
 
     // Roulette select menus

@@ -28,6 +28,13 @@ const commands = [
     ]
   },
   {
+    name: 'debugdspin',
+    description: 'Reset a player\'s daily spin cooldown (admin only).',
+    options: [
+      { name: 'player', description: 'Player to reset daily spin cooldown for', type: 6, required: true }
+    ]
+  },
+  {
     name: 'job',
     description: 'Clock in for casino shifts, manage stamina, and oversee your role.',
     options: [
