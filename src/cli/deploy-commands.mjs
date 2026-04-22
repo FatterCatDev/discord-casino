@@ -19,13 +19,13 @@ const commands = [
   {
     name: 'beg',
     description: 'Beg the narrator for a handful of chips.'
+  },
   {
     name: 'debugvote',
     description: 'Simulate a Top.gg vote for a player (admin only).',
     options: [
       { name: 'player', description: 'Player to simulate a vote for', type: 6, required: true }
     ]
-  },
   },
   {
     name: 'job',
