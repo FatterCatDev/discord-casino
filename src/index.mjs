@@ -127,7 +127,7 @@ import cmdCartel, {
   handleCartelDealerHireTier,
   handleCartelDealerUpkeep,
   handleCartelDealerManageSelect,
-  handleCartelDealerManageConfirm,
+  handleCartelDealerManageAction,
   handleCartelDealerPause,
   handleCartelDealerPauseAll,
   handleCartelDealerFire,
@@ -1642,9 +1642,17 @@ client.on(Events.InteractionCreate, async interaction => {
       const ctx = buildCommandContext(interaction, ctxExtras);
       return handleCartelDealerUpkeep(interaction, ctx, dealerId);
     }
-    else if (interaction.isButton() && interaction.customId === 'cartel|dealers|manage|confirm') {
+    else if (interaction.isButton() && interaction.customId === 'cartel|dealers|manage|fire') {
       const ctx = buildCommandContext(interaction, ctxExtras);
-      return handleCartelDealerManageConfirm(interaction, ctx);
+      return handleCartelDealerManageAction(interaction, ctx, 'fire');
+    }
+    else if (interaction.isButton() && interaction.customId === 'cartel|dealers|manage|pause') {
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelDealerManageAction(interaction, ctx, 'pause');
+    }
+    else if (interaction.isButton() && interaction.customId === 'cartel|dealers|manage|unpause') {
+      const ctx = buildCommandContext(interaction, ctxExtras);
+      return handleCartelDealerManageAction(interaction, ctx, 'unpause');
     }
     else if (interaction.isButton() && interaction.customId === 'cartel|dealers|pause_all') {
       const ctx = buildCommandContext(interaction, ctxExtras);
@@ -1748,13 +1756,9 @@ client.on(Events.InteractionCreate, async interaction => {
       const ctx = buildCommandContext(interaction, ctxExtras);
       return handleCartelMarketSelect(interaction, ctx, 'sell', page);
     }
-    else if (interaction.isStringSelectMenu() && interaction.customId === 'cartel|dealers|manage|fire|select') {
+    else if (interaction.isStringSelectMenu() && interaction.customId === 'cartel|dealers|manage|select') {
       const ctx = buildCommandContext(interaction, ctxExtras);
-      return handleCartelDealerManageSelect(interaction, ctx, 'fire');
-    }
-    else if (interaction.isStringSelectMenu() && interaction.customId === 'cartel|dealers|manage|pause|select') {
-      const ctx = buildCommandContext(interaction, ctxExtras);
-      return handleCartelDealerManageSelect(interaction, ctx, 'pause');
+      return handleCartelDealerManageSelect(interaction, ctx);
     }
 
     // Help select menu

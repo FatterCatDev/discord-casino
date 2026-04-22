@@ -1429,6 +1429,42 @@ export async function pauseCartelDealer(guildId, userId, dealerId) {
   };
 }
 
+export async function unpauseCartelDealer(guildId, userId, dealerId) {
+  if (!dealerId) {
+    throw new CartelError('CARTEL_DEALER_NOT_FOUND', 'Dealer not found.');
+  }
+  const dealer = await getCartelDealer(guildId, dealerId);
+  if (!dealer || dealer.user_id !== String(userId)) {
+    throw new CartelError('CARTEL_DEALER_NOT_FOUND', 'Dealer not found.');
+  }
+  const nextStatus = 'ACTIVE';
+  const nowSeconds = Math.floor(Date.now() / 1000);
+  const dueAt = Number(dealer.upkeep_due_at || 0);
+  const liveRemainingSeconds = dueAt > nowSeconds ? (dueAt - nowSeconds) : 0;
+  const frozenRemainingSeconds = Math.max(0, Number(dealer.paused_upkeep_remaining_seconds || 0));
+  const remainingUpkeepSeconds = String(dealer.status || '').toUpperCase() === 'PAUSED'
+    ? frozenRemainingSeconds
+    : liveRemainingSeconds;
+  const nextDueAt = nowSeconds + remainingUpkeepSeconds;
+  const changed = String(dealer.status || '').toUpperCase() !== nextStatus;
+  const updated = changed
+    ? await cartelSetDealerUpkeep(guildId, dealerId, nextDueAt, nextStatus)
+    : dealer;
+  await recordCartelTransaction(guildId, userId, 'DEALER_UNPAUSE', 0, 0, {
+    dealerId,
+    tier: dealer.tier,
+    fromStatus: dealer.status,
+    toStatus: nextStatus,
+    contactName: dealer.display_name || null,
+    remainingUpkeepSeconds
+  });
+  return {
+    ...(updated || dealer),
+    tierInfo: CARTEL_DEALER_TIERS_BY_ID[dealer.tier] || null,
+    changed
+  };
+}
+
 export async function fireAllCartelDealers(guildId, userId) {
   const dealers = await listCartelDealersForUser(guildId, userId);
   if (!dealers.length) {
