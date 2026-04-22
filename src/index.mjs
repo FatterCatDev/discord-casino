@@ -110,6 +110,7 @@ import cmdNews from './commands/news.mjs';
 import cmdBeg from './commands/beg.mjs';
 import cmdEightBall from './commands/eightball.mjs';
 import cmdDebugVote from './commands/debugvote.mjs';
+import cmdDebugDspin from './commands/debugdspin.mjs';
 import cmdCartel, {
   handleCartelOverviewRefresh,
   handleCartelRankTable,
@@ -1435,6 +1436,7 @@ const commandHandlers = {
   kittenmode: cmdKittenMode,
   vote: cmdVote,
   debugvote: cmdDebugVote,
+  debugdspin: cmdDebugDspin,
   news: cmdNews,
   cartel: cmdCartel,
   '8ball': cmdEightBall
