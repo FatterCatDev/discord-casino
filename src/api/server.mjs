@@ -5,7 +5,7 @@ import cors from 'cors';
 import rateLimit from 'express-rate-limit';
 import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { lookupApiKey } from '../db/db.auto.mjs';
-import { recordTopggVote, recordDiscordBotListVote, isDiscordBotListWebhookEnabled, verifyDblSignature, normalizeWebhookToken } from '../services/votes.mjs';
+import { recordTopggVote, recordDiscordBotListVote, isDiscordBotListWebhookEnabled, verifyDblSignature, normalizeWebhookToken, isDiscordForgeWebhookEnabled, verifyForgeSignature, recordDiscordForgeVote } from '../services/votes.mjs';
 
 const app = express();
 app.use(helmet());
@@ -473,6 +473,25 @@ app.post('/api/v1/webhooks/dbl', async (req, res) => {
         res.json({ ok: true, recorded: recorded.length });
     } catch (err) {
         console.error('[api] discordbotlist webhook error:', err);
+        res.status(500).json({ error: 'server_error' });
+    }
+});
+
+app.post('/api/v1/webhooks/forge-vote', async (req, res) => {
+    if (!isDiscordForgeWebhookEnabled()) return res.status(501).json({ error: 'forge_webhook_disabled' });
+    const token = normalizeWebhookToken(req.headers.authorization);
+    if (!verifyForgeSignature(token)) {
+        console.warn('[forge webhook] invalid token', req.headers['user-agent']);
+        return res.status(401).json({ error: 'invalid_token' });
+    }
+    try {
+        console.log('[forge webhook]', new Date().toISOString(), req.headers['user-agent'], req.body);
+        const result = await recordDiscordForgeVote(req.body || {});
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.json({ ok: true, ...result });
+    } catch (err) {
+        if (err?.message === 'FORGE_USER_REQUIRED') return res.status(400).json({ error: 'missing_user' });
+        console.error('[api] discordforge webhook error:', err);
         res.status(500).json({ error: 'server_error' });
     }
 });

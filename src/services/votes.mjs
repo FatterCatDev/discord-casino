@@ -11,6 +11,10 @@ const DBL_VOTE_URL = (process.env.DBL_VOTE_URL || (DBL_BOT_ID ? `https://discord
 const DBL_WEBHOOK_SECRET = (process.env.DBL_WEBHOOK_AUTH || process.env.DBL_WEBHOOK_TOKEN || '').trim();
 const DBL_VOTE_REWARD = toPositiveInt(process.env.DBL_VOTE_REWARD, TOPGG_BASE_REWARD);
 const DBL_VOTE_REASON = process.env.DBL_VOTE_REWARD_REASON || 'discordbotlist vote reward';
+const FORGE_WEBHOOK_SECRET = (process.env.FORGE_WEBHOOK_SECRET || '').trim();
+const FORGE_VOTE_REWARD = toPositiveInt(process.env.DISCORDFORGE_VOTE_REWARD, TOPGG_BASE_REWARD);
+const FORGE_VOTE_URL = (process.env.DISCORDFORGE_VOTE_URL || '').trim();
+const FORGE_VOTE_REASON = process.env.DISCORDFORGE_VOTE_REWARD_REASON || 'discordforge vote reward';
 const AUTO_REDEEM_GUILD_ID = (process.env.VOTE_REWARD_AUTO_GUILD_ID || process.env.PRIMARY_GUILD_ID || process.env.GUILD_ID || '').trim() || null;
 const AUTO_REDEEM_LIMIT = toPositiveInt(process.env.VOTE_REWARD_AUTO_BATCH_LIMIT, 25);
 const AUTO_REDEEM_ENABLED = String(process.env.VOTE_AUTO_REDEEM ?? 'true').toLowerCase() !== 'false';
@@ -131,6 +135,17 @@ function buildVoteSites() {
       weekendMultiplier: 1
     });
   }
+  if (FORGE_VOTE_URL) {
+    sites.push({
+      id: 'discordforge',
+      label: 'DiscordForge.org',
+      emoji: '⚒️',
+      url: FORGE_VOTE_URL,
+      supportsReward: true,
+      baseReward: FORGE_VOTE_REWARD,
+      weekendMultiplier: 1
+    });
+  }
   for (const site of EXTRA_SITES) {
     sites.push(site);
   }
@@ -167,7 +182,8 @@ function computeSourceCooldown(recentClaimedRewards, sourceId, nowSeconds) {
     };
   }
 
-  const expiresAt = claimedAt + VOTE_COOLDOWN_SECONDS;
+  const cooldownSeconds = sourceId === 'discordforge' ? FORGE_VOTE_COOLDOWN_SECONDS : VOTE_COOLDOWN_SECONDS;
+  const expiresAt = claimedAt + cooldownSeconds;
   const remainingSeconds = expiresAt > nowSeconds ? (expiresAt - nowSeconds) : 0;
   return {
     source: sourceId,
@@ -305,6 +321,35 @@ export function verifyDblSignature(token) {
   const normalized = normalizeWebhookToken(token);
   if (!normalized) return false;
   return normalized === DBL_WEBHOOK_SECRET;
+}
+
+export function isDiscordForgeWebhookEnabled() {
+  return !!FORGE_WEBHOOK_SECRET;
+}
+
+export function verifyForgeSignature(token) {
+  if (!FORGE_WEBHOOK_SECRET) return false;
+  const normalized = normalizeWebhookToken(token);
+  if (!normalized) return false;
+  return normalized === FORGE_WEBHOOK_SECRET;
+}
+
+export async function recordDiscordForgeVote(payload = {}) {
+  // Use `id` as the authoritative Discord user ID per DiscordForge docs.
+  const userId = String(payload.id || '').trim();
+  if (!userId) throw new Error('FORGE_USER_REQUIRED');
+  // isTest=true events must not grant rewards.
+  if (payload.isTest === true) {
+    return { recorded: false, amount: 0, test: true };
+  }
+  const earnedAt = Math.floor(Date.now() / 1000);
+  const metadata = {
+    username: payload.username || null,
+    weeklyVotes: payload.weeklyVotes ?? null,
+    totalVotes: payload.totalVotes ?? null,
+  };
+  const recorded = await recordVoteReward(userId, 'discordforge', FORGE_VOTE_REWARD, metadata, earnedAt, null);
+  return { recorded, amount: FORGE_VOTE_REWARD, test: false };
 }
 
 export async function recordDiscordBotListVote(payload = {}) {

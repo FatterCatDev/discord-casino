@@ -62,6 +62,7 @@ import { startLeaderboardChampionWatcher, claimChampionNotice } from './services
 import { startInactivitySweep } from './services/inactivity.mjs';
 import { emoji } from './lib/emojis.mjs';
 import { startCartelWorker as startCartelWorkerMod } from './cartel/service.mjs';
+import { startDiscordForgeStatsPoster } from './services/discordforge.mjs';
 import { startTopggStatsPoster } from './services/topgg.mjs';
 
 // Slash command handlers (modularized)
@@ -250,6 +251,7 @@ const SETTINGS_MUTATION_COMMANDS = new Set([
 const ACCESS_MUTATION_COMMANDS = new Set(['addmod', 'removemod', 'addadmin', 'removeadmin']);
 
 let topggPoster = null;
+let discordForgePoster = null;
 const guildSettingsCache = new Map();
 const accessListCache = new Map();
 const onboardingAcknowledgedUsers = new Set();
@@ -376,6 +378,12 @@ function setUserNewsState(userId, state) {
 function triggerTopggStats(reason = 'manual') {
   if (topggPoster?.trigger) {
     topggPoster.trigger(reason).catch(() => {});
+  }
+}
+
+function triggerDiscordForgeStats(reason = 'manual') {
+  if (discordForgePoster?.trigger) {
+    discordForgePoster.trigger(reason).catch(() => {});
   }
 }
 
@@ -898,6 +906,11 @@ client.once(Events.ClientReady, c => {
   } catch (err) {
     console.error('Failed to start top.gg stats poster', err);
   }
+  try {
+    discordForgePoster = startDiscordForgeStatsPoster(client);
+  } catch (err) {
+    console.error('Failed to start DiscordForge stats poster', err);
+  }
 
 });
 
@@ -918,11 +931,13 @@ client.on(Events.GuildCreate, async (guild) => {
   }
   pushBotStatusSnapshot('guild_create').catch(() => {});
   triggerTopggStats('guild_create');
+  triggerDiscordForgeStats('guild_create');
 });
 
 client.on(Events.GuildDelete, (guild) => {
   pushBotStatusSnapshot('guild_delete').catch(() => {});
   triggerTopggStats('guild_delete');
+  triggerDiscordForgeStats('guild_delete');
 });
 
 client.on(Events.GuildAuditLogEntryCreate, async (entry, guild) => {

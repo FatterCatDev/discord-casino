@@ -91,13 +91,17 @@ export function buildVoteResponse({ ctx, kittenMode, summary, sites }) {
 
   const topggCooldown = getSourceCooldown(summary, 'topgg');
   const dblCooldown = getSourceCooldown(summary, 'dbl');
-  if (topggCooldown.active || dblCooldown.active) {
+  const forgeCooldown = getSourceCooldown(summary, 'discordforge');
+  if (topggCooldown.active || dblCooldown.active || forgeCooldown.active) {
     const lines = [];
     if (topggCooldown.active && topggCooldown.expiresAt) {
-      lines.push(`- Top.gg: <t:${topggCooldown.expiresAt}:R>`);
+      lines.push(`- Top.gg: <t:${topggCooldown.expiresAt}:R> (resets every 12h)`);
     }
     if (dblCooldown.active && dblCooldown.expiresAt) {
-      lines.push(`- DiscordBotList.com: <t:${dblCooldown.expiresAt}:R>`);
+      lines.push(`- DiscordBotList.com: <t:${dblCooldown.expiresAt}:R> (resets every 12h)`);
+    }
+    if (forgeCooldown.active && forgeCooldown.expiresAt) {
+      lines.push(`- DiscordForge.org: <t:${forgeCooldown.expiresAt}:R> (resets every 8h)`);
     }
     embed.addFields({
       name: say(`${emoji('hourglass')} Vote Cooldown`, `${emoji('hourglass')} Vote Cooldown`),
