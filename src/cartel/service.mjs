@@ -36,6 +36,7 @@ import {
   setCartelXpPerGram as setCartelXpPerGramDb,
   cartelAddDealerPending,
   cartelClearDealerPending,
+  ensureCartelInvestorRow,
   listCartelGuildIds,
   createCartelMarketOrder as createCartelMarketOrderDb,
   listCartelMarketOrders as listCartelMarketOrdersDb,
@@ -416,7 +417,7 @@ export async function getCartelOverview(guildId, userId) {
   const state = await loadCartelState(guildId);
   const pool = state.pool;
   let investor = await getCartelInvestor(guildId, userId);
-  investor = await normalizeInvestorState(guildId, investor);
+  investor = await normalizeInvestorState(guildId, investor, userId);
   const shareCount = Math.max(0, Number(investor?.shares || 0));
   const totalShares = Math.max(0, Number(state.totals?.shares || 0));
   const sharePercent = totalShares > 0 && shareCount > 0 ? shareCount / totalShares : 0;
@@ -506,7 +507,7 @@ export async function triggerCartelRaidDebug(guildId, userId, { actionType = 'co
   const uid = String(userId || '').trim();
   if (!uid) throw new CartelError('CARTEL_USER_REQUIRED', 'Choose a valid target user.');
   let investor = await getCartelInvestor(gid, uid);
-  investor = await normalizeInvestorState(gid, investor);
+  investor = await normalizeInvestorState(gid, investor, uid);
   if (!investor) {
     throw new CartelError('CARTEL_PROFILE_MISSING', 'Target player does not have a cartel profile yet.');
   }
@@ -557,7 +558,7 @@ export async function addCartelWarehouseDebug(guildId, userId, grams) {
   ensurePositiveAmount(mgToAdd, 'CARTEL_AMOUNT_REQUIRED', 'Enter a positive Semuta grams amount to add.');
 
   let investor = await getCartelInvestor(gid, uid);
-  investor = await normalizeInvestorState(gid, investor);
+  investor = await normalizeInvestorState(gid, investor, uid);
   if (!investor) {
     throw new CartelError('CARTEL_PROFILE_MISSING', 'You need to run /cartel first to create your cartel profile.');
   }
@@ -609,7 +610,7 @@ export async function cartelSellShares(guildId, userId, shareAmount) {
   const pool = await getCartelPool(guildId);
   const sharePrice = sharePriceFromPool(pool);
   let investor = await getCartelInvestor(guildId, userId);
-  investor = await normalizeInvestorState(guildId, investor);
+  investor = await normalizeInvestorState(guildId, investor, userId);
   const ownedShares = Math.max(0, Number(investor?.shares || 0));
   if (ownedShares < sharesToSell) {
     throw new CartelError('CARTEL_NOT_ENOUGH_SHARES', 'You do not have that many shares.');
@@ -910,7 +911,7 @@ export async function cartelSell(guildId, userId, grams) {
   ensurePositiveAmount(mgToSell, 'CARTEL_AMOUNT_REQUIRED', 'Enter at least 1g to sell.');
   const pool = await getCartelPool(guildId);
   let investor = await getCartelInvestor(guildId, userId);
-  investor = await normalizeInvestorState(guildId, investor);
+  investor = await normalizeInvestorState(guildId, investor, userId);
   const currentStash = Number(investor?.stash_mg || 0);
   if (currentStash < mgToSell) {
     throw new CartelError('CARTEL_NOT_ENOUGH_STASH', 'You do not have that much Semuta in your stash.');
@@ -966,7 +967,7 @@ export async function cartelRefundStashForSale(guildId, userId, mgAmount) {
   const mgToRefund = Math.floor(Number(mgAmount || 0));
   if (mgToRefund <= 0) return { refundedMg: 0, overflowMg: 0 };
   let investor = await getCartelInvestor(guildId, userId);
-  investor = await normalizeInvestorState(guildId, investor);
+  investor = await normalizeInvestorState(guildId, investor, userId);
   const currentStash = Number(investor?.stash_mg || 0);
   const warehouse = Number(investor?.warehouse_mg || 0);
   const capMg = stashCapMgForRank(investor.rank);
@@ -986,7 +987,7 @@ export async function cartelPayoutReservedSale(guildId, userId, mgAmount) {
   ensurePositiveAmount(mgToPayout, 'CARTEL_AMOUNT_REQUIRED', 'Enter at least 1g to sell.');
   const pool = await getCartelPool(guildId);
   let investor = await getCartelInvestor(guildId, userId);
-  investor = await normalizeInvestorState(guildId, investor);
+  investor = await normalizeInvestorState(guildId, investor, userId);
   const basePayout = Math.floor((mgToPayout / MG_PER_GRAM) * CARTEL_BASE_PRICE_PER_GRAM);
   const payoutInfo = applySaleMultiplierToChips(basePayout, investor);
   const payout = payoutInfo.total;
@@ -1083,7 +1084,7 @@ export async function cartelAbandon(guildId, userId, grams) {
 
 export async function cartelExportWarehouse(guildId, userId, mgAmount = null) {
   let investor = await getCartelInvestor(guildId, userId);
-  investor = await normalizeInvestorState(guildId, investor);
+  investor = await normalizeInvestorState(guildId, investor, userId);
   const currentWarehouse = Number(investor?.warehouse_mg || 0);
   if (currentWarehouse <= 0) {
     throw new CartelError('CARTEL_NOT_ENOUGH_WAREHOUSE', 'Not enough Semuta in the warehouse.');
@@ -1265,7 +1266,7 @@ export async function collectDealerChips(guildId, userId) {
   let rankState = null;
   if (xpGain > 0) {
     let investor = await getCartelInvestor(guildId, userId);
-    investor = await normalizeInvestorState(guildId, investor);
+    investor = await normalizeInvestorState(guildId, investor, userId);
     rankState = await applyXpGain(guildId, investor, xpGain);
   }
   await recordCartelTransaction(guildId, userId, 'DEALER_COLLECT', totalChips, totalMg, { dealers: pendingEntries.length });
@@ -1299,7 +1300,7 @@ export async function listUserDealers(guildId, userId) {
 
 export async function hireCartelDealer(guildId, userId, tierId, trait = null, displayName = null) {
   let investor = await getCartelInvestor(guildId, userId);
-  investor = await normalizeInvestorState(guildId, investor);
+  investor = await normalizeInvestorState(guildId, investor, userId);
   if (!investor) throw new CartelError('CARTEL_PROFILE_MISSING', 'Start investing in the cartel before hiring dealers.');
   const tier = dealerTierOrThrow(tierId);
   if (investor.rank < tier.requiredRank) {
@@ -1731,8 +1732,18 @@ async function clampSaleMultiplierIfNeeded(guildId, investor) {
   return investor;
 }
 
-async function normalizeInvestorState(guildId, investor) {
-  if (!investor) return null;
+async function normalizeInvestorState(guildId, investor, userId) {
+  if (!investor) {
+    // New player - ensure they have a cartel_investors row with defaults
+    if (userId) {
+      const uid = String(userId).trim();
+      if (uid) {
+        await ensureCartelInvestorRow(guildId, uid);
+        investor = await getCartelInvestor(guildId, uid);
+      }
+    }
+    if (!investor) return null;
+  }
   let updated = await autoRankIfNeeded(guildId, investor);
   updated = await clampSaleMultiplierIfNeeded(guildId, updated);
   return updated;
@@ -1866,7 +1877,7 @@ async function resolveWarehouseRaidAfterAction(guildId, userId, actionType, post
 
 async function runPreActionWarehouseRaidCheck(guildId, userId, actionType, { collectedMg = 0, burnMg = 0, exportMg = 0 } = {}) {
   let investor = await getCartelInvestor(guildId, userId);
-  investor = await normalizeInvestorState(guildId, investor);
+  investor = await normalizeInvestorState(guildId, investor, userId);
   if (!investor) {
     return {
       triggered: false,

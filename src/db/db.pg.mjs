@@ -1191,7 +1191,7 @@ async function ensureCartelPoolRow(guildId) {
   );
 }
 
-async function ensureCartelInvestorRow(guildId, userId) {
+export async function ensureCartelInvestorRow(guildId, userId) {
   await ensureCartelPoolRow(guildId);
   await q(
     'INSERT INTO cartel_investors (guild_id, user_id) VALUES ($1,$2) ON CONFLICT (guild_id, user_id) DO NOTHING',

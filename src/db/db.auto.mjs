@@ -111,6 +111,7 @@ export const listJobShiftsForUser = pick('listJobShiftsForUser');
 // Cartel passive system
 export const getCartelPool = pick('getCartelPool');
 export const listCartelGuildIds = pick('listCartelGuildIds');
+export const ensureCartelInvestorRow = pick('ensureCartelInvestorRow');
 export const setCartelSharePrice = pick('setCartelSharePrice');
 export const setCartelShareRate = pick('setCartelShareRate');
 export const listCartelInvestors = pick('listCartelInvestors');

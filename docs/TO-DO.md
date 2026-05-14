@@ -1,3 +1,31 @@
+# DiscordForge API Integration (Top Priority)
+
+## 1) Purpose
+Integrate DiscordForge.org API support for bot listing operations, starting with server stats posting and staged support for vote checks and command sync.
+
+## 2) Priority
+- Priority: `P0` (highest)
+- Status: `Design first, implementation next`
+
+## 3) Immediate Checklist
+- [ ] Finalize and approve design doc: `docs/discordforge-api-integration-design.md`.
+- [ ] Store DiscordForge API key in runtime secrets (env only, not in repo files).
+- [ ] Add env validation for DiscordForge settings.
+- [ ] Implement stats poster (`POST /api/bots/stats`) with 5+ minute interval.
+- [ ] Trigger immediate stats post on ready/guild join/guild leave events.
+- [ ] Add safe retries/backoff and structured logging for DiscordForge API calls.
+- [ ] Add DiscordForge vote webhook endpoint plan (`Authorization` secret check, 2xx within 5s, skip `isTest`).
+- [ ] Add optional vote-check helper (`GET /api/bots/:id/votes/check`) integration for future reward flow.
+- [ ] Add slash-command sync (`POST /api/external/bots/commands`) and run it on deploy.
+- [ ] Add tests for payload building, rate-limit guardrails, and failure handling.
+- [ ] Document rollout and rollback procedure.
+
+## 4) Acceptance Criteria
+- [ ] DiscordForge stats are posted successfully on schedule without violating rate limits.
+- [ ] Stats post can be manually triggered from runtime events.
+- [ ] Missing/invalid key disables integration gracefully with clear logs.
+- [ ] No API key is stored in source-controlled files.
+
 # Inactive User Cleanup + Comeback Bonus Checklist
 
 ## 1) Purpose
