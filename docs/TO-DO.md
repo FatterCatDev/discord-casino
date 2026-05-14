@@ -5,7 +5,6 @@ Integrate DiscordForge.org API support for bot listing operations, starting with
 
 ## 2) Priority
 - Priority: `P0` (highest)
-- Status: `Design first, implementation next`
 
 ## 3) Immediate Checklist
 - [ ] Finalize and approve design doc: `docs/discordforge-api-integration-design.md`.
@@ -25,6 +24,128 @@ Integrate DiscordForge.org API support for bot listing operations, starting with
 - [ ] Stats post can be manually triggered from runtime events.
 - [ ] Missing/invalid key disables integration gracefully with clear logs.
 - [ ] No API key is stored in source-controlled files.
+
+# Inventory System Checklist
+
+## 1) Purpose
+Implement a persistent player inventory and shop flow where consumable items affect bet interpretation and settlement outcomes for eligible casino games.
+
+## 2) Goals
+- Every player has an inventory.
+- All items are purchasable via `/shop`.
+- Players can arm one item effect for the next eligible gamble.
+- Item effects modify betting outcomes/settlement only, not game RNG logic.
+- First MVP item supports: "double next bet for free" behavior.
+
+## 3) Functional Requirements
+
+### 3.1 Inventory + Shop
+- [ ] Add `/shop` listing with item name, description, and chip price.
+- [ ] Add purchase flow: validate balance, deduct chips, increment inventory quantity.
+- [ ] Add `/inventory` to list owned items and quantities.
+
+### 3.2 Item Use + Active Effect
+- [ ] Add `/useitem <item>` to arm one active effect.
+- [ ] Enforce single active effect at a time per player.
+- [ ] Do not consume active effect on invalid/cancelled command attempts.
+
+### 3.3 Bet Settlement Integration
+- [ ] Introduce shared effect adapter to compute `base_bet` vs `effective_bet`.
+- [ ] Ensure game engines remain unchanged for outcome RNG.
+- [ ] Consume effect exactly once on next eligible game resolution.
+
+### 3.4 Required MVP Behavior
+- [ ] Implement `ITEM_DOUBLE_NEXT_BET_FREE`:
+- [ ] If user bets 1000 with active item, effective bet is 2000.
+- [ ] If user loses, loss is capped at 1000.
+- [ ] If user wins, payout is calculated from 2000.
+
+## 4) Data + Migration Checklist
+
+### Schema
+- [ ] Add `player_inventory` table.
+- [ ] Add `shop_items` table (or registry-backed equivalent with persistence needs).
+- [ ] Add `player_active_item_effect` table.
+- [ ] Add `item_effect_audit_log` table.
+- [ ] Add indexes for `(guild_id, user_id)` lookups and audit recency.
+
+### Safety + Backward Compatibility
+- [ ] Ensure migrations are idempotent (`IF NOT EXISTS` guards).
+- [ ] Add parsing/normalization helpers for effect payload JSON.
+- [ ] Add transactional boundaries for settle + consume operations.
+
+## 5) DB Helper Checklist
+
+### Inventory Helpers
+- [ ] Upsert inventory rows and quantity increments/decrements.
+- [ ] Guard against negative quantity.
+- [ ] Add helper to list inventory for display.
+
+### Effect Helpers
+- [ ] Load active effect by guild/user.
+- [ ] Arm effect atomically from inventory decrement.
+- [ ] Consume/expire/clear effect with status transitions.
+- [ ] Add idempotency protection for duplicate resolution attempts.
+
+### Audit Helpers
+- [ ] Log `SHOP_PURCHASE`, `ITEM_ARMED`, `ITEM_CONSUMED_ON_GAME`, `ITEM_CLEARED`, `ITEM_EXPIRED`.
+- [ ] Ensure metadata is JSON-safe and bounded.
+
+## 6) Runtime Integration Checklist
+
+### Command Integration
+- [ ] Add `/shop` command implementation.
+- [ ] Add `/inventory` command implementation.
+- [ ] Add `/useitem` command implementation.
+
+### Eligible Game Integration
+- [ ] Integrate effect adapter with blackjack.
+- [ ] Integrate effect adapter with roulette.
+- [ ] Expand to other configured gambling commands.
+
+### UX Messaging
+- [ ] Show active effect before settlement.
+- [ ] Display `Base Bet` and `Effective Bet` in result messaging.
+- [ ] Explain modified loss/win when item was used.
+
+## 7) Testing Checklist
+
+### Unit Tests
+- [ ] Inventory buy/use decrement behavior is correct.
+- [ ] Single-active-effect enforcement.
+- [ ] Double-next-bet math is correct for win/loss paths.
+- [ ] Invalid command attempt does not consume effect.
+- [ ] Idempotent settlement does not double-consume or double-pay.
+
+### Integration Tests
+- [ ] `/shop` purchase updates balance + inventory.
+- [ ] `/useitem` then eligible gamble consumes exactly once.
+- [ ] Non-eligible command leaves effect armed.
+
+### Regression Tests
+- [ ] Core game outcome logic remains unchanged without active items.
+- [ ] Existing ledger/transaction logs remain consistent.
+
+## 8) Rollout Checklist
+
+### Phase 1: Data + Commands
+- [ ] Deploy schema and helpers.
+- [ ] Enable `/shop`, `/inventory`, `/useitem` with MVP item only.
+
+### Phase 2: Game Coverage
+- [ ] Roll out effect adapter to additional games.
+- [ ] Monitor payout variance and item usage rates.
+
+### Phase 3: Stabilization
+- [ ] Tune item pricing/balance from telemetry.
+- [ ] Add additional placeholder items behind config flags.
+
+## 9) Acceptance Criteria
+- [ ] Every player can own inventory items.
+- [ ] Players can buy items through `/shop`.
+- [ ] Player can arm an item and have it apply to the next eligible gamble.
+- [ ] `ITEM_DOUBLE_NEXT_BET_FREE` matches exact expected behavior.
+- [ ] Item application is auditable and resilient to duplicate processing.
 
 # Inactive User Cleanup + Comeback Bonus Checklist
 
@@ -61,74 +182,25 @@ Implement the inactivity lifecycle described in the design doc so users inactive
 - Ignore DM send failures on reactivation path.
 
 ## 4) Data + Migration Checklist
-
-### Schema
-- [x] Add `user_activity_lifecycle` table.
-- [x] Add `user_activity_lifecycle_events` audit table.
-- [x] Add index on lifecycle `last_interaction_at`.
-- [x] Add index on lifecycle `is_inactive`.
-
-### Safety + Backward Compatibility
-- [x] Ensure migration is idempotent (`IF NOT EXISTS` guards).
-- [x] Add normalization/parsing helpers for lifecycle rows in DB layer.
-- [x] Add transactional boundaries where lifecycle and bonus updates co-occur.
+- [ ] Keep schema and migration notes aligned with current implementation state.
 
 ## 5) DB Helper Checklist
-
-### Lifecycle Read/Write Helpers
-- [x] Upsert/update `last_interaction_at` on interaction.
-- [x] Query users eligible to become inactive in sweep batches.
-- [x] Mark user inactive and set `inactive_since`.
-- [x] Record inactive DM success/failure metadata.
-- [x] Reactivate inactive user with cycle-safe bonus grant transaction.
-
-### Broadcast Helpers
-- [x] Add `listBroadcastEligibleUserIds()` (or equivalent active-only helper).
-- [x] Exclude inactive users from results.
-- [x] Exclude admin/mod users from results.
-
-### Audit Helpers
-- [x] Add lifecycle event insert helper for all transitions.
-- [x] Ensure event metadata is JSON-safe and bounded.
+- [ ] Keep DB helper tasks synchronized with current helper coverage and gaps.
 
 ## 6) Runtime Integration Checklist
-
-### Interaction Hooking
-- [x] Wire lifecycle touchpoint into global command interaction path.
-- [x] Skip staff/admin users from inactivity lifecycle handling.
-- [x] On inactive user command, run reactivation + bonus path before normal command completion.
-
-### Sweep Worker
-- [x] Add periodic inactivity sweep scheduler.
-- [x] Add env-configurable sweep interval.
-- [x] Process in bounded batches to avoid DB spikes.
-- [x] Emit sweep summary logs (`scanned`, `newInactive`, `dmSent`, `dmFailed`).
-
-### Welcome-Back UX
-- [x] Implement welcome-back embed builder.
-- [x] Include bonus amount, trigger command (if known), and timestamp.
-- [x] Fail open if DM cannot be delivered.
+- [ ] Keep runtime integration notes focused on remaining behavior gaps only.
 
 ## 7) Script + Ops Checklist
 
 ### Broadcast Script Integration
-- [x] Update `scripts/broadcast-job-promo.mjs` (and similar scripts) to use active-only audience helper.
 - [ ] Ensure script output reports skipped inactive/staff users.
 
 ### Configuration
-- [x] Add and document env vars:
-  - `INACTIVE_DAYS_THRESHOLD=30`
-  - `COMEBACK_BONUS_CHIPS=10000`
-  - `INACTIVE_SWEEP_INTERVAL_MS=21600000`
-  - `INACTIVE_DM_ENABLED=true`
-  - `COMEBACK_BONUS_ENABLED=true`
-- [x] Validate env parsing and sane fallbacks.
+- [ ] Keep env/config rollout notes in sync with current deployment defaults.
 
 ## 8) Testing Checklist
 
 ### Unit Tests
-- [x] Marks inactive only after threshold.
-- [x] Does not mark inactive before threshold.
 - [ ] Reactivation flips status and grants bonus exactly once per cycle.
 - [ ] Broadcast audience helper excludes inactive users.
 - [ ] Broadcast audience helper excludes admin/mod users.
