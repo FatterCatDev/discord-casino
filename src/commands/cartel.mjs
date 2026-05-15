@@ -2481,11 +2481,21 @@ export async function handleCartelDealerHireTier(interaction, ctx, tierId) {
     );
   } catch (error) {
     if (error instanceof CartelError) {
-      await interaction.reply(withAutoEphemeral(interaction, { content: `⚠️ ${error.message || 'Action failed.'}` })).catch(() => {});
+      const payload = withAutoEphemeral(interaction, { content: `⚠️ ${error.message || 'Action failed.'}` });
+      if (interaction.deferred || interaction.replied) {
+        await interaction.followUp(payload).catch(() => {});
+      } else {
+        await interaction.reply(payload).catch(() => {});
+      }
       return;
     }
-    console.error('Cartel upkeep modal failed', error);
-    await interaction.reply(withAutoEphemeral(interaction, { content: '⚠️ Something went wrong while paying upkeep. Please try again.' })).catch(() => {});
+    console.error('Cartel dealer hire failed', error);
+    const payload = withAutoEphemeral(interaction, { content: '⚠️ Something went wrong while hiring a dealer. Please try again.' });
+    if (interaction.deferred || interaction.replied) {
+      await interaction.followUp(payload).catch(() => {});
+    } else {
+      await interaction.reply(payload).catch(() => {});
+    }
   }
 }
 
