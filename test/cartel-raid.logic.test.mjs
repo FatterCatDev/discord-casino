@@ -236,3 +236,15 @@ test('integration: raid resolver flow with and without raid trigger', async () =
   assert.equal(withRaid.fineChipsPaid, 96);
   assert.equal(applyCalls, 1);
 });
+
+test('unit: cartel overview investor fallback avoids null rank crash', () => {
+  const investor = __test__.coerceOverviewInvestor('guild-1', '1083290728693768192', null);
+
+  assert.equal(investor.guild_id, 'guild-1');
+  assert.equal(investor.user_id, '1083290728693768192');
+  assert.equal(investor.rank, 1);
+  assert.equal(investor.rank_xp, 0);
+  assert.equal(investor.shares, 0);
+  assert.equal(investor.stash_mg, 0);
+  assert.equal(investor.warehouse_mg, 0);
+});

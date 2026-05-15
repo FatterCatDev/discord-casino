@@ -413,11 +413,35 @@ export function dealerPayoutForMg(mg, multiplierBps) {
   return Math.floor(numerator / (MG_PER_GRAM * DEALER_PRICE_SCALE));
 }
 
+function coerceOverviewInvestor(guildId, userId, investor) {
+  if (investor) return investor;
+  return {
+    guild_id: resolveGuildId(guildId),
+    user_id: String(userId || '').trim(),
+    shares: 0,
+    stash_mg: 0,
+    warehouse_mg: 0,
+    rank: 1,
+    rank_xp: 0,
+    sale_multiplier_bps: 0,
+    auto_sell_rule: null,
+    created_at: null,
+    updated_at: null
+  };
+}
+
 export async function getCartelOverview(guildId, userId) {
   const state = await loadCartelState(guildId);
   const pool = state.pool;
   let investor = await getCartelInvestor(guildId, userId);
   investor = await normalizeInvestorState(guildId, investor, userId);
+  if (!investor) {
+    console.warn('Cartel overview investor missing after normalization; using fallback profile.', {
+      guildId,
+      userId
+    });
+    investor = coerceOverviewInvestor(guildId, userId, investor);
+  }
   const shareCount = Math.max(0, Number(investor?.shares || 0));
   const totalShares = Math.max(0, Number(state.totals?.shares || 0));
   const sharePercent = totalShares > 0 && shareCount > 0 ? shareCount / totalShares : 0;
@@ -1937,5 +1961,6 @@ export const __test__ = Object.freeze({
   raidTierForHeat,
   rollRaidIfNeeded,
   resolveWarehouseRaidAfterAction,
-  runPreActionWarehouseRaidCheck
+  runPreActionWarehouseRaidCheck,
+  coerceOverviewInvestor
 });

@@ -2017,8 +2017,14 @@ async function renderDealerView(interaction, ctx, view = 'list', { targetMessage
       return null;
     });
   }
-  if (!response) {
+  if (!response && (interaction.deferred || interaction.replied)) {
     response = await interaction.editReply(payload);
+  }
+  if (!response && !targetMessage) {
+    response = await interaction.reply(withAutoEphemeral(interaction, payload)).catch((err) => {
+      console.error('dealer view reply failed', err);
+      return null;
+    });
   }
   const nextMessageId = response?.id || messageId;
   if (nextMessageId) {
