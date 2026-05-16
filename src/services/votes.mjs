@@ -21,6 +21,7 @@ const AUTO_REDEEM_ENABLED = String(process.env.VOTE_AUTO_REDEEM ?? 'true').toLow
 const AUTO_REDEEM_REASON = process.env.VOTE_REWARD_REASON || 'vote reward';
 
 export const VOTE_COOLDOWN_SECONDS = 12 * 3600; // 12 hours
+const FORGE_VOTE_COOLDOWN_SECONDS = 12 * 3600; // 12 hours (same as standard vote cooldown)
 
 const EXTRA_SITES = parseExtraSites(process.env.VOTE_EXTRA_LINKS);
 

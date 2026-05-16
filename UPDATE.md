@@ -1,6 +1,6 @@
 # Pending Update
 
-version: 1.3.6
+version: 1.3.7
 
 ## What's New for Players
 

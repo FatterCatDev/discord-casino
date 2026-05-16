@@ -478,20 +478,49 @@ app.post('/api/v1/webhooks/dbl', async (req, res) => {
 });
 
 app.post('/api/v1/webhooks/forge-vote', async (req, res) => {
-    if (!isDiscordForgeWebhookEnabled()) return res.status(501).json({ error: 'forge_webhook_disabled' });
+    if (!isDiscordForgeWebhookEnabled()) {
+        console.warn('[forge webhook] webhook disabled - FORGE_WEBHOOK_SECRET not set');
+        return res.status(501).json({ error: 'forge_webhook_disabled' });
+    }
     const token = normalizeWebhookToken(req.headers.authorization);
     if (!verifyForgeSignature(token)) {
-        console.warn('[forge webhook] invalid token', req.headers['user-agent']);
+        console.warn('[forge webhook] invalid token signature', {
+            timestamp: new Date().toISOString(),
+            userAgent: req.headers['user-agent'],
+            tokenPrefix: token ? token.slice(0, 8) : 'none',
+            bodyUser: req.body?.id || 'none'
+        });
         return res.status(401).json({ error: 'invalid_token' });
     }
     try {
-        console.log('[forge webhook]', new Date().toISOString(), req.headers['user-agent'], req.body);
+        console.log('[forge webhook] received vote', {
+            timestamp: new Date().toISOString(),
+            userId: req.body?.id || 'none',
+            username: req.body?.username || 'none',
+            isTest: req.body?.isTest || false,
+            weeklyVotes: req.body?.weeklyVotes || 0,
+            totalVotes: req.body?.totalVotes || 0
+        });
         const result = await recordDiscordForgeVote(req.body || {});
+        console.log('[forge webhook] vote recorded', {
+            userId: req.body?.id,
+            recorded: result.recorded,
+            amount: result.amount,
+            test: result.test
+        });
         res.setHeader('Access-Control-Allow-Origin', '*');
         res.json({ ok: true, ...result });
     } catch (err) {
-        if (err?.message === 'FORGE_USER_REQUIRED') return res.status(400).json({ error: 'missing_user' });
-        console.error('[api] discordforge webhook error:', err);
+        if (err?.message === 'FORGE_USER_REQUIRED') {
+            console.warn('[forge webhook] missing user id in payload', { timestamp: new Date().toISOString(), bodyKeys: Object.keys(req.body || {}) });
+            return res.status(400).json({ error: 'missing_user' });
+        }
+        console.error('[api] discordforge webhook error:', {
+            timestamp: new Date().toISOString(),
+            userId: req.body?.id,
+            error: err.message,
+            stack: err.stack
+        });
         res.status(500).json({ error: 'server_error' });
     }
 });
