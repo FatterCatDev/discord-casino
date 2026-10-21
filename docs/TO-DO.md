@@ -1,242 +1,255 @@
-# DiscordForge API Integration (Top Priority)
+# Readability Refactoring TODO
 
-## 1) Purpose
-Integrate DiscordForge.org API support for bot listing operations, starting with server stats posting and staged support for vote checks and command sync.
+This replaces the previous feature backlog. The goal is to make the entire
+program easier to navigate, understand, test, and maintain without changing
+game rules, payouts, commands, or player-facing behavior.
 
-## 2) Priority
-- Priority: `P0` (highest)
+This is an implementation plan, not a record of completed refactoring.
+Existing feature design documents remain available for reference; their
+unfinished features are not part of this refactor.
 
-## 3) Immediate Checklist
-- [ ] Finalize and approve design doc: `docs/discordforge-api-integration-design.md`.
-- [ ] Store DiscordForge API key in runtime secrets (env only, not in repo files).
-- [ ] Add env validation for DiscordForge settings.
-- [ ] Implement stats poster (`POST /api/bots/stats`) with 5+ minute interval.
-- [ ] Trigger immediate stats post on ready/guild join/guild leave events.
-- [ ] Add safe retries/backoff and structured logging for DiscordForge API calls.
-- [ ] Add DiscordForge vote webhook endpoint plan (`Authorization` secret check, 2xx within 5s, skip `isTest`).
-- [ ] Add optional vote-check helper (`GET /api/bots/:id/votes/check`) integration for future reward flow.
-- [ ] Add slash-command sync (`POST /api/external/bots/commands`) and run it on deploy.
-- [ ] Add tests for payload building, rate-limit guardrails, and failure handling.
-- [ ] Document rollout and rollback procedure.
+## Priorities and sequencing
 
-## 4) Acceptance Criteria
-- [ ] DiscordForge stats are posted successfully on schedule without violating rate limits.
-- [ ] Stats post can be manually triggered from runtime events.
-- [ ] Missing/invalid key disables integration gracefully with clear logs.
-- [ ] No API key is stored in source-controlled files.
+Start with P0, then complete P1 (Hold'em) as the reference implementation.
+After P1, P2-P5 can proceed independently, one area at a time. P6 follows the
+relevant domain extractions, and P7 is the final repository-wide review.
+Every phase includes its own tests and documentation updates.
 
-# Inventory System Checklist
+| Priority | Area | Current starting point | Main outcome |
+| --- | --- | --- | --- |
+| P0 | Baseline and conventions | Four test files in `test/` | Safe, behavior-preserving extraction workflow |
+| P1 | Hold'em | `src/games/holdem.mjs`, about 1,729 lines | Separate rules, UI, persistence, and lifecycle |
+| P2 | Bot runtime | `src/index.mjs`, about 1,933 lines | Small composition root with explicit routing and startup |
+| P3 | Database | `src/db/db.pg.mjs`, about 3,172 lines | Shared connection layer and domain query modules |
+| P4 | Cartel | Command about 3,589 lines; service about 1,966 | Separate screens, handlers, business rules, and workers |
+| P5 | Jobs | `src/jobs/shift-engine.mjs`, about 2,198 lines | Separate session flow, job-specific behavior, and presentation |
+| P6 | Remaining surfaces | Other games, API, help, integrations, and scripts | Consistent organization across the program |
+| P7 | Final verification | All changed modules and documentation | Verified behavior and accurate navigation docs |
 
-## 1) Purpose
-Implement a persistent player inventory and shop flow where consumable items affect bet interpretation and settlement outcomes for eligible casino games.
+Line counts are approximate review-time observations, not hard limits.
 
-## 2) Goals
-- Every player has an inventory.
-- All items are purchasable via `/shop`.
-- Players can arm one item effect for the next eligible gamble.
-- Item effects modify betting outcomes/settlement only, not game RNG logic.
-- First MVP item supports: "double next bet for free" behavior.
+## Refactoring rules
 
-## 3) Functional Requirements
+- Split by responsibility, not arbitrary line counts or numbered file parts.
+  Aim for focused modules of roughly 200-400 lines where natural; review modules
+  above 500 lines rather than enforcing a limit that fragments cohesive code.
+- Keep the existing `.mjs`/ES-module approach and directory conventions. No
+  framework rewrite, TypeScript migration, or new dependencies are required.
+- Keep existing public exports as compatibility facades while moving internals.
+  Preserve function signatures, state-map identity, custom IDs, and import paths
+  until all callers and tests have been deliberately migrated.
+- Pure rules must not import Discord, open a database connection, start timers,
+  or read runtime secrets. Orchestrators own side effects and call rules,
+  persistence, and presentation modules in an explicit order.
+- Keep mutable state and timers under a single owner per feature. Avoid circular
+  imports, duplicated registries, and service modules importing command handlers.
+- Use descriptive names, short focused functions, and brief comments explaining
+  non-obvious rules. Add JSDoc for important state/result shapes and contracts.
+- Extract shared helpers only when existing callers genuinely share behavior;
+  keep game-specific rules local. Reuse existing helpers before adding new ones.
+- Separate mechanical moves from deduplication or behavior changes. Characterize
+  suspicious existing behavior first; track rule fixes separately rather than
+  silently changing them during extraction.
+- Keep work in small, independently reviewable changes. Do not deploy a
+  half-extracted subsystem or refactor every feature in one large change.
 
-### 3.1 Inventory + Shop
-- [ ] Add `/shop` listing with item name, description, and chip price.
-- [ ] Add purchase flow: validate balance, deduct chips, increment inventory quantity.
-- [ ] Add `/inventory` to list owned items and quantities.
+## P0 - Establish the safety baseline
 
-### 3.2 Item Use + Active Effect
-- [ ] Add `/useitem <item>` to arm one active effect.
-- [ ] Enforce single active effect at a time per player.
-- [ ] Do not consume active effect on invalid/cancelled command attempts.
+- [ ] Run `npm test` with isolated test configuration; record existing failures
+  before edits. Inspect import-time database initialization first so tests cannot
+  accidentally connect to or modify production data.
+- [ ] Inventory public exports, direct imports, command routes, component custom
+  IDs, state maps, timers, environment settings, and database transaction boundaries
+  for each subsystem before moving it.
+- [ ] Add characterization tests for each extraction target before its first
+  move, starting with Hold'em. Use fixed state/decks, controlled clocks, and fake
+  Discord/database boundaries instead of live services.
+- [ ] Replace location-dependent assertions in
+  `test/performance-regressions.test.mjs` alongside each move. Prefer behavioral
+  tests, but retain checks for bounded concurrency, batching, caching, and query
+  efficiency; do not simply delete assertions to make moved code pass.
+- [ ] Define state ownership and import direction in
+  [DEVELOPER_GUIDE.md](./DEVELOPER_GUIDE.md), including the distinction between
+  command adapters, domain rules, persistence, and presentation.
 
-### 3.3 Bet Settlement Integration
-- [ ] Introduce shared effect adapter to compute `base_bet` vs `effective_bet`.
-- [ ] Ensure game engines remain unchanged for outcome RNG.
-- [ ] Consume effect exactly once on next eligible game resolution.
+## P1 - Split Hold'em first
 
-### 3.4 Required MVP Behavior
-- [ ] Implement `ITEM_DOUBLE_NEXT_BET_FREE`:
-- [ ] If user bets 1000 with active item, effective bet is 2000.
-- [ ] If user loses, loss is capped at 1000.
-- [ ] If user wins, payout is calculated from 2000.
+Keep `src/games/holdem.mjs` as the existing public entry point. Extract focused
+modules under `src/games/holdem/`; names below describe the intended boundaries.
+Combine adjacent responsibilities if a separate module would be trivial.
 
-## 4) Data + Migration Checklist
+### Proposed module boundaries
 
-### Schema
-- [ ] Add `player_inventory` table.
-- [ ] Add `shop_items` table (or registry-backed equivalent with persistence needs).
-- [ ] Add `player_active_item_effect` table.
-- [ ] Add `item_effect_audit_log` table.
-- [ ] Add indexes for `(guild_id, user_id)` lookups and audit recency.
+| Proposed module | Responsibility / existing code to move |
+| --- | --- |
+| `state.mjs` | Sole `holdemTables` registry, `tableKey`, lookup, seat construction, documented table/seat shapes |
+| `deck.mjs` | Hold'em deck creation, card constants, burn/deal operations |
+| `evaluation.mjs` | `evaluate7`, straight detection, rank labels, comparison |
+| `betting.mjs` | Fold/check/call/raise/all-in, action eligibility, turn order, street transitions |
+| `pots.mjs` | Uncalled-bet refunds, side-pot eligibility, split/odd-chip allocation, rake calculations |
+| `presentation.mjs` | Table/result embeds, buttons, card formatting, payloads, existing persona/asset application |
+| `persistence.mjs` | Existing table/hand writes, escrow operations, payout/rake writes, hand finalization |
+| `table-lifecycle.mjs` | Host/join/leave/rebuy, seat and host changes, temporary channel creation/cleanup |
+| `hand-lifecycle.mjs` | Manual/automatic starts, action orchestration, result settlement, next-hand scheduling, owned timer cleanup |
+| `interaction-handlers.mjs` | Button/modal validation and dispatch to lifecycle operations |
 
-### Safety + Backward Compatibility
-- [ ] Ensure migrations are idempotent (`IF NOT EXISTS` guards).
-- [ ] Add parsing/normalization helpers for effect payload JSON.
-- [ ] Add transactional boundaries for settle + consume operations.
+### Extraction checklist
 
-## 5) DB Helper Checklist
+- [ ] Add Hold'em characterization tests: deck uniqueness; hand ranking including
+  ace-low straights and ties; legal/illegal actions; minimum and partial raises;
+  blind/turn ordering; all-in runouts; fold wins; and uncalled-bet refunds.
+- [ ] Cover multi-way side pots, folded-player contributions, ties, odd-chip
+  ordering, rake, and chip conservation across stacks, pot, escrow, and house.
+- [ ] Cover hosting, joining, leaving during a hand, rebuy, sit-out/sit-in,
+  wait-for-BB, underfunded-seat removal, host replacement, private card peeking,
+  action timeout, lobby timeout, and temporary-channel cleanup.
+- [ ] Extract state, deck, and evaluation first, keeping one registry instance.
+  Hold'em uses string cards such as `T` plus suit symbols; shared
+  `src/games/cards.mjs` uses `{ r, s }` objects and `10`. Do not substitute one
+  representation or shuffle algorithm for the other during extraction.
+- [ ] Extract betting and pot calculations without Discord or database imports.
+  Preserve result shapes and mutation ordering; let lifecycle code perform effects.
+- [ ] Extract presentation without changing custom IDs, embeds, attachments,
+  ephemeral card privacy, or persona behavior.
+- [ ] Extract persistence while preserving current transaction boundaries, write
+  ordering, and escrow semantics. Test that one resolution does not duplicate
+  payouts, rake, or hand finalization.
+- [ ] Extract table and hand lifecycle orchestration. Explicitly assign ownership
+  of action/warning, host-idle, lobby/empty-close, and next-hand timers; cancel
+  them on close and verify late callbacks cannot act on a closed table.
+- [ ] Compare `startHand` and `startHandAuto`; characterize their differences
+  before sharing hand initialization, blind posting, dealing, and turn setup.
+- [ ] Move the implementations of `onHoldemButton`, `onHoldemBetModal`,
+  `onHoldemJoinModal`, and `onHoldemCustomModal` behind the existing adapters in
+  `src/interactions/`. Avoid creating a second competing dispatch layer.
+- [ ] Verify every caller: `src/commands/holdem.mjs`, all four Hold'em interaction
+  adapters, and runtime table-registry/orphan-cleanup usage in `src/index.mjs`.
+- [ ] Keep the original module as a thin facade, check for circular imports,
+  and document the new layout and state/timer ownership.
 
-### Inventory Helpers
-- [ ] Upsert inventory rows and quantity increments/decrements.
-- [ ] Guard against negative quantity.
-- [ ] Add helper to list inventory for display.
+## P2 - Reduce the bot entry point to composition
 
-### Effect Helpers
-- [ ] Load active effect by guild/user.
-- [ ] Arm effect atomically from inventory decrement.
-- [ ] Consume/expire/clear effect with status transitions.
-- [ ] Add idempotency protection for duplicate resolution attempts.
+- [ ] Extract environment parsing, bounded cache helpers, guild settings/access
+  caches, and invalidation into focused runtime modules under `src/runtime/`.
+  Preserve defaults, TTLs, capacity bounds, and mutation-triggered invalidation.
+- [ ] Extract owner/admin/moderator checks and command-context construction.
+  Preserve guild binding, persona wrappers, and the session-cleanup promise.
+- [ ] Move the existing command map and component routing into explicit routing
+  modules. Preserve route precedence and custom-ID parsing; avoid a dynamic
+  plugin loader or rewriting already-small command handlers.
+- [ ] Separate response acknowledgement/persona middleware from dispatch,
+  reusing `src/lib/interactionAck.mjs` where its contract actually matches.
+- [ ] Move onboarding, review prompts, news/champion notices, comeback handling,
+  guild welcome handling, and vote-reward DM delivery to focused services.
+- [ ] Extract ready/guild/message event registration, status snapshots,
+  listing-stat triggers, orphan-table cleanup, and scheduled workers. Ensure
+  each listener/worker starts once and preserve delayed batches/concurrency.
+- [ ] Leave `src/index.mjs` responsible for assembling dependencies, registering
+  events, starting workers, and login. Test interaction ordering, access checks,
+  acknowledgements, cache invalidation, and startup/shutdown behavior.
 
-### Audit Helpers
-- [ ] Log `SHOP_PURCHASE`, `ITEM_ARMED`, `ITEM_CONSUMED_ON_GAME`, `ITEM_CLEARED`, `ITEM_EXPIRED`.
-- [ ] Ensure metadata is JSON-safe and bounded.
+## P3 - Split persistence by domain
 
-## 6) Runtime Integration Checklist
+- [ ] Extract one shared Postgres pool, query helpers, transaction helper, SSL
+  configuration, and economy-scope resolution. Never create a pool per module.
+- [ ] Move schema/bootstrap and legacy migration routines out of the query
+  implementation. Preserve current startup initialization initially; changing
+  when migrations run requires a separate explicit rollout decision.
+- [ ] Extract query modules for guild settings/access, wallets/house/ledger,
+  onboarding/activity/news, votes, requests/API keys/status, jobs, Hold'em escrow,
+  and Cartel. Split Cartel further by holdings/market/dealers if needed.
+- [ ] Keep `src/db/db.pg.mjs` and `src/db/db.auto.mjs` public contracts stable,
+  including existing naming aliases and wrapper signatures. Add export-contract
+  tests before simplifying the adapter shim.
+- [ ] Keep cross-domain money operations on the same transaction client; preserve
+  locking, rollback, unique constraints, global-economy scope, and erasure coverage.
+- [ ] Validate extracted queries and bootstrap/migrations against an isolated
+  Postgres database, including rollback, concurrent settlement, and repeat startup.
+  Keep `scripts/pg-schema.sql` and `scripts/migrate.mjs` behavior aligned.
 
-### Command Integration
-- [ ] Add `/shop` command implementation.
-- [ ] Add `/inventory` command implementation.
-- [ ] Add `/useitem` command implementation.
+## P4 - Separate Cartel UI, rules, and background work
 
-### Eligible Game Integration
-- [ ] Integrate effect adapter with blackjack.
-- [ ] Integrate effect adapter with roulette.
-- [ ] Expand to other configured gambling commands.
+- [ ] Split `src/commands/cartel.mjs` into overview/guide, warehouse, shares/market,
+  dealer management, and sell-minigame modules. Keep related builders and handlers
+  together; separate them further only when size or reuse warrants it.
+- [ ] Give order snapshots, dealer selections, name caches, and minigame sessions
+  explicit owners. Preserve their keys, lifetimes, confirmations, and custom IDs.
+- [ ] Split `src/cartel/service.mjs` into focused pricing/market, warehouse/raids,
+  dealers/upkeep, progression, and production-worker responsibilities.
+  Reuse existing constants/progression/image modules rather than duplicating them.
+- [ ] Move pure calculations away from persistence and Discord builders. Keep
+  orchestration and public service exports stable during caller migration.
+- [ ] Preserve and extend `test/cartel-raid.logic.test.mjs`; cover order expiry
+  and fills, dealer upkeep/pausing, production batching, warehouse export/decay,
+  and minigame reservation/refund/payout behavior with controlled time/randomness.
 
-### UX Messaging
-- [ ] Show active effect before settlement.
-- [ ] Display `Base Bet` and `Effective Bet` in result messaging.
-- [ ] Explain modified loss/win when item was used.
+## P5 - Split the job shift engine
 
-## 7) Testing Checklist
+- [ ] Separate session registry/timeouts, stage progression/evaluation, completion
+  and payout, shared presentation, and job-specific presentation/input handling.
+- [ ] Keep bartender, bouncer, and dealer mechanics in focused modules alongside
+  the existing scenario registry; retain `src/jobs/shift-engine.mjs` as a facade.
+- [ ] Compare existing manual/automatic acknowledgement helpers with
+  `src/lib/interactionAck.mjs` before consolidating equivalent behavior.
+- [ ] Keep stamina/cooldown/rank/XP logic owned by the existing progression,
+  status, and ranks modules. Keep `src/commands/job.mjs` focused on command input.
+- [ ] Test each job's success/failure, scoring/timing penalties, retries, timeout,
+  cancellation, and duplicate completion, including stamina, XP, and chip effects.
 
-### Unit Tests
-- [ ] Inventory buy/use decrement behavior is correct.
-- [ ] Single-active-effect enforcement.
-- [ ] Double-next-bet math is correct for win/loss paths.
-- [ ] Invalid command attempt does not consume effect.
-- [ ] Idempotent settlement does not double-consume or double-pay.
+## P6 - Organize the remaining program
 
-### Integration Tests
-- [ ] `/shop` purchase updates balance + inventory.
-- [ ] `/useitem` then eligible gamble consumes exactly once.
-- [ ] Non-eligible command leaves effect armed.
+- [ ] Split `src/games/horserace.mjs` into race rules, betting/settlement,
+  presentation, and lifecycle where warranted; preserve animation and swap fees.
+- [ ] Review blackjack, roulette, ridebus, slots, and dicewar command/interaction
+  flows. Extract mixed rules/UI/settlement only where it improves navigation;
+  do not split small cohesive modules merely for consistency.
+- [ ] Separate `src/games/session.mjs` session storage/expiry from message helpers,
+  settlement, and promotional notices while preserving cross-game cleanup and
+  credits-first behavior. Reuse `format.mjs` and `logging.mjs`.
+- [ ] Split `src/api/server.mjs` into app assembly, configuration, OAuth/session
+  handling, API-key authorization, and route groups. Preserve URLs, scopes,
+  cookies, redirects, middleware ordering, rate limits, and webhook responses.
+- [ ] Separate slash-command definitions from deployment in
+  `src/cli/deploy-commands.mjs`, grouped by domain. Verify command names, options,
+  permissions, job choices, help content, and `commands.json` stay aligned;
+  determine how `commands.json` is maintained before changing it.
+- [ ] Group `src/lib/helpSections.mjs` content by topic and separate content from
+  rendering/navigation. Preserve `helpMenu`, embed/image rendering, emoji and
+  asset lookup behavior; retain existing pagination/session helpers.
+- [ ] Review vote, inactivity, champion-role, persona, news/update, Top.gg, and
+  DiscordForge services for mixed responsibilities. Separate transport, payload
+  building, scheduling, and domain decisions only where needed; preserve retries,
+  cooldowns, delivery tracking, and existing behavior tests.
+- [ ] Review remaining economy, request, moderation, configuration, and debug
+  commands. Reuse established permission, acknowledgement, formatting, and logging
+  helpers without hiding feature-specific validation in a generic handler.
+- [ ] Review API CLIs, environment checks, simulations, broadcasts, migration and
+  maintenance scripts. Separate reusable operations from executable entry points
+  where useful; preserve package commands and systemd/update/restart contracts.
+  Do not remove operational files or run destructive scripts during cleanup.
 
-### Regression Tests
-- [ ] Core game outcome logic remains unchanged without active items.
-- [ ] Existing ledger/transaction logs remain consistent.
+## P7 - Readability pass and completion gates
 
-## 8) Rollout Checklist
-
-### Phase 1: Data + Commands
-- [ ] Deploy schema and helpers.
-- [ ] Enable `/shop`, `/inventory`, `/useitem` with MVP item only.
-
-### Phase 2: Game Coverage
-- [ ] Roll out effect adapter to additional games.
-- [ ] Monitor payout variance and item usage rates.
-
-### Phase 3: Stabilization
-- [ ] Tune item pricing/balance from telemetry.
-- [ ] Add additional placeholder items behind config flags.
-
-## 9) Acceptance Criteria
-- [ ] Every player can own inventory items.
-- [ ] Players can buy items through `/shop`.
-- [ ] Player can arm an item and have it apply to the next eligible gamble.
-- [ ] `ITEM_DOUBLE_NEXT_BET_FREE` matches exact expected behavior.
-- [ ] Item application is auditable and resilient to duplicate processing.
-
-# Inactive User Cleanup + Comeback Bonus Checklist
-
-## 1) Purpose
-Implement the inactivity lifecycle described in the design doc so users inactive for 30+ days are marked inactive, excluded from broadcast DMs, and rewarded when they return.
-
-## 2) Goals
-- Mark users inactive after 30 days without command interaction.
-- Attempt a one-time inactivity DM offer for 10,000 chips.
-- Exclude inactive users from bulk broadcast audiences.
-- Reactivate users on next command and grant comeback bonus once per inactivity cycle.
-- Keep lifecycle and bonus events auditable.
-
-## 3) Functional Requirements
-
-### 3.1 Lifecycle Tracking
-- Track `last_interaction_at` for command-triggering users.
-- Mark user inactive when `last_interaction_at` exceeds threshold.
-- Store inactivity timestamps and DM attempt metadata.
-
-### 3.2 Inactive DM Flow
-- Send one DM attempt when user transitions to inactive.
-- DM failure must not block state transitions.
-- Record DM attempt outcome in lifecycle event logs.
-
-### 3.3 Broadcast Audience Filtering
-- Broadcast scripts must target only active users.
-- Staff/admin users are excluded from inactivity/broadcast lifecycle audience handling.
-
-### 3.4 Reactivation + Bonus
-- On first command from inactive user, reactivate user.
-- Grant comeback bonus once per inactivity cycle.
-- Send welcome-back embed with bonus amount and timestamp.
-- Ignore DM send failures on reactivation path.
-
-## 4) Data + Migration Checklist
-- [ ] Keep schema and migration notes aligned with current implementation state.
-
-## 5) DB Helper Checklist
-- [ ] Keep DB helper tasks synchronized with current helper coverage and gaps.
-
-## 6) Runtime Integration Checklist
-- [ ] Keep runtime integration notes focused on remaining behavior gaps only.
-
-## 7) Script + Ops Checklist
-
-### Broadcast Script Integration
-- [ ] Ensure script output reports skipped inactive/staff users.
-
-### Configuration
-- [ ] Keep env/config rollout notes in sync with current deployment defaults.
-
-## 8) Testing Checklist
-
-### Unit Tests
-- [ ] Reactivation flips status and grants bonus exactly once per cycle.
-- [ ] Broadcast audience helper excludes inactive users.
-- [ ] Broadcast audience helper excludes admin/mod users.
-
-### Integration Tests
-- [ ] End-to-end: active -> inactive transition with DM attempt.
-- [ ] End-to-end: inactive -> command -> reactivated + bonus granted.
-- [ ] End-to-end: second command in same cycle does not duplicate bonus.
-
-### Regression Tests
-- [ ] Existing command handling unaffected for active users.
-- [ ] Existing announcement flows continue for active users.
-- [ ] No duplicate grants under concurrent command attempts.
-
-## 9) Rollout Checklist
-
-### Phase 1: Schema + Dry Run
-- [ ] Deploy schema and helpers.
-- [ ] Enable sweep with `INACTIVE_DM_ENABLED=false`.
-- [ ] Validate inactive counts and batch behavior in logs.
-
-### Phase 2: Enable DMs + Bonus
-- [ ] Enable inactivity DM attempts.
-- [ ] Enable comeback bonus grants.
-- [ ] Monitor transaction volume and DM failure rates.
-
-### Phase 3: Stabilization
-- [ ] Verify staff/admin exclusion behavior in production.
-- [ ] Verify broadcast audience reduction metrics.
-- [ ] Confirm no duplicate bonuses after one week.
-
-## 10) Acceptance Criteria
-- [ ] Users inactive >30 days are marked inactive.
-- [ ] Inactive users receive one DM attempt with comeback offer.
-- [ ] Inactive users are excluded from broadcast DM scripts.
-- [ ] Staff/admin users are excluded from inactivity/broadcast lifecycle handling.
-- [ ] Returning inactive users are reactivated and receive 10,000 chips.
-- [ ] Comeback bonus is granted once per inactivity cycle.
-- [ ] Lifecycle and bonus events are auditable.
+- [ ] Expand dense one-line state mutations and deeply nested branches in touched
+  modules. Remove stale commented-out implementations after verifying they are
+  not requirements; keep useful rule explanations and intentional exceptions.
+- [ ] Document important table/session/context/result shapes with JSDoc; make
+  units such as chips, credits, milliseconds, seconds, mg, and basis points clear.
+- [ ] Classify catch blocks in moved code: preserve deliberate best-effort
+  notification handling, but explicitly log/report critical persistence failures.
+  Put any recovery/behavior change in a separate tested change, not a silent
+  success-shaped fallback added during extraction.
+- [ ] Check for dead imports, circular dependencies, duplicate helpers/registries,
+  and module-import side effects. Verify pure-module tests need no live secrets.
+- [ ] Run focused tests and `node --check` on changed `.mjs` modules for each
+  extraction, then `npm test` across the completed refactor. No configured lint
+  or build command currently exists; do not claim those checks have run.
+- [ ] Smoke-test affected commands, buttons, selects, modals, timers, logging,
+  assets, persona mode, API routes, and workers in an isolated Discord guild and
+  database. Explicitly verify money conservation and no duplicate settlement.
+- [ ] Update [DEVELOPER_GUIDE.md](./DEVELOPER_GUIDE.md) with the final module map,
+  dependency direction, test commands, and where to add a feature. Update related
+  game/job/Cartel docs and README entry points only where organization changed.
+- [ ] Review the final diff for accidental rules, economy, schema, configuration,
+  or UX changes. Confirm each phase can be reverted independently and mark these
+  tasks complete only after their tests and smoke checks pass.
