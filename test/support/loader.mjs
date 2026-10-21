@@ -2,7 +2,6 @@ import { readFile } from 'node:fs/promises';
 
 const adapterUrl = new URL('../../src/db/db.auto.mjs', import.meta.url).href;
 const driverUrl = new URL('../../src/db/db.pg.mjs', import.meta.url).href;
-const holdemUrl = new URL('../../src/games/holdem.mjs', import.meta.url).href;
 const fakeDatabaseUrl = new URL('./database.mjs', import.meta.url).href;
 
 export async function resolve(specifier, context, nextResolve) {
@@ -29,19 +28,6 @@ export async function load(url, context, nextLoad) {
       format: 'module',
       shortCircuit: true,
       source: `import { invokeDatabase } from '${fakeDatabaseUrl}';\n${exports.join('\n')}`
-    };
-  }
-  if (url === holdemUrl) {
-    const result = await nextLoad(url, context);
-    // Temporary access to private rules without adding production test exports.
-    const rules = [
-      'makeDeck', 'evaluate7', 'compareHands', 'showdown', 'doFold', 'doCheck',
-      'doCall', 'doAllIn', 'doBetOrRaise', 'refundUncalledBet',
-      'afterActionMaybeAdvance', 'armActionTimer', 'clearActionTimer'
-    ];
-    return {
-      ...result,
-      source: `${result.source}\nexport const __characterization__ = { ${rules.join(', ')} };\n`
     };
   }
   return nextLoad(url, context);

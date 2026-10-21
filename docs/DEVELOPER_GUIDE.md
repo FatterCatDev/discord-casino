@@ -317,7 +317,7 @@ P0 establishes a baseline; it does not move production code or change game rules
 Run the offline suite with `npm test`. For focused coverage:
 
 ```sh
-node --import ./test/support/register.mjs --test test/holdem.behavior.test.mjs test/isolation.test.mjs
+node --import ./test/support/register.mjs --test test/holdem.behavior.test.mjs test/holdem-lifecycle.test.mjs test/holdem-architecture.test.mjs test/isolation.test.mjs
 ```
 
 Do not run behavior tests with bare `node --test`: production imports through
@@ -337,11 +337,9 @@ The test-only preload in `test/support/register.mjs`:
   `test/support/database.mjs`. Unconfigured calls throw; there are no automatic
   successful database results. Install explicit fakes and reset them after tests.
 
-The loader also appends a test-only `__characterization__` namespace to the
-Hold'em module for private rules. It executes the actual implementation rather
-than a copied or regex-extracted function body. This temporary seam adds no
-production export or runtime dependency. Migrate tests to ordinary pure-module
-imports and remove the seam as P1 extracts those rules.
+P0 temporarily appended a test-only `__characterization__` namespace to Hold'em
+for private rules. P1 removed that loader transformation: tests now import the
+extracted modules directly. The loader only isolates database/runtime imports.
 
 Tests use actual Discord payload builders but fake interaction/channel/message
 objects. Hold'em tests control `crypto.randomInt`, `Date.now`, and timer callbacks
@@ -382,9 +380,10 @@ Two existing rule defects are explicitly characterized, not corrected:
   cards rather than five.
 
 These tests record compatibility, not desired poker rules. Fix either in a
-separate approved gameplay change with corrected expectations. Remaining P1
-coverage includes automatic starts, full table close/host-idle behavior,
-concurrent/duplicate settlement, and broader multi-way odd-chip cases.
+separate approved gameplay change with corrected expectations. P1 adds automatic
+starts, close/host-idle behavior, multi-way side pots, and settlement-call ordering.
+Concurrent/duplicate settlement and broader multi-way odd-chip correctness remain
+separate financial/rule hardening work, not guarantees of these unit tests.
 
 ### Dependency direction and ownership
 
@@ -435,7 +434,7 @@ and transaction boundaries; add characterization tests for the touched surface.
 | Help and shared UI | Help command/select/page adapters, help sections/menu/embed/image modules; emoji/assets/persona helpers | Help navigation/session state, emoji override loading, asset paths, persona transforms; `EMOJI_MAP_PATH` |
 | Services and operations | Votes, inactivity, champion-role, Top.gg, DiscordForge, news/updates; scripts and systemd entry points | Provider cooldowns/retries, inactivity and stats intervals, champion notice map/sync timer, delivery tracking; provider/auth/reward/inactivity settings; maintenance commands may write data |
 
-### Hold'em extraction contract (P1 starting point)
+### Hold'em extraction contract
 
 `src/games/holdem.mjs` currently exports:
 
@@ -464,20 +463,24 @@ hand/DB identifiers, message references, and persona callbacks. Seat fields
 include stack, committed/betRound, hole cards, fold/all-in/acted flags, sit-out,
 wait-for-BB, missed blinds, and buy-in/rake snapshots.
 
-Timers currently belong to table state: `actionTimer` (30 seconds),
+Timers belong to table state: `actionTimer` (30 seconds),
 `warningTimer` (10 seconds before expiry), `hostKickTimer` (10 minutes),
 `closeTimer` (empty 2 minutes/lobby 10 minutes), and `nextHandTimer` (10 seconds).
-Cleanup also references `nextHandInterval`. Existing close cleanup does not clear
-`hostKickTimer`; characterize that edge before changing lifecycle ownership.
+Cleanup also references `nextHandInterval`. P1 close cleanup cancels all these
+handles, including `hostKickTimer`, marks state `closed`, and detaches it from the
+registry before asynchronous channel cleanup. Timer callbacks check both the
+closed flag and their handle identity, so canceled/replaced callbacks cannot
+fold a player, close an active table early, or start another hand.
 Hold'em reads no environment variables directly: guild settings supply category
 and default rake, while context supplies access lists and persona behavior.
 
-Database effects use `ensureHoldemTable`, `reserveHoldemTableNumber`,
+Database effects use `reserveHoldemTableNumber`,
 `createHoldemHand`, `getEscrowBalance`, `getUserBalances`, `getHouseBalance`,
 `escrowAdd`, `escrowReturn`, `escrowCommit`, `escrowCreditMany`, `settleRake`,
 and `finalizeHoldemHand`. The escrow add/return/commit/credit and rake helpers
-each have their own `tx` boundary. `scheduleNextHand` credits winners, settles
-rake, then finalizes the hand in separate calls, not one atomic transaction.
+each have their own `tx` boundary. `persistHandResult`, called by
+`scheduleNextHand`, credits winners, settles rake, then finalizes the hand in
+separate calls, not one atomic transaction.
 Preserve that ordering during a mechanical move; do not assume duplicate
 settlement or crash recovery is already guaranteed.
 
@@ -485,4 +488,74 @@ settlement or crash recovery is already guaranteed.
 in Hold'em, runtime, database, Cartel, and services. Migrate each assertion with
 its code move, retaining coverage for pool settings, database table-number
 reservation (no guild-wide channel scan), bounded workers, caches, batching, and
-efficient queries. P0 does not remove these checks ahead of extraction.
+efficient queries. P1 relocates only the table-number-reservation source check
+to `table-lifecycle.mjs` and adds a behavior test that fails if hosting lists
+guild channels. Other source checks stay with their future extraction phases.
+
+## Hold'em module layout (P1)
+
+The public entry point [src/games/holdem.mjs](../src/games/holdem.mjs) is a
+five-line compatibility facade. All 17 existing exports and the table map's
+identity are preserved; runtime and the four existing interaction adapters keep
+their import paths. Implementations live in [src/games/holdem/](../src/games/holdem/).
+
+| Module | Responsibility |
+| --- | --- |
+| `state.mjs` | One table registry, lookups, seat construction, table/seat JSDoc shapes |
+| `deck.mjs` | String-card deck and crypto shuffle; burn/deal helpers |
+| `evaluation.mjs` | Rank evaluation and comparison, without Discord or database imports |
+| `betting.mjs` | Actions, action eligibility, turn order, street advancement |
+| `pots.mjs` | Fold payouts, side pots, ties/odd chips, rake, uncalled-bet refunds |
+| `presentation.mjs` | Embeds, controls, card formatting, result/table payloads and attachments |
+| `persona.mjs` | Existing per-table persona synchronization and transforms |
+| `messages.mjs` | Discord message fetch/edit/notice/announcement and removal DMs |
+| `persistence.mjs` | Database boundary and existing ordered settlement calls |
+| `table-maintenance.mjs` | Underfunded-seat filtering, table disposal and lobby/empty timers |
+| `hand-lifecycle.mjs` | Hand setup, blind posting/dealing, action/warning/next-hand timers |
+| `table-lifecycle.mjs` | Host/join/leave/rebuy/rake operations and host-idle timer |
+| `interaction-handlers.mjs` | Existing button and modal implementations |
+
+Table maintenance deliberately does not import either lifecycle module.
+Hand lifecycle imports maintenance; table lifecycle can then import hand
+lifecycle without a cycle. Rules only import other rules (and Node crypto for
+the deck). Presentation has no database access. Internal modules never import
+the facade. `test/holdem-architecture.test.mjs` enforces these boundaries and
+executes all four interaction adapters.
+
+Manual and automatic starts share hand initialization, seat reset, blind posting,
+dealing, and opening betting setup. Their existing button/actor selection remains
+different: manual starts use seat indexes, while automatic starts use the
+previous hand's active-seat flags before resetting them. Their missed-blind
+removal/refund paths also remain distinct. Do not unify these rules casually.
+
+P1's deliberate lifecycle safety changes are canceled/replaced callback guards,
+complete timer cancellation on close, immediate registry detachment, and stopping
+hand setup when closure happens during database awaits. Critical hand-creation,
+blind-commit, and settlement failures now log explicitly. Existing settlement
+continuation/transaction behavior is otherwise retained; this is not a retry,
+idempotency, or crash-recovery redesign.
+
+The existing straight/runout defects are still characterized. Other inherited
+limitations include the automatic missed-blind notification path referring to
+an unavailable `interaction`, and non-atomic/unguarded repeated hand settlement.
+They need separate fixes with targeted financial/gameplay expectations, rather
+than being silently changed as part of a readability extraction.
+
+Test organization:
+
+- `test/holdem.behavior.test.mjs`: original characterization, rules and base flows.
+- `test/holdem-lifecycle.test.mjs`: hosting, joins/rebuys/leaving, automatic starts,
+  host replacement, disposal, stale timers, payload/persona, settlement ordering,
+  and a fake-ledger conservation flow.
+- `test/holdem-architecture.test.mjs`: facade/registry/adapter and import boundaries.
+- `test/support/holdem-fixtures.mjs`: shared fake state, clients and controlled timers.
+
+No production Discord server or Postgres database is used by these tests. A live
+test-guild/database smoke check remains a pre-deployment requirement, along with
+the isolated transaction/concurrency testing planned for P3.
+
+P1 validation on Node `20.20.2`: **59/59 focused Hold'em/architecture/isolation
+tests pass**. The full isolated suite reports **106 tests, 105 passing, 1 failing**;
+the sole failure is the pre-existing Cartel dealer-control source assertion
+recorded above. Syntax checks pass for the facade, all 13 extracted modules,
+and changed test/support modules. `git diff --check` passes.

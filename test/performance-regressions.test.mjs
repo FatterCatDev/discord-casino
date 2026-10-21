@@ -89,7 +89,7 @@ test('startup holdem orphan cleanup is queued in delayed background batches', as
 });
 
 test('holdem table allocation uses DB reservation instead of full channel fetch scanning', async () => {
-  const holdem = await readRepoFile('src/games/holdem.mjs');
+  const holdem = await readRepoFile('src/games/holdem/table-lifecycle.mjs');
   const db = await readRepoFile('src/db/db.pg.mjs');
   const adapter = await readRepoFile('src/db/db.auto.mjs');
   assert.match(holdem, /reserveHoldemTableNumber/);

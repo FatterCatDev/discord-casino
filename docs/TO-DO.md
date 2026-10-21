@@ -18,7 +18,7 @@ Every phase includes its own tests and documentation updates.
 | Priority | Area | Current starting point | Main outcome |
 | --- | --- | --- | --- |
 | P0 | Baseline and conventions | Four test files in `test/` | Safe, behavior-preserving extraction workflow |
-| P1 | Hold'em | `src/games/holdem.mjs`, about 1,729 lines | Separate rules, UI, persistence, and lifecycle |
+| P1 | Hold'em | Five-line `src/games/holdem.mjs` facade and focused `src/games/holdem/` modules | Extraction implemented; live deployment check remains |
 | P2 | Bot runtime | `src/index.mjs`, about 1,933 lines | Small composition root with explicit routing and startup |
 | P3 | Database | `src/db/db.pg.mjs`, about 3,172 lines | Shared connection layer and domain query modules |
 | P4 | Cartel | Command about 3,589 lines; service about 1,966 | Separate screens, handlers, business rules, and workers |
@@ -104,43 +104,59 @@ Combine adjacent responsibilities if a separate module would be trivial.
 | `pots.mjs` | Uncalled-bet refunds, side-pot eligibility, split/odd-chip allocation, rake calculations |
 | `presentation.mjs` | Table/result embeds, buttons, card formatting, payloads, existing persona/asset application |
 | `persistence.mjs` | Existing table/hand writes, escrow operations, payout/rake writes, hand finalization |
-| `table-lifecycle.mjs` | Host/join/leave/rebuy, seat and host changes, temporary channel creation/cleanup |
+| `table-lifecycle.mjs` | Host/join/leave/rebuy, seat and host changes, temporary channel creation |
 | `hand-lifecycle.mjs` | Manual/automatic starts, action orchestration, result settlement, next-hand scheduling, owned timer cleanup |
 | `interaction-handlers.mjs` | Button/modal validation and dispatch to lifecycle operations |
+| `table-maintenance.mjs` | Shared table cleanup and lobby/empty timers, without importing either lifecycle module |
+| `messages.mjs`, `persona.mjs` | Discord message effects and existing persona transforms |
 
 ### Extraction checklist
 
-- [ ] Add Hold'em characterization tests: deck uniqueness; hand ranking including
+- [x] Add Hold'em characterization tests: deck uniqueness; hand ranking including
   ace-low straights and ties; legal/illegal actions; minimum and partial raises;
   blind/turn ordering; all-in runouts; fold wins; and uncalled-bet refunds.
-- [ ] Cover multi-way side pots, folded-player contributions, ties, odd-chip
+- [x] Cover multi-way side pots, folded-player contributions, ties, odd-chip
   ordering, rake, and chip conservation across stacks, pot, escrow, and house.
-- [ ] Cover hosting, joining, leaving during a hand, rebuy, sit-out/sit-in,
+  Coverage is deterministic/fake-ledger testing, not a real database atomicity
+  guarantee. Existing poker-rule defects remain unchanged.
+- [x] Cover hosting, joining, leaving during a hand, rebuy, sit-out/sit-in,
   wait-for-BB, underfunded-seat removal, host replacement, private card peeking,
   action timeout, lobby timeout, and temporary-channel cleanup.
-- [ ] Extract state, deck, and evaluation first, keeping one registry instance.
+- [x] Extract state, deck, and evaluation first, keeping one registry instance.
   Hold'em uses string cards such as `T` plus suit symbols; shared
   `src/games/cards.mjs` uses `{ r, s }` objects and `10`. Do not substitute one
   representation or shuffle algorithm for the other during extraction.
-- [ ] Extract betting and pot calculations without Discord or database imports.
+- [x] Extract betting and pot calculations without Discord or database imports.
   Preserve result shapes and mutation ordering; let lifecycle code perform effects.
-- [ ] Extract presentation without changing custom IDs, embeds, attachments,
+- [x] Extract presentation without changing custom IDs, embeds, attachments,
   ephemeral card privacy, or persona behavior.
-- [ ] Extract persistence while preserving current transaction boundaries, write
+- [x] Extract persistence while preserving current transaction boundaries, write
   ordering, and escrow semantics. Test that one resolution does not duplicate
   payouts, rake, or hand finalization.
-- [ ] Extract table and hand lifecycle orchestration. Explicitly assign ownership
+  A single resolution calls each operation once; repeated-resolution idempotency
+  and atomic recovery are inherited gaps requiring separate persistence work.
+- [x] Extract table and hand lifecycle orchestration. Explicitly assign ownership
   of action/warning, host-idle, lobby/empty-close, and next-hand timers; cancel
   them on close and verify late callbacks cannot act on a closed table.
-- [ ] Compare `startHand` and `startHandAuto`; characterize their differences
+- [x] Compare `startHand` and `startHandAuto`; characterize their differences
   before sharing hand initialization, blind posting, dealing, and turn setup.
-- [ ] Move the implementations of `onHoldemButton`, `onHoldemBetModal`,
+- [x] Move the implementations of `onHoldemButton`, `onHoldemBetModal`,
   `onHoldemJoinModal`, and `onHoldemCustomModal` behind the existing adapters in
   `src/interactions/`. Avoid creating a second competing dispatch layer.
-- [ ] Verify every caller: `src/commands/holdem.mjs`, all four Hold'em interaction
+- [x] Verify every caller: `src/commands/holdem.mjs`, all four Hold'em interaction
   adapters, and runtime table-registry/orphan-cleanup usage in `src/index.mjs`.
-- [ ] Keep the original module as a thin facade, check for circular imports,
+- [x] Keep the original module as a thin facade, check for circular imports,
   and document the new layout and state/timer ownership.
+
+P1 implementation notes and known limitations are in the developer guide.
+Production rules/UX are retained; the explicit safety change is complete timer
+cleanup and stale-callback/closed-table guards. The temporary Hold'em test-loader
+seam is removed. Database transaction/concurrency guarantees still require P3.
+Validation: 59/59 focused tests pass; full suite 105/106 pass with only the
+previously recorded Cartel assertion failure. Syntax and diff checks pass.
+
+- [ ] Before deployment, smoke-test the refactored table in an isolated Discord
+  guild and database. Offline fake-client tests do not replace this check.
 
 ## P2 - Reduce the bot entry point to composition
 
