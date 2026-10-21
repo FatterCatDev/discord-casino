@@ -55,22 +55,37 @@ Line counts are approximate review-time observations, not hard limits.
 
 ## P0 - Establish the safety baseline
 
-- [ ] Run `npm test` with isolated test configuration; record existing failures
+- [x] Run `npm test` with isolated test configuration; record existing failures
   before edits. Inspect import-time database initialization first so tests cannot
   accidentally connect to or modify production data.
 - [ ] Inventory public exports, direct imports, command routes, component custom
   IDs, state maps, timers, environment settings, and database transaction boundaries
   for each subsystem before moving it.
+  - [x] Record initial subsystem ownership map and detailed Hold'em contract in
+    [DEVELOPER_GUIDE.md](./DEVELOPER_GUIDE.md).
+  - [ ] Extend the exact inventory for each remaining subsystem before its phase.
 - [ ] Add characterization tests for each extraction target before its first
   move, starting with Hold'em. Use fixed state/decks, controlled clocks, and fake
   Discord/database boundaries instead of live services.
+  - [x] Add 31 initial Hold'em characterization tests and 3 isolation guard tests,
+    without changing production code or correcting existing poker rules.
+  - [ ] Extend lifecycle/settlement coverage in P1 and characterize later targets
+    before their own extraction.
 - [ ] Replace location-dependent assertions in
   `test/performance-regressions.test.mjs` alongside each move. Prefer behavioral
   tests, but retain checks for bounded concurrency, batching, caching, and query
   efficiency; do not simply delete assertions to make moved code pass.
-- [ ] Define state ownership and import direction in
+- [x] Define state ownership and import direction in
   [DEVELOPER_GUIDE.md](./DEVELOPER_GUIDE.md), including the distinction between
   command adapters, domain rules, persistence, and presentation.
+
+P0 baseline: 47 existing tests, 45 passing and 2 failing under isolated settings.
+The retired feature-backlog assertion is now checked against the developer
+guide's configuration documentation. The pre-existing Cartel dealer-control
+source assertion remains open for P4; details and known Hold'em quirks are in
+the developer guide. After P0 changes: 81 tests, 80 passing, 1 existing failure.
+No production module has been moved. The unchecked P0
+items above are ongoing gates for the later extraction phases.
 
 ## P1 - Split Hold'em first
 

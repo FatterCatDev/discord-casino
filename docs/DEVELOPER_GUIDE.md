@@ -306,3 +306,183 @@ Useful scripts in `scripts/`:
 Common issues and fixes.
 - Node syntax errors with `with { type: 'json' }`: upgrade to Node 20+.
 - Slash commands missing: global propagation can take up to 1 hour.
+
+## Refactoring safety and testing (P0)
+
+The [refactoring checklist](./TO-DO.md) is the active implementation plan.
+P0 establishes a baseline; it does not move production code or change game rules.
+
+### Isolated test commands
+
+Run the offline suite with `npm test`. For focused coverage:
+
+```sh
+node --import ./test/support/register.mjs --test test/holdem.behavior.test.mjs test/isolation.test.mjs
+```
+
+Do not run behavior tests with bare `node --test`: production imports through
+`src/db/db.auto.mjs` load `db.pg.mjs`, construct a Postgres pool, and execute
+schema/legacy migrations at import time. A localhost connection string alone is
+not sufficient isolation.
+
+The test-only preload in `test/support/register.mjs`:
+
+- Clears inherited application settings, retaining only OS path/temp/home and
+  Node test-context variables, and fixes the timezone to UTC.
+- Blocks fetch, TCP, TLS, and HTTP(S) connections. Tests must supply fake clients
+  or transports; this is an accidental-service-access guard, not an OS sandbox.
+- Registers a loader that rejects direct Postgres and dotenv imports and replaces
+  the database adapter without executing it. No local `.env` file is loaded.
+- Reads the adapter's exported names to generate functions that delegate to
+  `test/support/database.mjs`. Unconfigured calls throw; there are no automatic
+  successful database results. Install explicit fakes and reset them after tests.
+
+The loader also appends a test-only `__characterization__` namespace to the
+Hold'em module for private rules. It executes the actual implementation rather
+than a copied or regex-extracted function body. This temporary seam adds no
+production export or runtime dependency. Migrate tests to ordinary pure-module
+imports and remove the seam as P1 extracts those rules.
+
+Tests use actual Discord payload builders but fake interaction/channel/message
+objects. Hold'em tests control `crypto.randomInt`, `Date.now`, and timer callbacks
+through per-test mocks, restored by Node's runner. No bot login or live settlement
+is performed. These tests do not establish Postgres transaction correctness;
+that requires the isolated-database tests planned for P3.
+
+### Recorded baseline (2026-10-21)
+
+Node `20.20.2`, existing four test files, with isolation installed before the
+first run: **47 tests, 45 passing, 2 failing**. No production source was changed.
+
+1. `todo list tracks inactive cleanup and comeback bonus implementation checklist`
+   expected the retired feature backlog. Its configuration-documentation coverage
+   now checks this guide instead of requiring obsolete TODO content.
+2. `dealer list view includes dropdown dealer management controls and confirm routing`
+   expects `buildDealerManageConfirmRow`, `handleCartelDealerManageConfirm`, and
+   `cartel|dealers|manage|confirm`. Current code uses `buildDealerManageActionRows`,
+   `handleCartelDealerManageAction`, and separate fire/pause/unpause routes.
+   This pre-existing source-contract mismatch remains open for P4; P0 does not
+   change the dealer UX or delete its assertions.
+
+The added isolation/Hold'em files initially pass **34/34 tests**. They cover
+facade exports, registry identity, seat/deck shapes, all hand categories,
+tie/kicker ordering, bet validation, short calls, partial raises, refunds, street
+transitions, fold payouts, side pots/rake, odd-chip ordering, private peeking,
+wrong-turn rejection, buy-in checks, manual start, and action timers.
+
+After the P0 changes, the full isolated suite reports **81 tests, 80 passing,
+1 failing**: only the pre-existing Cartel dealer-control assertion above.
+Syntax checks pass for all added/changed test modules. There are no production
+gameplay changes in this baseline.
+
+Two existing rule defects are explicitly characterized, not corrected:
+
+- A six-card overlapping straight run currently selects the lower five-card run.
+- When everyone is all-in preflop, one runout path currently deals four board
+  cards rather than five.
+
+These tests record compatibility, not desired poker rules. Fix either in a
+separate approved gameplay change with corrected expectations. Remaining P1
+coverage includes automatic starts, full table close/host-idle behavior,
+concurrent/duplicate settlement, and broader multi-way odd-chip cases.
+
+### Dependency direction and ownership
+
+The intended dependency flow is:
+
+```text
+runtime composition -> command/interaction adapters -> feature orchestration
+feature orchestration -> pure rules + presentation + persistence
+persistence -> shared connection/transaction layer
+presentation -> Discord builders + existing formatting/assets/persona helpers
+```
+
+- **Composition** owns client creation, listener registration, startup, and
+  worker startup/shutdown. Importing a rule module must not start any of these.
+- **Adapters** parse Discord inputs and choose a feature operation. Preserve
+  existing routes and acknowledgement ordering while moving implementation.
+- **Orchestration** owns a feature's registry, state transitions, timer lifecycle,
+  and effect ordering. Give each registry/timer one owner; re-export the same map
+  instance rather than constructing a second one.
+- **Rules** evaluate explicit input/state and return results or documented
+  mutations. They must not import Discord, database adapters, runtime settings,
+  command handlers, or timers.
+- **Presentation** builds payloads without settling balances or choosing the
+  next game state. Preserve custom IDs, privacy, attachments, and persona mode.
+- **Persistence** owns queries/transactions, not Discord messaging. Reuse one
+  pool and pass one transaction client through operations that are already atomic.
+
+The current code does not yet follow every boundary. P1-P6 introduce them
+incrementally, preserving facade signatures and import paths. Internal modules
+must not import their own facade; that creates a circular dependency.
+
+### Initial subsystem inventory
+
+This is the navigation/ownership inventory, not an exhaustive frozen API for
+every future phase. Before each subsystem moves, extend its inventory to list
+exact exports/callers, custom IDs, environment names/defaults, timer cancellation,
+and transaction boundaries; add characterization tests for the touched surface.
+
+| Area | Current contracts and callers | Mutable state and side effects to preserve |
+| --- | --- | --- |
+| Runtime | `src/index.mjs`; command map, `buildCommandContext`, `InteractionCreate` and ready/guild/message listeners | Settings/access/news caches, onboarding/welcome sets, session stats; cache invalidation, vote DM concurrency, orphan-sweep batching, status/session/vote/prune intervals; `DISCORD_TOKEN`, owner IDs and cache/worker settings |
+| Persistence | `db.auto.mjs` facade over `db.pg.mjs`; commands, services, games, API and scripts import helpers | One pool, import-time migrations, economy scope, `q`/`q1`/`tx`; `DATABASE_URL`, SSL/certificate and pool settings, primary/global economy IDs; transaction clients and ledger ordering |
+| Hold'em | Public facade and route details below | One table registry, per-table timers, string cards, chip-only escrow |
+| Cartel | `commands/cartel.mjs` handlers/builders called by runtime; `cartel/service.mjs` called by commands, worker, and debug tools | Sell-minigame sessions, dealer-name/selection caches, market snapshots, worker guild cache and interval; log-channel, pricing, raid, dealer, expiry and worker settings; database-backed reserves/refunds and trade writes |
+| Jobs | `startJobShift`, `handleJobShiftButton`, `cancelActiveShiftForUser`; job command and interaction adapters; scenario registry/progression/status/ranks | `sessionsById` and `sessionsByUser`, session expiry and acknowledgement timers; `JOB_SHIFT_BUTTON_ACK_MS`/`INTERACTION_STALE_MS`; stamina, XP, completion and house payouts |
+| Other games | Commands and interaction adapters call game modules; shared `session.mjs`, `logging.mjs`, `format.mjs`, `cards.mjs` | Active-session and per-game maps, expiry/cleanup, horse-race ID/channel/message indexes and animation; credits-first settlement differs from Hold'em |
+| API and deployment | `api/server.mjs`, API CLIs and `cli/deploy-commands.mjs`; command definitions, `commands.json` | HTTP listener, middleware order, OAuth cookies/state, key scopes, webhook delivery; OAuth/CORS/session/port and provider settings |
+| Help and shared UI | Help command/select/page adapters, help sections/menu/embed/image modules; emoji/assets/persona helpers | Help navigation/session state, emoji override loading, asset paths, persona transforms; `EMOJI_MAP_PATH` |
+| Services and operations | Votes, inactivity, champion-role, Top.gg, DiscordForge, news/updates; scripts and systemd entry points | Provider cooldowns/retries, inactivity and stats intervals, champion notice map/sync timer, delivery tracking; provider/auth/reward/inactivity settings; maintenance commands may write data |
+
+### Hold'em extraction contract (P1 starting point)
+
+`src/games/holdem.mjs` currently exports:
+
+- State/helpers: `holdemTables`, `tableKey`, `ensureTableInChannel`, `emptySeat`.
+- UI: `buildTableEmbed`, `tableButtons`.
+- Operations: `setTableRake`, `hostTable`, `listTables`, `joinTable`, `leaveTable`,
+  `rebuyAtTable`, `startHand`.
+- Handlers: `onHoldemButton`, `onHoldemBetModal`, `onHoldemJoinModal`,
+  `onHoldemCustomModal`.
+
+`test/holdem.behavior.test.mjs` freezes this export-name set and checks identity
+of registered table objects. Runtime imports the registry for orphan cleanup.
+The four `src/interactions/holdem*.mjs` adapters directly import the corresponding
+handlers; the slash command builds the table-creation selector rather than
+calling `hostTable` directly. Runtime dispatches `hold|` buttons and modal
+prefixes `hold|bet|`, `hold|join|`, and `hold|custom|`.
+
+Preserve IDs for `create|preset|owner`, `join`, `leave`, `start|host`, `sitout`,
+`sitin`, `peek`, and `act|fold/check/call/allin/raise|user` after the `hold|`
+prefix. Modal fields are `amount`, `buyin`, and custom `sb`/`min`/`max`/`cap`.
+Custom-table modal IDs additionally carry owner/source-message identifiers.
+
+The sole map is keyed by `${guildId}:${channelId}`. State holds seats, table
+configuration, button/actor indexes, deck/board/burned cards, pot/current bet,
+hand/DB identifiers, message references, and persona callbacks. Seat fields
+include stack, committed/betRound, hole cards, fold/all-in/acted flags, sit-out,
+wait-for-BB, missed blinds, and buy-in/rake snapshots.
+
+Timers currently belong to table state: `actionTimer` (30 seconds),
+`warningTimer` (10 seconds before expiry), `hostKickTimer` (10 minutes),
+`closeTimer` (empty 2 minutes/lobby 10 minutes), and `nextHandTimer` (10 seconds).
+Cleanup also references `nextHandInterval`. Existing close cleanup does not clear
+`hostKickTimer`; characterize that edge before changing lifecycle ownership.
+Hold'em reads no environment variables directly: guild settings supply category
+and default rake, while context supplies access lists and persona behavior.
+
+Database effects use `ensureHoldemTable`, `reserveHoldemTableNumber`,
+`createHoldemHand`, `getEscrowBalance`, `getUserBalances`, `getHouseBalance`,
+`escrowAdd`, `escrowReturn`, `escrowCommit`, `escrowCreditMany`, `settleRake`,
+and `finalizeHoldemHand`. The escrow add/return/commit/credit and rake helpers
+each have their own `tx` boundary. `scheduleNextHand` credits winners, settles
+rake, then finalizes the hand in separate calls, not one atomic transaction.
+Preserve that ordering during a mechanical move; do not assume duplicate
+settlement or crash recovery is already guaranteed.
+
+`test/performance-regressions.test.mjs` currently asserts implementation locations
+in Hold'em, runtime, database, Cartel, and services. Migrate each assertion with
+its code move, retaining coverage for pool settings, database table-number
+reservation (no guild-wide channel scan), bounded workers, caches, batching, and
+efficient queries. P0 does not remove these checks ahead of extraction.

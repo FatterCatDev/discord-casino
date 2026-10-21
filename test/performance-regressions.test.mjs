@@ -401,14 +401,14 @@ test('session cleanup detaches state before async work', async () => {
   assert.match(loggingContent, /activeSessions\.delete\(key\);/);
 });
 
-test('todo list tracks inactive cleanup and comeback bonus implementation checklist', async () => {
-  const content = await readRepoFile('docs/TO-DO.md');
-  assert.match(content, /# Inactive User Cleanup \+ Comeback Bonus Checklist/);
-  assert.match(content, /## 3\) Functional Requirements/);
-  assert.match(content, /### 3\.2 Inactive DM Flow/);
-  assert.match(content, /### Broadcast Script Integration/);
-  assert.match(content, /INACTIVE_DAYS_THRESHOLD=30/);
-  assert.match(content, /COMEBACK_BONUS_CHIPS=10000/);
+test('developer guide documents inactivity lifecycle configuration defaults', async () => {
+  const content = await readRepoFile('docs/DEVELOPER_GUIDE.md');
+  assert.match(content, /`INACTIVE_DAYS_THRESHOLD` \(default `30`\)/);
+  assert.match(content, /`INACTIVE_SWEEP_INTERVAL_MS` \(default `21600000`\)/);
+  assert.match(content, /`INACTIVE_SWEEP_BATCH_SIZE` \(default `100`\)/);
+  assert.match(content, /`INACTIVE_DM_ENABLED` \(default `true`\)/);
+  assert.match(content, /`COMEBACK_BONUS_ENABLED` \(default `true`\)/);
+  assert.match(content, /`COMEBACK_BONUS_CHIPS` \(default `10000`\)/);
 });
 
 test('champion role sync avoids full guild member fetch on startup', async () => {
