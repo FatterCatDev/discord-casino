@@ -195,6 +195,11 @@ export function startLeaderboardChampionWatcher(client) {
   return true;
 }
 
+export function stopLeaderboardChampionWatcher() {
+  clearInterval(syncTimer);
+  syncTimer = null;
+}
+
 export async function forceSyncChampionRole(client, reason = 'manual') {
   await syncChampionRole(client, reason);
 }

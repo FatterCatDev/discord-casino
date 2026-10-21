@@ -10,6 +10,10 @@ async function readRepoFile(relPath) {
   return readFile(fullPath, 'utf8');
 }
 
+async function readRuntimeFiles(...names) {
+  return (await Promise.all(names.map(name => readRepoFile(`src/runtime/${name}.mjs`)))).join('\n');
+}
+
 test('db pool includes explicit tuning options', async () => {
   const content = await readRepoFile('src/db/db.pg.mjs');
   assert.match(content, /new Pool\s*\(\s*\{/);
@@ -78,7 +82,7 @@ test('leaderboard caches names and resolves them once across chip and share view
 });
 
 test('startup holdem orphan cleanup is queued in delayed background batches', async () => {
-  const content = await readRepoFile('src/index.mjs');
+  const content = await readRuntimeFiles('config', 'orphan-cleanup', 'background');
   assert.match(content, /const HOLDEM_ORPHAN_SWEEP_START_DELAY_MS =/);
   assert.match(content, /const HOLDEM_ORPHAN_SWEEP_GUILD_BATCH_SIZE =/);
   assert.match(content, /const HOLDEM_ORPHAN_SWEEP_BATCH_INTERVAL_MS =/);
@@ -103,7 +107,7 @@ test('holdem table allocation uses DB reservation instead of full channel fetch 
 });
 
 test('vote reward DM delivery uses bounded concurrency workers', async () => {
-  const content = await readRepoFile('src/index.mjs');
+  const content = await readRuntimeFiles('config', 'vote-delivery', 'background');
   const db = await readRepoFile('src/db/db.pg.mjs');
   const auto = await readRepoFile('src/db/db.auto.mjs');
   const voteCommand = await readRepoFile('src/commands/vote.mjs');
@@ -179,9 +183,9 @@ test('inactivity lifecycle schema and helper exports exist for cleanup/comeback 
 });
 
 test('interaction flow handles inactivity reactivation and comeback DM wiring', async () => {
-  const index = await readRepoFile('src/index.mjs');
+  const index = await readRuntimeFiles('config', 'comeback', 'interactions');
   assert.match(index, /touchUserActivityLifecycle,/);
-  assert.match(index, /reactivateUserWithComebackBonus,/);
+  assert.match(index, /reactivateUserWithComebackBonus/);
   assert.match(index, /const COMEBACK_BONUS_CHIPS =/);
   assert.match(index, /const COMEBACK_BONUS_ENABLED =/);
   assert.match(index, /async function maybeHandleInactivityLifecycle\(interaction\)/);
@@ -205,7 +209,7 @@ test('broadcast script uses active lifecycle eligible audience list', async () =
 
 test('inactivity sweep service exists with correct wiring and env guards', async () => {
   const sweep = await readRepoFile('src/services/inactivity.mjs');
-  const index = await readRepoFile('src/index.mjs');
+  const index = await readRuntimeFiles('config', 'background');
   // service internals
   assert.match(sweep, /import \{[\s\S]*listUsersToMarkInactive/);
   assert.match(sweep, /markUsersInactive/);
@@ -227,7 +231,7 @@ test('inactivity sweep service exists with correct wiring and env guards', async
   assert.match(sweep, /INACTIVE_DM_SENT/);
   assert.match(sweep, /INACTIVE_DM_FAIL/);
   // wired in bot startup
-  assert.match(index, /import \{ startInactivitySweep \} from '\.\/services\/inactivity\.mjs';/);
+  assert.match(index, /import \{ startInactivitySweep, stopInactivitySweep \} from '\.\.\/services\/inactivity\.mjs';/);
   assert.match(index, /startInactivitySweep\(client\)/);
   assert.match(index, /function toMinInt\(raw, fallback, min\)/);
   assert.match(index, /function toBool\(raw, fallback = true\)/);
@@ -359,12 +363,12 @@ test('missing database indexes are created for cartel and access control tables'
 });
 
 test('index interaction handlers no longer use dynamic imports', async () => {
-  const content = await readRepoFile('src/index.mjs');
-  assert.doesNotMatch(content, /await import\('\.\/interactions/);
+  const content = await readRuntimeFiles('interactions', 'component-routing');
+  assert.doesNotMatch(content, /await import\(/);
 });
 
-test('index includes cache constants and cache invalidation sets', async () => {
-  const content = await readRepoFile('src/index.mjs');
+test('runtime includes cache constants and cache invalidation sets', async () => {
+  const content = await readRuntimeFiles('config', 'cache-primitives', 'caches', 'news-notices', 'commands');
   assert.match(content, /const GUILD_SETTINGS_TTL_MS =/);
   assert.match(content, /const ACCESS_LIST_TTL_MS =/);
   assert.match(content, /const ACTIVE_NEWS_TTL_MS =/);
@@ -381,7 +385,7 @@ test('index includes cache constants and cache invalidation sets', async () => {
 });
 
 test('new game command wrappers no longer block on prior session cleanup', async () => {
-  const content = await readRepoFile('src/index.mjs');
+  const content = await readRuntimeFiles('context');
   const ridebus = content.match(/startRideBus:\s*async\s*\(interaction, bet\)\s*=>\s*\{[\s\S]*?\n\s*\},/);
   const blackjack = content.match(/startBlackjack:\s*async\s*\(interaction, table, bet\)\s*=>\s*\{[\s\S]*?\n\s*\},/);
   const slots = content.match(/runSlotsSpin:\s*async\s*\(interaction, bet, key\)\s*=>\s*\{[\s\S]*?\n\s*\},/);
@@ -421,7 +425,7 @@ test('cartel raid debug command is admin-gated and wired through deploy and runt
   const command = await readRepoFile('src/commands/cartelraiddebug.mjs');
   const service = await readRepoFile('src/cartel/service.mjs');
   const deploy = await readRepoFile('src/cli/deploy-commands.mjs');
-  const index = await readRepoFile('src/index.mjs');
+  const index = await readRuntimeFiles('commands');
   const commandList = await readRepoFile('commands.json');
 
   assert.match(command, /if \(!\(await ctx\.isAdmin\(interaction\)\)\)/);
@@ -430,7 +434,7 @@ test('cartel raid debug command is admin-gated and wired through deploy and runt
   assert.match(service, /rollRaid: \(\) => \(\{/);
   assert.match(deploy, /name: 'cartelraiddebug'/);
   assert.match(deploy, /name: 'collected_grams'/);
-  assert.match(index, /import cmdCartelRaidDebug from '\.\/commands\/cartelraiddebug\.mjs';/);
+  assert.match(index, /import cmdCartelRaidDebug from '\.\.\/commands\/cartelraiddebug\.mjs';/);
   assert.match(index, /cartelraiddebug: cmdCartelRaidDebug,/);
   assert.match(commandList, /"name": "cartelraiddebug"/);
 });
@@ -439,7 +443,7 @@ test('cartel warehouse debug command is admin-gated and wired through deploy and
   const command = await readRepoFile('src/commands/cartelwarehousedebug.mjs');
   const service = await readRepoFile('src/cartel/service.mjs');
   const deploy = await readRepoFile('src/cli/deploy-commands.mjs');
-  const index = await readRepoFile('src/index.mjs');
+  const index = await readRuntimeFiles('commands');
   const commandList = await readRepoFile('commands.json');
 
   assert.match(command, /if \(!\(await ctx\.isAdmin\(interaction\)\)\)/);
@@ -449,7 +453,7 @@ test('cartel warehouse debug command is admin-gated and wired through deploy and
   assert.match(service, /recordCartelTransaction\(gid, uid, 'WAREHOUSE_DEBUG_ADD'/);
   assert.match(deploy, /name: 'cartelwarehousedebug'/);
   assert.match(deploy, /name: 'grams'/);
-  assert.match(index, /import cmdCartelWarehouseDebug from '\.\/commands\/cartelwarehousedebug\.mjs';/);
+  assert.match(index, /import cmdCartelWarehouseDebug from '\.\.\/commands\/cartelwarehousedebug\.mjs';/);
   assert.match(index, /cartelwarehousedebug: cmdCartelWarehouseDebug,/);
   assert.match(commandList, /"name": "cartelwarehousedebug"/);
 });
@@ -466,7 +470,7 @@ test('cartel overview and warehouse views include warehouse heat bar indicators'
 test('dealer list view includes dropdown dealer management controls and confirm routing', async () => {
   const command = await readRepoFile('src/commands/cartel.mjs');
   const service = await readRepoFile('src/cartel/service.mjs');
-  const index = await readRepoFile('src/index.mjs');
+  const index = await readRuntimeFiles('component-routing');
 
   assert.match(command, /const CARTEL_DEALERS_MANAGE_FIRE_SELECT_ID = 'cartel\|dealers\|manage\|fire\|select';/);
   assert.match(command, /const CARTEL_DEALERS_MANAGE_PAUSE_SELECT_ID = 'cartel\|dealers\|manage\|pause\|select';/);

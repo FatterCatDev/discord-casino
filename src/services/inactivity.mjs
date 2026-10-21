@@ -145,3 +145,8 @@ export function startInactivitySweep(client) {
   console.log(`[inactivity-sweep] Started. interval=${INACTIVE_SWEEP_INTERVAL_MS}ms threshold=${INACTIVE_DAYS_THRESHOLD}d dmEnabled=${INACTIVE_DM_ENABLED}`);
   return sweepTimer;
 }
+
+export function stopInactivitySweep() {
+  clearInterval(sweepTimer);
+  sweepTimer = null;
+}

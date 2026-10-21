@@ -158,26 +158,45 @@ previously recorded Cartel assertion failure. Syntax and diff checks pass.
 - [ ] Before deployment, smoke-test the refactored table in an isolated Discord
   guild and database. Offline fake-client tests do not replace this check.
 
-## P2 - Reduce the bot entry point to composition
+## P2 - Reduce the bot entry point to composition (implemented; offline verified)
 
-- [ ] Extract environment parsing, bounded cache helpers, guild settings/access
+- [x] Extract environment parsing, bounded cache helpers, guild settings/access
   caches, and invalidation into focused runtime modules under `src/runtime/`.
   Preserve defaults, TTLs, capacity bounds, and mutation-triggered invalidation.
-- [ ] Extract owner/admin/moderator checks and command-context construction.
+- [x] Extract owner/admin/moderator checks and command-context construction.
   Preserve guild binding, persona wrappers, and the session-cleanup promise.
-- [ ] Move the existing command map and component routing into explicit routing
+- [x] Move the existing command map and component routing into explicit routing
   modules. Preserve route precedence and custom-ID parsing; avoid a dynamic
   plugin loader or rewriting already-small command handlers.
-- [ ] Separate response acknowledgement/persona middleware from dispatch,
+- [x] Separate response acknowledgement/persona middleware from dispatch,
   reusing `src/lib/interactionAck.mjs` where its contract actually matches.
-- [ ] Move onboarding, review prompts, news/champion notices, comeback handling,
+- [x] Move onboarding, review prompts, news/champion notices, comeback handling,
   guild welcome handling, and vote-reward DM delivery to focused services.
-- [ ] Extract ready/guild/message event registration, status snapshots,
+- [x] Extract ready/guild/message event registration, status snapshots,
   listing-stat triggers, orphan-table cleanup, and scheduled workers. Ensure
   each listener/worker starts once and preserve delayed batches/concurrency.
-- [ ] Leave `src/index.mjs` responsible for assembling dependencies, registering
+- [x] Leave `src/index.mjs` responsible for assembling dependencies, registering
   events, starting workers, and login. Test interaction ordering, access checks,
   acknowledgements, cache invalidation, and startup/shutdown behavior.
+
+The entry point is now 13 lines, down from 1,933. `src/runtime/application.mjs`
+assembles 21 focused runtime modules; module-private caches and existing game
+registries keep their ownership. Response normalization remains separate from
+the delayed-acknowledgement helper because their contracts differ.
+
+Registration is one-shot per client. Disposal removes owned listeners and timers,
+stops listing posters and service watchers, and prevents orphan batches from
+rescheduling/deleting channels after disposal. It does not abort in-flight
+database operations or destroy the Discord client/database pool.
+
+Validation: 28/28 runtime tests pass; full suite 133/134 pass with only the
+previously recorded Cartel assertion failure. The original command map and
+literal component route selector order were compared directly. Syntax and diff
+checks pass. Existing returned-component-promise error boundaries are retained.
+
+- [ ] Before deployment, smoke-test onboarding/acknowledgements, commands,
+  component routing, guild events, and ready workers in an isolated Discord
+  guild/database. No production login, migrations, or network tests were run.
 
 ## P3 - Split persistence by domain
 

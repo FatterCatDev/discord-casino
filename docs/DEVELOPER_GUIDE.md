@@ -6,6 +6,7 @@ This guide describes the codebase structure, configuration, and runtime behavior
 **Repository Layout**
 Key folders and files.
 - `src/index.mjs`: Discord bot entry point.
+- `src/runtime/`: Bot composition, dispatch, middleware, caches, notices and worker ownership.
 - `src/cli/deploy-commands.mjs`: Slash command registration.
 - `src/api/server.mjs`: HTTP API (OAuth + webhooks).
 - `src/commands/`: Slash command handlers.
@@ -31,7 +32,7 @@ Key folders and files.
 - **Chips vs Credits**: Chips are the main currency; credits are a secondary balance used first on losses.
 - **Global economy**: Balances and job data are stored in a shared ledger and are scoped by `guild_id`, but can be pinned to a single economy via `GLOBAL_ECONOMY_ID`.
 - **Sessions**: Games create active sessions with timeouts and logging.
-- **Permissions**: Owners, admins, and moderators are stored in the database and gated in `src/index.mjs`.
+- **Permissions**: Owner overrides come from runtime configuration; admin/moderator lists are stored in the database and checked in `src/runtime/access.mjs`.
 
 **Database**
 The bot uses Postgres only.
@@ -49,7 +50,7 @@ Common commands:
 - Admin/moderator lists are stored in DB and managed via:
   - `/addadmin`, `/removeadmin`
   - `/addmod`, `/removemod`
-- Key checks live in `src/index.mjs` (`hasAdminAccess`, `hasModeratorAccess`).
+- Key checks live in `src/runtime/access.mjs` (`hasAdminAccess`, `hasModeratorAccess`).
 
 **Slash Command Registration**
 Global commands are registered via `src/cli/deploy-commands.mjs`.
@@ -424,7 +425,7 @@ and transaction boundaries; add characterization tests for the touched surface.
 
 | Area | Current contracts and callers | Mutable state and side effects to preserve |
 | --- | --- | --- |
-| Runtime | `src/index.mjs`; command map, `buildCommandContext`, `InteractionCreate` and ready/guild/message listeners | Settings/access/news caches, onboarding/welcome sets, session stats; cache invalidation, vote DM concurrency, orphan-sweep batching, status/session/vote/prune intervals; `DISCORD_TOKEN`, owner IDs and cache/worker settings |
+| Runtime | `src/index.mjs` and `src/runtime/application.mjs`; explicit command/component maps, context factory and listener registration in `src/runtime/` | Module-private settings/access/news caches and onboarding/welcome sets; factory-owned orphan queues, timers, posters and vote lock; `DISCORD_TOKEN`, owner IDs and cache/worker settings |
 | Persistence | `db.auto.mjs` facade over `db.pg.mjs`; commands, services, games, API and scripts import helpers | One pool, import-time migrations, economy scope, `q`/`q1`/`tx`; `DATABASE_URL`, SSL/certificate and pool settings, primary/global economy IDs; transaction clients and ledger ordering |
 | Hold'em | Public facade and route details below | One table registry, per-table timers, string cards, chip-only escrow |
 | Cartel | `commands/cartel.mjs` handlers/builders called by runtime; `cartel/service.mjs` called by commands, worker, and debug tools | Sell-minigame sessions, dealer-name/selection caches, market snapshots, worker guild cache and interval; log-channel, pricing, raid, dealer, expiry and worker settings; database-backed reserves/refunds and trade writes |
@@ -488,9 +489,11 @@ settlement or crash recovery is already guaranteed.
 in Hold'em, runtime, database, Cartel, and services. Migrate each assertion with
 its code move, retaining coverage for pool settings, database table-number
 reservation (no guild-wide channel scan), bounded workers, caches, batching, and
-efficient queries. P1 relocates only the table-number-reservation source check
+efficient queries. P1 relocates the table-number-reservation source check
 to `table-lifecycle.mjs` and adds a behavior test that fails if hosting lists
-guild channels. Other source checks stay with their future extraction phases.
+guild channels. P2 relocates runtime checks to their exact modules without
+removing the known failing Cartel assertion. Database/Cartel checks remain for
+their future extraction phases.
 
 ## Hold'em module layout (P1)
 
@@ -553,6 +556,99 @@ Test organization:
 No production Discord server or Postgres database is used by these tests. A live
 test-guild/database smoke check remains a pre-deployment requirement, along with
 the isolated transaction/concurrency testing planned for P3.
+
+## Bot runtime module layout (P2)
+
+[src/index.mjs](../src/index.mjs) loads environment configuration, constructs the
+Discord client, attaches version/update-announcement helpers, registers the runtime,
+and logs in. It is now 13 lines rather than 1,933. The explicit composition lives
+in [src/runtime/application.mjs](../src/runtime/application.mjs); there is no
+dynamic plugin discovery or handler-loading framework.
+
+| Modules under `src/runtime/` | Responsibility |
+| --- | --- |
+| `application.mjs` | Assemble context/router/background factories and register listeners |
+| `config.mjs` | Shared environment defaults, parsing, owner IDs and notice constants |
+| `cache-primitives.mjs`, `caches.mjs` | Bounded timed/LRU helpers, guild settings/access caches and invalidation |
+| `access.mjs`, `context.mjs` | Owner/admin/moderator checks and guild-bound command dependencies |
+| `commands.mjs` | Existing slash command map and settings/access mutation sets |
+| `interactions.mjs` | Response/persona middleware, logging, onboarding, cleanup, slash flow and request-modal authorization |
+| `component-routing.mjs` | Synchronous, ordered button/select/modal dispatch and custom-ID parsing after middleware |
+| `responses.mjs` | Non-mutating ephemeral flag normalization and idempotent persona wrappers |
+| `onboarding.mjs`, `review-prompts.mjs` | Welcome bonus/acknowledgement and interaction logging/review DMs |
+| `news-notices.mjs`, `champion-notices.mjs`, `comeback.mjs` | Existing user notice lifecycles and caches |
+| `guild-welcome.mjs`, `events.mjs` | Guild welcome deduplication/inviter lookup and guild/message event callbacks |
+| `vote-delivery.mjs` | Bounded DM workers with per-reward success/failure persistence |
+| `orphan-cleanup.mjs` | Delayed, batched startup cleanup; skip active tables and refund before deletion |
+| `background.mjs`, `process-errors.mjs` | Ready workers/snapshots/listing posters and explicit process error registration |
+
+### Preserved dispatch contracts
+
+The interaction callback patches response flags, reads guild persona settings,
+patches persona behavior, and queues logging before dispatch. Slash commands then
+run onboarding, initiate session cleanup, handle inactivity, execute the command,
+invalidate mutation caches, send news reminders, and send comeback DMs. The cleanup
+promise remains separately exposed through `ctx.awaitSessionCleanup`; game wrappers
+do not acquire a new implicit wait. Database wrappers remain bound to the current
+guild, and all game-state maps retain their existing identity.
+
+Welcome acknowledgements and request-rejection authorization stay awaited in
+middleware before regular component dispatch. The component router is deliberately
+synchronous: returning a handler promise without awaiting it preserves the original
+error/finally timing. Synchronous routing failures are caught by the interaction
+callback; rejected returned handler promises still propagate to the existing
+process rejection listener. Champion notices remain in `finally`. Changing that
+error boundary should be a separate behavior change, not a side effect of extraction.
+
+`responses.mjs` does not use `lib/interactionAck.mjs`: the latter implements delayed
+acknowledgement behavior that does not match the original normalization/persona
+wrappers. This extraction does not change acknowledgement deadlines or introduce
+new deferred replies.
+
+### Startup, ownership and disposal
+
+`registerRuntime(client)` is one-shot per client and returns the same registration
+on repeated calls. The runtime assumes one bot client per process, as do the
+existing singleton inactivity/champion services. The ready listener uses `once`;
+the background factory also guards repeated starts. Runtime module imports do not
+log in, install process handlers, or start workers. They still import the existing
+database adapter, which may initialize persistence in production; P3 will address
+that boundary. Offline tests replace it before imports.
+
+The returned `dispose()` removes only its own Discord/process listeners, clears
+runtime intervals and orphan timers, stops listing posters and the inactivity/
+champion watchers, and clears the Cartel worker interval. Disposal is idempotent;
+a disposed registration cannot restart. Orphan cleanup checks disposal after
+asynchronous work, so it cannot delete a channel or schedule another batch after
+shutdown. Already-started database/refund/DM operations are allowed to finish.
+
+This is a runtime-resource disposal API, not a new process shutdown policy:
+it does not destroy the Discord client, close the database pool, install signal
+handlers, or cancel active game timers. The service stop helpers reset their own
+timer references. The unused private entry-point session-stat block was removed;
+it had no callers or persistence effects.
+
+### Runtime validation
+
+- `test/runtime.behavior.test.mjs`: seven pre-extraction characterization tests for
+  parsing, TTL/LRU bounds, guild/access caches, context, response flags and bounded
+  vote DM delivery.
+- `test/runtime-dispatch.test.mjs`: slash ordering, onboarding gating, mutation
+  invalidation, owner override, error boundaries, persona context, welcome/help
+  acknowledgements, request authorization, actual market modal IDs, and 63
+  contextual button/select/modal route examples.
+- `test/runtime-lifecycle.test.mjs`: single registration/start, listener ownership,
+  timer disposal, non-overlapping vote sweeps, status snapshots, delayed orphan
+  batches/refund ordering, cancellation during awaits and guild-event early returns.
+- `test/runtime-architecture.test.mjs`: acyclic imports, a small entry point, and
+  no login/process-listener/timer startup during runtime imports.
+
+P2 verification: **28/28 runtime tests pass**; full isolated suite **133/134 pass**
+with the same pre-existing Cartel dealer-management source assertion failure.
+The original command map and literal component route selector order were compared
+directly; syntax and whitespace checks pass. No live Discord login, production
+database access or migrations were used. An isolated guild/database smoke test
+remains required before deployment.
 
 P1 validation on Node `20.20.2`: **59/59 focused Hold'em/architecture/isolation
 tests pass**. The full isolated suite reports **106 tests, 105 passing, 1 failing**;
